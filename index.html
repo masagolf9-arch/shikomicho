@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>仕込帳 撮影</title>
+<style>
+  :root { --blue:#2f7bf6; --green:#20b26b; --ink:#1d1d1f; --paper:#fffaf0; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html,body { height:100%; background:#000; color:#fff; font-family:-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif; overflow:hidden; }
+  #stage { position:fixed; inset:0; }
+  video, #shot { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+  #shot { display:none; object-fit:contain; background:#000; }
+  #mask { position:absolute; inset:0; pointer-events:none; }
+  #guide { position:absolute; border:4px solid var(--blue); border-radius:14px; box-shadow:0 0 0 9999px rgba(0,0,0,.45); transition:border-color .2s, transform .2s; }
+  #guide.ok { border-color:var(--green); }
+  #guide.pulse { animation:pulse 1.4s ease-in-out infinite; }
+  @keyframes pulse { 50% { transform:scale(1.015); } }
+  .corner { position:absolute; width:34px; height:34px; border:6px solid var(--blue); }
+  #guide.ok .corner { border-color:var(--green); }
+  .tl { left:-8px; top:-8px; border-right:0; border-bottom:0; border-radius:14px 0 0 0; }
+  .tr { right:-8px; top:-8px; border-left:0; border-bottom:0; border-radius:0 14px 0 0; }
+  .bl { left:-8px; bottom:-8px; border-right:0; border-top:0; border-radius:0 0 0 14px; }
+  .br { right:-8px; bottom:-8px; border-left:0; border-top:0; border-radius:0 0 14px 0; }
+  #hint { position:absolute; left:50%; top:calc(env(safe-area-inset-top) + 14px); transform:translateX(-50%); width:calc(100% - 32px); max-width:420px; background:var(--paper); color:var(--ink); border-radius:18px; padding:12px 16px; font-size:17px; font-weight:700; line-height:1.4; text-align:center; box-shadow:0 4px 14px rgba(0,0,0,.3); }
+  #hint small { display:block; font-size:12px; font-weight:500; color:#666; margin-top:2px; }
+  #arrow { position:absolute; font-size:54px; color:var(--blue); text-shadow:0 2px 6px rgba(0,0,0,.5); pointer-events:none; display:none; }
+  #bar { position:absolute; left:0; right:0; bottom:0; padding:16px 20px calc(env(safe-area-inset-bottom) + 18px); display:flex; align-items:center; justify-content:space-between; gap:12px; background:linear-gradient(transparent, rgba(0,0,0,.6)); }
+  button { font:inherit; border:0; cursor:pointer; }
+  #shutter { width:76px; height:76px; border-radius:50%; background:#fff; border:6px solid rgba(255,255,255,.45); background-clip:padding-box; }
+  #shutter:active { transform:scale(.94); }
+  .side { min-width:84px; padding:10px 12px; border-radius:14px; background:rgba(255,255,255,.18); color:#fff; font-size:14px; font-weight:600; }
+  #kind { display:flex; gap:6px; position:absolute; left:50%; transform:translateX(-50%); bottom:calc(env(safe-area-inset-bottom) + 112px); background:rgba(0,0,0,.45); border-radius:999px; padding:4px; }
+  #kind button { white-space:nowrap; padding:7px 14px; border-radius:999px; background:transparent; color:#fff; font-size:14px; font-weight:600; }
+  #kind button[aria-pressed="true"] { background:#fff; color:var(--ink); }
+  #review { position:absolute; left:0; right:0; bottom:0; padding:16px 20px calc(env(safe-area-inset-bottom) + 18px); display:none; gap:12px; background:rgba(0,0,0,.7); }
+  #review button { flex:1; padding:16px; border-radius:16px; font-size:17px; font-weight:700; }
+  #retake { background:rgba(255,255,255,.2); color:#fff; }
+  #send { background:var(--green); color:#fff; }
+  #busy { position:absolute; inset:0; display:none; align-items:center; justify-content:center; flex-direction:column; gap:14px; background:rgba(0,0,0,.72); font-size:18px; font-weight:700; text-align:center; padding:24px; }
+  .spin { width:44px; height:44px; border-radius:50%; border:5px solid rgba(255,255,255,.25); border-top-color:#fff; animation:spin 1s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  #fallback { display:none; position:absolute; inset:0; align-items:center; justify-content:center; flex-direction:column; gap:16px; padding:28px; text-align:center; background:#111; font-size:16px; line-height:1.6; }
+  #fallback label { padding:16px 22px; border-radius:16px; background:var(--blue); font-weight:700; }
+  input[type=file] { display:none; }
+  @media (prefers-reduced-motion: reduce) { #guide.pulse { animation:none; } }
+</style>
+</head>
+<body>
+<div id="stage">
+  <video id="video" playsinline muted autoplay></video>
+  <img id="shot" alt="撮った写真">
+  <div id="mask"><div id="guide" class="pulse"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i></div></div>
+  <div id="arrow">→</div>
+  <div id="hint">紙を青い枠に合わせてください<small>ぴったり合うと緑になって、自動で撮ります</small></div>
+  <div id="kind" role="group" aria-label="何を撮るか">
+    <button aria-pressed="true" data-k="recipe">レシピ</button>
+    <button aria-pressed="false" data-k="invoice">請求書・レシート</button>
+  </div>
+  <div id="bar">
+    <label class="side" for="pick">写真から選ぶ</label>
+    <button id="shutter" aria-label="撮る"></button>
+    <button class="side" id="close">閉じる</button>
+  </div>
+  <div id="review"><button id="retake">撮り直す</button><button id="send">これで送る</button></div>
+  <div id="busy"><div class="spin"></div><div id="busyText">もなかが読んでいます…</div></div>
+  <div id="fallback">
+    <div>カメラが使えませんでした。<br>LINEの設定でカメラを許可するか、<br>写真を選んで送ってください。</div>
+    <label for="pick">写真を選ぶ</label>
+  </div>
+  <input type="file" id="pick" accept="image/*">
+</div>
+
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<script>
+// ===== 設定(公開してよい値だけ) =====
+const LIFF_ID = '2012003912-ltVppjVx';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbxShAkcy1uEzK5ZUGWgW8lzdFBcd8baDNKjHwGKCBx7ocrEUNDHmzrSFdrZDikqL2VO/exec';
+
+const $ = (id) => document.getElementById(id);
+const video = $('video'), guide = $('guide'), hint = $('hint'), arrow = $('arrow');
+let kind = 'recipe', running = false, okSince = 0, lastSmall = null, shotBlob = null, inLiff = false;
+
+// ---- 何を撮るか(レシピは縦長、請求書も縦長。レシートは細長いので枠を細くする) ----
+document.querySelectorAll('#kind button').forEach(b => b.onclick = () => {
+  kind = b.dataset.k;
+  document.querySelectorAll('#kind button').forEach(x => x.setAttribute('aria-pressed', x === b));
+  layoutGuide();
+});
+
+function layoutGuide() {
+  const W = innerWidth, H = innerHeight;
+  const top = 110, bottom = 200;
+  const availH = H - top - bottom, availW = W - 40;
+  const ratio = kind === 'recipe' ? 0.72 : 0.62;     // 幅/高さ
+  let h = availH, w = h * ratio;
+  if (w > availW) { w = availW; h = w / ratio; }
+  guide.style.width = w + 'px'; guide.style.height = h + 'px';
+  guide.style.left = (W - w) / 2 + 'px'; guide.style.top = top + (availH - h) / 2 + 'px';
+}
+addEventListener('resize', layoutGuide);
+
+function say(main, sub) { hint.innerHTML = main + (sub ? '<small>' + sub + '</small>' : ''); }
+function showArrow(dir) {
+  if (!dir) { arrow.style.display = 'none'; return; }
+  const g = guide.getBoundingClientRect();
+  const map = { right: ['→', g.right - 60, g.top + g.height / 2 - 30], left: ['←', g.left + 10, g.top + g.height / 2 - 30],
+                up: ['↑', g.left + g.width / 2 - 16, g.top + 6], down: ['↓', g.left + g.width / 2 - 16, g.bottom - 70] };
+  const m = map[dir]; arrow.textContent = m[0]; arrow.style.left = m[1] + 'px'; arrow.style.top = m[2] + 'px'; arrow.style.display = 'block';
+}
+
+// ---- カメラ ----
+async function startCamera() {
+  try {
+    const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1440 } }, audio: false });
+    video.srcObject = s; await video.play();
+    running = true; requestAnimationFrame(loop);
+  } catch (e) {
+    $('fallback').style.display = 'flex';
+  }
+}
+
+// 画面上の枠を、映像の画素の位置に直す(object-fit: cover の分を計算)
+function guideInVideo() {
+  const vw = video.videoWidth, vh = video.videoHeight, W = innerWidth, H = innerHeight;
+  const sc = Math.max(W / vw, H / vh), ox = (W - vw * sc) / 2, oy = (H - vh * sc) / 2;
+  const g = guide.getBoundingClientRect();
+  return { x: (g.left - ox) / sc, y: (g.top - oy) / sc, w: g.width / sc, h: g.height / sc };
+}
+
+// ---- 紙さがし(小さく縮めて、明るい紙のかたまりを探す) ----
+const small = document.createElement('canvas'), sctx = small.getContext('2d', { willReadFrequently: true });
+let tick = 0;
+function loop() {
+  if (!running) return;
+  requestAnimationFrame(loop);
+  if (++tick % 4 || !video.videoWidth) return;          // 毎秒15回くらい
+  const gv = guideInVideo();
+  // 枠の1.6倍の範囲を見る
+  const pad = 0.3, rx = gv.x - gv.w * pad, ry = gv.y - gv.h * pad, rw = gv.w * (1 + 2 * pad), rh = gv.h * (1 + 2 * pad);
+  const SW = 72, SH = Math.round(SW * rh / rw);
+  small.width = SW; small.height = SH;
+  sctx.drawImage(video, rx, ry, rw, rh, 0, 0, SW, SH);
+  const d = sctx.getImageData(0, 0, SW, SH).data;
+  const n = SW * SH, lum = new Float32Array(n);
+  let sum = 0;
+  for (let i = 0; i < n; i++) { const v = 0.299 * d[i * 4] + 0.587 * d[i * 4 + 1] + 0.114 * d[i * 4 + 2]; lum[i] = v; sum += v; }
+  const mean = sum / n;
+
+  // ブレ(前のコマとの差)
+  let motion = 0;
+  if (lastSmall && lastSmall.length === n) { for (let i = 0; i < n; i += 3) motion += Math.abs(lum[i] - lastSmall[i]); motion /= n / 3; }
+  lastSmall = lum;
+
+  if (mean < 55) return judge('dark');
+
+  // 大津の方法で「紙」と「背景」を分ける
+  const hist = new Array(256).fill(0); for (let i = 0; i < n; i++) hist[lum[i] | 0]++;
+  let sumAll = 0; for (let t = 0; t < 256; t++) sumAll += t * hist[t];
+  let wB = 0, sumB = 0, best = 0, th = 128;
+  for (let t = 0; t < 256; t++) { wB += hist[t]; if (!wB) continue; const wF = n - wB; if (!wF) break; sumB += t * hist[t];
+    const mB = sumB / wB, mF = (sumAll - sumB) / wF, v = wB * wF * (mB - mF) * (mB - mF); if (v > best) { best = v; th = t; } }
+
+  // 明るい側の画素のうち、列・行ごとに半分以上が紙なら紙の範囲とみなす
+  const colHit = new Array(SW).fill(0), rowHit = new Array(SH).fill(0);
+  for (let y = 0; y < SH; y++) for (let x = 0; x < SW; x++) if (lum[y * SW + x] > th) { colHit[x]++; rowHit[y]++; }
+  // 紙と背景の明るさの差が小さいときは「紙が見つからない」
+  let sB = 0, nB = 0, sF = 0, nF = 0; for (let i = 0; i < n; i++) { if (lum[i] > th) { sF += lum[i]; nF++; } else { sB += lum[i]; nB++; } }
+  if (!nF || !nB || sF / nF - sB / nB < 35) return judge('none');
+  const xs = colHit.map((c, i) => c > SH * 0.35 ? i : -1).filter(i => i >= 0);
+  const ys = rowHit.map((c, i) => c > SW * 0.35 ? i : -1).filter(i => i >= 0);
+  if (xs.length < 4 || ys.length < 4) return judge('none');
+  const px0 = xs[0] / SW, px1 = (xs[xs.length - 1] + 1) / SW, py0 = ys[0] / SH, py1 = (ys[ys.length - 1] + 1) / SH;
+  // 枠の位置(見ている範囲の中での割合)
+  const gx0 = pad / (1 + 2 * pad), gx1 = 1 - gx0, gy0 = gx0, gy1 = 1 - gx0;
+  const paperW = px1 - px0, guideW = gx1 - gx0, paperH = py1 - py0, guideH = gy1 - gy0;
+  const sizeRatio = Math.max(paperW / guideW, paperH / guideH);
+  const cx = (px0 + px1) / 2 - 0.5, cy = (py0 + py1) / 2 - 0.5;
+
+  if (sizeRatio < 0.78) return judge('closer');
+  if (px0 < gx0 - 0.07 || px1 > gx1 + 0.07 || py0 < gy0 - 0.07 || py1 > gy1 + 0.07) {
+    if (sizeRatio > 1.12) return judge('farther');
+  }
+  if (Math.abs(cx) > 0.07 || Math.abs(cy) > 0.07) {
+    return judge(Math.abs(cx) > Math.abs(cy) ? (cx > 0 ? 'right' : 'left') : (cy > 0 ? 'down' : 'up'));
+  }
+  if (motion > 9) return judge('shake');
+  judge('ok');
+}
+
+function judge(state) {
+  const msgs = {
+    dark: ['もう少し明るいところで撮りましょう', '電気の下や窓ぎわがおすすめです'],
+    none: ['紙を青い枠に合わせてください', '紙全体が枠に入るように'],
+    closer: ['もう少し近づけてください', '紙が枠いっぱいになるまで'],
+    farther: ['少し離してください', '紙の端が枠からはみ出ています'],
+    right: ['スマホを少し右へ', '紙が枠の右に寄っています'], left: ['スマホを少し左へ', '紙が枠の左に寄っています'],
+    up: ['スマホを少し上へ', '紙が枠の上に寄っています'], down: ['スマホを少し下へ', '紙が枠の下に寄っています'],
+    shake: ['そのまま止めてください', 'ぶれないように少しだけ待ちます'],
+    ok: ['ぴったり! そのまま…', '自動で撮ります']
+  };
+  const m = msgs[state]; say(m[0], m[1]);
+  showArrow(['right', 'left', 'up', 'down'].includes(state) ? state : null);
+  if (state === 'ok') {
+    guide.classList.add('ok'); guide.classList.remove('pulse');
+    if (!okSince) okSince = performance.now();
+    if (performance.now() - okSince > 1100) capture();
+  } else {
+    guide.classList.remove('ok'); guide.classList.add('pulse'); okSince = 0;
+  }
+}
+
+// ---- 撮影 ----
+function capture() {
+  running = false; okSince = 0;
+  if (navigator.vibrate) navigator.vibrate(40);
+  const gv = guideInVideo(), pad = 0.06;
+  const x = Math.max(0, gv.x - gv.w * pad), y = Math.max(0, gv.y - gv.h * pad);
+  const w = Math.min(video.videoWidth - x, gv.w * (1 + 2 * pad)), h = Math.min(video.videoHeight - y, gv.h * (1 + 2 * pad));
+  const scale = Math.min(1, 1800 / Math.max(w, h));
+  const c = document.createElement('canvas'); c.width = Math.round(w * scale); c.height = Math.round(h * scale);
+  c.getContext('2d').drawImage(video, x, y, w, h, 0, 0, c.width, c.height);
+  c.toBlob(b => review(b), 'image/jpeg', 0.88);
+}
+
+function review(blob) {
+  shotBlob = blob;
+  $('shot').src = URL.createObjectURL(blob); $('shot').style.display = 'block';
+  ['mask', 'bar', 'kind'].forEach(id => $(id).style.display = 'none'); arrow.style.display = 'none';
+  $('review').style.display = 'flex';
+  say('この写真で送りますか?', '文字が読めればOKです');
+}
+
+function retake() {
+  shotBlob = null; $('shot').style.display = 'none'; $('review').style.display = 'none';
+  $('mask').style.display = ''; $('bar').style.display = 'flex'; $('kind').style.display = 'flex';
+  say('紙を青い枠に合わせてください', 'ぴったり合うと緑になって、自動で撮ります');
+  running = true; requestAnimationFrame(loop);
+}
+
+// 選んだ写真(カメラが使えないとき)も縮めて送る
+$('pick').onchange = async (e) => {
+  const f = e.target.files[0]; if (!f) return;
+  const img = await createImageBitmap(f);
+  const scale = Math.min(1, 1800 / Math.max(img.width, img.height));
+  const c = document.createElement('canvas'); c.width = Math.round(img.width * scale); c.height = Math.round(img.height * scale);
+  c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+  $('fallback').style.display = 'none'; running = false;
+  c.toBlob(b => review(b), 'image/jpeg', 0.88);
+};
+
+// ---- 送る ----
+async function send() {
+  if (!shotBlob) return;
+  $('busy').style.display = 'flex';
+  try {
+    if (!inLiff) throw new Error('LINEの中で開いたときだけ送れます(いまは試し表示です)');
+    const data = await new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result.split(',')[1]); fr.readAsDataURL(shotBlob); });
+    const res = await fetch(GAS_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ kind: 'liff_upload', idToken: liff.getIDToken(), what: kind, image: data, type: 'image/jpeg' }) });
+    const out = await res.json();
+    if (!out.ok) throw new Error(out.error || '受け取れませんでした');
+    $('busyText').textContent = '読めました! トークに戻ります';
+    await liff.sendMessages([{ type: 'text', text: '📷 撮った写真を送りました' }]);
+    liff.closeWindow();
+  } catch (e) {
+    $('busy').style.display = 'none';
+    say('うまく送れませんでした', String(e.message || e));
+  }
+}
+
+$('shutter').onclick = capture;
+$('retake').onclick = retake;
+$('send').onclick = send;
+$('close').onclick = () => { if (inLiff) liff.closeWindow(); else history.back(); };
+
+// ---- はじまり ----
+layoutGuide();
+(async () => {
+  try {
+    if (window.liff && !LIFF_ID.startsWith('__')) {
+      await liff.init({ liffId: LIFF_ID });
+      inLiff = liff.isInClient() || liff.isLoggedIn();
+      if (!liff.isLoggedIn()) { liff.login(); return; }
+    }
+  } catch (e) { /* LINEの外では試し表示 */ }
+  startCamera();
+})();
+</script>
+</body>
+</html>
