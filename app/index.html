@@ -115,6 +115,18 @@ nav[hidden]{display:none}
 .seg{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}
 .seg button{font:inherit;font-size:13.5px;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:999px;padding:4px 12px;cursor:pointer}
 .seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.hyg-in{display:grid;grid-template-columns:1fr auto;gap:8px 10px;align-items:center}
+.hyg-in input{width:84px;font:inherit;font-size:16px;padding:6px 10px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)}
+.hgrid{font-size:12.5px}.hgrid th,.hgrid td{border:1px solid var(--line);padding:3px 4px;text-align:center;white-space:nowrap}.hgrid th{font-weight:500;background:var(--soft)}
+.hgrid td.bad{background:var(--warn-soft);color:var(--warn);font-weight:700}
+.draft{white-space:pre-wrap;font-size:14.5px;margin:6px 0 0}
+.fld{display:grid;grid-template-columns:6.5em 1fr;gap:6px 8px;align-items:center}
+.fld input,.fld select,.post-in input,.post-in select{font:inherit;font-size:15px;padding:6px 9px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);min-width:0;width:100%;box-sizing:border-box}
+.inv{position:fixed;inset:0;z-index:30;background:#fff;color:#111;overflow:auto;padding:24px 18px 80px;font-size:14px}
+.inv[hidden]{display:none}.inv h2{font-family:var(--display);text-align:center;letter-spacing:.3em;font-size:22px;margin:0 0 16px}
+.inv table{width:100%;border-collapse:collapse;font-size:13px}.inv th,.inv td{border:1px solid #999;padding:4px 6px}.inv th{background:#f2f2f2}
+.inv .bar3{position:fixed;left:0;right:0;bottom:0;display:flex;gap:8px;justify-content:center;padding:10px;background:#fff;border-top:1px solid #ddd}
+@media print{body>*:not(.inv){display:none!important}.inv{position:static;padding:0}.inv .bar3{display:none}}
 .howto td{padding:5px 0;border-top:1px solid var(--line)}
 .howto td:first-child{white-space:nowrap;padding-right:10px;font-weight:500}
 nav button[aria-current="page"]{color:var(--accent);background:var(--soft)}
@@ -134,9 +146,9 @@ nav .badge{position:absolute;top:2px;right:calc(50% - 22px);min-width:16px;heigh
 .dots{display:flex;justify-content:center;gap:6px;margin:8px 0 2px}
 .dots i{width:6px;height:6px;border-radius:3px;background:var(--line);transition:width .2s,background .2s}
 .dots i.on{width:16px;background:var(--accent)}
-.menu{display:grid;grid-template-columns:repeat(4,1fr);gap:12px 4px;margin-top:14px;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:14px 6px}
+.menu{display:grid;grid-template-columns:repeat(5,1fr);gap:12px 4px;margin-top:14px;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:14px 6px}
 .menu button{font:inherit;font-size:12.5px;background:transparent;border:0;color:var(--ink);display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer;position:relative;padding:0;-webkit-tap-highlight-color:transparent}
-.menu .ic{width:46px;height:46px;border-radius:15px;display:grid;place-items:center;background:var(--soft);color:var(--accent)}
+.menu .ic{width:44px;height:44px;border-radius:15px;display:grid;place-items:center;background:var(--soft);color:var(--accent)}
 .menu .ic svg{width:24px;height:24px}
 .menu .ic.w{background:var(--warn-soft);color:var(--warn)}
 .menu .badge{position:absolute;top:-4px;right:calc(50% - 30px);min-width:16px;height:16px;border-radius:8px;background:var(--warn);color:#fff;font-size:10.5px;line-height:16px;text-align:center;padding:0 4px}
@@ -200,6 +212,30 @@ section.inR{animation:inR .22s ease-out}section.inL{animation:inL .22s ease-out}
     <div class="card" id="sort-box"></div>
     <div id="journal"></div>
   </section>
+  <section id="t-hyg" hidden>
+    <h1>衛生記録</h1>
+    <p class="lead">毎日の温度と点検。目安を外れたら、お店のみんなにLINEで知らせます。</p>
+    <div class="card" id="hyg-today"></div>
+    <h1 style="font-size:18px;margin-top:22px">月の記録表(HACCP)</h1>
+    <div class="chips" id="hyg-chips"></div>
+    <div class="card scroll" id="hyg-month"></div>
+    <div class="ask"><button class="btn ghost" type="button" id="hyg-print">記録表を印刷・PDF</button></div>
+  </section>
+  <section id="t-ws" hidden>
+    <h1>卸</h1>
+    <p class="lead">納品を記録すると、月末に卸先ごとの請求書になります。</p>
+    <div class="card" id="ws-add"></div>
+    <div class="chips" id="ws-chips" style="margin-top:14px"></div>
+    <div class="stack" id="ws-list"></div>
+  </section>
+  <section id="t-post" hidden>
+    <h1>発信</h1>
+    <p class="lead">ポップ・インスタ・お知らせの文の案を作ります。そのまま使っても、直しても大丈夫です。</p>
+    <div class="card post-in"><div class="ask" style="margin-top:0"><select id="post-p" style="flex:1"></select></div>
+      <div class="ask"><input id="post-free" placeholder="または自由に(例: 年末年始の営業のお知らせ)"></div>
+      <div class="ask"><button class="btn" type="button" id="post-go">案を作る</button></div></div>
+    <div class="stack" id="post-out" style="margin-top:12px"></div>
+  </section>
   <section id="t-set" hidden>
     <h1>設定</h1>
     <p class="lead">この画面の見え方と、お店の決まりごと。</p>
@@ -215,6 +251,13 @@ section.inR{animation:inR .22s ease-out}section.inL{animation:inL .22s ease-out}
       <tr><td>仕訳</td><td class="k">科目ごとの合計</td></tr>
       <tr><td>在庫 / 買い出し</td><td class="k">計算上の残り / そろそろ買うもの</td></tr>
       <tr><td>バイオレット 残り2袋</td><td class="k">数えた量(棚卸)</td></tr>
+      <tr><td>冷蔵 3 冷凍 -18 清掃OK</td><td class="k">衛生・温度の記録</td></tr>
+      <tr><td>衛生</td><td class="k">今日まだの記録</td></tr>
+      <tr><td>ポップ 栗万十</td><td class="k">ポップ・インスタ・お知らせの案</td></tr>
+      <tr><td>納品 〇〇ゴルフ 栗万十20</td><td class="k">卸の納品を記録</td></tr>
+      <tr><td>卸値 〇〇ゴルフ 栗万十 180</td><td class="k">卸の単価(税抜)</td></tr>
+      <tr><td>卸の請求</td><td class="k">今月の卸の合計</td></tr>
+      <tr><td>定休日は水曜</td><td class="k">その日は念押しを休みます</td></tr>
     </table></div>
   </section>
   <p class="foot" id="foot">試作。キャラの絵はAtelier SAISPEのLINE絵文字。</p>
@@ -233,6 +276,7 @@ section.inR{animation:inR .22s ease-out}section.inL{animation:inL .22s ease-out}
   </div>
 </div>
 
+<div class="inv" id="inv" hidden></div>
 <nav aria-label="画面の切り替え"><div class="in">
   <button type="button" data-t="today"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 11l8-6 8 6v8a1 1 0 0 1-1 1h-4v-5h-6v5H5a1 1 0 0 1-1-1z"/></svg>ホーム<span class="badge" id="badge" hidden></span></button>
   <button type="button" id="nav-cam"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 8h3l2-2h6l2 2h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>撮る</button>
@@ -242,7 +286,7 @@ section.inR{animation:inR .22s ease-out}section.inL{animation:inL .22s ease-out}
 </div></nav>
 
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-<script src="emoji.js?v=9"></script>
-<script src="app.js?v=9"></script>
+<script src="emoji.js?v=10"></script>
+<script src="app.js?v=10"></script>
 </body>
 </html>
