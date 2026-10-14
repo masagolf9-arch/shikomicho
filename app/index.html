@@ -16,9 +16,9 @@
 body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.65}
 .wrap{max-width:560px;margin:0 auto;padding-inline:16px;padding-block:0 calc(88px + env(safe-area-inset-bottom,0px))}
 /* 縁側 */
-.engawa{position:relative;height:176px;margin:0 -16px;background:var(--engawa);border-bottom:1px solid var(--line);overflow:hidden}
-.engawa .bg{position:absolute;inset:0;background:url(shop.webp?v=1) center 58%/cover no-repeat;filter:var(--photo-f,none)}
-.engawa .bg::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,var(--wash1,rgba(244,242,234,.72)) 0%,var(--wash2,rgba(244,242,234,.18)) 45%,rgba(0,0,0,0) 70%)}
+.engawa{position:relative;height:196px;margin:0 -16px;background:var(--engawa);border-bottom:1px solid var(--line);overflow:hidden}
+.engawa .bg{position:absolute;inset:0;background:url(shop.webp?v=2) center bottom/cover no-repeat;filter:var(--photo-f,none)}
+.engawa .bg::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,var(--wash1,rgba(244,242,234,.6)) 0%,var(--wash2,rgba(244,242,234,.1)) 22%,rgba(0,0,0,0) 34%)}
 .engawa .shop{position:absolute;left:12px;top:9px;display:flex;align-items:center;gap:6px;padding:3px 12px 3px 4px;border-radius:999px;background:var(--plate,rgba(255,253,247,.86));font-family:var(--display);font-size:17px;letter-spacing:.06em;box-shadow:0 1px 3px rgba(0,0,0,.08)}
 .engawa .shop img{width:26px;height:26px;display:block;filter:var(--logo-f,none)}
 .engawa .date{position:absolute;right:12px;top:12px;padding:1px 9px;border-radius:999px;background:var(--plate,rgba(255,253,247,.86));font-size:12.5px;color:var(--ink-2);font-variant-numeric:tabular-nums}
