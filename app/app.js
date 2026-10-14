@@ -206,16 +206,40 @@ function renderLabel() {
   box.innerHTML = `<div class="label">
     <div class="r"><div class="h">名称</div><div class="v">${name}</div></div>
     <div class="r"><div class="h">原材料名</div><div class="v"><span id="ing">${esc(lb.text) || '(まだ出せません)'}</span>${lb.check.length ? `、<mark>${lb.check.map(esc).join('、')}(要確認)</mark>` : ''}${esc(lb.contains)}</div></div>
-    <div class="r"><div class="h">内容量</div><div class="v">1個</div></div>
+    <div class="r"><div class="h">内容量</div><div class="v">1${U}${p.nutr && p.nutr.weight ? `(${p.nutr.weight}g)` : ''}</div></div>
     <div class="r"><div class="h">賞味期限</div><div class="v tbd">枠外下部に記載(日数はお店で設定)</div></div>
     <div class="r"><div class="h">保存方法</div><div class="v">直射日光、高温多湿を避けて保存してください</div></div>
     <div class="r"><div class="h">製造者</div><div class="v">${esc(D.shop)}<span class="k">(住所は設定から)</span></div></div></div>
-    <div class="ask" style="margin-top:10px"><button class="btn" id="copy" type="button">原材料名をコピー</button><span class="copied" id="copied"></span></div>`;
+    <div class="ask" style="margin-top:10px"><button class="btn" id="copy" type="button">原材料名をコピー</button><span class="copied" id="copied"></span></div>
+    ${nutrBox(p)}`;
+  if ($('bk-go')) $('bk-go').onclick = () => { const v = parseFloat($('bk-v').value); if (!(v > 0)) { $('bk-v').focus(); return; } setValue(p.name, 'baked', v); };
+  if ($('nu-copy')) $('nu-copy').onclick = async () => { try { await navigator.clipboard.writeText($('nu-txt').innerText); chat('コピーしました', 'heart'); } catch (e) { chat('長押しで選んでコピーしてください'); } };
   $('copy').onclick = async () => {
     const t = $('ing').textContent + (lb.contains || '');
     try { await navigator.clipboard.writeText(t); $('copied').textContent = 'コピーしました'; }
     catch (e) { const r = document.createRange(); r.selectNodeContents($('ing')); const s = getSelection(); s.removeAllRanges(); s.addRange(r); $('copied').textContent = '選択しました。長押しでコピー'; }
   };
+}
+
+// 栄養成分表示(日本食品標準成分表の計算による推定値)
+const r1 = x => x < 0.05 ? '0' : (Math.round(x * 10) / 10).toFixed(1);
+function nutrBox(p) {
+  const n = p.nutr;
+  if (!n) return '';
+  if (!n.per) return `<div class="card" style="margin-top:14px"><p style="margin:0"><b>栄養成分表示</b></p><p class="k" style="margin:4px 0 0">1${U}の重さを入れると、栄養成分(熱量・たんぱく質・脂質・炭水化物・食塩相当量)の案が出ます。「原価」の画面か、LINEで「${esc(p.name)}は1個30g」</p></div>`;
+  const v = n.per, salt = v[4] > 0 && v[4] < 0.1 ? (Math.round(v[4] * 100) / 100).toFixed(2) : r1(v[4]);
+  return `<div style="margin-top:14px"><div class="label" id="nu-txt">
+      <div class="r"><div class="h" style="grid-column:1/-1;border-right:0;font-weight:700">栄養成分表示 1${U}${n.weight ? `(${n.weight}g)` : ''}当たり</div></div>
+      <div class="r"><div class="h">熱量</div><div class="v">${Math.round(v[0])}kcal</div></div>
+      <div class="r"><div class="h">たんぱく質</div><div class="v">${r1(v[1])}g</div></div>
+      <div class="r"><div class="h">脂質</div><div class="v">${r1(v[2])}g</div></div>
+      <div class="r"><div class="h">炭水化物</div><div class="v">${r1(v[3])}g</div></div>
+      <div class="r"><div class="h">食塩相当量</div><div class="v">${salt}g</div></div>
+      <div class="r"><div class="v" style="grid-column:1/-1;font-size:12px">この表示値は、目安です。(日本食品標準成分表（八訂）増補2023年の計算による推定値)</div></div></div>
+    <div class="ask"><button class="btn ghost" type="button" id="nu-copy">栄養成分をコピー</button></div>
+    ${n.baked ? '' : `<div class="card" style="margin-top:8px"><p class="k" style="margin:0 0 6px">( )の重さは焼く前の生地の重さです。焼き上がり1${U}の重さを入れると、表示用の重さになります(栄養の値は変わりません)</p><div class="ask" style="margin-top:0"><input id="bk-v" inputmode="decimal" placeholder="例 26"><span class="k">g</span><button class="btn ghost" type="button" id="bk-go">決める</button></div></div>`}
+    ${n.missing.length ? `<p class="k" style="margin:6px 0 0"><mark>まだ入っていない材料: ${n.missing.map(esc).join('、')}</mark> この分は少なめに出ています。業務用の材料は、袋の栄養成分表示をLINEで撮って送るとその値になります</p>` : ''}
+    <p class="k" style="margin:6px 0 0">計算に使ったもの: ${n.srcs.map(s => s === '袋の表示' ? '材料の袋の表示' : '日本食品標準成分表').join('・')}。表の「栄養の対応」シートで材料ごとの値を確かめ・直せます</p></div>`;
 }
 
 // ---------- 材料 ----------
