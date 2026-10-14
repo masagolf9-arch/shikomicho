@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>仕込帳 祝古屋</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700&family=Zen+Old+Mincho:wght@600&display=swap">
+<style>
+/* Layout: スマホ片手。上の細い「縁側」をキャラが歩く。中身は4つのタブ(きょう・原価・裏表示・材料)。下に固定のタブバー。 */
+:root{
+  --bg:#f4f2ea; --card:#fffdf7; --ink:#262a26; --ink-2:#646a61; --line:#dcd8ca; --accent:#3f6e34; --accent-ink:#fff; --soft:#e8eedd; --warn:#a4512a; --warn-soft:#f6e3d6; --ok:#3f6e34; --engawa:#ebe4d2;
+  --display:"Zen Old Mincho","Hiragino Mincho ProN",serif; --body:"Zen Kaku Gothic New","Hiragino Kaku Gothic ProN",sans-serif;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){ --bg:#1b1d1a; --card:#252824; --ink:#ecebe2; --ink-2:#a7ab9f; --line:#393d36; --accent:#8fbd7c; --accent-ink:#152011; --soft:#2f3a29; --warn:#e6996c; --warn-soft:#3d2a1f; --ok:#8fbd7c; --engawa:#2a2822; color-scheme:dark } }
+:root[data-theme="dark"]{ --bg:#1b1d1a; --card:#252824; --ink:#ecebe2; --ink-2:#a7ab9f; --line:#393d36; --accent:#8fbd7c; --accent-ink:#152011; --soft:#2f3a29; --warn:#e6996c; --warn-soft:#3d2a1f; --ok:#8fbd7c; --engawa:#2a2822; color-scheme:dark }
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.65}
+.wrap{max-width:560px;margin:0 auto;padding-inline:16px;padding-block:0 calc(88px + env(safe-area-inset-bottom,0px))}
+/* 縁側 */
+.engawa{position:relative;height:176px;margin:0 -16px;background:var(--engawa);border-bottom:1px solid var(--line);overflow:hidden}
+.engawa .shop{position:absolute;left:16px;top:10px;font-family:var(--display);font-size:17px;letter-spacing:.06em}
+.engawa .date{position:absolute;right:16px;top:12px;font-size:12.5px;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.chara{position:absolute;left:0;bottom:0;width:88px;height:88px;background-repeat:no-repeat;background-size:auto 88px;cursor:pointer;will-change:transform;-webkit-tap-highlight-color:transparent}
+.say{position:absolute;top:38px;left:12px;right:12px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:5px 10px;font-size:13px;line-height:1.5;box-shadow:0 1px 0 var(--line);transition:opacity .4s;pointer-events:none}
+.say::after{content:"";position:absolute;left:var(--tail,40px);bottom:-7px;width:12px;height:12px;background:var(--card);border-right:1px solid var(--line);border-bottom:1px solid var(--line);transform:translateX(-50%) rotate(45deg)}
+/* 見出し */
+h1{font-family:var(--display);font-size:22px;margin:18px 0 4px;letter-spacing:.03em}
+.lead{color:var(--ink-2);font-size:13.5px;margin:0 0 12px}
+section[hidden]{display:none}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+.stack{display:flex;flex-direction:column;gap:10px}
+.k{color:var(--ink-2);font-size:12.5px}
+.big{font-size:26px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.2}
+.row{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.pill{display:inline-block;font-size:11.5px;padding:1px 8px;border-radius:999px;background:var(--soft);color:var(--ok);white-space:nowrap}
+.pill.warn{background:var(--warn-soft);color:var(--warn)}
+.pill.gray{background:var(--line);color:var(--ink-2)}
+/* お知らせ */
+.notice{display:flex;gap:10px;align-items:flex-start}
+.notice .mark{flex:0 0 30px;height:30px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:14px}
+.notice .mark.up{background:var(--warn-soft);color:var(--warn)}
+.notice .mark.q{background:var(--soft);color:var(--ok)}
+.notice .mark.done{background:var(--line);color:var(--ink-2)}
+.notice p{margin:0}
+.ask{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;align-items:center}
+.ask input{width:96px;font:inherit;font-size:16px;padding:6px 10px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)}
+.btn{font:inherit;font-size:14px;border:1px solid var(--accent);background:var(--accent);color:var(--accent-ink);border-radius:999px;padding:6px 14px;cursor:pointer;min-height:36px}
+.btn.ghost{background:transparent;color:var(--ink);border-color:var(--line)}
+button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+/* 原価 */
+.prod{cursor:pointer}
+.prod .meta{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
+.bar{height:6px;border-radius:3px;background:var(--line);overflow:hidden;margin-top:8px}
+.bar i{display:block;height:100%;background:var(--accent)}
+.detail{margin-top:10px;border-top:1px dashed var(--line);padding-top:8px}
+.detail[hidden]{display:none}
+table{border-collapse:collapse;width:100%;font-size:13.5px;font-variant-numeric:tabular-nums}
+td{padding:3px 0;vertical-align:top}
+td.n{text-align:right;white-space:nowrap;padding-left:10px}
+.scroll{overflow-x:auto}
+/* 裏表示 */
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.chip{font:inherit;font-size:14px;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:999px;padding:5px 12px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.label{border:1.5px solid var(--ink);border-radius:2px;background:var(--card);font-size:13.5px}
+.label .r{display:grid;grid-template-columns:7em 1fr;border-bottom:1px solid var(--ink)}
+.label .r:last-child{border-bottom:0}
+.label .h{padding:6px 8px;border-right:1px solid var(--ink);font-weight:500}
+.label .v{padding:6px 8px}
+.label .tbd{color:var(--warn)}
+mark{background:var(--warn-soft);color:var(--warn);padding:0 2px;border-radius:3px}
+.copied{font-size:12.5px;color:var(--ok);margin-left:8px}
+/* 材料 */
+.filter{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}
+.mat td:first-child{padding-right:8px}
+.mat tr+tr td{border-top:1px solid var(--line)}
+.up{color:var(--warn);font-weight:700}
+
+/* 聞く(キャラに話しかける) */
+.sheet{position:fixed;left:0;right:0;bottom:0;top:0;z-index:20;display:flex;flex-direction:column;justify-content:flex-end;background:rgba(20,22,18,.35)}
+.sheet[hidden]{display:none}
+.sheet .panel{max-width:560px;width:100%;margin:0 auto;height:min(78vh,640px);background:var(--bg);border-radius:18px 18px 0 0;display:flex;flex-direction:column;padding-bottom:env(safe-area-inset-bottom,0px);box-shadow:0 -2px 0 var(--line)}
+.sheet .bar2{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line)}
+.sheet .bar2 .face{width:40px;height:40px;background-repeat:no-repeat;background-size:auto 40px;flex:0 0 40px}
+.sheet .bar2 b{font-family:var(--display);font-size:16px}
+.sheet .bar2 .x{margin-left:auto;font:inherit;font-size:14px;background:transparent;border:1px solid var(--line);border-radius:999px;padding:4px 12px;color:var(--ink);cursor:pointer}
+.msgs{flex:1;overflow:auto;padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+.m{max-width:86%;padding:8px 12px;border-radius:14px;font-size:14.5px;line-height:1.6;background:var(--card);border:1px solid var(--line);white-space:pre-wrap;word-break:break-word}
+.m.me{align-self:flex-end;background:var(--soft);border-color:transparent}
+.m img{display:block;max-width:180px;border-radius:8px}
+.m table{margin-top:4px;font-size:13px}
+.qchips{display:flex;gap:6px;overflow-x:auto;padding:8px 14px 0;scrollbar-width:none}
+.qchips::-webkit-scrollbar{display:none}
+.qchips button{flex:0 0 auto;font:inherit;font-size:13px;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:999px;padding:5px 12px;cursor:pointer}
+.composer{display:flex;gap:6px;padding:8px 14px 10px;align-items:center}
+.composer input[type=text]{flex:1;min-width:0;font:inherit;font-size:16px;padding:9px 12px;border:1px solid var(--line);border-radius:999px;background:var(--card);color:var(--ink)}
+.cam{flex:0 0 44px;height:44px;border-radius:50%;border:1px solid var(--line);background:var(--card);display:grid;place-items:center;cursor:pointer;color:var(--ink)}
+.cam svg{width:22px;height:22px}
+.send{flex:0 0 auto}
+.demo{font-size:11.5px;color:var(--ink-2);padding:0 14px}
+nav .ask-btn .face{width:34px;height:34px;margin-top:-14px;border-radius:50%;background:var(--card);border:1px solid var(--line);background-repeat:no-repeat;background-size:auto 34px}
+.state{padding:28px 4px;text-align:center;color:var(--ink-2)}
+.state .btn{margin-top:12px}
+.prod .set{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:8px}
+.prod .set input{width:86px;font:inherit;font-size:16px;padding:5px 9px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)}
+@media (min-width:900px){.wrap{max-width:760px}.sheet .panel{max-width:760px}nav .in{max-width:760px}#costs{display:grid;grid-template-columns:1fr 1fr;gap:10px}#costs .prod{align-self:start}}
+/* タブバー */
+nav{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);padding:6px 8px calc(6px + env(safe-area-inset-bottom,0px));z-index:10}
+nav .in{max-width:560px;margin:0 auto;display:grid;grid-template-columns:repeat(5,1fr);gap:4px}
+nav button{font:inherit;font-size:13px;background:transparent;border:0;color:var(--ink-2);padding:6px 0;border-radius:10px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;position:relative}
+nav button svg{width:22px;height:22px}
+nav button[aria-current="page"]{color:var(--accent);background:var(--soft)}
+nav .badge{position:absolute;top:2px;right:calc(50% - 22px);min-width:16px;height:16px;border-radius:8px;background:var(--warn);color:#fff;font-size:10.5px;line-height:16px;text-align:center;padding:0 4px}
+.foot{font-size:12px;color:var(--ink-2);margin-top:18px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="engawa" id="engawa">
+    <div class="shop" id="shop">祝古屋</div>
+    <div class="date" id="date"></div>
+    <div class="say" id="say" hidden></div>
+    <div class="chara" id="chara" role="button" tabindex="0" aria-label="もなかに話しかける"></div>
+  </div>
+
+  <div class="state" id="state">読み込み中…</div>
+
+  <section id="t-today" hidden>
+    <h1>きょう</h1>
+    <p class="lead">確認待ちと、お知らせ。答えるとすぐ原価に反映されます。</p>
+    <div class="stack" id="notices"></div>
+    <h1 style="font-size:18px;margin-top:22px">さいきんの報告</h1>
+    <div class="card" id="made"></div>
+    <div class="ask" style="margin-top:14px"><button class="btn" id="go-cam" type="button">📷 レシピ・請求書を撮る</button></div>
+  </section>
+
+  <section id="t-cost" hidden>
+    <h1>原価</h1>
+    <p class="lead">1個あたりの材料費。下の線は、請求書で確かめた割合。カードを押すと中身と入力欄が出ます。</p>
+    <div class="stack" id="costs"></div>
+  </section>
+
+  <section id="t-label" hidden>
+    <h1>裏表示</h1>
+    <p class="lead">一括表示の原案。<mark>色つき</mark>は要確認。最終確認と表示の責任はお店にあります。</p>
+    <div class="chips" id="label-chips"></div>
+    <div id="label-box"></div>
+  </section>
+
+  <section id="t-mat" hidden>
+    <h1>材料</h1>
+    <p class="lead">請求書から読んだ単価。「仮」は請求書が来たら置き換わります。</p>
+    <div class="filter" id="mat-filter"></div>
+    <div class="card scroll"><table class="mat" id="mats"></table></div>
+    <p class="foot" id="mat-sum"></p>
+  </section>
+  <p class="foot" id="foot">試作。キャラの絵はAtelier SAISPEのLINE絵文字。</p>
+</div>
+
+<div class="sheet" id="sheet" hidden role="dialog" aria-label="もなかに聞く">
+  <div class="panel">
+    <div class="bar2"><span class="face" id="sface"></span><b id="sname">もなか</b><span class="k">に聞く</span><button class="x" id="sclose" type="button">閉じる</button></div>
+    <div class="msgs" id="msgs" aria-live="polite"></div>
+    <div class="qchips" id="qchips"></div>
+    <form class="composer" id="composer">
+      <button class="cam" type="button" id="cam" title="写真を撮る"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 8h3l2-2h6l2 2h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg></button>
+      <input type="text" id="q" placeholder="例:栗万十の原価は?" autocomplete="off" aria-label="聞きたいこと">
+      <button class="btn send" type="submit">送る</button>
+    </form>
+  </div>
+</div>
+
+<nav aria-label="画面の切り替え"><div class="in">
+  <button type="button" data-t="today" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 11l8-6 8 6v8a1 1 0 0 1-1 1h-4v-5h-6v5H5a1 1 0 0 1-1-1z"/></svg>きょう<span class="badge" id="badge" hidden></span></button>
+  <button type="button" data-t="cost"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="8"/><path d="M9 8l3 4 3-4M12 12v5M9.5 13.5h5M9.5 16h5"/></svg>原価</button>
+  <button type="button" class="ask-btn" id="ask-btn"><span class="face" id="nface"></span>聞く</button>
+  <button type="button" data-t="label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="5" y="4" width="14" height="16" rx="1"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>裏表示</button>
+  <button type="button" data-t="mat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M6 8h12l-1 11H7z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg>材料</button>
+</div></nav>
+
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<script src="emoji.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
