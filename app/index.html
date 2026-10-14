@@ -105,9 +105,18 @@ nav .ask-btn .face{width:34px;height:34px;margin-top:-14px;border-radius:50%;bac
 @media (min-width:900px){.wrap{max-width:760px}.sheet .panel{max-width:760px}nav .in{max-width:760px}#costs{display:grid;grid-template-columns:1fr 1fr;gap:10px}#costs .prod{align-self:start}}
 /* タブバー */
 nav{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);padding:6px 8px calc(6px + env(safe-area-inset-bottom,0px));z-index:10}
-nav .in{max-width:560px;margin:0 auto;display:grid;grid-template-columns:repeat(6,1fr);gap:2px}
-nav button{font:inherit;font-size:12.5px;white-space:nowrap;background:transparent;border:0;color:var(--ink-2);padding:6px 0;border-radius:10px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;position:relative}
+nav .in{max-width:560px;margin:0 auto;display:grid;grid-template-columns:repeat(5,1fr);gap:4px}
+nav button{font:inherit;font-size:13px;white-space:nowrap;background:transparent;border:0;color:var(--ink-2);padding:6px 0;border-radius:10px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;position:relative}
 nav button svg{width:22px;height:22px}
+nav[hidden]{display:none}
+.set-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0}
+.set-row>span:first-child{white-space:nowrap;flex:0 0 auto}
+.set-row+.set-row{border-top:1px solid var(--line)}
+.seg{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}
+.seg button{font:inherit;font-size:13.5px;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:999px;padding:4px 12px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.howto td{padding:5px 0;border-top:1px solid var(--line)}
+.howto td:first-child{white-space:nowrap;padding-right:10px;font-weight:500}
 nav button[aria-current="page"]{color:var(--accent);background:var(--soft)}
 nav .badge{position:absolute;top:2px;right:calc(50% - 22px);min-width:16px;height:16px;border-radius:8px;background:var(--warn);color:#fff;font-size:10.5px;line-height:16px;text-align:center;padding:0 4px}
 .foot{font-size:12px;color:var(--ink-2);margin-top:18px}
@@ -191,6 +200,23 @@ section.inR{animation:inR .22s ease-out}section.inL{animation:inL .22s ease-out}
     <div class="card" id="sort-box"></div>
     <div id="journal"></div>
   </section>
+  <section id="t-set" hidden>
+    <h1>設定</h1>
+    <p class="lead">この画面の見え方と、お店の決まりごと。</p>
+    <div class="card" id="set-box"></div>
+    <h1 style="font-size:18px;margin-top:22px">LINEで送れる言葉</h1>
+    <div class="card"><table class="howto">
+      <tr><td>写真を送る</td><td class="k">レシピ・請求書・納品書・レシート・袋の裏を読みます</td></tr>
+      <tr><td>栗万十 90、チーズ万十 100</td><td class="k">きょう作った数(夕方に)</td></tr>
+      <tr><td>栗万十は1個30g</td><td class="k">1個の重さ。原価と使った量の計算に使います</td></tr>
+      <tr><td>栗万十は250円</td><td class="k">売る値段</td></tr>
+      <tr><td>支払い</td><td class="k">払っていない請求書</td></tr>
+      <tr><td>三浦商事 払った</td><td class="k">払ったら済にします</td></tr>
+      <tr><td>仕訳</td><td class="k">科目ごとの合計</td></tr>
+      <tr><td>在庫 / 買い出し</td><td class="k">計算上の残り / そろそろ買うもの</td></tr>
+      <tr><td>バイオレット 残り2袋</td><td class="k">数えた量(棚卸)</td></tr>
+    </table></div>
+  </section>
   <p class="foot" id="foot">試作。キャラの絵はAtelier SAISPEのLINE絵文字。</p>
 </div>
 
@@ -208,16 +234,15 @@ section.inR{animation:inR .22s ease-out}section.inL{animation:inL .22s ease-out}
 </div>
 
 <nav aria-label="画面の切り替え"><div class="in">
-  <button type="button" data-t="today" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 11l8-6 8 6v8a1 1 0 0 1-1 1h-4v-5h-6v5H5a1 1 0 0 1-1-1z"/></svg>きょう<span class="badge" id="badge" hidden></span></button>
-  <button type="button" data-t="cost"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="8"/><path d="M9 8l3 4 3-4M12 12v5M9.5 13.5h5M9.5 16h5"/></svg>原価</button>
-  <button type="button" class="ask-btn" id="ask-btn"><span class="face" id="nface"></span>聞く</button>
-  <button type="button" data-t="label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="5" y="4" width="14" height="16" rx="1"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>裏表示</button>
-  <button type="button" data-t="mat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M6 8h12l-1 11H7z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg>材料</button>
+  <button type="button" data-t="today"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 11l8-6 8 6v8a1 1 0 0 1-1 1h-4v-5h-6v5H5a1 1 0 0 1-1-1z"/></svg>ホーム<span class="badge" id="badge" hidden></span></button>
+  <button type="button" id="nav-cam"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 8h3l2-2h6l2 2h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>撮る</button>
+  <button type="button" class="ask-btn" id="ask-btn"><span class="face" id="nface"></span><span id="nname">もなか</span></button>
   <button type="button" data-t="book"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M6 4h10l3 3v13H6z"/><path d="M9 10h7M9 13.5h7M9 17h4"/><path d="M15.5 4v3.5H19"/></svg>帳簿<span class="badge" id="badge-book" hidden></span></button>
+  <button type="button" data-t="set"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="3"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8"/></svg>設定</button>
 </div></nav>
 
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-<script src="emoji.js?v=8"></script>
-<script src="app.js?v=8"></script>
+<script src="emoji.js?v=9"></script>
+<script src="app.js?v=9"></script>
 </body>
 </html>

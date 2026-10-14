@@ -7,6 +7,9 @@ const CAMERA_URL = 'https://liff.line.me/' + LIFF_ID;
 const $ = id => document.getElementById(id);
 const store = { get(k, d) { try { const v = localStorage.getItem('shikomi:' + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
                 set(k, v) { try { localStorage.setItem('shikomi:' + k, JSON.stringify(v)); } catch (e) {} } };
+// 見え方の設定(この端末だけ)
+const applyLook = () => { const th = store.get('theme', 'auto'); if (th === 'auto') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme', th); document.body.style.zoom = store.get('size', 'normal') === 'big' ? '1.15' : ''; };
+applyLook();
 const yen = n => Math.round(n).toLocaleString('ja-JP') + '円';
 const amt = (v, u) => u === '枚' ? v.toLocaleString('ja-JP') + '枚' : v >= 1000 ? (Math.round(v / 100) / 10).toLocaleString('ja-JP') + 'kg' : Math.round(v) + 'g';
 const yen1 = n => (Math.round(n * 10) / 10).toLocaleString('ja-JP') + '円';
@@ -237,7 +240,7 @@ async function setValueX(extra) {
   chat('記録しています…');
   const out = await api(Object.assign({ kind: 'app_set' }, extra));
   if (!out.ok) { chat(out.error || 'うまく記録できませんでした'); return; }
-  D = out.data; renderAll(); chat('覚えました。在庫を計算しなおしました。', 'heart');
+  D = out.data; renderAll(); chat(extra.field === 'cycle' ? `棚卸は「${extra.value}」にしました。その前にLINEでお知らせします。` : '覚えました。在庫を計算しなおしました。', 'heart');
 }
 function renderJournal() {
   const box = $('journal');
@@ -251,13 +254,13 @@ function renderJournal() {
   box.querySelectorAll('[data-m]').forEach(b => b.onclick = () => { box.dataset.m = b.dataset.m; renderJournal(); });
 }
 function renderAll() {
-  renderToday(); renderCost(); renderLabel(); renderMat(); renderBook();
+  renderToday(); renderCost(); renderLabel(); renderMat(); renderBook(); renderSet();
   $('shop').textContent = D.shop;
   $('foot').textContent = `${new Date(D.at).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} 時点。開き直すと新しくなります。キャラの絵はAtelier SAISPEのLINE絵文字。`;
 }
 
 // ---------- タブ ----------
-const tabs = ['today', 'cost', 'label', 'mat', 'book'];
+const tabs = ['today', 'cost', 'label', 'mat', 'book', 'set'];
 let cur = 'today';
 function show(t, quiet) {
   if (!D) return;
@@ -267,7 +270,7 @@ function show(t, quiet) {
   if (dir) { const el = $('t-' + t); void el.offsetWidth; el.classList.add(dir > 0 ? 'inR' : 'inL'); }
   document.querySelectorAll('nav button[data-t]').forEach(b => b.dataset.t === t ? b.setAttribute('aria-current', 'page') : b.removeAttribute('aria-current'));
   store.set('tab', t); window.scrollTo(0, 0);
-  if (!quiet) chat({ today: null, cost: '原価です。カードを押すと中身と入力欄が出ます。', label: '裏表示の案です。色のついたところだけ確かめてください。', mat: '材料の値段です。「仮」は請求書が来たら置き換えます。', book: unpaid().length ? `払っていないものが${unpaid().length}件あります。払ったら「払った」を押してください。` : '帳簿です。請求書は月ごとに仕分けてあります。' }[t], t === 'cost' ? 'clap' : t === 'label' ? 'point' : null);
+  if (!quiet) chat({ today: null, cost: '原価です。カードを押すと中身と入力欄が出ます。', label: '裏表示の案です。色のついたところだけ確かめてください。', mat: '材料の値段です。「仮」は請求書が来たら置き換えます。', set: '設定です。キャラや文字の大きさを変えられます。', book: unpaid().length ? `払っていないものが${unpaid().length}件あります。払ったら「払った」を押してください。` : '帳簿です。請求書は月ごとに仕分けてあります。' }[t], t === 'cost' ? 'clap' : t === 'label' ? 'point' : null);
 }
 document.querySelectorAll('nav button[data-t]').forEach(b => b.onclick = () => show(b.dataset.t));
 // 左右スワイプで隣の画面へ(横に動く部品の上では反応しない)
@@ -286,6 +289,26 @@ document.querySelectorAll('nav button[data-t]').forEach(b => b.onclick = () => s
   }, { passive: true });
 })();
 $('go-cam').onclick = openCamera;
+$('nav-cam').onclick = openCamera;
+// ---------- 設定 ----------
+function renderSet() {
+  const seg = (key, opts, cur) => `<div class="seg" data-key="${key}">${opts.map(([v, l]) => `<button type="button" data-v="${v}" aria-pressed="${v === cur}">${l}</button>`).join('')}</div>`;
+  const cyc = (D.stock || {}).cycle || '年1回';
+  $('set-box').innerHTML = `
+    <div class="set-row"><span>キャラ</span>${seg('pack', [['shirokuma', 'もなか'], ['tanuki', 'ぽん']], PACK)}</div>
+    <div class="set-row"><span>文字の大きさ</span>${seg('size', [['normal', 'ふつう'], ['big', '大きめ']], store.get('size', 'normal'))}</div>
+    <div class="set-row"><span>画面の色</span>${seg('theme', [['auto', '自動'], ['light', '明るい'], ['dark', '暗い']], store.get('theme', 'auto'))}</div>
+    <div class="set-row"><span>棚卸<br><span class="k">お店みんな共通</span></span>${seg('cycle', [['毎月', '毎月'], ['年1回', '年1回']], cyc)}</div>
+    <div class="set-row"><span class="k">${esc(D.shop)} · ${new Date(D.at).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} 時点</span><span class="seg"><button type="button" id="reload">読み込み直す</button></span></div>`;
+  $('set-box').querySelectorAll('.seg[data-key] button').forEach(b => b.onclick = () => {
+    const key = b.parentNode.dataset.key, v = b.dataset.v;
+    if (key === 'cycle') { setValueX({ field: 'cycle', value: v }); return; }
+    store.set(key, v);
+    if (key === 'pack') { location.reload(); return; }
+    applyLook(); renderSet();
+  });
+  $('reload').onclick = () => location.reload();
+}
 
 // ---------- 縁側のキャラ:ゆっくり歩いて、ときどき一言 ----------
 const PACK = store.get('pack', 'shirokuma');
@@ -317,7 +340,7 @@ addEventListener('resize', place);
 
 // ---------- 聞く ----------
 const sheet = $('sheet'), msgs = $('msgs'), qIn = $('q');
-$('sname').textContent = CNAME; ch.setAttribute('aria-label', CNAME + 'に話しかける');
+$('sname').textContent = CNAME; $('nname').textContent = CNAME; ch.setAttribute('aria-label', CNAME + 'に話しかける');
 for (const id of ['sface', 'nface']) { const el = $(id); el.style.backgroundImage = `url(${EMOJI[PACK]['1'].src})`; el.style.backgroundPosition = '0 0'; }
 function addMsg(html, me) { const d = document.createElement('div'); d.className = 'm' + (me ? ' me' : ''); d.innerHTML = html; msgs.appendChild(d); d.scrollIntoView({ block: 'end', behavior: 'smooth' }); return d; }
 function botSay(html, role) { const d = addMsg('…'); setTimeout(() => { d.innerHTML = html; d.scrollIntoView({ block: 'end', behavior: 'smooth' }); }, 400); if (role) chat(null, role); }
