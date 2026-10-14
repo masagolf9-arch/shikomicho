@@ -65,7 +65,7 @@ function notices() {
 }
 function renderToday() {
   const list = notices();
-  $('notices').innerHTML = list.length ? list.map(n => `<div class="card notice"><span class="mark ${n.type}">${n.type === 'up' ? '↑' : '?'}</span><div style="flex:1;min-width:0">${n.html}${n.cam ? '<div class="ask"><button class="btn ghost" type="button" data-cam>📷 撮る</button></div>' : ''}</div></div>`).join('')
+  $('notices').innerHTML = list.length ? list.map(n => `<div class="card notice"><span class="mark ${n.type}">${n.type === 'up' ? '↑' : '?'}</span><div style="flex:1;min-width:0">${n.html}${n.cam ? '<div class="ask"><button class="btn ghost" type="button" data-cam>写真を撮る</button></div>' : ''}</div></div>`).join('')
     : '<div class="card notice"><span class="mark done">✓</span><div><p>確認待ちはありません。</p></div></div>';
   const needPw = D.products.filter(p => !p.pw);
   $('notices').querySelectorAll('[data-pw]').forEach(b => b.onclick = () => {
@@ -109,26 +109,26 @@ function renderHero(q) {
 }
 // ---------- きょう: アイコンの並び ----------
 const IC = {
-  cam: '<path d="M4 8h3l2-2h6l2 2h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>',
-  cost: '<circle cx="12" cy="12" r="8"/><path d="M9 8l3 4 3-4M12 12v5M9.5 13.5h5M9.5 16h5"/>',
-  label: '<rect x="5" y="4" width="14" height="16" rx="1"/><path d="M8 8h8M8 12h8M8 16h5"/>',
-  mat: '<path d="M6 8h12l-1 11H7z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/>',
-  stock: '<path d="M4 8l8-4 8 4v9l-8 4-8-4z"/><path d="M4 8l8 4 8-4M12 12v9"/>',
-  book: '<path d="M6 4h10l3 3v13H6z"/><path d="M9 10h7M9 13.5h7M9 17h4"/>',
-  jr: '<path d="M5 19V9M10 19V5M15 19v-7M20 19v-4"/><path d="M3 19h18"/>',
-  ask: '<path d="M5 6h14v9H10l-4 3v-3H5z"/><path d="M9 10h6"/>',
-  hyg: '<path d="M10 4v10.5a3.5 3.5 0 1 0 4 0V4a2 2 0 0 0-4 0z"/><path d="M12 9v7"/>',
-  ws: '<path d="M3 7h11v9H3zM14 10h4l3 3v3h-7z"/><circle cx="7" cy="17.5" r="1.6"/><circle cx="17" cy="17.5" r="1.6"/>',
-  post: '<path d="M4 10v4h3l6 4V6L7 10z"/><path d="M16.5 9a4 4 0 0 1 0 6M19 7a7 7 0 0 1 0 10"/>',
-  sales: '<path d="M4 19h16"/><path d="M6 16l4-5 3 3 5-7"/><path d="M15 7h3v3"/>'
+  cam: "<path d=\"M3.5 8.5h3.3l1.7-2.5h7l1.7 2.5h3.3v10.5h-17z\"/><circle cx=\"12\" cy=\"13.4\" r=\"3.6\"/>",
+  cost: "<rect x=\"3.8\" y=\"5\" width=\"16.4\" height=\"14\" rx=\"1.4\"/><path d=\"M3.8 9.6h16.4\"/><path d=\"M8 5v14M12 5v14M16 5v14\" stroke-width=\"1\"/><circle cx=\"8\" cy=\"7.3\" r=\"1.25\" fill=\"currentColor\"/><circle cx=\"16\" cy=\"7.3\" r=\"1.25\" fill=\"currentColor\"/><circle cx=\"8\" cy=\"12.2\" r=\"1.25\" fill=\"currentColor\"/><circle cx=\"12\" cy=\"12.2\" r=\"1.25\" fill=\"currentColor\"/><circle cx=\"12\" cy=\"14.9\" r=\"1.25\" fill=\"currentColor\"/><circle cx=\"16\" cy=\"16.4\" r=\"1.25\" fill=\"currentColor\"/>",
+  label: "<path d=\"M6 3.5h12v17H6z\"/><circle cx=\"12\" cy=\"6.8\" r=\"1.2\"/><path d=\"M9 11h6M9 14h6M9 17h3.5\"/>",
+  mat: "<path d=\"M7.2 8.5C5.6 10.6 5 13.6 5.6 17c.25 1.4 1.3 2.5 2.8 2.5h7.2c1.5 0 2.55-1.1 2.8-2.5.6-3.4 0-6.4-1.6-8.5z\"/><path d=\"M9.3 8.5 8 4.8M14.7 8.5 16 4.8M8 4.8c1.3.7 2.6 1 4 1s2.7-.3 4-1\"/><path d=\"M9.5 13.5h5\"/>",
+  stock: "<path d=\"M2.8 9.2 12 4.2l9.2 5\"/><path d=\"M5.2 8.2V20h13.6V8.2\"/><path d=\"M10.2 20v-5.2h3.6V20\"/><path d=\"M5.2 11.6h13.6\" stroke-width=\"1\"/>",
+  hyg: "<path d=\"M10 4.6a2 2 0 0 1 4 0v9.3a4 4 0 1 1-4 0z\"/><path d=\"M12 9.5v7.4\"/><path d=\"M16.8 6h2M16.8 9h2\" stroke-width=\"1.2\"/>",
+  book: "<rect x=\"5.2\" y=\"3.5\" width=\"13.6\" height=\"17\" rx=\"1\"/><path d=\"M8.2 3.5v17\"/><path d=\"M5.2 7.5h3M5.2 12h3M5.2 16.5h3\" stroke-width=\"1.2\"/><path d=\"M12 6.3h3.6v8.4H12z\"/>",
+  ws: "<rect x=\"3.6\" y=\"8.2\" width=\"16.8\" height=\"11.3\" rx=\"1\"/><path d=\"M3.6 11h16.8\"/><path d=\"M10.3 8.2v11.3M13.7 8.2v11.3\"/><path d=\"M9.5 8.2 8 4.6M14.5 8.2 16 4.6\" stroke-width=\"1.2\"/>",
+  post: "<path d=\"M6.5 3v18\"/><path d=\"M6.5 4.5h11.5v13.5H6.5\"/><path d=\"M10 4.5V18\" stroke-width=\"1\"/><path d=\"M13 8v6.5M15.5 8v4\"/>",
+  sales: "<ellipse cx=\"12\" cy=\"12\" rx=\"6.6\" ry=\"8.6\"/><path d=\"M9 8.2h6M8.4 12h7.2M9 15.8h6\" stroke-width=\"1.2\"/>",
+  home: "<path d=\"M2.6 8.2 12 3.8l9.4 4.4\"/><path d=\"M4.8 8.6V20.2M19.2 8.6V20.2M3.5 20.2h17\"/><path d=\"M4.8 8.6h14.4\"/><path d=\"M7.2 8.6v5.6h2.9V8.6M13.9 8.6v5.6h2.9V8.6\"/>",
+  set: "<circle cx=\"12\" cy=\"12\" r=\"3.1\"/><path d=\"M12 2.8v2.4M12 18.8v2.4M2.8 12h2.4M18.8 12h2.4M5.5 5.5l1.7 1.7M16.8 16.8l1.7 1.7M5.5 18.5l1.7-1.7M16.8 7.2l1.7-1.7\"/>"
 };
 function renderMenu(q) {
   const low = ((D.stock || {}).items || []).filter(x => x.low).length, up = unpaid().length;
   const items = [
-    ['cam', '撮る', openCamera, 0, 1], ['cost', '原価', () => show('cost')], ['label', '裏表示', () => show('label')], ['mat', '材料', () => { matF = 'all'; show('mat'); }],
+    ['cam', '撮る', openCamera, 0, 'p'], ['cost', '原価', () => show('cost')], ['label', '裏表示', () => show('label')], ['mat', '材料', () => { matF = 'all'; show('mat'); }],
     ['stock', '在庫', () => { matF = 'low'; show('mat'); }, low], ['hyg', '衛生', () => show('hyg'), hygMissing().length, hygMissing().length], ['book', '帳簿', () => show('book'), up], ['ws', '卸', () => show('ws')], ['post', '発信', () => show('post')], ['sales', '売上', () => show('sales')]];
   const m = $('menu');
-  m.innerHTML = items.map(([k, l, , b, w], i) => `<button type="button" data-i="${i}"><span class="ic${w ? ' w' : ''}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">${IC[k]}</svg></span>${l}${b ? `<span class="badge">${b}</span>` : ''}</button>`).join('');
+  m.innerHTML = items.map(([k, l, , b, w], i) => `<button type="button" data-i="${i}"><span class="ic${w === 'p' ? ' p' : w ? ' w' : ''}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[k]}</svg></span>${l}${b ? `<span class="badge">${b}</span>` : ''}</button>`).join('');
   m.querySelectorAll('button').forEach(b => b.onclick = () => items[b.dataset.i][2]());
 }
 function renderBook() { renderPays(); renderSort(); renderJournal(); }
