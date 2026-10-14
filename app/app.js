@@ -489,13 +489,13 @@ $('sname').textContent = CNAME; $('nname').textContent = CNAME; ch.setAttribute(
 for (const id of ['sface', 'nface']) { const el = $(id); el.style.backgroundImage = `url(${EMOJI[PACK]['1'].src})`; el.style.backgroundPosition = '0 0'; }
 function addMsg(html, me) { const d = document.createElement('div'); d.className = 'm' + (me ? ' me' : ''); d.innerHTML = html; msgs.appendChild(d); d.scrollIntoView({ block: 'end', behavior: 'smooth' }); return d; }
 function botSay(html, role) { const d = addMsg('…'); setTimeout(() => { d.innerHTML = html; d.scrollIntoView({ block: 'end', behavior: 'smooth' }); }, 400); if (role) chat(null, role); }
-function openAsk() { if (!D) return; sheet.hidden = false; if (!msgs.children.length) botSay(`${CNAME}です。原価、裏表示、材料の値段、値上がりのことを聞いてください。「栗万十は1個30g」「栗万十は250円」のように教えてもらうと覚えます。`); renderChips(); setTimeout(() => qIn.focus(), 100); }
+function openAsk() { if (!D) return; sheet.hidden = false; if (!msgs.children.length) botSay(`${CNAME}です。お店のことなら、ふつうの言葉で話しかけてください。「昨日ゴルフ場に栗万十20個持ってった」のように話してもらえれば、確かめてから記録します。`); renderChips(); setTimeout(() => qIn.focus(), 100); }
 $('ask-btn').onclick = openAsk; $('sclose').onclick = () => sheet.hidden = true; sheet.onclick = e => { if (e.target === sheet) sheet.hidden = true; };
 ch.onclick = openAsk; ch.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openAsk(); } };
 $('cam').onclick = openCamera;
-function renderChips() {
+function renderChips(quick) {
   const p0 = D.products[0] ? D.products[0].name : '栗万十';
-  const c = [`${p0}の原価は?`, `${p0}の裏表示`, '今月の支払いは?', '買い出しは?', '在庫は?', '仕訳は?', '値上がりしたものは?', '先月の仕入れは?'];
+  const c = quick && quick.length ? quick : ['今月儲かってる?', `${p0}の原価は?`, '値上げしたほうがいい?', '今日の衛生でまだのは?', '払っていないのは?', 'そろそろ買うものは?', `${p0}の栄養成分は?`];
   const box = $('qchips'); box.innerHTML = c.map(s => `<button type="button">${esc(s)}</button>`).join('');
   box.querySelectorAll('button').forEach(b => b.onclick = () => ask(b.textContent));
 }
@@ -529,7 +529,23 @@ async function answer(s) {
   if (/ありがと|助か/.test(s)) return ['どういたしまして。', 'heart'];
   return ['すみません、まだ答えられません。\n今聞けるのは:原価、裏表示、アレルゲン、値上がり、先月の仕入れ、材料の名前。\n「〇〇は1個40g」「〇〇は250円」と教えてもらうと覚えます。', 'think'];
 }
-async function ask(s) { if (!s.trim()) return; addMsg(esc(s), true); qIn.value = ''; const [a, role] = await answer(s); botSay(a, role); }
+// もなかとの会話は表の側(AI)で。つながらないときだけ、この画面の中の簡単な答えに切り替える
+let asking = false;
+async function ask(s) {
+  if (!s.trim() || asking) return; asking = true;
+  addMsg(esc(s), true); qIn.value = '';
+  const wait = addMsg('<span class="k">考えています…</span>'); chat(null, 'think');
+  try {
+    const out = await api({ kind: 'app_chat', text: s, pack: PACK });
+    if (!out.ok) throw new Error(out.error || 'ng');
+    wait.remove();
+    (out.texts || []).forEach((t, i) => setTimeout(() => botSay(esc(t).replace(/\n/g, '<br>')), i * 500));
+    if (out.data) { D = out.data; renderAll(); }
+    renderChips(out.quick);
+  } catch (e) {
+    wait.remove(); const [a, role] = await answer(s); botSay(a, role);
+  } finally { asking = false; }
+}
 $('composer').onsubmit = e => { e.preventDefault(); ask(qIn.value); };
 
 // ---------- はじまり ----------
