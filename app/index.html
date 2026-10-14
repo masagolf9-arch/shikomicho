@@ -221,6 +221,13 @@ section.inR{animation:inR .22s ease-out}section.inL{animation:inL .22s ease-out}
     <div class="card scroll" id="hyg-month"></div>
     <div class="ask"><button class="btn ghost" type="button" id="hyg-print">記録表を印刷・PDF</button></div>
   </section>
+  <section id="t-sales" hidden>
+    <h1>売上ともうけ</h1>
+    <p class="lead">レジの精算レシートを撮ると、売上を記録して、原価が分かる商品はもうけを出します。</p>
+    <div class="chips" id="sales-chips"></div>
+    <div class="stack" id="sales-box"></div>
+    <div class="card" id="sales-add" style="margin-top:12px"></div>
+  </section>
   <section id="t-ws" hidden>
     <h1>卸</h1>
     <p class="lead">納品を記録すると、月末に卸先ごとの請求書になります。</p>
@@ -257,6 +264,10 @@ section.inR{animation:inR .22s ease-out}section.inL{animation:inL .22s ease-out}
       <tr><td>納品 〇〇ゴルフ 栗万十20</td><td class="k">卸の納品を記録</td></tr>
       <tr><td>卸値 〇〇ゴルフ 栗万十 180</td><td class="k">卸の単価(税抜)</td></tr>
       <tr><td>卸の請求</td><td class="k">今月の卸の合計</td></tr>
+      <tr><td>精算レシートの写真</td><td class="k">1日の売上を記録</td></tr>
+      <tr><td>売上 52300 客 48人</td><td class="k">写真なしで売上を記録</td></tr>
+      <tr><td>売上</td><td class="k">今月の売上ともうけ</td></tr>
+      <tr><td>レジ 栗まんじゅう=栗万十</td><td class="k">レジでの名前を教える</td></tr>
       <tr><td>定休日は水曜</td><td class="k">その日は念押しを休みます</td></tr>
     </table></div>
   </section>
@@ -286,7 +297,7 @@ section.inR{animation:inR .22s ease-out}section.inL{animation:inL .22s ease-out}
 </div></nav>
 
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-<script src="emoji.js?v=10"></script>
-<script src="app.js?v=10"></script>
+<script src="emoji.js?v=11"></script>
+<script src="app.js?v=11"></script>
 </body>
 </html>
