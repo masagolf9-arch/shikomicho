@@ -56,8 +56,6 @@ function notices() {
   for (const n of unknown) list.push({ type: 'q', html: `<p><b>「${esc(n)}」って何の材料ですか?</b></p><p class="k">まだ辞書にない材料です。LINEでもなかに教えるか、表の「材料」シートに足してください</p>` });
   const check = new Set(); D.products.forEach(p => p.label.check.forEach(n => { if (!unknown.has(n)) check.add(n); }));
   for (const n of check) list.push({ type: 'q', cam: true, html: `<p><b>「${esc(n)}」の袋の裏を写真で</b></p><p class="k">名称欄が分かれば、裏表示が確定します</p>` });
-  const low = ((D.stock || {}).items || []).filter(x => x.low);
-  if (low.length) list.push({ type: 'up', html: `<p><b>そろそろ買うもの(${low.length})</b></p>` + low.map(x => `<p class="k" style="margin:0">・${esc(x.key)} 残り${amt(x.left, x.unit)}${x.days != null ? `(あと約${x.days}日)` : ''}</p>`).join('') });
   if (!D.products.length) list.push({ type: 'q', cam: true, html: '<p><b>まずはレシピの写真を1枚</b></p><p class="k">LINEの「📷 写真を撮る」で手書きのレシピを撮ると、ここに原価と裏表示の案が出ます</p>' });
   return list;
 }
@@ -72,26 +70,81 @@ function renderToday() {
     setValue(needPw[i].name, 'pw', v);
   });
   $('notices').querySelectorAll('[data-cam]').forEach(b => b.onclick = openCamera);
-  const q = list.length + unpaid().length; const bd = $('badge'); bd.textContent = q; bd.hidden = !q;
-  renderPays();
+  const q = list.length; const bd = $('badge'); bd.textContent = q; bd.hidden = !q;
+  const up0 = unpaid(), bb = $('badge-book'); bb.textContent = up0.length; bb.hidden = !up0.length;
+  renderHero(q); renderMenu(q);
   $('made').innerHTML = D.made.length ? D.made.map(m => `<div class="row"><span>${esc(m.text)}</span><span class="k">${new Date(m.t).toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' })}</span></div>`).join('')
     : '<p class="k" style="margin:0">まだありません。夕方にLINEで「栗万十 90、チーズ万十 100」のように送ると、ここに出ます</p>';
 }
 
-// ---------- 支払い ----------
-const unpaid = () => (D.pays || []).filter(p => p.status === '未払い');
+// ---------- 帳簿(支払い・仕分け・仕訳) ----------
+const unpaid = () => (D.pays || []).filter(p => p.status === '未払い').sort((a, b) => (a.due || '9') < (b.due || '9') ? -1 : 1);
+// ---------- きょう: 横にめくるカード ----------
+const md = d => esc(d.slice(5).replace('-', '/'));
+function renderHero(q) {
+  const cards = [], up = unpaid(), low = ((D.stock || {}).items || []).filter(x => x.low);
+  if (up.length) { const sum = up.reduce((a, p) => a + p.total, 0), n = up[0];
+    cards.push({ cls: 'main', t: '払っていないもの', v: `${Math.round(sum).toLocaleString('ja-JP')}<small>円</small>`, k: `${up.length}件${n.due ? ' · 次の期限 ' + md(n.due) + ' ' + esc(n.supplier) : ''}`, go: () => show('book') }); }
+  else cards.push({ cls: 'main', t: '払っていないもの', v: '0<small>円</small>', k: 'ぜんぶ払い済みです', go: () => show('book') });
+  if (low.length) cards.push({ cls: 'warn', t: 'そろそろ買うもの', v: `${low.length}<small>品</small>`, k: low.slice(0, 3).map(x => esc(x.key)).join('・') + (low.length > 3 ? ' ほか' : ''), go: () => { matF = 'low'; show('mat'); } });
+  if (q) cards.push({ cls: '', t: '確認待ち', v: `${q}<small>件</small>`, k: '答えると原価と裏表示が確定します', go: () => $('notices').scrollIntoView({ behavior: 'smooth', block: 'start' }) });
+  const ms = Object.keys(D.months || {}).sort(), lm = ms[ms.length - 1];
+  if (lm) { const by = D.months[lm].by, top = Object.keys(by).sort((a, b) => by[b] - by[a]).slice(0, 2);
+    cards.push({ cls: '', t: `${+lm.slice(5) || lm}月の仕入れ`, v: `${Math.round(D.months[lm].total).toLocaleString('ja-JP')}<small>円</small>`, k: top.map(esc).join('・'), go: () => show('book') }); }
+  const h = $('hero');
+  h.innerHTML = cards.map((c, i) => `<div class="hc ${c.cls}" role="button" tabindex="0" data-i="${i}"><div class="t">${c.t}</div><div class="v">${c.v}</div><div class="k">${c.k}</div><div class="go">くわしく ›</div></div>`).join('');
+  h.querySelectorAll('.hc').forEach(el => el.onclick = () => cards[el.dataset.i].go());
+  $('hero-dots').innerHTML = cards.length > 1 ? cards.map((_, i) => `<i class="${i ? '' : 'on'}"></i>`).join('') : '';
+  h.onscroll = () => { const w = h.firstChild ? h.firstChild.offsetWidth + 10 : 1, i = Math.round(h.scrollLeft / w); $('hero-dots').querySelectorAll('i').forEach((d, j) => d.className = j === i ? 'on' : ''); };
+}
+// ---------- きょう: アイコンの並び ----------
+const IC = {
+  cam: '<path d="M4 8h3l2-2h6l2 2h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>',
+  cost: '<circle cx="12" cy="12" r="8"/><path d="M9 8l3 4 3-4M12 12v5M9.5 13.5h5M9.5 16h5"/>',
+  label: '<rect x="5" y="4" width="14" height="16" rx="1"/><path d="M8 8h8M8 12h8M8 16h5"/>',
+  mat: '<path d="M6 8h12l-1 11H7z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/>',
+  stock: '<path d="M4 8l8-4 8 4v9l-8 4-8-4z"/><path d="M4 8l8 4 8-4M12 12v9"/>',
+  book: '<path d="M6 4h10l3 3v13H6z"/><path d="M9 10h7M9 13.5h7M9 17h4"/>',
+  jr: '<path d="M5 19V9M10 19V5M15 19v-7M20 19v-4"/><path d="M3 19h18"/>',
+  ask: '<path d="M5 6h14v9H10l-4 3v-3H5z"/><path d="M9 10h6"/>'
+};
+function renderMenu(q) {
+  const low = ((D.stock || {}).items || []).filter(x => x.low).length, up = unpaid().length;
+  const items = [
+    ['cam', '撮る', openCamera, 0, 1], ['cost', '原価', () => show('cost')], ['label', '裏表示', () => show('label')], ['mat', '材料', () => { matF = 'all'; show('mat'); }],
+    ['stock', '在庫', () => { matF = 'low'; show('mat'); }, low], ['book', '帳簿', () => show('book'), up], ['jr', '仕訳', () => { show('book'); setTimeout(() => $('journal').scrollIntoView({ behavior: 'smooth', block: 'start' }), 50); }], ['ask', '聞く', openAsk]];
+  const m = $('menu');
+  m.innerHTML = items.map(([k, l, , b, w], i) => `<button type="button" data-i="${i}"><span class="ic${w ? ' w' : ''}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">${IC[k]}</svg></span>${l}${b ? `<span class="badge">${b}</span>` : ''}</button>`).join('');
+  m.querySelectorAll('button').forEach(b => b.onclick = () => items[b.dataset.i][2]());
+}
+function renderBook() { renderPays(); renderSort(); renderJournal(); }
+const PILL = { '未払い': 'warn', '済': '', '現金済': '', '請求待ち': 'gray' };
+function renderSort() {
+  const all = D.pays || [], ms = [...new Set(all.map(p => p.month))].sort().reverse();
+  const chips = $('sort-chips'), box = $('sort-box');
+  if (!ms.length) { chips.innerHTML = ''; box.innerHTML = '<p class="k" style="margin:0">まだ請求書がありません。撮ると、ここに月ごとに並びます</p>'; return; }
+  const sel = chips.dataset.m && ms.includes(chips.dataset.m) ? chips.dataset.m : ms[0];
+  chips.innerHTML = ms.map(m => `<button class="chip" type="button" data-m="${esc(m)}" aria-pressed="${m === sel}">${esc(m.replace('-', '年'))}月分</button>`).join('');
+  chips.querySelectorAll('[data-m]').forEach(b => b.onclick = () => { chips.dataset.m = b.dataset.m; renderSort(); });
+  const rows = all.filter(p => p.month === sel).sort((a, b) => a.supplier.localeCompare(b.supplier, 'ja'));
+  const tot = rows.reduce((a, p) => a + p.total, 0), done = rows.filter(p => p.status !== '未払い' && p.status !== '請求待ち').reduce((a, p) => a + p.total, 0);
+  box.innerHTML = `<table>${rows.map(p => `<tr><td><b>${esc(p.supplier)}</b><br><span class="k">${esc(p.doc)}${p.paidOn ? ' · ' + esc(p.paidOn.slice(5).replace('-', '/')) + '払い' : p.due ? ' · 期限 ' + esc(p.due.slice(5).replace('-', '/')) : ''}</span></td><td class="n">${yen(p.total)}<br><span class="pill ${PILL[p.status] ?? 'gray'}">${esc(p.status)}</span></td></tr>`).join('')}
+    <tr><td><b>合計 ${rows.length}件</b></td><td class="n"><b>${yen(tot)}</b><br><span class="k">払い済み ${yen(done)}</span></td></tr></table>
+    <div class="ask" style="margin-top:8px"><button class="btn ghost" type="button" id="sort-copy">この月をコピー</button></div>
+    <p class="k" style="margin:6px 0 0">コピーすると、税理士さんへのメールや会計ソフトのメモに貼りつけられます</p>`;
+  $('sort-copy').onclick = async () => {
+    const sums = (D.journal || {})[sel] || {};
+    const txt = `${sel.replace('-', '年')}月分 請求書\n` + rows.map(p => `${p.supplier}\t${p.doc}\t${p.total}円\t${p.status}${p.paidOn ? '(' + p.paidOn + ')' : ''}`).join('\n') + `\n合計\t\t${tot}円\n\n科目ごと(案)\n` + Object.keys(sums).map(k => `${k}\t${sums[k]}円`).join('\n');
+    try { await navigator.clipboard.writeText(txt); chat('コピーしました。貼りつけて使ってください。', 'heart'); } catch (e) { chat('コピーできませんでした。長押しで選んでください。'); }
+  };
+}
 function renderPays() {
-  let box = $('pays');
-  if (!box) {
-    const h = document.createElement('h1'); h.style.cssText = 'font-size:18px;margin-top:22px'; h.textContent = '支払い';
-    box = document.createElement('div'); box.id = 'pays'; box.className = 'stack';
-    const made = $('made'); made.parentNode.insertBefore(h, made.previousElementSibling); made.parentNode.insertBefore(box, made.previousElementSibling);
-  }
+  const box = $('pays');
   const up = unpaid();
   if (!(D.pays || []).length) { box.innerHTML = '<div class="card"><p class="k" style="margin:0">請求書を撮ると、業者ごと・月ごとに仕分けて、ここに並びます</p></div>'; return; }
   const sum = up.reduce((a, p) => a + p.total, 0);
   box.innerHTML = `<div class="card"><div class="row"><span>${up.length ? `払っていないもの ${up.length}件` : '払っていないものはありません'}</span>${up.length ? `<span class="big" style="font-size:20px">${yen(sum)}</span>` : ''}</div>` +
-    up.map(p => `<div class="row" style="margin-top:8px;align-items:center"><span>${esc(p.supplier)} <span class="k">${esc(p.month)}分${p.due ? ' · 期限 ' + esc(p.due.slice(5).replace('-', '/')) : ''}</span></span><span style="display:flex;gap:6px;align-items:center;flex:0 0 auto"><b style="white-space:nowrap">${yen(p.total)}</b><button class="btn ghost" style="white-space:nowrap" type="button" data-paid="${p.row}">払った</button></span></div>`).join('') +
+    up.map(p => `<div class="row" style="margin-top:8px;align-items:center"><span>${esc(p.supplier)} <span class="k">${+p.month.slice(5) || esc(p.month)}月分${p.due ? ' · 期限 ' + esc(p.due.slice(5).replace('-', '/')) : ''}</span></span><span style="display:flex;gap:6px;align-items:center;flex:0 0 auto"><b style="white-space:nowrap">${yen(p.total)}</b><button class="btn ghost" style="white-space:nowrap" type="button" data-paid="${p.row}">払った</button></span></div>`).join('') +
     `<p class="k" style="margin:8px 0 0">LINEで「業者名 払った」でも済にできます</p></div>`;
   box.querySelectorAll('[data-paid]').forEach(b => b.onclick = () => setValue('', 'paid', +b.dataset.paid));
 }
@@ -166,7 +219,6 @@ function renderMat() {
   $('mats').innerHTML = rows.map(m => `<tr><td><b>${esc(m.name)}</b>${upNames.has(m.name) ? ' <span class="up">↑</span>' : ''}<br><span class="k">${esc(m.display)}${m.allergens.length ? ' · ' + m.allergens.map(esc).join('・') : ''}</span>${stk[m.name] && stk[m.name].known ? `<br><span class="pill ${stk[m.name].low ? 'warn' : 'gray'}">残り ${amt(stk[m.name].left, stk[m.name].unit)}${stk[m.name].days != null ? ' · 約' + stk[m.name].days + '日' : ''}</span>` : ''}</td><td class="n">${m.ppg ? Math.round(m.ppg * 1000).toLocaleString() + '円/kg' : '-'}<br>${m.ok ? '<span class="pill">請求書</span>' : '<span class="pill warn">仮</span>'}</td></tr>`).join('') || '<tr><td class="k">ありません</td></tr>';
   const all = D.materials.filter(m => !m.packaging), est = all.filter(m => !m.ok).length;
   const ms = Object.keys(D.months).sort(), lastM = ms[ms.length - 1];
-  renderJournal();
   setTimeout(renderCount, 0);
   $('mat-sum').textContent = `材料 ${all.length}種類のうち、確かめた ${all.length - est}、仮 ${est}。` + (lastM ? `${lastM.replace('-', '年')}月の仕入れ ${yen(D.months[lastM].total)}。` : '');
 }
@@ -188,11 +240,7 @@ async function setValueX(extra) {
   D = out.data; renderAll(); chat('覚えました。在庫を計算しなおしました。', 'heart');
 }
 function renderJournal() {
-  let box = $('journal');
-  if (!box) {
-    box = document.createElement('div'); box.id = 'journal';
-    $('t-mat').appendChild(box);
-  }
+  const box = $('journal');
   const ms = Object.keys(D.journal || {}).sort().reverse();
   if (!ms.length) { box.innerHTML = ''; return; }
   const sel = box.dataset.m && ms.includes(box.dataset.m) ? box.dataset.m : ms[0];
@@ -203,21 +251,40 @@ function renderJournal() {
   box.querySelectorAll('[data-m]').forEach(b => b.onclick = () => { box.dataset.m = b.dataset.m; renderJournal(); });
 }
 function renderAll() {
-  renderToday(); renderCost(); renderLabel(); renderMat();
+  renderToday(); renderCost(); renderLabel(); renderMat(); renderBook();
   $('shop').textContent = D.shop;
   $('foot').textContent = `${new Date(D.at).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} 時点。開き直すと新しくなります。キャラの絵はAtelier SAISPEのLINE絵文字。`;
 }
 
 // ---------- タブ ----------
-const tabs = ['today', 'cost', 'label', 'mat'];
+const tabs = ['today', 'cost', 'label', 'mat', 'book'];
+let cur = 'today';
 function show(t, quiet) {
   if (!D) return;
-  tabs.forEach(x => $('t-' + x).hidden = x !== t);
+  const dir = tabs.indexOf(t) - tabs.indexOf(cur); cur = t;
+  if (t === 'mat') renderMat();
+  tabs.forEach(x => { const el = $('t-' + x); el.hidden = x !== t; el.classList.remove('inR', 'inL'); });
+  if (dir) { const el = $('t-' + t); void el.offsetWidth; el.classList.add(dir > 0 ? 'inR' : 'inL'); }
   document.querySelectorAll('nav button[data-t]').forEach(b => b.dataset.t === t ? b.setAttribute('aria-current', 'page') : b.removeAttribute('aria-current'));
   store.set('tab', t); window.scrollTo(0, 0);
-  if (!quiet) chat({ today: null, cost: '原価です。カードを押すと中身と入力欄が出ます。', label: '裏表示の案です。色のついたところだけ確かめてください。', mat: '材料の値段です。「仮」は請求書が来たら置き換えます。' }[t], t === 'cost' ? 'clap' : t === 'label' ? 'point' : null);
+  if (!quiet) chat({ today: null, cost: '原価です。カードを押すと中身と入力欄が出ます。', label: '裏表示の案です。色のついたところだけ確かめてください。', mat: '材料の値段です。「仮」は請求書が来たら置き換えます。', book: unpaid().length ? `払っていないものが${unpaid().length}件あります。払ったら「払った」を押してください。` : '帳簿です。請求書は月ごとに仕分けてあります。' }[t], t === 'cost' ? 'clap' : t === 'label' ? 'point' : null);
 }
 document.querySelectorAll('nav button[data-t]').forEach(b => b.onclick = () => show(b.dataset.t));
+// 左右スワイプで隣の画面へ(横に動く部品の上では反応しない)
+(() => {
+  let x0 = null, y0 = 0, t0 = 0;
+  document.addEventListener('touchstart', e => {
+    if (!D || !sheet.hidden || e.touches.length > 1 || e.target.closest('.hero,.scroll,.chips,.filter,.qchips,input,select,textarea,.engawa')) { x0 = null; return; }
+    x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; t0 = Date.now();
+  }, { passive: true });
+  document.addEventListener('touchend', e => {
+    if (x0 == null) return;
+    const dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0; x0 = null;
+    if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.6 || Date.now() - t0 > 700) return;
+    const i = tabs.indexOf(cur) + (dx < 0 ? 1 : -1);
+    if (i >= 0 && i < tabs.length) show(tabs[i], true);
+  }, { passive: true });
+})();
 $('go-cam').onclick = openCamera;
 
 // ---------- 縁側のキャラ:ゆっくり歩いて、ときどき一言 ----------

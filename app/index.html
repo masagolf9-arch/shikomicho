@@ -105,12 +105,37 @@ nav .ask-btn .face{width:34px;height:34px;margin-top:-14px;border-radius:50%;bac
 @media (min-width:900px){.wrap{max-width:760px}.sheet .panel{max-width:760px}nav .in{max-width:760px}#costs{display:grid;grid-template-columns:1fr 1fr;gap:10px}#costs .prod{align-self:start}}
 /* タブバー */
 nav{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);padding:6px 8px calc(6px + env(safe-area-inset-bottom,0px));z-index:10}
-nav .in{max-width:560px;margin:0 auto;display:grid;grid-template-columns:repeat(5,1fr);gap:4px}
-nav button{font:inherit;font-size:13px;background:transparent;border:0;color:var(--ink-2);padding:6px 0;border-radius:10px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;position:relative}
+nav .in{max-width:560px;margin:0 auto;display:grid;grid-template-columns:repeat(6,1fr);gap:2px}
+nav button{font:inherit;font-size:12.5px;white-space:nowrap;background:transparent;border:0;color:var(--ink-2);padding:6px 0;border-radius:10px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;position:relative}
 nav button svg{width:22px;height:22px}
 nav button[aria-current="page"]{color:var(--accent);background:var(--soft)}
 nav .badge{position:absolute;top:2px;right:calc(50% - 22px);min-width:16px;height:16px;border-radius:8px;background:var(--warn);color:#fff;font-size:10.5px;line-height:16px;text-align:center;padding:0 4px}
 .foot{font-size:12px;color:var(--ink-2);margin-top:18px}
+/* PayPay風: 横にめくるカード・アイコンの並び・左右スワイプ */
+.hero{display:flex;gap:10px;overflow-x:auto;scroll-snap-type:x mandatory;margin:14px -16px 0;padding:0 16px 4px;scroll-padding:0 16px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.hero::-webkit-scrollbar{display:none}
+.hc{flex:0 0 84%;scroll-snap-align:start;border-radius:18px;padding:14px 16px;min-height:118px;box-sizing:border-box;cursor:pointer;border:1px solid var(--line);background:var(--card);display:flex;flex-direction:column;justify-content:space-between;-webkit-tap-highlight-color:transparent}
+.hc.main{background:linear-gradient(135deg,var(--accent),#2c5224);color:var(--accent-ink);border:0}
+.hc.main .k{color:inherit;opacity:.85}
+.hc.warn{background:var(--warn-soft);border-color:transparent}
+.hc .t{font-size:13px;font-weight:500}
+.hc .v{font-size:28px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.2}
+.hc .v small{font-size:14px;font-weight:500;margin-left:2px}
+.hc .go{font-size:12.5px;opacity:.85}
+.dots{display:flex;justify-content:center;gap:6px;margin:8px 0 2px}
+.dots i{width:6px;height:6px;border-radius:3px;background:var(--line);transition:width .2s,background .2s}
+.dots i.on{width:16px;background:var(--accent)}
+.menu{display:grid;grid-template-columns:repeat(4,1fr);gap:12px 4px;margin-top:14px;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:14px 6px}
+.menu button{font:inherit;font-size:12.5px;background:transparent;border:0;color:var(--ink);display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer;position:relative;padding:0;-webkit-tap-highlight-color:transparent}
+.menu .ic{width:46px;height:46px;border-radius:15px;display:grid;place-items:center;background:var(--soft);color:var(--accent)}
+.menu .ic svg{width:24px;height:24px}
+.menu .ic.w{background:var(--warn-soft);color:var(--warn)}
+.menu .badge{position:absolute;top:-4px;right:calc(50% - 30px);min-width:16px;height:16px;border-radius:8px;background:var(--warn);color:#fff;font-size:10.5px;line-height:16px;text-align:center;padding:0 4px}
+@keyframes inR{from{transform:translateX(40px);opacity:0}to{transform:none;opacity:1}}
+@keyframes inL{from{transform:translateX(-40px);opacity:0}to{transform:none;opacity:1}}
+section.inR{animation:inR .22s ease-out}section.inL{animation:inL .22s ease-out}
+.swipe-hint{font-size:11.5px;color:var(--ink-2);text-align:center;margin:6px 0 0}
+@media (prefers-reduced-motion:reduce){section.inR,section.inL{animation:none}}
 </style>
 </head>
 <body>
@@ -125,8 +150,12 @@ nav .badge{position:absolute;top:2px;right:calc(50% - 22px);min-width:16px;heigh
   <div class="state" id="state">読み込み中…</div>
 
   <section id="t-today" hidden>
-    <h1>きょう</h1>
-    <p class="lead">確認待ちと、お知らせ。答えるとすぐ原価に反映されます。</p>
+    <div class="hero" id="hero"></div>
+    <div class="dots" id="hero-dots"></div>
+    <div class="menu" id="menu"></div>
+    <p class="swipe-hint">画面は左右にスライドしても切り替わります</p>
+    <h1 style="font-size:18px;margin-top:20px">確認待ち・お知らせ</h1>
+    <p class="lead">答えるとすぐ原価に反映されます。</p>
     <div class="stack" id="notices"></div>
     <h1 style="font-size:18px;margin-top:22px">さいきんの報告</h1>
     <div class="card" id="made"></div>
@@ -153,6 +182,15 @@ nav .badge{position:absolute;top:2px;right:calc(50% - 22px);min-width:16px;heigh
     <div class="card scroll"><table class="mat" id="mats"></table></div>
     <p class="foot" id="mat-sum"></p>
   </section>
+  <section id="t-book" hidden>
+    <h1>帳簿</h1>
+    <p class="lead">請求書を撮ると、業者ごと・月ごとに仕分けて、科目の案もつけます。</p>
+    <div class="stack" id="pays"></div>
+    <h1 style="font-size:18px;margin-top:22px">請求書の仕分け</h1>
+    <div class="chips" id="sort-chips"></div>
+    <div class="card" id="sort-box"></div>
+    <div id="journal"></div>
+  </section>
   <p class="foot" id="foot">試作。キャラの絵はAtelier SAISPEのLINE絵文字。</p>
 </div>
 
@@ -175,6 +213,7 @@ nav .badge{position:absolute;top:2px;right:calc(50% - 22px);min-width:16px;heigh
   <button type="button" class="ask-btn" id="ask-btn"><span class="face" id="nface"></span>聞く</button>
   <button type="button" data-t="label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="5" y="4" width="14" height="16" rx="1"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>裏表示</button>
   <button type="button" data-t="mat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M6 8h12l-1 11H7z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg>材料</button>
+  <button type="button" data-t="book"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M6 4h10l3 3v13H6z"/><path d="M9 10h7M9 13.5h7M9 17h4"/><path d="M15.5 4v3.5H19"/></svg>帳簿<span class="badge" id="badge-book" hidden></span></button>
 </div></nav>
 
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
