@@ -69,9 +69,28 @@ function renderToday() {
     setValue(needPw[i].name, 'pw', v);
   });
   $('notices').querySelectorAll('[data-cam]').forEach(b => b.onclick = openCamera);
-  const q = list.length; const bd = $('badge'); bd.textContent = q; bd.hidden = !q;
+  const q = list.length + unpaid().length; const bd = $('badge'); bd.textContent = q; bd.hidden = !q;
+  renderPays();
   $('made').innerHTML = D.made.length ? D.made.map(m => `<div class="row"><span>${esc(m.text)}</span><span class="k">${new Date(m.t).toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' })}</span></div>`).join('')
     : '<p class="k" style="margin:0">まだありません。夕方にLINEで「栗万十 90、チーズ万十 100」のように送ると、ここに出ます</p>';
+}
+
+// ---------- 支払い ----------
+const unpaid = () => (D.pays || []).filter(p => p.status === '未払い');
+function renderPays() {
+  let box = $('pays');
+  if (!box) {
+    const h = document.createElement('h1'); h.style.cssText = 'font-size:18px;margin-top:22px'; h.textContent = '支払い';
+    box = document.createElement('div'); box.id = 'pays'; box.className = 'stack';
+    const made = $('made'); made.parentNode.insertBefore(h, made.previousElementSibling); made.parentNode.insertBefore(box, made.previousElementSibling);
+  }
+  const up = unpaid();
+  if (!(D.pays || []).length) { box.innerHTML = '<div class="card"><p class="k" style="margin:0">請求書を撮ると、業者ごと・月ごとに仕分けて、ここに並びます</p></div>'; return; }
+  const sum = up.reduce((a, p) => a + p.total, 0);
+  box.innerHTML = `<div class="card"><div class="row"><span>${up.length ? `払っていないもの ${up.length}件` : '払っていないものはありません'}</span>${up.length ? `<span class="big" style="font-size:20px">${yen(sum)}</span>` : ''}</div>` +
+    up.map(p => `<div class="row" style="margin-top:8px;align-items:center"><span>${esc(p.supplier)} <span class="k">${esc(p.month)}分${p.due ? ' · 期限 ' + esc(p.due.slice(5).replace('-', '/')) : ''}</span></span><span style="display:flex;gap:6px;align-items:center;flex:0 0 auto"><b style="white-space:nowrap">${yen(p.total)}</b><button class="btn ghost" style="white-space:nowrap" type="button" data-paid="${p.row}">払った</button></span></div>`).join('') +
+    `<p class="k" style="margin:8px 0 0">LINEで「業者名 払った」でも済にできます</p></div>`;
+  box.querySelectorAll('[data-paid]').forEach(b => b.onclick = () => setValue('', 'paid', +b.dataset.paid));
 }
 
 // ---------- 原価 ----------
@@ -142,7 +161,23 @@ function renderMat() {
   $('mats').innerHTML = rows.map(m => `<tr><td><b>${esc(m.name)}</b>${upNames.has(m.name) ? ' <span class="up">↑</span>' : ''}<br><span class="k">${esc(m.display)}${m.allergens.length ? ' · ' + m.allergens.map(esc).join('・') : ''}</span></td><td class="n">${m.ppg ? Math.round(m.ppg * 1000).toLocaleString() + '円/kg' : '-'}<br>${m.ok ? '<span class="pill">請求書</span>' : '<span class="pill warn">仮</span>'}</td></tr>`).join('') || '<tr><td class="k">ありません</td></tr>';
   const all = D.materials.filter(m => !m.packaging), est = all.filter(m => !m.ok).length;
   const ms = Object.keys(D.months).sort(), lastM = ms[ms.length - 1];
+  renderJournal();
   $('mat-sum').textContent = `材料 ${all.length}種類のうち、確かめた ${all.length - est}、仮 ${est}。` + (lastM ? `${lastM.replace('-', '年')}月の仕入れ ${yen(D.months[lastM].total)}。` : '');
+}
+function renderJournal() {
+  let box = $('journal');
+  if (!box) {
+    box = document.createElement('div'); box.id = 'journal';
+    $('t-mat').appendChild(box);
+  }
+  const ms = Object.keys(D.journal || {}).sort().reverse();
+  if (!ms.length) { box.innerHTML = ''; return; }
+  const sel = box.dataset.m && ms.includes(box.dataset.m) ? box.dataset.m : ms[0];
+  const sums = D.journal[sel], keys = Object.keys(sums).sort((a, b) => sums[b] - sums[a]), tot = keys.reduce((a, k) => a + sums[k], 0);
+  box.innerHTML = `<h1 style="font-size:18px;margin-top:22px">科目ごとの合計(仕訳の案)</h1><div class="chips">${ms.map(m => `<button class="chip" type="button" data-m="${esc(m)}" aria-pressed="${m === sel}">${esc(m.replace('-', '年'))}月</button>`).join('')}</div>
+    <div class="card"><table>${keys.map(k => `<tr><td>${k === '要確認' ? '<mark>要確認</mark>' : esc(k)}</td><td class="n">${yen(sums[k])}</td></tr>`).join('')}<tr><td><b>合計</b></td><td class="n"><b>${yen(tot)}</b></td></tr></table>
+    <p class="k" style="margin:6px 0 0">科目は案です。表の「仕入れ」で直すか、「科目」シートに決まりを足すと次から自動で分けます</p></div>`;
+  box.querySelectorAll('[data-m]').forEach(b => b.onclick = () => { box.dataset.m = b.dataset.m; renderJournal(); });
 }
 function renderAll() {
   renderToday(); renderCost(); renderLabel(); renderMat();
@@ -202,7 +237,7 @@ ch.onclick = openAsk; ch.onkeydown = e => { if (e.key === 'Enter' || e.key === '
 $('cam').onclick = openCamera;
 function renderChips() {
   const p0 = D.products[0] ? D.products[0].name : '栗万十';
-  const c = [`${p0}の原価は?`, `${p0}の裏表示`, '値上がりしたものは?', '先月の仕入れは?', '確認待ちは?'];
+  const c = [`${p0}の原価は?`, `${p0}の裏表示`, '今月の支払いは?', '仕訳は?', '値上がりしたものは?', '先月の仕入れは?'];
   const box = $('qchips'); box.innerHTML = c.map(s => `<button type="button">${esc(s)}</button>`).join('');
   box.querySelectorAll('button').forEach(b => b.onclick = () => ask(b.textContent));
 }
@@ -217,6 +252,14 @@ async function answer(s) {
   if (p && /アレルゲン|アレルギー/.test(s)) return [`${esc(p.name)}は ${p.label.allergens.length ? p.label.allergens.map(esc).join('・') : '該当なし'} です(案)。`, 'point'];
   if (p) { if (p.per_piece == null) return [`${esc(p.name)}は1仕込み ${yen(p.batch_cost)} です。「${esc(p.name)}は1個40g」のように重さを教えてもらえれば、1個の値段を出します。`, 'think'];
     return [`${esc(p.name)}は1個 <b>${yen1(p.per_piece)}</b> です。1仕込み ${yen(p.batch_cost)}、約${p.pieces}個。` + (p.price ? `原価率 ${Math.round(p.per_piece / p.price * 100)}%。` : ''), 'clap']; }
+  if ((m = s.match(/^(.+?)\s*(に|へ|を|は)?\s*(払った|払いました|支払った|振り込んだ|振込んだ)/))) {
+    const who = m[1].replace(/\s/g, ''), hit = unpaid().find(p => p.supplier.includes(who) || who.includes(p.supplier.slice(0, 4)));
+    if (!hit) return [`「${esc(who)}」の未払いが見つかりませんでした。` + (unpaid().length ? `\n未払い:${unpaid().map(p => esc(p.supplier)).join('、')}` : ''), 'think'];
+    await setValue('', 'paid', hit.row); return [`「${esc(hit.supplier)}」${esc(hit.month)}分 ${yen(hit.total)} を済にしました。`, 'heart'];
+  }
+  if (/支払|払うもの|振込|振り込み/.test(s)) { const up = unpaid(); return [up.length ? `払っていないのは${up.length}件、合計 <b>${yen(up.reduce((a, p) => a + p.total, 0))}</b>。\n` + up.map(p => `・${esc(p.supplier)}(${esc(p.month)}分)${yen(p.total)}${p.due ? ' 期限' + esc(p.due) : ''}`).join('\n') : '払っていない請求書はありません。', 'point']; }
+  if (/仕訳|科目/.test(s)) { const ms = Object.keys(D.journal || {}).sort(); if (!ms.length) return ['まだ請求書がありません。', 'think']; const k = ms[ms.length - 1], sm = D.journal[k];
+    return [`${esc(k)}分の科目ごとの合計(案):\n` + Object.keys(sm).map(a => `・${esc(a)} ${yen(sm[a])}`).join('\n'), 'point']; }
   if (/値上が|上がっ|高くな/.test(s)) return [D.ups.length ? D.ups.map(u => `・${esc(u.item)}(${esc(u.spec)}) ${u.old.toLocaleString()}円→${u.now.toLocaleString()}円(+${u.pct}%)`).join('\n') : '今のところ値上がりは見つかっていません。', 'surprise'];
   if (/仕入|先月|合計|まとめ/.test(s)) { const ms = Object.keys(D.months).sort(); if (!ms.length) return ['まだ請求書がありません。請求書を撮って送ってください。', 'think']; const k = ms[ms.length - 1], mm = D.months[k];
     return [`${esc(k)}の仕入れは <b>${yen(mm.total)}</b>。\n` + Object.entries(mm.by).map(([a, v]) => `・${esc(a)} ${yen(v)}`).join('\n'), 'point']; }
