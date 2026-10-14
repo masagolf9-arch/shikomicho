@@ -11,15 +11,18 @@
   --bg:#f4f2ea; --card:#fffdf7; --ink:#262a26; --ink-2:#646a61; --line:#dcd8ca; --accent:#3f6e34; --accent-ink:#fff; --soft:#e8eedd; --warn:#a4512a; --warn-soft:#f6e3d6; --ok:#3f6e34; --engawa:#ebe4d2;
   --display:"Zen Old Mincho","Hiragino Mincho ProN",serif; --body:"Zen Kaku Gothic New","Hiragino Kaku Gothic ProN",sans-serif;
 }
-@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){ --bg:#1b1d1a; --card:#252824; --ink:#ecebe2; --ink-2:#a7ab9f; --line:#393d36; --accent:#8fbd7c; --accent-ink:#152011; --soft:#2f3a29; --warn:#e6996c; --warn-soft:#3d2a1f; --ok:#8fbd7c; --engawa:#2a2822; color-scheme:dark } }
-:root[data-theme="dark"]{ --bg:#1b1d1a; --card:#252824; --ink:#ecebe2; --ink-2:#a7ab9f; --line:#393d36; --accent:#8fbd7c; --accent-ink:#152011; --soft:#2f3a29; --warn:#e6996c; --warn-soft:#3d2a1f; --ok:#8fbd7c; --engawa:#2a2822; color-scheme:dark }
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){ --bg:#1b1d1a; --card:#252824; --ink:#ecebe2; --ink-2:#a7ab9f; --line:#393d36; --accent:#8fbd7c; --accent-ink:#152011; --soft:#2f3a29; --warn:#e6996c; --warn-soft:#3d2a1f; --ok:#8fbd7c; --engawa:#2a2822; --photo-f:brightness(.5) saturate(.75); --wash1:rgba(27,29,26,.75); --wash2:rgba(27,29,26,.2); --plate:rgba(37,40,36,.88); --logo-f:invert(.92); color-scheme:dark } }
+:root[data-theme="dark"]{ --bg:#1b1d1a; --card:#252824; --ink:#ecebe2; --ink-2:#a7ab9f; --line:#393d36; --accent:#8fbd7c; --accent-ink:#152011; --soft:#2f3a29; --warn:#e6996c; --warn-soft:#3d2a1f; --ok:#8fbd7c; --engawa:#2a2822; --photo-f:brightness(.5) saturate(.75); --wash1:rgba(27,29,26,.75); --wash2:rgba(27,29,26,.2); --plate:rgba(37,40,36,.88); --logo-f:invert(.92); color-scheme:dark }
 body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.65}
 .wrap{max-width:560px;margin:0 auto;padding-inline:16px;padding-block:0 calc(88px + env(safe-area-inset-bottom,0px))}
 /* 縁側 */
 .engawa{position:relative;height:176px;margin:0 -16px;background:var(--engawa);border-bottom:1px solid var(--line);overflow:hidden}
-.engawa .shop{position:absolute;left:16px;top:10px;font-family:var(--display);font-size:17px;letter-spacing:.06em}
-.engawa .date{position:absolute;right:16px;top:12px;font-size:12.5px;color:var(--ink-2);font-variant-numeric:tabular-nums}
-.chara{position:absolute;left:0;bottom:0;width:88px;height:88px;background-repeat:no-repeat;background-size:auto 88px;cursor:pointer;will-change:transform;-webkit-tap-highlight-color:transparent}
+.engawa .bg{position:absolute;inset:0;background:url(shop.webp?v=1) center 58%/cover no-repeat;filter:var(--photo-f,none)}
+.engawa .bg::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,var(--wash1,rgba(244,242,234,.72)) 0%,var(--wash2,rgba(244,242,234,.18)) 45%,rgba(0,0,0,0) 70%)}
+.engawa .shop{position:absolute;left:12px;top:9px;display:flex;align-items:center;gap:6px;padding:3px 12px 3px 4px;border-radius:999px;background:var(--plate,rgba(255,253,247,.86));font-family:var(--display);font-size:17px;letter-spacing:.06em;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.engawa .shop img{width:26px;height:26px;display:block;filter:var(--logo-f,none)}
+.engawa .date{position:absolute;right:12px;top:12px;padding:1px 9px;border-radius:999px;background:var(--plate,rgba(255,253,247,.86));font-size:12.5px;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.chara{position:absolute;left:0;bottom:2px;width:var(--cs,72px);height:var(--cs,72px);background-repeat:no-repeat;background-size:auto var(--cs,72px);cursor:pointer;will-change:transform;-webkit-tap-highlight-color:transparent}
 .say{position:absolute;top:38px;left:12px;right:12px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:5px 10px;font-size:13px;line-height:1.5;box-shadow:0 1px 0 var(--line);transition:opacity .4s;pointer-events:none}
 .say::after{content:"";position:absolute;left:var(--tail,40px);bottom:-7px;width:12px;height:12px;background:var(--card);border-right:1px solid var(--line);border-bottom:1px solid var(--line);transform:translateX(-50%) rotate(45deg)}
 /* 見出し */
@@ -162,7 +165,8 @@ section.inR{animation:inR .22s ease-out}section.inL{animation:inL .22s ease-out}
 <body>
 <div class="wrap">
   <div class="engawa" id="engawa">
-    <div class="shop" id="shop">祝古屋</div>
+    <div class="bg" aria-hidden="true"></div>
+    <div class="shop"><img src="logo_mark.webp?v=1" alt="" onerror="this.remove()"><span id="shop">祝古屋</span></div>
     <div class="date" id="date"></div>
     <div class="say" id="say" hidden></div>
     <div class="chara" id="chara" role="button" tabindex="0" aria-label="もなかに話しかける"></div>
@@ -300,7 +304,7 @@ section.inR{animation:inR .22s ease-out}section.inL{animation:inL .22s ease-out}
 </div></nav>
 
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-<script src="emoji.js?v=12"></script>
-<script src="app.js?v=12"></script>
+<script src="emoji.js?v=13"></script>
+<script src="app.js?v=13"></script>
 </body>
 </html>

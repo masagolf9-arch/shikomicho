@@ -8,7 +8,7 @@ const $ = id => document.getElementById(id);
 const store = { get(k, d) { try { const v = localStorage.getItem('shikomi:' + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
                 set(k, v) { try { localStorage.setItem('shikomi:' + k, JSON.stringify(v)); } catch (e) {} } };
 // 見え方の設定(この端末だけ)
-const applyLook = () => { const th = store.get('theme', 'auto'); if (th === 'auto') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme', th); document.body.style.zoom = store.get('size', 'normal') === 'big' ? '1.15' : ''; };
+const applyLook = () => { const th = store.get('theme', 'auto'); if (th === 'auto') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme', th); document.body.style.zoom = store.get('size', 'normal') === 'big' ? '1.15' : ''; document.documentElement.style.setProperty('--cs', ({ s: 60, m: 72, l: 88 })[store.get('csize', 'm')] + 'px'); };
 applyLook();
 let U = '個';
 const yen = n => Math.round(n).toLocaleString('ja-JP') + '円';
@@ -332,6 +332,7 @@ function renderSet() {
   const cyc = (D.stock || {}).cycle || '年1回';
   $('set-box').innerHTML = `
     <div class="set-row"><span>キャラ</span>${seg('pack', [['shirokuma', 'もなか'], ['tanuki', 'ぽん']], PACK)}</div>
+    <div class="set-row"><span>キャラの大きさ</span>${seg('csize', [['s', '小'], ['m', '中'], ['l', '大']], store.get('csize', 'm'))}</div>
     <div class="set-row"><span>文字の大きさ</span>${seg('size', [['normal', 'ふつう'], ['big', '大きめ']], store.get('size', 'normal'))}</div>
     <div class="set-row"><span>画面の色</span>${seg('theme', [['auto', '自動'], ['light', '明るい'], ['dark', '暗い']], store.get('theme', 'auto'))}</div>
     <div class="set-row"><span>棚卸<br><span class="k">お店みんな共通</span></span>${seg('cycle', [['毎月', '毎月'], ['年1回', '年1回']], cyc)}</div>
@@ -409,7 +410,7 @@ function openInvoice(mo, to) {
   openPrint(`<h2>請 求 書</h2>
     <div style="display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap"><div><p style="font-size:18px;border-bottom:1px solid #333;padding-bottom:2px;margin:0 0 8px">${esc(to)} 御中</p><p style="margin:0">${y}年${m}月分(${m}月1日〜${m}月${last.getDate()}日)</p>
       <p style="font-size:20px;margin:10px 0">ご請求額 <b>${(sub + tax).toLocaleString('ja-JP')}円</b>(税込)</p></div>
-      <div style="font-size:13px;text-align:right">${esc(si.name || D.shop)}<br>${esc(si.addr || '')}<br>${si.tel ? 'TEL ' + esc(si.tel) : ''}<br>${si.reg ? '登録番号 ' + esc(si.reg) : ''}<br>発行日 ${new Date().toLocaleDateString('ja-JP')}</div></div>
+      <div style="font-size:13px;text-align:right"><img src="logo_mark.webp?v=1" alt="" onerror="this.remove()" style="height:56px;display:block;margin:0 0 6px auto">${esc(si.name || D.shop)}<br>${esc(si.addr || '')}<br>${si.tel ? 'TEL ' + esc(si.tel) : ''}<br>${si.reg ? '登録番号 ' + esc(si.reg) : ''}<br>発行日 ${new Date().toLocaleDateString('ja-JP')}</div></div>
     <table style="margin-top:12px"><tr><th>品名</th><th>数量</th><th>単価(税抜)</th><th>金額(税抜)</th></tr>
       ${rows.map(r => `<tr><td>${esc(r.item)} ※</td><td style="text-align:right">${r.qty}</td><td style="text-align:right">${r.unit != null ? r.unit.toLocaleString('ja-JP') : '未定'}</td><td style="text-align:right">${r.unit != null ? (r.unit * r.qty).toLocaleString('ja-JP') : ''}</td></tr>`).join('')}
       <tr><td colspan="3" style="text-align:right">小計(8%対象)</td><td style="text-align:right">${sub.toLocaleString('ja-JP')}</td></tr>
@@ -457,15 +458,15 @@ function renderPost() {
 // ---------- 縁側のキャラ:ゆっくり歩いて、ときどき一言 ----------
 const PACK = store.get('pack', 'shirokuma');
 const ROLE = { greet: '1', heart: '3', clap: '7', point: '10', surprise: '12', think: '13', tea: '19', walk: '20', sleepy: '23', sleep: '24' };
-const ch = $('chara'), say = $('say'), eng = $('engawa');
+const ch = $('chara'), say = $('say'), eng = $('engawa'), CS = () => ch.offsetWidth || 72;
 let cx = 60, dir = 1, walking = true, talkT = null; const anim = { gen: 0, t: null };
 function play(r, loop = true, speed = 1.3) {
   const e = EMOJI[PACK][ROLE[r]]; if (!e) return Promise.resolve();
   clearTimeout(anim.t); const g = ++anim.gen; let f = 0; ch.style.backgroundImage = `url(${e.src})`;
-  return new Promise(res => { const st = () => { if (g !== anim.gen) return; ch.style.backgroundPosition = `-${f * 88}px 0`; f++; if (f >= +e.frames) { if (loop) f = 0; else { res(); return; } } anim.t = setTimeout(st, e.delay * speed); }; st(); if (loop) res(); });
+  return new Promise(res => { const st = () => { if (g !== anim.gen) return; ch.style.backgroundPosition = `-${f * CS()}px 0`; f++; if (f >= +e.frames) { if (loop) f = 0; else { res(); return; } } anim.t = setTimeout(st, e.delay * speed); }; st(); if (loop) res(); });
 }
-function place() { ch.style.transform = `translateX(${cx}px) scaleX(${dir > 0 ? -1 : 1})`; say.style.setProperty('--tail', Math.max(20, Math.min(cx + 32, eng.clientWidth - 44)) + 'px'); }
-function walkLoop() { if (walking) { cx += dir * 0.35; const max = eng.clientWidth - 88; if (cx > max) { cx = max; dir = -1; pauseHere(); } if (cx < 0) { cx = 0; dir = 1; pauseHere(); } place(); } requestAnimationFrame(walkLoop); }
+function place() { ch.style.transform = `translateX(${cx}px) scaleX(${dir > 0 ? -1 : 1})`; say.style.setProperty('--tail', Math.max(20, Math.min(cx + CS() * .36, eng.clientWidth - 44)) + 'px'); }
+function walkLoop() { if (walking) { cx += dir * 0.35; const max = eng.clientWidth - CS(); if (cx > max) { cx = max; dir = -1; pauseHere(); } if (cx < 0) { cx = 0; dir = 1; pauseHere(); } place(); } requestAnimationFrame(walkLoop); }
 function pauseHere() { walking = false; const acts = [['tea', 2], ['sleepy', 2], ['think', 1], ['greet', 1]]; const [r, n] = acts[Math.floor(Math.random() * acts.length)]; (async () => { for (let i = 0; i < n; i++) await play(r, false, 1.6); walking = true; play('walk', true, 2.6); })(); }
 setInterval(() => { if (walking && Math.random() < .35) pauseHere(); }, 9000);
 function chat(text, role) {
