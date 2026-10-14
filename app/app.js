@@ -354,6 +354,19 @@ function renderSet() {
   $('closed').querySelectorAll('button').forEach(b => b.onclick = () => { b.setAttribute('aria-pressed', b.getAttribute('aria-pressed') !== 'true'); const v = [...$('closed').querySelectorAll('[aria-pressed="true"]')].map(x => x.dataset.w).join(''); setValueX({ field: 'closed', value: v }); });
   $('shop-save').onclick = () => { const v = {}; $('set-box').querySelectorAll('[data-shop]').forEach(i => v[i.dataset.shop] = i.value.trim()); setValueX({ field: 'shop', value: v }); };
 }
+// ---------- 問い合わせ ----------
+$('ct-cat').querySelectorAll('button').forEach(b => b.onclick = () => $('ct-cat').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b)));
+$('ct-go').onclick = async () => {
+  const text = $('ct-text').value.trim(), cat = ($('ct-cat').querySelector('[aria-pressed="true"]') || {}).dataset?.v || 'その他';
+  if (!text) { chat('問い合わせの内容を書いてください'); $('ct-text').focus(); return; }
+  const go = $('ct-go'); go.disabled = true; chat('送っています…');
+  try {
+    const out = await api({ kind: 'app_contact', cat, text });
+    if (!out.ok) throw new Error(out.error);
+    $('ct-text').value = ''; chat('問い合わせを送りました。お返事はLINEかメールでお届けします。', 'heart');
+  } catch (e) { chat((e && e.message) || '送れませんでした。電波のよいところでもう一度どうぞ'); }
+  finally { go.disabled = false; }
+};
 // ---------- 衛生記録 ----------
 const hygMissing = () => (D && D.hyg && !D.closedToday) ? D.hyg.today.missing : [];
 function renderHyg() {

@@ -126,6 +126,7 @@ td.n{text-align:right;white-space:nowrap;padding-left:10px}
 .hgrid{font-size:12.5px}.hgrid th,.hgrid td{border:1px solid var(--line-2);padding:3px 4px;text-align:center;white-space:nowrap}.hgrid th{font-weight:500;background:var(--soft)}
 .hgrid td.bad{background:var(--warn-soft);color:var(--warn);font-weight:700}
 .draft{white-space:pre-wrap;font-size:14.5px;margin:6px 0 0}
+.contact textarea{display:block;width:100%;box-sizing:border-box;margin-top:10px;font:inherit;font-size:15px;padding:9px 10px;border:1px solid var(--line);border-radius:9px;background:var(--bg);color:var(--ink);resize:vertical}
 .fld{display:grid;grid-template-columns:6.5em 1fr;gap:6px 8px;align-items:center}
 .fld input,.fld select,.post-in input,.post-in select{font:inherit;font-size:15px;padding:7px 9px;border:1px solid var(--line);border-radius:9px;background:var(--bg);color:var(--ink);min-width:0;width:100%;box-sizing:border-box}
 
@@ -298,6 +299,13 @@ section.inR{animation:inR .22s ease-out}section.inL{animation:inL .22s ease-out}
     <h1>設定</h1>
     <p class="lead">この画面の見え方と、お店の決まりごと。</p>
     <div class="card" id="set-box"></div>
+    <h1 class="sub">問い合わせ</h1>
+    <div class="card contact">
+      <p class="k" style="margin:0 0 8px">使い方が分からない、うまく動かない、こうしてほしい。仕込帳の担当に届きます。お返事はLINEかメールで。</p>
+      <div class="seg" id="ct-cat" style="flex-wrap:wrap;justify-content:flex-start"><button type="button" data-v="使い方" aria-pressed="true">使い方</button><button type="button" data-v="うまく動かない" aria-pressed="false">うまく動かない</button><button type="button" data-v="こうしてほしい" aria-pressed="false">こうしてほしい</button><button type="button" data-v="その他" aria-pressed="false">その他</button></div>
+      <textarea id="ct-text" rows="4" maxlength="2000" placeholder="例: 請求書の写真がうまく読めません" aria-label="問い合わせの内容"></textarea>
+      <div class="ask"><button class="btn" type="button" id="ct-go">送る</button><span class="k">LINEで「問い合わせ 〜」と送ってもOK</span></div>
+    </div>
     <h1 class="sub">LINEで送れる言葉</h1>
     <div class="card"><table class="howto">
       <tr><td>写真を送る</td><td class="k">レシピ・請求書・納品書・レシート・袋の裏を読みます</td></tr>
@@ -351,7 +359,7 @@ section.inR{animation:inR .22s ease-out}section.inL{animation:inL .22s ease-out}
 </div></nav>
 
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-<script src="emoji.js?v=15"></script>
-<script src="app.js?v=15"></script>
+<script src="emoji.js?v=16"></script>
+<script src="app.js?v=16"></script>
 </body>
 </html>
