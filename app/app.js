@@ -28,7 +28,7 @@ async function load() {
   try {
     const out = await api({ kind: 'app_data' });
     if (!out.ok) {
-      if (out.error === 'wait') return state('お店の人の許可待ちです。<br>店主に「仕込帳の画面を見たい」と伝えてください。<br><button class="btn ghost" onclick="load()">もう一度読む</button>');
+      if (out.error === 'wait') return state('<b>店主の許可待ちです。</b><br>店主のLINEに「見たい」とお知らせを送りました。<br>店主が「許可」を押したら、もう一度開いてください。<br><button class="btn ghost" onclick="load()">もう一度読む</button>');
       if (out.error === 'login') { liff.logout(); return state('ログインし直してください。<br><button class="btn" onclick="location.reload()">ログイン</button>'); }
       return state(esc(out.error));
     }
