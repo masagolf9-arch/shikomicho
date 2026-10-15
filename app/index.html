@@ -126,6 +126,12 @@ td.n{text-align:right;white-space:nowrap;padding-left:10px}
 .hgrid{font-size:12.5px}.hgrid th,.hgrid td{border:1px solid var(--line-2);padding:3px 4px;text-align:center;white-space:nowrap}.hgrid th{font-weight:500;background:var(--soft)}
 .hgrid td.bad{background:var(--warn-soft);color:var(--warn);font-weight:700}
 .draft{white-space:pre-wrap;font-size:14.5px;margin:6px 0 0}
+.banks{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.bank{display:flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--bg)}
+.bank button{flex:1;min-width:0;text-align:left;font:inherit;font-size:13.5px;padding:9px 8px;border:0;background:none;color:var(--ink);line-height:1.3}
+.bank a{flex:0 0 38px;display:flex;align-items:center;justify-content:center;border-left:1px solid var(--line);color:var(--accent);text-decoration:none;font-size:16px}
+.bank.on{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.bank.on button{color:var(--accent);font-weight:700}
 .contact textarea{display:block;width:100%;box-sizing:border-box;margin-top:10px;font:inherit;font-size:15px;padding:9px 10px;border:1px solid var(--line);border-radius:9px;background:var(--bg);color:var(--ink);resize:vertical}
 .fld{display:grid;grid-template-columns:6.5em 1fr;gap:6px 8px;align-items:center}
 .fld input,.fld select,.post-in input,.post-in select{font:inherit;font-size:15px;padding:7px 9px;border:1px solid var(--line);border-radius:9px;background:var(--bg);color:var(--ink);min-width:0;width:100%;box-sizing:border-box}
@@ -299,6 +305,8 @@ section.inR{animation:inR .22s ease-out}section.inL{animation:inL .22s ease-out}
     <h1>設定</h1>
     <p class="lead">この画面の見え方と、お店の決まりごと。</p>
     <div class="card" id="set-box"></div>
+    <h1 class="sub">振込に使う銀行</h1>
+    <div class="card" id="bank-box"></div>
     <h1 class="sub">問い合わせ</h1>
     <div class="card contact">
       <p class="k" style="margin:0 0 8px">使い方が分からない、うまく動かない、こうしてほしい。仕込帳の担当に届きます。お返事はLINEかメールで。</p>
@@ -359,7 +367,7 @@ section.inR{animation:inR .22s ease-out}section.inL{animation:inL .22s ease-out}
 </div></nav>
 
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-<script src="emoji.js?v=16"></script>
-<script src="app.js?v=16"></script>
+<script src="emoji.js?v=17"></script>
+<script src="app.js?v=17"></script>
 </body>
 </html>

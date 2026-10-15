@@ -152,15 +152,55 @@ function renderSort() {
     try { await navigator.clipboard.writeText(txt); chat('コピーしました。貼りつけて使ってください。', 'heart'); } catch (e) { chat('コピーできませんでした。長押しで選んでください。'); }
   };
 }
+// ---------- 振込に使う銀行(押すと銀行のページへ。送金はしない) ----------
+const BANKS = [
+  ['宮崎', [['miyasin', '宮崎第一信用金庫(法人)', 'https://www.miyasin.co.jp/business/netbanking/'], ['miyasin_p', '宮崎第一信用金庫(個人)', 'https://www.miyasin.co.jp/netbanking/'],
+    ['miyagin', '宮崎銀行(法人)', 'https://www.miyagin.co.jp/hojin/settlement/banking/'], ['taiyo', '宮崎太陽銀行', 'https://www.taiyobank.co.jp/']]],
+  ['全国の銀行', [['yucho', 'ゆうちょ銀行', 'https://www.jp-bank.japanpost.jp/'], ['mufg', '三菱UFJ銀行', 'https://www.bk.mufg.jp/'], ['smbc', '三井住友銀行', 'https://www.smbc.co.jp/'],
+    ['mizuho', 'みずほ銀行', 'https://www.mizuhobank.co.jp/'], ['resona', 'りそな銀行', 'https://www.resonabank.co.jp/']]],
+  ['ネット銀行', [['sbi', '住信SBIネット銀行', 'https://www.netbk.co.jp/'], ['rakuten', '楽天銀行', 'https://www.rakuten-bank.co.jp/'], ['paypay', 'PayPay銀行', 'https://www.paypay-bank.co.jp/'],
+    ['gmo', 'GMOあおぞらネット銀行', 'https://gmo-aozora.com/'], ['sony', 'ソニー銀行', 'https://moneykit.net/'], ['jibun', 'auじぶん銀行', 'https://www.jibunbank.co.jp/']]]
+];
+function payBank() {
+  const si = D.shopInfo || {};
+  if (si.payBank === 'other' && si.payBankUrl) return { id: 'other', name: si.payBankName || '登録した銀行', url: si.payBankUrl };
+  for (const [, list] of BANKS) for (const [id, name, url] of list) if (id === si.payBank) return { id, name, url };
+  return null;
+}
+function openBank(url) {
+  if (window.liff && liff.isInClient && liff.isInClient()) liff.openWindow({ url, external: true });
+  else window.open(url, '_blank', 'noopener');
+}
+async function goPay(p) {
+  const b = payBank();
+  if (!b) { chat('先に「設定」で、振込に使う銀行を選んでください', 'think'); show('set'); setTimeout(() => $('bank-box') && $('bank-box').scrollIntoView({ block: 'start', behavior: 'smooth' }), 300); return; }
+  const txt = `${p.supplier} ${p.total}円`;
+  let copied = false; try { await navigator.clipboard.writeText(txt); copied = true; } catch (e) {}
+  chat(`${copied ? `「${p.supplier} ${p.total.toLocaleString('ja-JP')}円」をコピーしました。` : ''}${b.name}を開きます。振り込んだら「払った」を押してください。`, 'heart');
+  openBank(b.url);
+}
+function renderBanks() {
+  const box = $('bank-box'); if (!box) return;
+  const cur = payBank(), si = D.shopInfo || {};
+  box.innerHTML = `<p class="k" style="margin:0 0 8px">帳簿の「振込へ」を押すと、ここで選んだ銀行のページが開きます(業者名と金額はコピーされます)。お金を動かすのは銀行のページで、お店の人がします。名前を押すと選べて、↗ でそのまま開きます。</p>` +
+    BANKS.map(([g, list]) => `<p class="k" style="margin:10px 0 4px"><b>${g}</b></p><div class="banks">${list.map(([id, name, url]) => `<div class="bank${cur && cur.id === id ? ' on' : ''}"><button type="button" data-bank="${id}" aria-pressed="${!!(cur && cur.id === id)}">${cur && cur.id === id ? '✓ ' : ''}${esc(name)}</button><a href="${esc(url)}" target="_blank" rel="noopener" data-open="${esc(url)}" aria-label="${esc(name)}を開く">↗</a></div>`).join('')}</div>`).join('') +
+    `<p class="k" style="margin:10px 0 4px"><b>その他の銀行</b></p><div class="fld"><span class="k">銀行名</span><input id="bk-name" value="${esc(si.payBank === 'other' ? si.payBankName : '')}" placeholder="例: 〇〇信用金庫"><span class="k">ページのURL</span><input id="bk-url" inputmode="url" value="${esc(si.payBank === 'other' ? si.payBankUrl : '')}" placeholder="https://"></div>
+    <div class="ask"><button class="btn ghost" type="button" id="bk-save">この銀行にする</button></div>`;
+  box.querySelectorAll('[data-bank]').forEach(b => b.onclick = () => setValueX({ field: 'paybank', value: { id: b.dataset.bank } }));
+  box.querySelectorAll('[data-open]').forEach(a => a.onclick = e => { e.preventDefault(); openBank(a.dataset.open); });
+  $('bk-save').onclick = () => { const url = $('bk-url').value.trim(); if (!/^https:\/\//.test(url)) { chat('URLは https:// から入れてください'); return; } setValueX({ field: 'paybank', value: { id: 'other', name: $('bk-name').value.trim(), url } }); };
+}
 function renderPays() {
   const box = $('pays');
   const up = unpaid();
   if (!(D.pays || []).length) { box.innerHTML = '<div class="card"><p class="k" style="margin:0">請求書を撮ると、業者ごと・月ごとに仕分けて、ここに並びます</p></div>'; return; }
   const sum = up.reduce((a, p) => a + p.total, 0);
   box.innerHTML = `<div class="card"><div class="row"><span>${up.length ? `払っていないもの ${up.length}件` : '払っていないものはありません'}</span>${up.length ? `<span class="big" style="font-size:20px">${yen(sum)}</span>` : ''}</div>` +
-    up.map(p => `<div class="row" style="margin-top:8px;align-items:center"><span>${esc(p.supplier)} <span class="k">${+p.month.slice(5) || esc(p.month)}月分${p.due ? ' · 期限 ' + esc(p.due.slice(5).replace('-', '/')) : ''}</span></span><span style="display:flex;gap:6px;align-items:center;flex:0 0 auto"><b style="white-space:nowrap">${yen(p.total)}</b><button class="btn ghost" style="white-space:nowrap" type="button" data-paid="${p.row}">払った</button></span></div>`).join('') +
-    `<p class="k" style="margin:8px 0 0">LINEで「業者名 払った」でも済にできます</p></div>`;
+    up.map(p => `<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line)"><div>${esc(p.supplier)} <span class="k">${+p.month.slice(5) || esc(p.month)}月分${p.due ? ' · 期限 ' + esc(p.due.slice(5).replace('-', '/')) : ''}</span></div><div class="row" style="align-items:center;margin-top:6px"><b style="white-space:nowrap;font-size:17px">${yen(p.total)}</b><span style="display:flex;gap:6px;align-items:center;flex:0 0 auto"><button class="btn" style="white-space:nowrap" type="button" data-go="${p.row}">振込へ</button><button class="btn ghost" style="white-space:nowrap" type="button" data-paid="${p.row}">払った</button></span></div>`).join('') +
+    `<p class="k" style="margin:8px 0 0">${payBank() ? `振込は ${esc(payBank().name)} を開きます(<a href="#" id="bank-change" style="color:var(--accent)">変える</a>)。` : '「振込へ」を使うには、<a href="#" id="bank-change" style="color:var(--accent)">設定で銀行を選んでください</a>。'}LINEで「業者名 払った」でも済にできます</p></div>`;
   box.querySelectorAll('[data-paid]').forEach(b => b.onclick = () => setValue('', 'paid', +b.dataset.paid));
+  box.querySelectorAll('[data-go]').forEach(b => b.onclick = () => goPay(up.find(p => p.row === +b.dataset.go)));
+  if ($('bank-change')) $('bank-change').onclick = e => { e.preventDefault(); show('set'); setTimeout(() => $('bank-box').scrollIntoView({ block: 'start', behavior: 'smooth' }), 300); };
 }
 
 // ---------- 原価 ----------
@@ -275,7 +315,7 @@ async function setValueX(extra) {
   chat('記録しています…');
   const out = await api(Object.assign({ kind: 'app_set' }, extra));
   if (!out.ok) { chat(out.error || 'うまく記録できませんでした'); return; }
-  D = out.data; renderAll(); if (out.msg) { chat(out.msg); return; } chat(extra.field === 'hyg' ? '記録しました。' : extra.field === 'deliv' ? '納品を記録しました。' : extra.field === 'shop' ? 'お店の情報を保存しました。' : ['biz', 'closed', 'wsprice', 'regalias'].includes(extra.field) ? '変えました。' : extra.field === 'sales' ? '売上を記録しました。' : extra.field === 'cycle' ? `棚卸は「${extra.value}」にしました。その前にLINEでお知らせします。` : '覚えました。在庫を計算しなおしました。', 'heart');
+  D = out.data; renderAll(); if (out.msg) { chat(out.msg); return; } chat(extra.field === 'hyg' ? '記録しました。' : extra.field === 'deliv' ? '納品を記録しました。' : extra.field === 'shop' ? 'お店の情報を保存しました。' : extra.field === 'paybank' ? `振込は「${esc((payBank() || {}).name || '')}」を開くようにしました。` : ['biz', 'closed', 'wsprice', 'regalias'].includes(extra.field) ? '変えました。' : extra.field === 'sales' ? '売上を記録しました。' : extra.field === 'cycle' ? `棚卸は「${extra.value}」にしました。その前にLINEでお知らせします。` : '覚えました。在庫を計算しなおしました。', 'heart');
 }
 function renderJournal() {
   const box = $('journal');
@@ -353,6 +393,7 @@ function renderSet() {
   $('reload').onclick = () => location.reload();
   $('closed').querySelectorAll('button').forEach(b => b.onclick = () => { b.setAttribute('aria-pressed', b.getAttribute('aria-pressed') !== 'true'); const v = [...$('closed').querySelectorAll('[aria-pressed="true"]')].map(x => x.dataset.w).join(''); setValueX({ field: 'closed', value: v }); });
   $('shop-save').onclick = () => { const v = {}; $('set-box').querySelectorAll('[data-shop]').forEach(i => v[i.dataset.shop] = i.value.trim()); setValueX({ field: 'shop', value: v }); };
+  renderBanks();
 }
 // ---------- 問い合わせ ----------
 $('ct-cat').querySelectorAll('button').forEach(b => b.onclick = () => $('ct-cat').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b)));
