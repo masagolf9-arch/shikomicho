@@ -76,6 +76,7 @@ function renderToday() {
   $('notices').querySelectorAll('[data-cam]').forEach(b => b.onclick = openCamera);
   const q = list.length; const bd = $('badge'); bd.textContent = q; bd.hidden = !q;
   const up0 = unpaid(), bb = $('badge-book'); bb.textContent = up0.length; bb.hidden = !up0.length;
+  const hm0 = hygMissing().length, bh = $('badge-hyg'); bh.textContent = hm0; bh.hidden = !hm0;
   renderHero(q); renderMenu(q);
   $('made').innerHTML = D.made.length ? D.made.map(m => `<div class="row"><span>${esc(m.text)}</span><span class="k">${new Date(m.t).toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' })}</span></div>`).join('')
     : '<p class="k" style="margin:0">まだありません。夕方にLINEで「栗万十 90、チーズ万十 100」のように送ると、ここに出ます</p>';
@@ -109,18 +110,18 @@ function renderHero(q) {
 }
 // ---------- きょう: アイコンの並び ----------
 const IC = {
-  cam: "<path d=\"M3.5 8.5h3.3l1.7-2.5h7l1.7 2.5h3.3v10.5h-17z\"/><circle cx=\"12\" cy=\"13.4\" r=\"3.6\"/>",
-  cost: "<rect x=\"3.8\" y=\"5\" width=\"16.4\" height=\"14\" rx=\"1.4\"/><path d=\"M3.8 9.6h16.4\"/><path d=\"M8 5v14M12 5v14M16 5v14\" stroke-width=\"1\"/><circle cx=\"8\" cy=\"7.3\" r=\"1.25\" fill=\"currentColor\"/><circle cx=\"16\" cy=\"7.3\" r=\"1.25\" fill=\"currentColor\"/><circle cx=\"8\" cy=\"12.2\" r=\"1.25\" fill=\"currentColor\"/><circle cx=\"12\" cy=\"12.2\" r=\"1.25\" fill=\"currentColor\"/><circle cx=\"12\" cy=\"14.9\" r=\"1.25\" fill=\"currentColor\"/><circle cx=\"16\" cy=\"16.4\" r=\"1.25\" fill=\"currentColor\"/>",
-  label: "<path d=\"M6 3.5h12v17H6z\"/><circle cx=\"12\" cy=\"6.8\" r=\"1.2\"/><path d=\"M9 11h6M9 14h6M9 17h3.5\"/>",
-  mat: "<path d=\"M7.2 8.5C5.6 10.6 5 13.6 5.6 17c.25 1.4 1.3 2.5 2.8 2.5h7.2c1.5 0 2.55-1.1 2.8-2.5.6-3.4 0-6.4-1.6-8.5z\"/><path d=\"M9.3 8.5 8 4.8M14.7 8.5 16 4.8M8 4.8c1.3.7 2.6 1 4 1s2.7-.3 4-1\"/><path d=\"M9.5 13.5h5\"/>",
-  stock: "<path d=\"M2.8 9.2 12 4.2l9.2 5\"/><path d=\"M5.2 8.2V20h13.6V8.2\"/><path d=\"M10.2 20v-5.2h3.6V20\"/><path d=\"M5.2 11.6h13.6\" stroke-width=\"1\"/>",
-  hyg: "<path d=\"M10 4.6a2 2 0 0 1 4 0v9.3a4 4 0 1 1-4 0z\"/><path d=\"M12 9.5v7.4\"/><path d=\"M16.8 6h2M16.8 9h2\" stroke-width=\"1.2\"/>",
-  book: "<rect x=\"5.2\" y=\"3.5\" width=\"13.6\" height=\"17\" rx=\"1\"/><path d=\"M8.2 3.5v17\"/><path d=\"M5.2 7.5h3M5.2 12h3M5.2 16.5h3\" stroke-width=\"1.2\"/><path d=\"M12 6.3h3.6v8.4H12z\"/>",
-  ws: "<rect x=\"3.6\" y=\"8.2\" width=\"16.8\" height=\"11.3\" rx=\"1\"/><path d=\"M3.6 11h16.8\"/><path d=\"M10.3 8.2v11.3M13.7 8.2v11.3\"/><path d=\"M9.5 8.2 8 4.6M14.5 8.2 16 4.6\" stroke-width=\"1.2\"/>",
-  post: "<path d=\"M6.5 3v18\"/><path d=\"M6.5 4.5h11.5v13.5H6.5\"/><path d=\"M10 4.5V18\" stroke-width=\"1\"/><path d=\"M13 8v6.5M15.5 8v4\"/>",
-  sales: "<ellipse cx=\"12\" cy=\"12\" rx=\"6.6\" ry=\"8.6\"/><path d=\"M9 8.2h6M8.4 12h7.2M9 15.8h6\" stroke-width=\"1.2\"/>",
-  home: "<path d=\"M2.6 8.2 12 3.8l9.4 4.4\"/><path d=\"M4.8 8.6V20.2M19.2 8.6V20.2M3.5 20.2h17\"/><path d=\"M4.8 8.6h14.4\"/><path d=\"M7.2 8.6v5.6h2.9V8.6M13.9 8.6v5.6h2.9V8.6\"/>",
-  set: "<circle cx=\"12\" cy=\"12\" r=\"3.1\"/><path d=\"M12 2.8v2.4M12 18.8v2.4M2.8 12h2.4M18.8 12h2.4M5.5 5.5l1.7 1.7M16.8 16.8l1.7 1.7M5.5 18.5l1.7-1.7M16.8 7.2l1.7-1.7\"/>"
+  cam: '<path d="M3.5 8.5h3.3l1.7-2.5h7l1.7 2.5h3.3v10.5h-17z"/><circle cx="12" cy="13.4" r="3.4"/>',
+  cost: '<circle cx="12" cy="12" r="8.5"/><path d="M9 7.5l3 4.2 3-4.2M12 11.7V17M9.3 13.3h5.4M9.3 15.5h5.4"/>',
+  label: '<path d="M6 3.5h12v17H6z"/><path d="M9.5 9h5M9.5 12.5h5M9.5 16h3"/>',
+  mat: '<path d="M7 9c-1.6 2.3-2.2 5.2-1.6 8.3.3 1.5 1.4 2.4 2.9 2.4h7.4c1.5 0 2.6-.9 2.9-2.4.6-3.1 0-6-1.6-8.3z"/><path d="M8.5 9 7.5 5M15.5 9l1-4M7.5 5c1.4.7 2.9 1 4.5 1s3.1-.3 4.5-1"/>',
+  stock: '<path d="M3 9.5 12 4.5l9 5"/><path d="M5 8.5V20h14V8.5"/><path d="M10 20v-5h4v5"/>',
+  hyg: '<path d="M10 4.5a2 2 0 0 1 4 0v9.2a4 4 0 1 1-4 0z"/><path d="M12 10v7"/><path d="M17 6h2.5M17 9.5h2.5"/>',
+  book: '<rect x="4.5" y="3.5" width="15" height="17" rx="2"/><path d="M8.5 8h7M8.5 12h7M8.5 16h4"/>',
+  ws: '<path d="M3.5 9h11v10h-11z"/><path d="M14.5 12h3.5l2.5 3v4h-6z"/><circle cx="7" cy="19.5" r="1.6"/><circle cx="17.5" cy="19.5" r="1.6"/>',
+  post: '<path d="M4 10v4h3l6 4V6L7 10z"/><path d="M16.5 9a4 4 0 0 1 0 6M19 6.5a7.5 7.5 0 0 1 0 11"/>',
+  sales: '<path d="M4 19h16"/><path d="M6 15.5l4-5 3.5 3 4.5-6"/><path d="M14.5 7.5H18V11"/>',
+  home: '<path d="M3 11.2 12 4l9 7.2"/><path d="M5.5 10v10h13V10"/><path d="M10 20v-6h4v6"/>',
+  set: '<circle cx="12" cy="12" r="3"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8"/>'
 };
 function renderMenu(q) {
   const low = ((D.stock || {}).items || []).filter(x => x.low).length, up = unpaid().length;
@@ -128,7 +129,7 @@ function renderMenu(q) {
     ['cam', '撮る', openCamera, 0, 'p'], ['cost', '原価', () => show('cost')], ['label', '裏表示', () => show('label')], ['mat', '材料', () => { matF = 'all'; show('mat'); }],
     ['stock', '在庫', () => { matF = 'low'; show('mat'); }, low], ['hyg', '衛生', () => show('hyg'), hygMissing().length, hygMissing().length], ['book', '帳簿', () => show('book'), up], ['ws', '卸', () => show('ws')], ['post', '発信', () => show('post')], ['sales', '売上', () => show('sales')]];
   const m = $('menu');
-  m.innerHTML = items.map(([k, l, , b, w], i) => `<button type="button" data-i="${i}"><span class="ic${w === 'p' ? ' p' : w ? ' w' : ''}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[k]}</svg></span>${l}${b ? `<span class="badge">${b}</span>` : ''}</button>`).join('');
+  m.innerHTML = items.map(([k, l, , b, w], i) => `<button type="button" data-i="${i}"><span class="ic${w === 'p' ? ' p' : w ? ' w' : ''}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[k]}</svg></span>${l}${b ? `<span class="badge">${b}</span>` : ''}</button>`).join('');
   m.querySelectorAll('button').forEach(b => b.onclick = () => items[b.dataset.i][2]());
 }
 function renderBook() { renderPays(); renderSort(); renderJournal(); }
@@ -509,24 +510,25 @@ function renderPost() {
   };
 }
 
-// ---------- 縁側のキャラ:ゆっくり歩いて、ときどき一言 ----------
+// ---------- 右下に座るキャラ:ふだんはお茶を持って座り、ときどきしぐさ。押すと会話が開く ----------
 const PACK = store.get('pack', 'shirokuma');
 const ROLE = { greet: '1', heart: '3', clap: '7', point: '10', surprise: '12', think: '13', tea: '19', walk: '20', sleepy: '23', sleep: '24' };
-const ch = $('chara'), say = $('say'), eng = $('engawa'), CS = () => ch.offsetWidth || 72;
-let cx = 60, dir = 1, walking = true, talkT = null; const anim = { gen: 0, t: null };
+const ch = $('chara'), say = $('say'), CS = () => ch.offsetWidth || 72;
+let busy = false, talkT = null; const anim = { gen: 0, t: null };
 function play(r, loop = true, speed = 1.3) {
   const e = EMOJI[PACK][ROLE[r]]; if (!e) return Promise.resolve();
   clearTimeout(anim.t); const g = ++anim.gen; let f = 0; ch.style.backgroundImage = `url(${e.src})`;
   return new Promise(res => { const st = () => { if (g !== anim.gen) return; ch.style.backgroundPosition = `-${f * CS()}px 0`; f++; if (f >= +e.frames) { if (loop) f = 0; else { res(); return; } } anim.t = setTimeout(st, e.delay * speed); }; st(); if (loop) res(); });
 }
-function place() { ch.style.transform = `translateX(${cx}px) scaleX(${dir > 0 ? -1 : 1})`; say.style.setProperty('--tail', Math.max(20, Math.min(cx + CS() * .36, eng.clientWidth - 44)) + 'px'); }
-function walkLoop() { if (walking) { cx += dir * 0.35; const max = eng.clientWidth - CS(); if (cx > max) { cx = max; dir = -1; pauseHere(); } if (cx < 0) { cx = 0; dir = 1; pauseHere(); } place(); } requestAnimationFrame(walkLoop); }
-function pauseHere() { walking = false; const acts = [['tea', 2], ['sleepy', 2], ['think', 1], ['greet', 1]]; const [r, n] = acts[Math.floor(Math.random() * acts.length)]; (async () => { for (let i = 0; i < n; i++) await play(r, false, 1.6); walking = true; play('walk', true, 2.6); })(); }
-setInterval(() => { if (walking && Math.random() < .35) pauseHere(); }, 9000);
+// 座った姿(お茶の最初のコマ)で止める
+function rest() { clearTimeout(anim.t); ++anim.gen; const e = EMOJI[PACK][ROLE.tea]; ch.style.backgroundImage = `url(${e.src})`; ch.style.backgroundPosition = '0 0'; }
+async function act(r, speed = 1.3) { if (busy) return; busy = true; try { await play(r, false, speed); } finally { busy = false; rest(); } }
+setInterval(() => { if (!busy && document.visibilityState === 'visible' && Math.random() < .4) { const acts = ['tea', 'tea', 'sleepy', 'think', 'greet']; act(acts[Math.floor(Math.random() * acts.length)], 1.7); } }, 10000);
+function place() {}
 function chat(text, role) {
-  if (role) { walking = false; play(role, false, 1.3).then(() => { walking = true; play('walk', true, 2.6); }); }
+  if (role) act(role, 1.3);
   if (!text) return;
-  clearTimeout(talkT); say.textContent = text; say.hidden = false; place(); talkT = setTimeout(() => say.hidden = true, 5200);
+  clearTimeout(talkT); say.textContent = text; say.hidden = false; talkT = setTimeout(() => say.hidden = true, 5200);
 }
 const CNAME = PACK === 'tanuki' ? 'ぽん' : 'もなか';
 function hello() {
@@ -539,12 +541,12 @@ addEventListener('resize', place);
 
 // ---------- 聞く ----------
 const sheet = $('sheet'), msgs = $('msgs'), qIn = $('q');
-$('sname').textContent = CNAME; $('nname').textContent = CNAME; ch.setAttribute('aria-label', CNAME + 'に話しかける');
-for (const id of ['sface', 'nface']) { const el = $(id); el.style.backgroundImage = `url(${EMOJI[PACK]['1'].src})`; el.style.backgroundPosition = '0 0'; }
+$('sname').textContent = CNAME; ch.setAttribute('aria-label', CNAME + 'に話しかける');
+{ const el = $('sface'); el.style.backgroundImage = `url(${EMOJI[PACK]['1'].src})`; el.style.backgroundPosition = '0 0'; }
 function addMsg(html, me) { const d = document.createElement('div'); d.className = 'm' + (me ? ' me' : ''); d.innerHTML = html; msgs.appendChild(d); d.scrollIntoView({ block: 'end', behavior: 'smooth' }); return d; }
 function botSay(html, role) { const d = addMsg('…'); setTimeout(() => { d.innerHTML = html; d.scrollIntoView({ block: 'end', behavior: 'smooth' }); }, 400); if (role) chat(null, role); }
 function openAsk() { if (!D) return; sheet.hidden = false; if (!msgs.children.length) botSay(`${CNAME}です。お店のことなら、ふつうの言葉で話しかけてください。「昨日ゴルフ場に栗万十20個持ってった」のように話してもらえれば、確かめてから記録します。`); renderChips(); setTimeout(() => qIn.focus(), 100); }
-$('ask-btn').onclick = openAsk; $('sclose').onclick = () => sheet.hidden = true; sheet.onclick = e => { if (e.target === sheet) sheet.hidden = true; };
+$('sclose').onclick = () => sheet.hidden = true; sheet.onclick = e => { if (e.target === sheet) sheet.hidden = true; };
 ch.onclick = openAsk; ch.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openAsk(); } };
 $('cam').onclick = openCamera;
 function renderChips(quick) {
@@ -603,7 +605,7 @@ async function ask(s) {
 $('composer').onsubmit = e => { e.preventDefault(); ask(qIn.value); };
 
 // ---------- はじまり ----------
-play('walk', true, 2.6); place(); walkLoop();
+rest();
 (async () => {
   try {
     await liff.init({ liffId: LIFF_ID });
