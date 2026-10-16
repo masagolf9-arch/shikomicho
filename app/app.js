@@ -517,18 +517,18 @@ const PACK = store.get('pack', 'shirokuma');
 const ROLE = { greet: '1', heart: '3', clap: '7', point: '10', surprise: '12', think: '13', tea: '19', walk: '20', sleepy: '23', sleep: '24' };
 const ch = $('chara'), say = $('say'), CS = () => ch.offsetWidth || 72;
 let busy = false, talkT = null; const anim = { gen: 0, t: null };
-function play(r, loop = true, speed = 0.5) {
-  const e = EMOJI[PACK][ROLE[r]]; if (!e) return Promise.resolve();
+function play(r, loop = true, speed = 1.3) {
+  const e = window.EMOJI && EMOJI[PACK][ROLE[r]]; if (!e) return Promise.resolve();
   clearTimeout(anim.t); const g = ++anim.gen; let f = 0; ch.style.backgroundImage = `url(${e.src})`;
   return new Promise(res => { const st = () => { if (g !== anim.gen) return; ch.style.backgroundPosition = `-${f * CS()}px 0`; f++; if (f >= +e.frames) { if (loop) f = 0; else { res(); return; } } anim.t = setTimeout(st, e.delay * speed); }; st(); if (loop) res(); });
 }
 // 座った姿(お茶の最初のコマ)で止める
-function rest() { clearTimeout(anim.t); ++anim.gen; const e = EMOJI[PACK][ROLE.tea]; ch.style.backgroundImage = `url(${e.src})`; ch.style.backgroundPosition = '0 0'; }
-async function act(r, speed = 0.5) { if (busy) return; busy = true; try { await play(r, false, speed); } finally { busy = false; rest(); } }
-setInterval(() => { if (!busy && document.visibilityState === 'visible' && Math.random() < .4) { const acts = ['tea', 'tea', 'sleepy', 'think', 'greet']; act(acts[Math.floor(Math.random() * acts.length)], 0.65); } }, 8000);
+function rest() { clearTimeout(anim.t); ++anim.gen; if (!window.EMOJI) return; const e = EMOJI[PACK][ROLE.tea]; ch.style.backgroundImage = `url(${e.src})`; ch.style.backgroundPosition = '0 0'; }
+async function act(r, speed = 1.3) { if (busy) return; busy = true; try { await play(r, false, speed); } finally { busy = false; rest(); } }
+setInterval(() => { if (!busy && document.visibilityState === 'visible' && Math.random() < .4) { const acts = ['tea', 'tea', 'sleepy', 'think', 'greet']; act(acts[Math.floor(Math.random() * acts.length)], 1.7); } }, 10000);
 function place() {}
 function chat(text, role) {
-  if (role) act(role, 0.5);
+  if (role) act(role, 1.3);
   if (!text) return;
   clearTimeout(talkT); say.textContent = text; say.hidden = false; talkT = setTimeout(() => say.hidden = true, 5200);
 }
@@ -544,7 +544,9 @@ addEventListener('resize', place);
 // ---------- 聞く ----------
 const sheet = $('sheet'), msgs = $('msgs'), qIn = $('q');
 $('sname').textContent = CNAME; ch.setAttribute('aria-label', CNAME + 'に話しかける');
-{ const el = $('sface'); el.style.backgroundImage = `url(${EMOJI[PACK]['1'].src})`; el.style.backgroundPosition = '0 0'; }
+function faces() { if (!window.EMOJI) return; const el = $('sface'); el.style.backgroundImage = `url(${EMOJI[PACK]['1'].src})`; el.style.backgroundPosition = '0 0'; rest(); }
+// キャラの絵(大きい)は画面が出たあとで読む
+(() => { const s = document.createElement('script'); s.src = 'emoji.js?v=18'; s.async = true; s.onload = faces; document.body.appendChild(s); })();
 function addMsg(html, me) { const d = document.createElement('div'); d.className = 'm' + (me ? ' me' : ''); d.innerHTML = html; msgs.appendChild(d); d.scrollIntoView({ block: 'end', behavior: 'smooth' }); return d; }
 function botSay(html, role) { const d = addMsg('…'); setTimeout(() => { d.innerHTML = html; d.scrollIntoView({ block: 'end', behavior: 'smooth' }); }, 120); if (role) chat(null, role); }
 function openAsk() { if (!D) return; sheet.hidden = false; if (!msgs.children.length) botSay(`${CNAME}です。お店のことなら、ふつうの言葉で話しかけてください。「昨日ゴルフ場に栗万十20個持ってった」のように話してもらえれば、確かめてから記録します。`); renderChips(); setTimeout(() => qIn.focus(), 100); }
