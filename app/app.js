@@ -28,13 +28,15 @@ async function load() {
   try {
     const out = await api({ kind: 'app_data' });
     if (!out.ok) {
+      if (out.error === 'wait' || out.error === 'login') { store.set('data', null); if (D) { D = null; document.querySelectorAll('section').forEach(s => s.hidden = true); } }
       if (out.error === 'wait') return state('<b>店主の許可待ちです。</b><br>店主のLINEに「見たい」とお知らせを送りました。<br>店主が「許可」を押したら、もう一度開いてください。<br><button class="btn ghost" onclick="load()">もう一度読む</button>');
       if (out.error === 'login') { liff.logout(); return state('ログインし直してください。<br><button class="btn" onclick="location.reload()">ログイン</button>'); }
       return state(esc(out.error));
     }
-    D = out.data; state(''); renderAll(); show(store.get('tab', 'today'), true);
-    setTimeout(() => chat(hello(), 'greet'), 700);
+    const first = !D; D = out.data; store.set('data', D); state(''); renderAll(); if (first) show(store.get('tab', 'today'), true); else show(cur, true, true);
+    if (first) setTimeout(() => chat(hello(), 'greet'), 250);
   } catch (e) {
+    if (D) { chat('電波が弱いので、前に読んだ内容を出しています'); return; }
     state('読み込めませんでした。電波のよいところで<br><button class="btn ghost" onclick="load()">もう一度読む</button>');
   }
 }
@@ -174,7 +176,7 @@ function openBank(url) {
 }
 async function goPay(p) {
   const b = payBank();
-  if (!b) { chat('先に「設定」で、振込に使う銀行を選んでください', 'think'); show('set'); setTimeout(() => $('bank-box') && $('bank-box').scrollIntoView({ block: 'start', behavior: 'smooth' }), 300); return; }
+  if (!b) { chat('先に「設定」で、振込に使う銀行を選んでください', 'think'); show('set'); setTimeout(() => $('bank-box') && $('bank-box').scrollIntoView({ block: 'start', behavior: 'smooth' }), 120); return; }
   const txt = `${p.supplier} ${p.total}円`;
   let copied = false; try { await navigator.clipboard.writeText(txt); copied = true; } catch (e) {}
   chat(`${copied ? `「${p.supplier} ${p.total.toLocaleString('ja-JP')}円」をコピーしました。` : ''}${b.name}を開きます。振り込んだら「払った」を押してください。`, 'heart');
@@ -339,14 +341,14 @@ function renderAll() {
 // ---------- タブ ----------
 const tabs = ['today', 'hyg', 'sales', 'cost', 'label', 'mat', 'book', 'ws', 'post', 'set'];
 let cur = 'today';
-function show(t, quiet) {
+function show(t, quiet, keep) {
   if (!D) return;
   const dir = tabs.indexOf(t) - tabs.indexOf(cur); cur = t;
   if (t === 'mat') renderMat();
   tabs.forEach(x => { const el = $('t-' + x); el.hidden = x !== t; el.classList.remove('inR', 'inL'); });
   if (dir) { const el = $('t-' + t); void el.offsetWidth; el.classList.add(dir > 0 ? 'inR' : 'inL'); }
   document.querySelectorAll('nav button[data-t]').forEach(b => b.dataset.t === t ? b.setAttribute('aria-current', 'page') : b.removeAttribute('aria-current'));
-  store.set('tab', t); window.scrollTo(0, 0);
+  store.set('tab', t); if (!keep) window.scrollTo(0, 0);
   if (!quiet) chat({ today: null, cost: '原価です。カードを押すと中身と入力欄が出ます。', label: '裏表示の案です。色のついたところだけ確かめてください。', mat: '材料の値段です。「仮」は請求書が来たら置き換えます。', set: '設定です。キャラや文字の大きさを変えられます。', hyg: hygMissing().length ? `今日まだの記録が${hygMissing().length}つあります。` : '今日の衛生記録はそろっています。', ws: '卸の納品と請求書です。', sales: '売上ともうけです。精算レシートを撮ると増えていきます。', post: 'ポップやインスタの文、いっしょに考えます。', book: unpaid().length ? `払っていないものが${unpaid().length}件あります。払ったら「払った」を押してください。` : '帳簿です。請求書は月ごとに仕分けてあります。' }[t], t === 'cost' ? 'clap' : t === 'label' ? 'point' : null);
 }
 document.querySelectorAll('nav button[data-t]').forEach(b => b.onclick = () => show(b.dataset.t));
@@ -515,18 +517,18 @@ const PACK = store.get('pack', 'shirokuma');
 const ROLE = { greet: '1', heart: '3', clap: '7', point: '10', surprise: '12', think: '13', tea: '19', walk: '20', sleepy: '23', sleep: '24' };
 const ch = $('chara'), say = $('say'), CS = () => ch.offsetWidth || 72;
 let busy = false, talkT = null; const anim = { gen: 0, t: null };
-function play(r, loop = true, speed = 1.3) {
+function play(r, loop = true, speed = 0.5) {
   const e = EMOJI[PACK][ROLE[r]]; if (!e) return Promise.resolve();
   clearTimeout(anim.t); const g = ++anim.gen; let f = 0; ch.style.backgroundImage = `url(${e.src})`;
   return new Promise(res => { const st = () => { if (g !== anim.gen) return; ch.style.backgroundPosition = `-${f * CS()}px 0`; f++; if (f >= +e.frames) { if (loop) f = 0; else { res(); return; } } anim.t = setTimeout(st, e.delay * speed); }; st(); if (loop) res(); });
 }
 // 座った姿(お茶の最初のコマ)で止める
 function rest() { clearTimeout(anim.t); ++anim.gen; const e = EMOJI[PACK][ROLE.tea]; ch.style.backgroundImage = `url(${e.src})`; ch.style.backgroundPosition = '0 0'; }
-async function act(r, speed = 1.3) { if (busy) return; busy = true; try { await play(r, false, speed); } finally { busy = false; rest(); } }
-setInterval(() => { if (!busy && document.visibilityState === 'visible' && Math.random() < .4) { const acts = ['tea', 'tea', 'sleepy', 'think', 'greet']; act(acts[Math.floor(Math.random() * acts.length)], 1.7); } }, 10000);
+async function act(r, speed = 0.5) { if (busy) return; busy = true; try { await play(r, false, speed); } finally { busy = false; rest(); } }
+setInterval(() => { if (!busy && document.visibilityState === 'visible' && Math.random() < .4) { const acts = ['tea', 'tea', 'sleepy', 'think', 'greet']; act(acts[Math.floor(Math.random() * acts.length)], 0.65); } }, 8000);
 function place() {}
 function chat(text, role) {
-  if (role) act(role, 1.3);
+  if (role) act(role, 0.5);
   if (!text) return;
   clearTimeout(talkT); say.textContent = text; say.hidden = false; talkT = setTimeout(() => say.hidden = true, 5200);
 }
@@ -544,7 +546,7 @@ const sheet = $('sheet'), msgs = $('msgs'), qIn = $('q');
 $('sname').textContent = CNAME; ch.setAttribute('aria-label', CNAME + 'に話しかける');
 { const el = $('sface'); el.style.backgroundImage = `url(${EMOJI[PACK]['1'].src})`; el.style.backgroundPosition = '0 0'; }
 function addMsg(html, me) { const d = document.createElement('div'); d.className = 'm' + (me ? ' me' : ''); d.innerHTML = html; msgs.appendChild(d); d.scrollIntoView({ block: 'end', behavior: 'smooth' }); return d; }
-function botSay(html, role) { const d = addMsg('…'); setTimeout(() => { d.innerHTML = html; d.scrollIntoView({ block: 'end', behavior: 'smooth' }); }, 400); if (role) chat(null, role); }
+function botSay(html, role) { const d = addMsg('…'); setTimeout(() => { d.innerHTML = html; d.scrollIntoView({ block: 'end', behavior: 'smooth' }); }, 120); if (role) chat(null, role); }
 function openAsk() { if (!D) return; sheet.hidden = false; if (!msgs.children.length) botSay(`${CNAME}です。お店のことなら、ふつうの言葉で話しかけてください。「昨日ゴルフ場に栗万十20個持ってった」のように話してもらえれば、確かめてから記録します。`); renderChips(); setTimeout(() => qIn.focus(), 100); }
 $('sclose').onclick = () => sheet.hidden = true; sheet.onclick = e => { if (e.target === sheet) sheet.hidden = true; };
 ch.onclick = openAsk; ch.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openAsk(); } };
@@ -595,7 +597,7 @@ async function ask(s) {
     const out = await api({ kind: 'app_chat', text: s, pack: PACK });
     if (!out.ok) throw new Error(out.error || 'ng');
     wait.remove();
-    (out.texts || []).forEach((t, i) => setTimeout(() => botSay(esc(t).replace(/\n/g, '<br>')), i * 500));
+    (out.texts || []).forEach((t, i) => setTimeout(() => botSay(esc(t).replace(/\n/g, '<br>')), i * 200));
     if (out.data) { D = out.data; renderAll(); }
     renderChips(out.quick);
   } catch (e) {
@@ -606,6 +608,8 @@ $('composer').onsubmit = e => { e.preventDefault(); ask(qIn.value); };
 
 // ---------- はじまり ----------
 rest();
+// 前に読んだ内容をすぐ出して、裏で新しいものを読み直す(電波が弱くても待たない)
+(() => { const c = store.get('data', null); if (c && c.products) { try { D = c; state(''); renderAll(); show(store.get('tab', 'today'), true); setTimeout(() => chat(hello(), 'greet'), 250); } catch (e) { D = null; } } })();
 (async () => {
   try {
     await liff.init({ liffId: LIFF_ID });
