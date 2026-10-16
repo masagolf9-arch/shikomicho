@@ -238,22 +238,37 @@ function renderCost() {
 
 // ---------- 裏表示 ----------
 let labelName = null;
+const LBL_STORAGE = '直射日光、高温多湿を避けて保存してください';
+const lblDefName = p => /羊羹|ようかん/.test(p.name) ? '和生菓子(羊羹)' : /餅|もち/.test(p.name) ? '和生菓子' : '和菓子';
+// 商品ごとのラベル設定(未設定のところは案で埋める)
+function lblOf(p) {
+  const s = p.lbl || {};
+  return { name: s.name || lblDefName(p), dtype: s.dtype || '消費期限', days: s.days === 0 || s.days ? Number(s.days) : '', storage: s.storage || LBL_STORAGE,
+    content: s.content || `1${U}${p.nutr && p.nutr.weight ? `(${p.nutr.weight}g)` : ''}`, jan: s.jan || '', nut: !!s.nut && !!(p.nutr && p.nutr.per), saved: !!p.lbl };
+}
+function janCheck(d) {
+  d = String(d || '').replace(/[\s-]/g, '');
+  if (!d) return { ok: true, empty: true };
+  if (!/^\d{13}$/.test(d)) return { ok: false, msg: `JANコードは13桁の数字です(いま${d.replace(/\D/g, '').length}桁)` };
+  let t = 0; for (let i = 0; i < 12; i++) t += +d[i] * (i % 2 ? 3 : 1);
+  return (10 - t % 10) % 10 === +d[12] ? { ok: true, code: d } : { ok: false, msg: '最後の数字が合いません。番号を見直してください' };
+}
 function renderLabel() {
   const chips = $('label-chips'), box = $('label-box');
   if (!D.products.length) { chips.innerHTML = ''; box.innerHTML = '<div class="card"><p class="k" style="margin:0">レシピを撮ると、ここに裏表示の案が出ます。</p></div>'; return; }
   if (!D.products.find(p => p.name === labelName)) labelName = D.products[0].name;
   chips.innerHTML = D.products.map(p => `<button class="chip" type="button" aria-pressed="${p.name === labelName}">${esc(p.name)}</button>`).join('');
   chips.querySelectorAll('.chip').forEach((b, i) => b.onclick = () => { labelName = D.products[i].name; renderLabel(); });
-  const p = D.products.find(x => x.name === labelName), lb = p.label;
-  const name = /羊羹|ようかん/.test(p.name) ? '和生菓子(羊羹)' : /餅|もち/.test(p.name) ? '和生菓子' : '菓子';
+  const p = D.products.find(x => x.name === labelName), lb = p.label, L = lblOf(p), si = D.shopInfo || {};
   box.innerHTML = `<div class="label">
-    <div class="r"><div class="h">名称</div><div class="v">${name}</div></div>
+    <div class="r"><div class="h">名称</div><div class="v">${esc(L.name)}</div></div>
     <div class="r"><div class="h">原材料名</div><div class="v"><span id="ing">${esc(lb.text) || '(まだ出せません)'}</span>${lb.check.length ? `、<mark>${lb.check.map(esc).join('、')}(要確認)</mark>` : ''}${esc(lb.contains)}</div></div>
-    <div class="r"><div class="h">内容量</div><div class="v">1${U}${p.nutr && p.nutr.weight ? `(${p.nutr.weight}g)` : ''}</div></div>
-    <div class="r"><div class="h">賞味期限</div><div class="v tbd">枠外下部に記載(日数はお店で設定)</div></div>
-    <div class="r"><div class="h">保存方法</div><div class="v">直射日光、高温多湿を避けて保存してください</div></div>
-    <div class="r"><div class="h">製造者</div><div class="v">${esc(D.shop)}<span class="k">(住所は設定から)</span></div></div></div>
+    <div class="r"><div class="h">内容量</div><div class="v">${esc(L.content)}</div></div>
+    <div class="r"><div class="h">${esc(L.dtype)}</div><div class="v">枠外下部に記載${L.days === '' ? '' : `<span class="k">(作った日から${L.days}日)</span>`}</div></div>
+    <div class="r"><div class="h">保存方法</div><div class="v">${esc(L.storage)}</div></div>
+    <div class="r"><div class="h">製造者</div><div class="v">${esc(si.name || D.shop)} ${si.addr ? esc(si.addr) : '<span class="k">(住所は設定から)</span>'}</div></div></div>
     <div class="ask" style="margin-top:10px"><button class="btn" id="copy" type="button">原材料名をコピー</button><span class="copied" id="copied"></span></div>
+    ${lblPrintCard(p, L)}
     ${nutrBox(p)}`;
   if ($('bk-go')) $('bk-go').onclick = () => { const v = parseFloat($('bk-v').value); if (!(v > 0)) { $('bk-v').focus(); return; } setValue(p.name, 'baked', v); };
   if ($('nu-copy')) $('nu-copy').onclick = async () => { try { await navigator.clipboard.writeText($('nu-txt').innerText); chat('コピーしました', 'heart'); } catch (e) { chat('長押しで選んでコピーしてください'); } };
@@ -262,6 +277,99 @@ function renderLabel() {
     try { await navigator.clipboard.writeText(t); $('copied').textContent = 'コピーしました'; }
     catch (e) { const r = document.createRange(); r.selectNodeContents($('ing')); const s = getSelection(); s.removeAllRanges(); s.addRange(r); $('copied').textContent = '選択しました。長押しでコピー'; }
   };
+  bindLblPrint(p, L);
+}
+
+// ---------- ラベル印刷(A4のラベル用紙。コピー機・家庭用プリンタで) ----------
+const SHEETS = {
+  p10: ['10面', 86.4, 50.8, 2, 5, 21.5, 18.6, 0, 0], p12: ['12面', 86.4, 42.3, 2, 6, 21.6, 18.6, 0, 0], p14: ['14面', 99.1, 38.1, 2, 7, 15.15, 4.65, 2.5, 0],
+  p18: ['18面', 70, 42.3, 3, 6, 21.6, 0, 0, 0], p18b: ['18面 余白付', 63.5, 46.6, 3, 6, 8.7, 7.25, 2.5, 0], p21: ['21面', 63.5, 38.1, 3, 7, 15.15, 7.25, 2.5, 0],
+  p24: ['24面', 70, 33.9, 3, 8, 12.9, 0, 0, 0], p44: ['44面', 48.3, 25.4, 4, 11, 8.8, 8.4, 0, 0]
+}; // 名前, 幅, 高さ, 列, 段, 上余白, 左余白, 横すき間, 縦すき間(ミリ)
+const lsGet = () => { try { return Object.assign({ sheet: 'p12', pt: 6, dx: 0, dy: 0 }, JSON.parse(localStorage.getItem('shikomi:lblsheet') || '{}')); } catch (e) { return { sheet: 'p12', pt: 6, dx: 0, dy: 0 }; } };
+const lsSet = o => { try { localStorage.setItem('shikomi:lblsheet', JSON.stringify(o)); } catch (e) {} };
+function lblPrintCard(p, L) {
+  const S = lsGet(), sh = SHEETS[S.sheet] || SHEETS.p12, per = sh[3] * sh[4];
+  const today = new Date(), iso = new Date(today - today.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  return `<div class="card" style="margin-top:14px"><p style="margin:0 0 4px"><b>ラベルを印刷</b></p>
+    <p class="k" style="margin:0 0 8px">A4のラベル用紙に、上の裏表示をそのまま刷ります。</p>
+    <details${L.saved ? '' : ' open'}><summary class="k">この商品のラベル設定${L.saved ? '' : '(はじめに1回)'}</summary>
+      <div class="fld" style="margin-top:8px">
+        <span class="k">名称</span><input id="lb-name" value="${esc(L.name)}">
+        <span class="k">期限</span><span style="display:flex;gap:6px;align-items:center"><select id="lb-dtype"><option${L.dtype === '消費期限' ? ' selected' : ''}>消費期限</option><option${L.dtype === '賞味期限' ? ' selected' : ''}>賞味期限</option></select>作った日から<input id="lb-days" inputmode="numeric" value="${L.days}" style="width:4em">日</span>
+        <span class="k">保存方法</span><input id="lb-st" value="${esc(L.storage)}">
+        <span class="k">内容量</span><input id="lb-ct" value="${esc(L.content)}">
+        <span class="k">JANコード</span><input id="lb-jan" inputmode="numeric" value="${esc(L.jan)}" placeholder="卸の商品だけ(13桁)">
+        ${p.nutr && p.nutr.per ? `<span class="k">栄養成分</span><label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="lb-nut"${L.nut ? ' checked' : ''} style="width:auto">ラベルに載せる</label>` : ''}
+      </div><div class="ask"><button class="btn ghost" type="button" id="lb-save">設定を保存</button><span class="k" id="lb-msg"></span></div></details>
+    <div class="fld" style="margin-top:8px">
+      <span class="k">用紙</span><select id="lb-sheet">${Object.entries(SHEETS).map(([k, v]) => `<option value="${k}"${k === S.sheet ? ' selected' : ''}>${v[0]} ${v[1]}×${v[2]}ミリ</option>`).join('')}</select>
+      <span class="k">作った日</span><input id="lb-day" type="date" value="${iso}">
+      <span class="k">枚数</span><span style="display:flex;gap:6px;align-items:center"><input id="lb-n" inputmode="numeric" value="${per}" style="width:5em">枚</span>
+      <span class="k">使用済み</span><span style="display:flex;gap:6px;align-items:center"><input id="lb-skip" inputmode="numeric" value="0" style="width:5em">枚を飛ばす</span>
+      <span class="k">文字</span><select id="lb-pt">${[5.5, 6, 7, 8].map(v => `<option${v == S.pt ? ' selected' : ''}>${v}</option>`).join('')}</select>
+    </div>
+    <details><summary class="k">印刷がずれるとき</summary><div class="fld" style="margin-top:8px"><span class="k">右へ(ミリ)</span><input id="lb-dx" inputmode="decimal" value="${S.dx}"><span class="k">下へ(ミリ)</span><input id="lb-dy" inputmode="decimal" value="${S.dy}"></div></details>
+    <div class="ask"><button class="btn" type="button" id="lb-print">印刷する</button><span class="k">パソコンかスマホのブラウザで。倍率は「100%」に</span></div></div>`;
+}
+function bindLblPrint(p, L) {
+  const val = id => $(id) ? $(id).value.trim() : '';
+  $('lb-save').onclick = () => {
+    const j = janCheck(val('lb-jan')); if (!j.ok) { $('lb-msg').textContent = j.msg; return; }
+    const d = val('lb-days'); if (d !== '' && !(/^\d{1,3}$/.test(d))) { $('lb-msg').textContent = '日数は数字で'; return; }
+    setValueX({ field: 'lbl', product: p.name, value: { name: val('lb-name'), dtype: val('lb-dtype'), days: d, storage: val('lb-st'), content: val('lb-ct'), jan: j.code || '', nut: $('lb-nut') ? $('lb-nut').checked : false } });
+  };
+  const keep = () => { const S = lsGet(); S.sheet = val('lb-sheet'); S.pt = +val('lb-pt') || 6; S.dx = +val('lb-dx') || 0; S.dy = +val('lb-dy') || 0; lsSet(S); return S; };
+  $('lb-sheet').onchange = () => { keep(); const sh = SHEETS[val('lb-sheet')]; $('lb-n').value = sh[3] * sh[4]; };
+  $('lb-print').onclick = () => {
+    if (p.label.check.length && !confirmOnce('lbchk', `「${p.label.check.join('、')}」が要確認のままです。このまま刷るならもう一度押してください`)) return;
+    const S = keep(), n = Math.min(Math.max(parseInt(val('lb-n')) || 0, 1), 500), skip = Math.max(parseInt(val('lb-skip')) || 0, 0);
+    openLabelSheet(p, L, S, n, skip, val('lb-day'));
+  };
+}
+let confirmKey = '';
+function confirmOnce(k, msg) { if (confirmKey === k) { confirmKey = ''; return true; } confirmKey = k; chat(esc(msg), 'think'); setTimeout(() => { if (confirmKey === k) confirmKey = ''; }, 8000); return false; }
+
+// JANコード(EAN-13)を線で描く
+function janSvg(code, wmm) {
+  const Lc = ['0001101', '0011001', '0010011', '0111101', '0100011', '0110001', '0101111', '0111011', '0110111', '0001011'];
+  const Rc = Lc.map(s => s.replace(/./g, c => c === '0' ? '1' : '0')), Gc = Rc.map(s => s.split('').reverse().join(''));
+  const PAR = ['LLLLLL', 'LLGLGG', 'LLGGLG', 'LLGGGL', 'LGLLGG', 'LGGLLG', 'LGGGLG', 'LGLGLG', 'LGLGGL', 'LGGLGL'][+code[0]];
+  let b = '101'; for (let i = 1; i <= 6; i++) b += (PAR[i - 1] === 'L' ? Lc : Gc)[+code[i]]; b += '01010'; for (let i = 7; i <= 12; i++) b += Rc[+code[i]]; b += '101';
+  const q = 11, guard = i => i < 3 || (i >= 45 && i < 50) || i >= 92; let r = '';
+  for (let i = 0; i < b.length; i++) if (b[i] === '1') r += `<rect x="${q + i}" y="0" width="1.02" height="${guard(i) ? 74.24 : 69.24}"/>`;
+  let t = `<text x="5.5" y="78">${code[0]}</text>`;
+  for (let n = 0; n < 6; n++) t += `<text x="${q + 3 + n * 7 + 3.5}" y="78">${code[n + 1]}</text><text x="${q + 50 + n * 7 + 3.5}" y="78">${code[n + 7]}</text>`;
+  return `<svg class="jan" viewBox="0 0 113 79" style="width:${wmm}mm;height:${wmm * 79 / 113}mm" fill="#000" font-size="8.6" text-anchor="middle" font-family="Helvetica,Arial,sans-serif">${r}${t}</svg>`;
+}
+function openLabelSheet(p, L, S, n, skip, day) {
+  const sh = SHEETS[S.sheet] || SHEETS.p12, [, w, h, cols, rows, top, left, gx, gy] = sh, per = cols * rows, si = D.shopInfo || {}, lb = p.label;
+  let date = '';
+  if (L.days !== '' && /^\d{4}-\d\d-\d\d$/.test(day)) { const d = new Date(day + 'T00:00:00'); d.setDate(d.getDate() + Number(L.days)); date = `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`; }
+  const j = janCheck(L.jan), nu = L.nut ? p.nutr.per : null;
+  const salt = nu ? (nu[4] > 0 && nu[4] < 0.1 ? (Math.round(nu[4] * 100) / 100).toFixed(2) : r1(nu[4])) : '';
+  const rowsH = [['名称', L.name], ['原材料名', lb.text + (lb.check.length ? '、' + lb.check.join('、') : '') + (lb.contains || '')], ['内容量', L.content], [L.dtype, '枠外下部に記載'], ['保存方法', L.storage], ['製造者', [si.name || D.shop, si.addr].filter(Boolean).join(' ')]];
+  if (nu) rowsH.push([`栄養成分表示<br>(1${esc(U)}当たり)`, `熱量${Math.round(nu[0])}kcal、たんぱく質${r1(nu[1])}g、脂質${r1(nu[2])}g、炭水化物${r1(nu[3])}g、食塩相当量${salt}g(推定値)`]);
+  const bcw = Math.min(37.29 * 0.8, w * 0.4);
+  const cell = `<div class="lbody"><table>${rowsH.map(([a, b], i) => `<tr><th>${i === 6 ? a : esc(a)}</th><td>${esc(b)}</td></tr>`).join('')}</table>${j.ok && j.code ? janSvg(j.code, bcw) : ''}</div>
+    <div class="lfoot">${date ? `${esc(L.dtype)} ${date}` : ''}</div>`;
+  const slots = []; for (let i = 0; i < skip % per; i++) slots.push(false); for (let i = 0; i < n; i++) slots.push(true);
+  let pages = '';
+  for (let pg = 0; pg < slots.length; pg += per) {
+    pages += '<div class="lsheet">' + slots.slice(pg, pg + per).map((on, i) => on ? `<div class="lcell" style="left:${left + (i % cols) * (w + gx) + S.dx}mm;top:${top + Math.floor(i / cols) * (h + gy) + S.dy}mm;width:${w}mm;height:${h}mm;font-size:${S.pt}pt">${cell}</div>` : '').join('') + '</div>';
+  }
+  const v = $('inv');
+  v.innerHTML = `<div class="bar3" style="margin-top:0"><button class="btn" type="button" id="inv-print">印刷する</button><button class="btn ghost" type="button" id="inv-close">閉じる</button></div>
+    <p class="k lnote">${esc(p.name)} ${n}枚 · ${esc(sh[0])}(${Math.ceil(slots.length / per)}ページ)。印刷の画面で「倍率100%」「余白なし」にしてください。<span id="lb-over"></span></p>
+    <div class="lwrap" id="lwrap">${pages}</div>`;
+  v.hidden = false; v.classList.add('lprint');
+  let st = document.getElementById('lb-page'); if (!st) { st = document.createElement('style'); st.id = 'lb-page'; document.head.appendChild(st); }
+  st.textContent = '@page{size:A4 portrait;margin:0}';
+  const fit = () => { const wr = $('lwrap'); if (!wr) return; const k = Math.min(1, (wr.clientWidth || 360) / (210 * 96 / 25.4)); wr.style.setProperty('--k', k); };
+  fit(); window.addEventListener('resize', fit);
+  const c0 = v.querySelector('.lcell'); if (c0 && c0.scrollHeight > c0.clientHeight + 1) $('lb-over').innerHTML = '<br><mark>文字がラベルからはみ出しています。文字を小さくするか、大きいラベル用紙にしてください。</mark>';
+  const close = () => { v.hidden = true; v.classList.remove('lprint'); st.textContent = ''; window.removeEventListener('resize', fit); };
+  $('inv-print').onclick = () => window.print(); $('inv-close').onclick = close;
 }
 
 // 栄養成分表示(日本食品標準成分表の計算による推定値)
@@ -318,7 +426,7 @@ async function setValueX(extra) {
   chat('記録しています…');
   const out = await api(Object.assign({ kind: 'app_set' }, extra));
   if (!out.ok) { chat(out.error || 'うまく記録できませんでした'); return; }
-  D = out.data; renderAll(); if (out.msg) { chat(out.msg); return; } chat(extra.field === 'hyg' ? '記録しました。' : extra.field === 'deliv' ? '納品を記録しました。' : extra.field === 'shop' ? 'お店の情報を保存しました。' : extra.field === 'paybank' ? `振込は「${esc((payBank() || {}).name || '')}」を開くようにしました。` : ['biz', 'closed', 'wsprice', 'regalias'].includes(extra.field) ? '変えました。' : extra.field === 'sales' ? '売上を記録しました。' : extra.field === 'cycle' ? `棚卸は「${extra.value}」にしました。その前にLINEでお知らせします。` : '覚えました。在庫を計算しなおしました。', 'heart');
+  D = out.data; renderAll(); if (out.msg) { chat(out.msg); return; } chat(extra.field === 'hyg' ? '記録しました。' : extra.field === 'deliv' ? '納品を記録しました。' : extra.field === 'shop' ? 'お店の情報を保存しました。' : extra.field === 'lbl' ? 'ラベルの設定を保存しました。' : extra.field === 'paybank' ? `振込は「${esc((payBank() || {}).name || '')}」を開くようにしました。` : ['biz', 'closed', 'wsprice', 'regalias'].includes(extra.field) ? '変えました。' : extra.field === 'sales' ? '売上を記録しました。' : extra.field === 'cycle' ? `棚卸は「${extra.value}」にしました。その前にLINEでお知らせします。` : '覚えました。在庫を計算しなおしました。', 'heart');
 }
 function renderJournal() {
   const box = $('journal');
@@ -438,7 +546,7 @@ function hygTable(mo) {
   return h + '</table>';
 }
 function openPrint(html) {
-  const v = $('inv'); v.innerHTML = html + '<div class="bar3"><button class="btn" type="button" id="inv-print">印刷・PDFにする</button><button class="btn ghost" type="button" id="inv-close">閉じる</button></div>'; v.hidden = false;
+  const v = $('inv'); v.classList.remove('lprint'); const lp = document.getElementById('lb-page'); if (lp) lp.textContent = ''; v.innerHTML = html + '<div class="bar3"><button class="btn" type="button" id="inv-print">印刷・PDFにする</button><button class="btn ghost" type="button" id="inv-close">閉じる</button></div>'; v.hidden = false;
   $('inv-print').onclick = () => window.print(); $('inv-close').onclick = () => { v.hidden = true; };
 }
 // ---------- 卸 ----------
