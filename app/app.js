@@ -805,6 +805,9 @@ rest();
 (() => { const c = store.get('data', null); if (c && c.products) { try { D = c; state(''); renderAll(); show(store.get('tab', 'today'), true); setTimeout(() => chat(hello(), 'greet'), 250); } catch (e) { D = null; } } })();
 (async () => {
   if (CF && !IN_LINE) { load(); return; }   // ホームページ: ログインの鍵(クッキー)で入る
+  if (CF) {   // LINEの中でホームページを開いたとき: ログインの鍵があれば、それで入る
+    try { const t = await api({ kind: 'app_data' }); if (t.ok) { load(); return; } } catch (e) {}
+  }
   try {
     await liff.init({ liffId: LIFF_ID });
     if (!liff.isLoggedIn()) { state('LINEでログインします…'); liff.login({ redirectUri: location.href }); return; }

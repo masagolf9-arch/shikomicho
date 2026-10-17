@@ -298,7 +298,8 @@ layoutGuide();
     if (window.liff && !LIFF_ID.startsWith('__') && (!CF || IN_LINE)) {   // ホームページ(LINEの外)ではログインの鍵で送るので、LINEは使わない
       await liff.init({ liffId: LIFF_ID });
       inLiff = liff.isInClient() || liff.isLoggedIn();
-      if (!liff.isLoggedIn()) { liff.login(); return; }
+      if (!liff.isLoggedIn() && !CF) { liff.login(); return; }   // ホームページでは、LINEに入っていなければログインの鍵で送る
+      if (CF && !liff.isLoggedIn()) inLiff = false;
     }
   } catch (e) { /* LINEの外では試し表示 */ }
   startCamera();
