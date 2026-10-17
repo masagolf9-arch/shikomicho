@@ -156,7 +156,7 @@ function renderMenu(q) {
   const TAB = { cost: 'cost', label: 'label', mat: 'mat', hyg: 'hyg', book: 'book', ws: 'ws', post: 'post', sales: 'sales' };
   const all = [['home', 'ホーム', () => show('today'), 0, 0, 'today']].concat(items.map(x => [x[0], x[1], x[2], x[3] || 0, x[4] || 0, TAB[x[0]] || '']), [['set', '設定', () => show('set'), 0, 0, 'set']]);
   const side = $('side');
-  side.innerHTML = `<div class="sname">${esc(D.shop)}</div>` + all.map(([k, l, , b, w, t], i) => `<button type="button" data-i="${i}" data-tab="${t}" class="${w === 'p' ? 'p' : w ? 'w' : ''}"${t && t === cur ? ' aria-current="page"' : ''}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[k]}</svg>${l}${b ? `<span class="badge">${b}</span>` : ''}</button>`).join('');
+  side.innerHTML = `<div class="sname">${esc(D.shop)}<small>${esc($('date').textContent)}</small></div>` + all.map(([k, l, , b, w, t], i) => `<button type="button" data-i="${i}" data-tab="${t}" class="${w === 'p' ? 'p' : w ? 'w' : ''}"${t && t === cur ? ' aria-current="page"' : ''}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[k]}</svg>${l}${b ? `<span class="badge">${b}</span>` : ''}</button>`).join('');
   side.querySelectorAll('button').forEach(b => b.onclick = () => all[b.dataset.i][2]());
 }
 function renderBook() { renderPays(); renderSort(); renderJournal(); }
@@ -316,7 +316,7 @@ const lsSet = o => { try { localStorage.setItem('shikomi:lblsheet', JSON.stringi
 function lblPrintCard(p, L) {
   const S = lsGet(), sh = SHEETS[S.sheet] || SHEETS.p12, per = sh[3] * sh[4];
   const today = new Date(), iso = new Date(today - today.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
-  return `<div class="card" style="margin-top:14px"><p style="margin:0 0 4px"><b>ラベルを印刷</b></p>
+  return `<div class="card lpc" style="margin-top:14px"><p style="margin:0 0 4px"><b>ラベルを印刷</b></p>
     <p class="k" style="margin:0 0 8px">A4のラベル用紙に、上の裏表示をそのまま刷ります。</p>
     <details${L.saved ? '' : ' open'}><summary class="k">この商品のラベル設定${L.saved ? '' : '(はじめに1回)'}</summary>
       <div class="fld" style="margin-top:8px">
@@ -809,6 +809,19 @@ async function renderAccount() {
 }
 
 // ---------- はじまり ----------
+// パソコンの広い画面で左右2列に分けるための入れ物(ケイタイでは入れ物がないのと同じ)
+(() => {
+  const SPLIT = { book: 'h1.sub', hyg: 'h1.sub', sales: '#sales-add', ws: '#ws-chips', post: '#post-out', set: '#bank-h' };
+  for (const [t, sel] of Object.entries(SPLIT)) {
+    const sec = $('t-' + t), kids = [...sec.children], lead = sec.querySelector(':scope > .lead'), cut = sec.querySelector(':scope > ' + sel);
+    if (!cut) continue;
+    const body = kids.slice(kids.indexOf(lead) + 1), ci = body.indexOf(cut);
+    const cols = document.createElement('div'), L = document.createElement('div'), R = document.createElement('div');
+    cols.className = 'cols'; L.className = 'colL'; R.className = 'colR';
+    body.slice(0, ci).forEach(k => L.appendChild(k)); body.slice(ci).forEach(k => R.appendChild(k));
+    cols.append(L, R); sec.appendChild(cols);
+  }
+})();
 if (CF) { $('words-h').textContent = 'もなかに話しかけられる言葉'; $('ct-via').textContent = 'もなかに「問い合わせ 〜」と話しかけてもOK'; }
 rest();
 // 前に読んだ内容をすぐ出して、裏で新しいものを読み直す(電波が弱くても待たない)
