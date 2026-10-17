@@ -3,6 +3,9 @@
 const LIFF_ID = '2012003912-ltVppjVx';
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbxShAkcy1uEzK5ZUGWgW8lzdFBcd8baDNKjHwGKCBx7ocrEUNDHmzrSFdrZDikqL2VO/exec';
 const CAMERA_URL = 'https://liff.line.me/' + LIFF_ID;
+// 公式ホームページ(Cloudflare)から開いたときは、そちらの蔵とやりとりする。LINEの外ならログインの鍵で入る
+const CF = location.hostname !== 'masagolf9-arch.github.io';
+const IN_LINE = /\bLine\//i.test(navigator.userAgent);
 
 const $ = id => document.getElementById(id);
 const store = { get(k, d) { try { const v = localStorage.getItem('shikomi:' + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
@@ -19,6 +22,11 @@ let D = null, idToken = null, profileName = '';
 
 // ---------- 記録の表とのやり取り ----------
 async function api(body) {
+  if (CF) {
+    const h = { 'Content-Type': 'application/json', 'X-Shikomi': '1' }; if (idToken) h['X-Line-Token'] = idToken;
+    const r = await fetch('/api/app', { method: 'POST', credentials: 'same-origin', headers: h, body: JSON.stringify(Object.assign({ name: profileName }, body)) });
+    return r.json();
+  }
   const res = await fetch(GAS_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
     body: JSON.stringify(Object.assign({ idToken, name: profileName }, body)) });
   return res.json();
@@ -30,11 +38,14 @@ async function load() {
     if (!out.ok) {
       if (out.error === 'wait' || out.error === 'login') { store.set('data', null); if (D) { D = null; document.querySelectorAll('section').forEach(s => s.hidden = true); } }
       if (out.error === 'wait') return state('<b>店主の許可待ちです。</b><br>店主のLINEに「見たい」とお知らせを送りました。<br>店主が「許可」を押したら、もう一度開いてください。<br><button class="btn ghost" onclick="load()">もう一度読む</button>');
+      if (out.error === 'login' && CF && !IN_LINE) { location.href = '/login?next=' + encodeURIComponent(location.pathname); return; }
       if (out.error === 'login') { liff.logout(); return state('ログインし直してください。<br><button class="btn" onclick="location.reload()">ログイン</button>'); }
+      if (out.error === 'noshop') return state('<b>まだお店とつながっていません。</b><br>お店の方から届いた招待のリンクを開いてください。<br><form method="post" action="/auth/logout" style="margin-top:10px"><button class="btn ghost">別の方法でログインし直す</button></form>');
       return state(esc(out.error));
     }
     const first = !D; D = out.data; store.set('data', D); state(''); renderAll(); if (first) show(store.get('tab', 'today'), true); else show(cur, true, true);
     if (first) setTimeout(() => chat(hello(), 'greet'), 250);
+    if (CF && !window.__acct) { window.__acct = 1; renderAccount(); }
   } catch (e) {
     if (D) { chat('電波が弱いので、前に読んだ内容を出しています'); return; }
     state('読み込めませんでした。電波のよいところで<br><button class="btn ghost" onclick="load()">もう一度読む</button>');
@@ -47,6 +58,7 @@ async function setValue(product, field, value) {
   D = out.data; renderAll(); chat('覚えました。原価に反映しました。', 'heart');
 }
 function openCamera() {
+  if (CF && !IN_LINE) { webPhoto(); return; }
   if (window.liff && liff.isInClient && liff.isInClient()) liff.openWindow({ url: CAMERA_URL, external: false });
   else chat('写真はスマホのLINEで「📷 写真を撮る」から送ってください。', 'point');
 }
@@ -716,11 +728,63 @@ async function ask(s) {
 }
 $('composer').onsubmit = e => { e.preventDefault(); ask(qIn.value); };
 
+// ---------- ホームページ(LINEの外)から写真を送る ----------
+async function shrink(file) {
+  const img = await createImageBitmap(file);
+  const k = Math.min(1, 1800 / Math.max(img.width, img.height));
+  const c = document.createElement('canvas'); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+  c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+  return c.toDataURL('image/jpeg', 0.88).split(',')[1];
+}
+function webPhoto() {
+  let f = $('web-pick');
+  if (!f) {
+    f = document.createElement('input'); f.type = 'file'; f.accept = 'image/*'; f.id = 'web-pick'; f.hidden = true; document.body.appendChild(f);
+    f.onchange = async () => {
+      const file = f.files[0]; f.value = ''; if (!file) return;
+      openAsk(); addMsg('<span class="k">📷 写真を送りました</span>', true);
+      const wait = addMsg('<span class="k">読んでいます…(10〜30秒かかります)</span>'); chat(null, 'think');
+      try {
+        const out = await api({ kind: 'liff_upload', web: true, image: await shrink(file), type: 'image/jpeg' });
+        wait.remove();
+        if (!out.ok) throw new Error(out.error || 'うまく読めませんでした');
+        (out.msgs || []).forEach((t, i) => setTimeout(() => botSay(esc(t).replace(/\n/g, '<br>')), i * 200));
+        renderChips(out.quick); load();
+      } catch (e) { wait.remove(); botSay(esc(e.message || 'うまく送れませんでした')); }
+    };
+  }
+  f.click();
+}
+// ---------- ログインの設定(ホームページのときだけ) ----------
+async function renderAccount() {
+  const box = $('acct-box'); if (!CF || !box) return;
+  box.parentNode.hidden = false; $('acct-h').hidden = false;
+  const a = await api({ kind: 'app_account' }).catch(() => null); if (!a || !a.ok) return;
+  box.innerHTML = `<p style="margin:0 0 6px"><b>${esc(a.shop ? a.shop.name || D.shop : '')}</b></p>
+    <p class="k" style="margin:0 0 10px">メール: ${a.email ? esc(a.email) : 'まだ'} ・ LINE: ${a.line ? 'つながっています' : 'まだ'}</p>
+    ${a.email ? '' : '<div class="ask" style="margin-top:0"><input id="ac-mail" type="email" placeholder="メールアドレス" style="flex:1" aria-label="メールアドレス"><button class="btn ghost" type="button" id="ac-mail-go">メールでも入れるように</button></div><p class="k" id="ac-mail-msg" style="margin:4px 0 0"></p>'}
+    ${a.line || IN_LINE || !a.lineLogin ? '' : '<div class="ask"><a class="btn ghost" href="/auth/line?link=1&next=/app/">LINEとつなぐ</a></div>'}
+    <div class="ask"><button class="btn ghost" type="button" id="ac-inv">スタッフを招待するリンク</button></div><p class="k" id="ac-inv-out" style="margin:4px 0 0;word-break:break-all"></p>
+    ${IN_LINE ? '' : '<form method="post" action="/auth/logout" class="ask"><button class="btn ghost" type="submit">ログアウト</button></form>'}`;
+  if ($('ac-mail-go')) $('ac-mail-go').onclick = async () => {
+    const m = $('ac-mail').value.trim(); if (!m) { $('ac-mail').focus(); return; }
+    const r = await api({ kind: 'app_link_email', email: m });
+    $('ac-mail-msg').innerHTML = r.ok ? `${esc(m)} に確認のリンクを送りました。開くと、メールでもログインできるようになります。${r.devLink ? `<br><a href="${esc(r.devLink)}">(試験中)ここから開く</a>` : ''}` : esc(r.error || '送れませんでした');
+  };
+  $('ac-inv').onclick = async () => {
+    const r = await api({ kind: 'app_new_invite' });
+    if (!r.ok) { $('ac-inv-out').textContent = r.error || '作れませんでした'; return; }
+    $('ac-inv-out').innerHTML = `${esc(r.invite)}<br>このリンクをスタッフに送ってください。開いてログインすると、あなたに「許可」のお知らせが届きます。`;
+    try { await navigator.clipboard.writeText(r.invite); chat('リンクをコピーしました', 'heart'); } catch (e) {}
+  };
+}
+
 // ---------- はじまり ----------
 rest();
 // 前に読んだ内容をすぐ出して、裏で新しいものを読み直す(電波が弱くても待たない)
 (() => { const c = store.get('data', null); if (c && c.products) { try { D = c; state(''); renderAll(); show(store.get('tab', 'today'), true); setTimeout(() => chat(hello(), 'greet'), 250); } catch (e) { D = null; } } })();
 (async () => {
+  if (CF && !IN_LINE) { load(); return; }   // ホームページ: ログインの鍵(クッキー)で入る
   try {
     await liff.init({ liffId: LIFF_ID });
     if (!liff.isLoggedIn()) { state('LINEでログインします…'); liff.login({ redirectUri: location.href }); return; }
