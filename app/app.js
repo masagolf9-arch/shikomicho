@@ -6,6 +6,8 @@ const CAMERA_URL = 'https://liff.line.me/' + LIFF_ID;
 // 公式ホームページ(Cloudflare)から開いたときは、そちらの蔵とやりとりする。LINEの外ならログインの鍵で入る
 const CF = location.hostname !== 'masagolf9-arch.github.io';
 const IN_LINE = /\bLine\//i.test(navigator.userAgent);
+// 画面の案内文: ホームページでは「撮る」「もなか」を案内する(LINEは、お知らせが届く場所)
+const CAMTXT = CF ? '「撮る」' : 'LINEの「📷 写真を撮る」', VIA = CF ? 'もなかに' : 'LINEで', SHOT = CF ? '「撮る」で' : 'LINEで';
 
 const $ = id => document.getElementById(id);
 const store = { get(k, d) { try { const v = localStorage.getItem('shikomi:' + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
@@ -45,6 +47,7 @@ async function load() {
     }
     const first = !D; D = out.data; store.set('data', D); state(''); renderAll(); if (first) show(store.get('tab', 'today'), true); else show(cur, true, true);
     if (first) setTimeout(() => chat(hello(), 'greet'), 250);
+    if (first && matchMedia('(min-width:1100px)').matches && !msgs.children.length) openAsk();   // パソコン: もなかを右に開いたままにする
     if (CF && !window.__acct) { window.__acct = 1; renderAccount(); }
     if (CF) showShot();
   } catch (e) {
@@ -79,7 +82,7 @@ function notices() {
   for (const n of unknown) list.push({ type: 'q', html: `<p><b>「${esc(n)}」って何の材料ですか?</b></p><p class="k">まだ辞書にない材料です。もなかに教えてください</p>` });
   const check = new Set(); D.products.forEach(p => p.label.check.forEach(n => { if (!unknown.has(n)) check.add(n); }));
   for (const n of check) list.push({ type: 'q', cam: true, html: `<p><b>「${esc(n)}」の袋の裏を写真で</b></p><p class="k">名称欄が分かれば、裏表示が確定します</p>` });
-  if (!D.products.length) list.push({ type: 'q', cam: true, html: '<p><b>まずはレシピの写真を1枚</b></p><p class="k">LINEの「📷 写真を撮る」で手書きのレシピを撮ると、ここに原価と裏表示の案が出ます</p>' });
+  if (!D.products.length) list.push({ type: 'q', cam: true, html: '<p><b>まずはレシピの写真を1枚</b></p><p class="k">' + CAMTXT + 'で手書きのレシピを撮ると、ここに原価と裏表示の案が出ます</p>' });
   return list;
 }
 function renderToday() {
@@ -98,7 +101,7 @@ function renderToday() {
   const hm0 = hygMissing().length, bh = $('badge-hyg'); bh.textContent = hm0; bh.hidden = !hm0;
   renderHero(q); renderMenu(q);
   $('made').innerHTML = D.made.length ? D.made.map(m => `<div class="row"><span>${esc(m.text)}</span><span class="k">${new Date(m.t).toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' })}</span></div>`).join('')
-    : '<p class="k" style="margin:0">まだありません。夕方にLINEで「栗万十 90、チーズ万十 100」のように送ると、ここに出ます</p>';
+    : '<p class="k" style="margin:0">まだありません。夕方に' + VIA + '「栗万十 90、チーズ万十 100」のように送ると、ここに出ます</p>';
 }
 
 // ---------- 帳簿(支払い・仕分け・仕訳) ----------
@@ -150,6 +153,12 @@ function renderMenu(q) {
   const m = $('menu');
   m.innerHTML = items.map(([k, l, , b, w], i) => `<button type="button" data-i="${i}"><span class="ic${w === 'p' ? ' p' : w ? ' w' : ''}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[k]}</svg></span>${l}${b ? `<span class="badge">${b}</span>` : ''}</button>`).join('');
   m.querySelectorAll('button').forEach(b => b.onclick = () => items[b.dataset.i][2]());
+  // パソコンの広い画面では、同じメニューを左に縦に並べる
+  const TAB = { cost: 'cost', label: 'label', mat: 'mat', hyg: 'hyg', book: 'book', ws: 'ws', post: 'post', sales: 'sales' };
+  const all = [['home', 'ホーム', () => show('today'), 0, 0, 'today']].concat(items.map(x => [x[0], x[1], x[2], x[3] || 0, x[4] || 0, TAB[x[0]] || '']), [['set', '設定', () => show('set'), 0, 0, 'set']]);
+  const side = $('side');
+  side.innerHTML = `<div class="sname">${esc(D.shop)}</div>` + all.map(([k, l, , b, w, t], i) => `<button type="button" data-i="${i}" data-tab="${t}" class="${w === 'p' ? 'p' : w ? 'w' : ''}"${t && t === cur ? ' aria-current="page"' : ''}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[k]}</svg>${l}${b ? `<span class="badge">${b}</span>` : ''}</button>`).join('');
+  side.querySelectorAll('button').forEach(b => b.onclick = () => all[b.dataset.i][2]());
 }
 function renderBook() { renderPays(); renderSort(); renderJournal(); }
 const PILL = { '未払い': 'warn', '済': '', '現金済': '', '請求待ち': 'gray' };
@@ -217,7 +226,7 @@ function renderPays() {
   const sum = up.reduce((a, p) => a + p.total, 0);
   box.innerHTML = `<div class="card"><div class="row"><span>${up.length ? `払っていないもの ${up.length}件` : '払っていないものはありません'}</span>${up.length ? `<span class="big" style="font-size:20px">${yen(sum)}</span>` : ''}</div>` +
     up.map(p => `<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line)"><div>${esc(p.supplier)} <span class="k">${+p.month.slice(5) || esc(p.month)}月分${p.due ? ' · 期限 ' + esc(p.due.slice(5).replace('-', '/')) : ''}</span></div><div class="row" style="align-items:center;margin-top:6px"><b style="white-space:nowrap;font-size:17px">${yen(p.total)}</b><span style="display:flex;gap:6px;align-items:center;flex:0 0 auto"><button class="btn" style="white-space:nowrap" type="button" data-go="${p.row}">振込へ</button><button class="btn ghost" style="white-space:nowrap" type="button" data-paid="${p.row}">払った</button></span></div>`).join('') +
-    `<p class="k" style="margin:8px 0 0">${payBank() ? `振込は ${esc(payBank().name)} を開きます(<a href="#" id="bank-change" style="color:var(--accent)">変える</a>)。` : '「振込へ」を使うには、<a href="#" id="bank-change" style="color:var(--accent)">設定で銀行を選んでください</a>。'}LINEで「業者名 払った」でも済にできます</p></div>`;
+    `<p class="k" style="margin:8px 0 0">${payBank() ? `振込は ${esc(payBank().name)} を開きます(<a href="#" id="bank-change" style="color:var(--accent)">変える</a>)。` : '「振込へ」を使うには、<a href="#" id="bank-change" style="color:var(--accent)">設定で銀行を選んでください</a>。'}${VIA}「業者名 払った」でも済にできます</p></div>`;
   box.querySelectorAll('[data-paid]').forEach(b => b.onclick = () => setValue('', 'paid', +b.dataset.paid));
   box.querySelectorAll('[data-go]').forEach(b => b.onclick = () => goPay(up.find(p => p.row === +b.dataset.go)));
   if ($('bank-change')) $('bank-change').onclick = e => { e.preventDefault(); show('set'); setTimeout(() => $('bank-box').scrollIntoView({ block: 'start', behavior: 'smooth' }), 300); };
@@ -227,7 +236,7 @@ function renderPays() {
 const open = new Set();
 function renderCost() {
   const box = $('costs');
-  if (!D.products.length) { box.innerHTML = '<div class="card"><p class="k" style="margin:0">まだレシピがありません。LINEの「📷 写真を撮る」でレシピを撮ってください。</p></div>'; return; }
+  if (!D.products.length) { box.innerHTML = '<div class="card"><p class="k" style="margin:0">まだレシピがありません。' + CAMTXT + 'でレシピを撮ってください。</p></div>'; return; }
   box.innerHTML = D.products.map((p, i) => {
     const head = p.per_piece != null ? `<div class="big">${yen1(p.per_piece)}<span class="k" style="font-weight:400"> / 1${U}</span></div>` : '<div class="big" style="font-size:18px;color:var(--ink-2)">1個の重さ待ち</div>';
     const meta = [`<span class="pill gray">1仕込み ${yen(p.batch_cost)}</span>`];
@@ -394,7 +403,7 @@ const r1 = x => x < 0.05 ? '0' : (Math.round(x * 10) / 10).toFixed(1);
 function nutrBox(p) {
   const n = p.nutr;
   if (!n) return '';
-  if (!n.per) return `<div class="card" style="margin-top:14px"><p style="margin:0"><b>栄養成分表示</b></p><p class="k" style="margin:4px 0 0">1${U}の重さを入れると、栄養成分(熱量・たんぱく質・脂質・炭水化物・食塩相当量)の案が出ます。「原価」の画面か、LINEで「${esc(p.name)}は1個30g」</p></div>`;
+  if (!n.per) return `<div class="card" style="margin-top:14px"><p style="margin:0"><b>栄養成分表示</b></p><p class="k" style="margin:4px 0 0">1${U}の重さを入れると、栄養成分(熱量・たんぱく質・脂質・炭水化物・食塩相当量)の案が出ます。「原価」の画面か、${VIA}「${esc(p.name)}は1個30g」</p></div>`;
   const v = n.per, salt = v[4] > 0 && v[4] < 0.1 ? (Math.round(v[4] * 100) / 100).toFixed(2) : r1(v[4]);
   return `<div style="margin-top:14px"><div class="label" id="nu-txt">
       <div class="r"><div class="h" style="grid-column:1/-1;border-right:0;font-weight:700">栄養成分表示 1${U}${n.weight ? `(${n.weight}g)` : ''}当たり</div></div>
@@ -406,7 +415,7 @@ function nutrBox(p) {
       <div class="r"><div class="v" style="grid-column:1/-1;font-size:12px">この表示値は、目安です。(日本食品標準成分表（八訂）増補2023年の計算による推定値)</div></div></div>
     <div class="ask"><button class="btn ghost" type="button" id="nu-copy">栄養成分をコピー</button></div>
     ${n.baked ? '' : `<div class="card" style="margin-top:8px"><p class="k" style="margin:0 0 6px">( )の重さは焼く前の生地の重さです。焼き上がり1${U}の重さを入れると、表示用の重さになります(栄養の値は変わりません)</p><div class="ask" style="margin-top:0"><input id="bk-v" inputmode="decimal" placeholder="例 26"><span class="k">g</span><button class="btn ghost" type="button" id="bk-go">決める</button></div></div>`}
-    ${n.missing.length ? `<p class="k" style="margin:6px 0 0"><mark>まだ入っていない材料: ${n.missing.map(esc).join('、')}</mark> この分は少なめに出ています。業務用の材料は、袋の栄養成分表示をLINEで撮って送るとその値になります</p>` : ''}
+    ${n.missing.length ? `<p class="k" style="margin:6px 0 0"><mark>まだ入っていない材料: ${n.missing.map(esc).join('、')}</mark> この分は少なめに出ています。業務用の材料は、袋の栄養成分表示を${SHOT}撮って送るとその値になります</p>` : ''}
     <p class="k" style="margin:6px 0 0">計算に使ったもの: ${n.srcs.map(s => s === '袋の表示' ? '材料の袋の表示' : '日本食品標準成分表').join('・')}。表の「栄養の対応」シートで材料ごとの値を確かめ・直せます</p></div>`;
 }
 
@@ -436,7 +445,7 @@ function renderCount() {
     <div class="ask"><select id="cnt-m" style="font:inherit;font-size:15px;padding:6px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);max-width:11em">${names.map(n => `<option>${esc(n)}</option>`).join('')}</select>
     <input id="cnt-v" inputmode="decimal" placeholder="例 2" style="width:70px"><select id="cnt-u" style="font:inherit;font-size:15px;padding:6px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)"><option>kg</option><option>g</option><option>袋</option><option>缶</option></select>
     <button class="btn" type="button" id="cnt-go">記録</button></div>
-    <p class="k" style="margin:6px 0 0">差がありそうなものだけで大丈夫。LINEで「バイオレット 残り2袋」でも入れられます</p></div>`;
+    <p class="k" style="margin:6px 0 0">差がありそうなものだけで大丈夫。${VIA}「バイオレット 残り2袋」でも入れられます</p></div>`;
   $('cnt-go').onclick = () => { const v = parseFloat($('cnt-v').value); if (!(v >= 0)) { $('cnt-v').focus(); return; } setValueX({ field: 'count', product: $('cnt-m').value, value: v, unit: $('cnt-u').value }); };
 }
 async function setValueX(extra) {
@@ -473,6 +482,7 @@ function show(t, quiet, keep) {
   tabs.forEach(x => { const el = $('t-' + x); el.hidden = x !== t; el.classList.remove('inR', 'inL'); });
   if (dir) { const el = $('t-' + t); void el.offsetWidth; el.classList.add(dir > 0 ? 'inR' : 'inL'); }
   document.querySelectorAll('nav button[data-t]').forEach(b => b.dataset.t === t ? b.setAttribute('aria-current', 'page') : b.removeAttribute('aria-current'));
+  document.querySelectorAll('#side button[data-tab]').forEach(b => b.dataset.tab === t ? b.setAttribute('aria-current', 'page') : b.removeAttribute('aria-current'));
   store.set('tab', t); if (!keep) window.scrollTo(0, 0);
   if (!quiet) chat({ today: null, cost: '原価です。カードを押すと中身と入力欄が出ます。', label: '裏表示の案です。色のついたところだけ確かめてください。', mat: '材料の値段です。「仮」は請求書が来たら置き換えます。', set: '設定です。キャラや文字の大きさを変えられます。', hyg: hygMissing().length ? `今日まだの記録が${hygMissing().length}つあります。` : '今日の衛生記録はそろっています。', ws: '卸の納品と請求書です。', sales: '売上ともうけです。精算レシートを撮ると増えていきます。', post: 'ポップやインスタの文、いっしょに考えます。', book: unpaid().length ? `払っていないものが${unpaid().length}件あります。払ったら「払った」を押してください。` : '帳簿です。請求書は月ごとに仕分けてあります。' }[t], t === 'cost' ? 'clap' : t === 'label' ? 'point' : null);
 }
@@ -544,7 +554,7 @@ function renderHyg() {
   $('hyg-today').innerHTML = `<p style="margin:0 0 8px"><b>今日 ${md(t.date)}</b> <span class="k">${D.closedToday ? '定休日' : t.missing.length ? 'あと' + t.missing.length + 'つ' : 'ぜんぶ記録済み'}</span></p>
     <div class="hyg-in">${t.items.map((it, i) => `<span>${esc(it.name)}${it.kind === 'temp' ? `<br><span class="k">目安 ${it.lo ?? ''}〜${it.hi ?? ''}℃</span>` : ''}${it.rec ? `<br><span class="pill ${it.rec.j === 'OK' ? '' : 'warn'}">${esc(String(it.rec.v))}${it.kind === 'temp' ? '℃' : ''} · ${esc(it.rec.who || '')}</span>` : ''}</span>
       ${it.kind === 'temp' ? `<span><input id="hy-${i}" inputmode="decimal" placeholder="℃" aria-label="${esc(it.name)}の温度"></span>` : `<span class="seg" data-hy="${i}"><button type="button" data-v="OK" aria-pressed="false">OK</button><button type="button" data-v="NG" aria-pressed="false">NG</button></span>`}`).join('')}</div>
-    <div class="ask"><button class="btn" type="button" id="hyg-go">記録する</button><span class="k">LINEで「冷蔵 3 冷凍 -18 清掃OK」でも入ります</span></div>`;
+    <div class="ask"><button class="btn" type="button" id="hyg-go">記録する</button><span class="k">${VIA}「冷蔵 3 冷凍 -18 清掃OK」でも入ります</span></div>`;
   $('hyg-today').querySelectorAll('[data-hy] button').forEach(b => b.onclick = () => { b.parentNode.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b)); });
   $('hyg-go').onclick = () => { const v = {}; t.items.forEach((it, i) => { if (it.kind === 'temp') { const x = $('hy-' + i).value.trim(); if (x) v[it.name] = x; } else { const p = $('hyg-today').querySelector(`[data-hy="${i}"] [aria-pressed="true"]`); if (p) v[it.name] = p.dataset.v; } }); if (!Object.keys(v).length) { chat('入れる値がまだありません'); return; } setValueX({ field: 'hyg', value: v }); };
   const ms = Object.keys(D.hyg.months || {}).sort().reverse(), chips = $('hyg-chips');
@@ -571,7 +581,7 @@ function renderWs() {
   const ws = D.ws || {}, ms = Object.keys(ws).sort().reverse(), chips = $('ws-chips');
   const tos = [...new Set(ms.flatMap(m => Object.keys(ws[m])))];
   $('ws-add').innerHTML = `<p style="margin:0 0 6px"><b>納品を記録</b></p><div class="fld"><span class="k">卸先</span><input id="ws-to" list="ws-tos" placeholder="〇〇ゴルフ"><datalist id="ws-tos">${tos.map(t => `<option value="${esc(t)}">`).join('')}</datalist>
-    <span class="k">商品と数</span><input id="ws-items" placeholder="栗万十20 チーズ万十10"></div><div class="ask"><button class="btn" type="button" id="ws-go">記録</button><span class="k">LINEで「納品 〇〇ゴルフ 栗万十20」でもOK</span></div>`;
+    <span class="k">商品と数</span><input id="ws-items" placeholder="栗万十20 チーズ万十10"></div><div class="ask"><button class="btn" type="button" id="ws-go">記録</button><span class="k">${VIA}「納品 〇〇ゴルフ 栗万十20」でもOK</span></div>`;
   $('ws-go').onclick = () => { const to = $('ws-to').value.trim(), it = $('ws-items').value.trim(); if (!to || !it) { chat('卸先と、商品と数を入れてください'); return; } setValueX({ field: 'deliv', value: to + ' ' + it }); };
   if (!ms.length) { chips.innerHTML = ''; $('ws-list').innerHTML = '<div class="card"><p class="k" style="margin:0">まだ納品の記録がありません</p></div>'; return; }
   const sel = chips.dataset.m && ms.includes(chips.dataset.m) ? chips.dataset.m : ms[0];
@@ -605,9 +615,9 @@ function openInvoice(mo, to) {
 // ---------- 売上ともうけ ----------
 function renderSales() {
   const sa = D.sales || {}, ms = Object.keys(sa).sort().reverse(), chips = $('sales-chips');
-  $('sales-add').innerHTML = `<p style="margin:0 0 6px"><b>写真がないときは数字で</b></p><div class="fld"><span class="k">日付</span><input id="sl-date" type="date" value="${new Date().toLocaleDateString('sv-SE')}"><span class="k">売上(税込)</span><input id="sl-total" inputmode="numeric" placeholder="52300"><span class="k">客数</span><input id="sl-cust" inputmode="numeric" placeholder="48(なくても可)"></div><div class="ask"><button class="btn" type="button" id="sl-go">記録</button><span class="k">LINEで精算レシートを撮るのが一番かんたんです</span></div>`;
+  $('sales-add').innerHTML = `<p style="margin:0 0 6px"><b>写真がないときは数字で</b></p><div class="fld"><span class="k">日付</span><input id="sl-date" type="date" value="${new Date().toLocaleDateString('sv-SE')}"><span class="k">売上(税込)</span><input id="sl-total" inputmode="numeric" placeholder="52300"><span class="k">客数</span><input id="sl-cust" inputmode="numeric" placeholder="48(なくても可)"></div><div class="ask"><button class="btn" type="button" id="sl-go">記録</button><span class="k">${SHOT}精算レシートを撮るのが一番かんたんです</span></div>`;
   $('sl-go').onclick = () => { const t = $('sl-total').value.trim(); if (!t) { chat('売上の金額を入れてください'); return; } setValueX({ field: 'sales', value: { date: $('sl-date').value, total: t, customers: $('sl-cust').value.trim() } }); };
-  if (!ms.length) { chips.innerHTML = ''; $('sales-box').innerHTML = '<div class="card"><p class="k" style="margin:0">まだ売上の記録がありません。閉店後にレジの精算レシートをLINEで撮って送ってください</p></div>'; return; }
+  if (!ms.length) { chips.innerHTML = ''; $('sales-box').innerHTML = '<div class="card"><p class="k" style="margin:0">まだ売上の記録がありません。閉店後にレジの精算レシートを' + SHOT + '撮って送ってください</p></div>'; return; }
   const sel = chips.dataset.m && ms.includes(chips.dataset.m) ? chips.dataset.m : ms[0];
   chips.innerHTML = ms.map(m => `<button class="chip" type="button" data-m="${m}" aria-pressed="${m === sel}">${m.replace('-', '年')}月</button>`).join('');
   chips.querySelectorAll('[data-m]').forEach(b => b.onclick = () => { chips.dataset.m = b.dataset.m; renderSales(); });
@@ -800,6 +810,7 @@ async function renderAccount() {
 }
 
 // ---------- はじまり ----------
+if (CF) { $('words-h').textContent = 'もなかに話しかけられる言葉'; $('ct-via').textContent = 'もなかに「問い合わせ 〜」と話しかけてもOK'; }
 rest();
 // 前に読んだ内容をすぐ出して、裏で新しいものを読み直す(電波が弱くても待たない)
 (() => { const c = store.get('data', null); if (c && c.products) { try { D = c; state(''); renderAll(); show(store.get('tab', 'today'), true); setTimeout(() => chat(hello(), 'greet'), 250); } catch (e) { D = null; } } })();

@@ -222,9 +222,38 @@ nav .badge{position:absolute;top:0;left:calc(50% + 6px);min-width:18px;height:18
 section.inR{animation:inR .12s ease-out}section.inL{animation:inL .12s ease-out}
 @media (prefers-reduced-motion:reduce){section.inR,section.inL{animation:none}.menu .ic{transition:none}}
 @media (min-width:900px){.wrap{max-width:760px}.sheet .panel{max-width:760px}nav .in{max-width:760px}#costs{display:grid;grid-template-columns:1fr 1fr;gap:10px}#costs .prod{align-self:start}}
+
+/* パソコンの広い画面: 左にメニュー、真ん中に画面、右にもなか(ケイタイはこれまでどおり) */
+#side{display:none}
+@media (min-width:1100px){
+  :root{--sideW:224px;--chatW:380px}
+  #side{display:flex;flex-direction:column;gap:2px;position:fixed;left:0;top:0;bottom:0;width:var(--sideW);padding:18px 12px;background:var(--card);border-right:1px solid var(--line);overflow:auto;z-index:11}
+  #side .sname{font-weight:700;font-size:18px;letter-spacing:.06em;padding:4px 12px 14px}
+  #side button{font:inherit;font-size:15px;display:flex;align-items:center;gap:12px;padding:9px 12px;border:0;border-radius:12px;background:transparent;color:var(--ink);cursor:pointer;text-align:left}
+  #side button svg{width:22px;height:22px;flex:0 0 22px;color:var(--accent)}
+  #side button:hover{background:var(--line-2)}
+  #side button[aria-current="page"]{background:var(--soft);color:var(--accent);font-weight:700}
+  #side button.p{background:var(--accent);color:var(--accent-ink);font-weight:700;margin-bottom:10px}
+  #side button.p svg{color:inherit}
+  #side button.w svg{color:var(--warn)}
+  #side .badge{margin-left:auto;min-width:20px;height:20px;border-radius:10px;background:var(--warn);color:#fff;font-size:12px;font-weight:700;line-height:20px;text-align:center;padding:0 6px}
+  nav{display:none}
+  .wrap{max-width:none;margin:0 var(--chatW) 0 var(--sideW);padding:0 32px 48px}
+  .wrap>section,.wrap>.state,.wrap>.foot{max-width:1000px;margin-left:auto;margin-right:auto}
+  .top{margin:0 -32px}
+  .hero{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));overflow:visible;margin:20px 0 0;padding:0}
+  .hc{flex:none}
+  .dots,.swipe-hint,#menu{display:none}
+  .sheet,.sheet[hidden]{display:flex;inset:0 0 0 auto;width:var(--chatW);background:none;z-index:9}
+  .sheet .panel{max-width:none;height:100%;border-radius:0;border-left:1px solid var(--line)}
+  .sheet .bar2 .x{display:none}
+  .chara{right:calc(var(--chatW) + 16px);bottom:16px}
+  .say{right:calc(var(--chatW) + var(--cs,72px) + 18px);bottom:30px}
+}
 </style>
 </head>
 <body>
+<aside id="side" aria-label="メニュー"></aside>
 <div class="wrap">
   <div class="top">
     <div class="bg" aria-hidden="true"></div>
@@ -320,9 +349,9 @@ section.inR{animation:inR .12s ease-out}section.inL{animation:inL .12s ease-out}
       <p class="k" style="margin:0 0 8px">使い方が分からない、うまく動かない、こうしてほしい。仕込帳の担当に届きます。お返事はLINEかメールで。</p>
       <div class="seg" id="ct-cat" style="flex-wrap:wrap;justify-content:flex-start"><button type="button" data-v="使い方" aria-pressed="true">使い方</button><button type="button" data-v="うまく動かない" aria-pressed="false">うまく動かない</button><button type="button" data-v="こうしてほしい" aria-pressed="false">こうしてほしい</button><button type="button" data-v="その他" aria-pressed="false">その他</button></div>
       <textarea id="ct-text" rows="4" maxlength="2000" placeholder="例: 請求書の写真がうまく読めません" aria-label="問い合わせの内容"></textarea>
-      <div class="ask"><button class="btn" type="button" id="ct-go">送る</button><span class="k">LINEで「問い合わせ 〜」と送ってもOK</span></div>
+      <div class="ask"><button class="btn" type="button" id="ct-go">送る</button><span class="k" id="ct-via">LINEで「問い合わせ 〜」と送ってもOK</span></div>
     </div>
-    <h1 class="sub">LINEで送れる言葉</h1>
+    <h1 class="sub" id="words-h">LINEで送れる言葉</h1>
     <div class="card"><table class="howto">
       <tr><td>写真を送る</td><td class="k">レシピ・請求書・納品書・レシート・袋の裏を読みます</td></tr>
       <tr><td>栗万十 90、チーズ万十 100</td><td class="k">きょう作った数(夕方に)</td></tr>
@@ -377,6 +406,6 @@ section.inR{animation:inR .12s ease-out}section.inL{animation:inL .12s ease-out}
 </div></nav>
 
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-<script src="app.js?v=25"></script>
+<script src="app.js?v=26"></script>
 </body>
 </html>
