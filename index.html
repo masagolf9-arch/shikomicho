@@ -76,6 +76,7 @@
 // ===== 設定(公開してよい値だけ) =====
 const LIFF_ID = '2012003912-ltVppjVx';
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbxShAkcy1uEzK5ZUGWgW8lzdFBcd8baDNKjHwGKCBx7ocrEUNDHmzrSFdrZDikqL2VO/exec';
+const CF = location.hostname !== 'masagolf9-arch.github.io';   // 公式ホームページ(Cloudflare)から開いたとき
 
 const $ = (id) => document.getElementById(id);
 const video = $('video'), guide = $('guide'), hint = $('hint'), arrow = $('arrow');
@@ -256,8 +257,11 @@ async function send() {
   try {
     if (!inLiff) throw new Error('LINEの中で開いたときだけ送れます(いまは試し表示です)');
     const data = await new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result.split(',')[1]); fr.readAsDataURL(shotBlob); });
-    const res = await fetch(GAS_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ kind: 'liff_upload', idToken: liff.getIDToken(), what: kind, image: data, type: 'image/jpeg' }) });
+    const res = CF
+      ? await fetch('/api/upload', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Shikomi': '1', 'X-Line-Token': liff.getIDToken() },
+          body: JSON.stringify({ kind: 'liff_upload', what: kind, image: data, type: 'image/jpeg' }) })
+      : await fetch(GAS_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ kind: 'liff_upload', idToken: liff.getIDToken(), what: kind, image: data, type: 'image/jpeg' }) });
     const out = await res.json();
     if (!out.ok) throw new Error(out.error || '受け取れませんでした');
     $('busyText').textContent = '読めました! トークに戻ります';
