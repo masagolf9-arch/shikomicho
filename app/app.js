@@ -46,6 +46,7 @@ async function load() {
     const first = !D; D = out.data; store.set('data', D); state(''); renderAll(); if (first) show(store.get('tab', 'today'), true); else show(cur, true, true);
     if (first) setTimeout(() => chat(hello(), 'greet'), 250);
     if (CF && !window.__acct) { window.__acct = 1; renderAccount(); }
+    if (CF) showShot();
   } catch (e) {
     if (D) { chat('電波が弱いので、前に読んだ内容を出しています'); return; }
     state('読み込めませんでした。電波のよいところで<br><button class="btn ghost" onclick="load()">もう一度読む</button>');
@@ -58,7 +59,11 @@ async function setValue(product, field, value) {
   D = out.data; renderAll(); chat('覚えました。原価に反映しました。', 'heart');
 }
 function openCamera() {
-  if (CF && !IN_LINE) { webPhoto(); return; }
+  if (CF) {
+    // ケイタイ: 青い枠のカメラへ(撮ったら、この画面に戻ってもなかが答える)/ パソコン: 写真を選ぶ
+    if (matchMedia('(pointer:coarse)').matches) { location.href = (IN_LINE ? '/l/' : '/camera/') + '?back=' + encodeURIComponent(location.pathname); return; }
+    webPhoto(); return;
+  }
   if (window.liff && liff.isInClient && liff.isInClient()) liff.openWindow({ url: CAMERA_URL, external: false });
   else chat('写真はスマホのLINEで「📷 写真を撮る」から送ってください。', 'point');
 }
@@ -71,7 +76,7 @@ function notices() {
   if (needPw.length) list.push({ type: 'q', html: `<p><b>1${U}は何g?(${needPw.length}品)</b></p><p class="k">数えなくても、重さから個数と1個の原価を出します。分かるものだけで大丈夫</p>` +
     needPw.map((p, i) => `<div class="ask"><span style="min-width:6em">${esc(p.name)}</span><input id="pw-${i}" inputmode="decimal" placeholder="例 40" aria-label="${esc(p.name)}の1${U}の重さ"><span class="k">g</span><button class="btn" data-pw="${i}" type="button">決める</button></div>`).join('') });
   const unknown = new Set(); D.products.forEach(p => p.unknown.forEach(n => unknown.add(n)));
-  for (const n of unknown) list.push({ type: 'q', html: `<p><b>「${esc(n)}」って何の材料ですか?</b></p><p class="k">まだ辞書にない材料です。LINEでもなかに教えるか、表の「材料」シートに足してください</p>` });
+  for (const n of unknown) list.push({ type: 'q', html: `<p><b>「${esc(n)}」って何の材料ですか?</b></p><p class="k">まだ辞書にない材料です。もなかに教えてください</p>` });
   const check = new Set(); D.products.forEach(p => p.label.check.forEach(n => { if (!unknown.has(n)) check.add(n); }));
   for (const n of check) list.push({ type: 'q', cam: true, html: `<p><b>「${esc(n)}」の袋の裏を写真で</b></p><p class="k">名称欄が分かれば、裏表示が確定します</p>` });
   if (!D.products.length) list.push({ type: 'q', cam: true, html: '<p><b>まずはレシピの写真を1枚</b></p><p class="k">LINEの「📷 写真を撮る」で手書きのレシピを撮ると、ここに原価と裏表示の案が出ます</p>' });
@@ -736,24 +741,39 @@ async function shrink(file) {
   c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
   return c.toDataURL('image/jpeg', 0.88).split(',')[1];
 }
+function sayShot(out) {
+  (out.msgs || []).forEach((t, i) => setTimeout(() => botSay(esc(t).replace(/\n/g, '<br>')), i * 200));
+  renderChips(out.quick);
+}
+async function sendWebFile(file) {
+  if (!file || !/^image\//.test(file.type) || !D) return;
+  openAsk(); addMsg('<span class="k">📷 写真を送りました</span>', true);
+  const wait = addMsg('<span class="k">読んでいます…(10〜30秒かかります)</span>'); chat(null, 'think');
+  try {
+    const out = await api({ kind: 'liff_upload', web: true, image: await shrink(file), type: 'image/jpeg' });
+    wait.remove();
+    if (!out.ok) throw new Error(out.error || 'うまく読めませんでした');
+    sayShot(out); load();
+  } catch (e) { wait.remove(); botSay(esc(e.message || 'うまく送れませんでした')); }
+}
 function webPhoto() {
   let f = $('web-pick');
   if (!f) {
     f = document.createElement('input'); f.type = 'file'; f.accept = 'image/*'; f.id = 'web-pick'; f.hidden = true; document.body.appendChild(f);
-    f.onchange = async () => {
-      const file = f.files[0]; f.value = ''; if (!file) return;
-      openAsk(); addMsg('<span class="k">📷 写真を送りました</span>', true);
-      const wait = addMsg('<span class="k">読んでいます…(10〜30秒かかります)</span>'); chat(null, 'think');
-      try {
-        const out = await api({ kind: 'liff_upload', web: true, image: await shrink(file), type: 'image/jpeg' });
-        wait.remove();
-        if (!out.ok) throw new Error(out.error || 'うまく読めませんでした');
-        (out.msgs || []).forEach((t, i) => setTimeout(() => botSay(esc(t).replace(/\n/g, '<br>')), i * 200));
-        renderChips(out.quick); load();
-      } catch (e) { wait.remove(); botSay(esc(e.message || 'うまく送れませんでした')); }
-    };
+    f.onchange = () => { const file = f.files[0]; f.value = ''; sendWebFile(file); };
   }
   f.click();
+}
+// パソコン: 写真を画面に引っぱって落としても送れる
+if (CF) {
+  addEventListener('dragover', e => { if (e.dataTransfer && [...e.dataTransfer.types].includes('Files')) e.preventDefault(); });
+  addEventListener('drop', e => { const file = e.dataTransfer && e.dataTransfer.files[0]; if (!file) return; e.preventDefault(); sendWebFile(file); });
+}
+// 青い枠のカメラで撮って戻ってきたとき、もなかの答えを出す
+function showShot() {
+  let out = null; try { out = JSON.parse(sessionStorage.getItem('shikomi:shot') || 'null'); sessionStorage.removeItem('shikomi:shot'); } catch (e) {}
+  if (!out || !D) return;
+  openAsk(); addMsg('<span class="k">📷 撮った写真を送りました</span>', true); sayShot(out);
 }
 // ---------- ログインの設定(ホームページのときだけ) ----------
 async function renderAccount() {
@@ -774,7 +794,7 @@ async function renderAccount() {
   $('ac-inv').onclick = async () => {
     const r = await api({ kind: 'app_new_invite' });
     if (!r.ok) { $('ac-inv-out').textContent = r.error || '作れませんでした'; return; }
-    $('ac-inv-out').innerHTML = `${esc(r.invite)}<br>このリンクをスタッフに送ってください。開いてログインすると、あなたに「許可」のお知らせが届きます。`;
+    $('ac-inv-out').innerHTML = `${esc(r.invite)}<br>このリンクをスタッフに送ってください。開いて登録すると、すぐにお店の画面が見られます。スタッフ以外には送らないでください。`;
     try { await navigator.clipboard.writeText(r.invite); chat('リンクをコピーしました', 'heart'); } catch (e) {}
   };
 }

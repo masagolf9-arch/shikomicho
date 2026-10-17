@@ -77,6 +77,9 @@
 const LIFF_ID = '2012003912-ltVppjVx';
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbxShAkcy1uEzK5ZUGWgW8lzdFBcd8baDNKjHwGKCBx7ocrEUNDHmzrSFdrZDikqL2VO/exec';
 const CF = location.hostname !== 'masagolf9-arch.github.io';   // 公式ホームページ(Cloudflare)から開いたとき
+const IN_LINE = /\bLine\//i.test(navigator.userAgent);
+// ホームページでは、撮り終わったらこの画面に戻る(同じ住所の中だけ)
+const BACK = (() => { const b = new URLSearchParams(location.search).get('back') || ''; return /^\/[\w\/-]*$/.test(b) ? b : (IN_LINE ? '/l/app/' : '/app/'); })();
 
 const $ = (id) => document.getElementById(id);
 const video = $('video'), guide = $('guide'), hint = $('hint'), arrow = $('arrow');
@@ -255,8 +258,18 @@ async function send() {
   if (!shotBlob) return;
   $('busy').style.display = 'flex';
   try {
-    if (!inLiff) throw new Error('LINEの中で開いたときだけ送れます(いまは試し表示です)');
     const data = await new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result.split(',')[1]); fr.readAsDataURL(shotBlob); });
+    if (CF) {   // ホームページ: 答えはLINEではなく、お店の画面のもなかが返す
+      const h = { 'Content-Type': 'application/json', 'X-Shikomi': '1' }; if (inLiff) h['X-Line-Token'] = liff.getIDToken();
+      const out = await (await fetch('/api/upload', { method: 'POST', credentials: 'same-origin', headers: h,
+        body: JSON.stringify({ kind: 'liff_upload', web: true, what: kind, image: data, type: 'image/jpeg' }) })).json();
+      if (out.error === 'login') { location.href = '/login?next=' + encodeURIComponent(location.pathname + location.search); return; }
+      if (!out.ok) throw new Error(out.error || '受け取れませんでした');
+      try { sessionStorage.setItem('shikomi:shot', JSON.stringify({ msgs: out.msgs || [], quick: out.quick || null })); } catch (e) {}
+      $('busyText').textContent = '読めました! もなかが答えます';
+      location.href = BACK; return;
+    }
+    if (!inLiff) throw new Error('LINEの中で開いたときだけ送れます(いまは試し表示です)');
     const res = CF
       ? await fetch('/api/upload', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Shikomi': '1', 'X-Line-Token': liff.getIDToken() },
           body: JSON.stringify({ kind: 'liff_upload', what: kind, image: data, type: 'image/jpeg' }) })
@@ -276,13 +289,13 @@ async function send() {
 $('shutter').onclick = capture;
 $('retake').onclick = retake;
 $('send').onclick = send;
-$('close').onclick = () => { if (inLiff) liff.closeWindow(); else history.back(); };
+$('close').onclick = () => { if (CF) location.href = BACK; else if (inLiff) liff.closeWindow(); else history.back(); };
 
 // ---- はじまり ----
 layoutGuide();
 (async () => {
   try {
-    if (window.liff && !LIFF_ID.startsWith('__')) {
+    if (window.liff && !LIFF_ID.startsWith('__') && (!CF || IN_LINE)) {   // ホームページ(LINEの外)ではログインの鍵で送るので、LINEは使わない
       await liff.init({ liffId: LIFF_ID });
       inLiff = liff.isInClient() || liff.isLoggedIn();
       if (!liff.isLoggedIn()) { liff.login(); return; }
