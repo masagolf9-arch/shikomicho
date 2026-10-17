@@ -223,10 +223,10 @@ section.inR{animation:inR .12s ease-out}section.inL{animation:inL .12s ease-out}
 @media (prefers-reduced-motion:reduce){section.inR,section.inL{animation:none}.menu .ic{transition:none}}
 @media (min-width:900px){.wrap{max-width:760px}.sheet .panel{max-width:760px}nav .in{max-width:760px}#costs{display:grid;grid-template-columns:1fr 1fr;gap:10px}#costs .prod{align-self:start}}
 
-/* パソコンの広い画面: 左にメニュー、真ん中に画面、右にもなか(ケイタイはこれまでどおり) */
+/* パソコンの広い画面: 左にメニュー、右に画面。もなかは右下に座り、押すと小さな窓で話せる(ケイタイはこれまでどおり) */
 #side{display:none}
 @media (min-width:1100px){
-  :root{--sideW:224px;--chatW:380px}
+  :root{--sideW:224px}
   #side{display:flex;flex-direction:column;gap:2px;position:fixed;left:0;top:0;bottom:0;width:var(--sideW);padding:18px 12px;background:var(--card);border-right:1px solid var(--line);overflow:auto;z-index:11}
   #side .sname{font-weight:700;font-size:18px;letter-spacing:.06em;padding:4px 12px 14px}
   #side button{font:inherit;font-size:15px;display:flex;align-items:center;gap:12px;padding:9px 12px;border:0;border-radius:12px;background:transparent;color:var(--ink);cursor:pointer;text-align:left}
@@ -238,17 +238,16 @@ section.inR{animation:inR .12s ease-out}section.inL{animation:inL .12s ease-out}
   #side button.w svg{color:var(--warn)}
   #side .badge{margin-left:auto;min-width:20px;height:20px;border-radius:10px;background:var(--warn);color:#fff;font-size:12px;font-weight:700;line-height:20px;text-align:center;padding:0 6px}
   nav{display:none}
-  .wrap{max-width:none;margin:0 var(--chatW) 0 var(--sideW);padding:0 32px 48px}
+  .wrap{max-width:none;margin:0 0 0 var(--sideW);padding:0 32px calc(48px + var(--cs,72px))}
   .wrap>section,.wrap>.state,.wrap>.foot{max-width:1000px;margin-left:auto;margin-right:auto}
   .top{margin:0 -32px}
-  .hero{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));overflow:visible;margin:20px 0 0;padding:0}
+  .hero{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));overflow:visible;margin:20px 0 0;padding:0}
   .hc{flex:none}
   .dots,.swipe-hint,#menu{display:none}
-  .sheet,.sheet[hidden]{display:flex;inset:0 0 0 auto;width:var(--chatW);background:none;z-index:9}
-  .sheet .panel{max-width:none;height:100%;border-radius:0;border-left:1px solid var(--line)}
-  .sheet .bar2 .x{display:none}
-  .chara{right:calc(var(--chatW) + 16px);bottom:16px}
-  .say{right:calc(var(--chatW) + var(--cs,72px) + 18px);bottom:30px}
+  .sheet{inset:auto 24px 24px auto;width:400px;height:min(640px,calc(100vh - 48px));background:none}
+  .sheet .panel{max-width:none;height:100%;border-radius:20px;border:1px solid var(--line);box-shadow:0 12px 40px rgba(0,0,0,.18);overflow:hidden}
+  .chara{right:24px;bottom:20px}
+  .say{right:calc(var(--cs,72px) + 28px);bottom:34px}
 }
 </style>
 </head>
@@ -406,6 +405,6 @@ section.inR{animation:inR .12s ease-out}section.inL{animation:inL .12s ease-out}
 </div></nav>
 
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-<script src="app.js?v=26"></script>
+<script src="app.js?v=27"></script>
 </body>
 </html>

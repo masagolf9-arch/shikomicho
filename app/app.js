@@ -47,7 +47,6 @@ async function load() {
     }
     const first = !D; D = out.data; store.set('data', D); state(''); renderAll(); if (first) show(store.get('tab', 'today'), true); else show(cur, true, true);
     if (first) setTimeout(() => chat(hello(), 'greet'), 250);
-    if (first && matchMedia('(min-width:1100px)').matches && !msgs.children.length) openAsk();   // パソコン: もなかを右に開いたままにする
     if (CF && !window.__acct) { window.__acct = 1; renderAccount(); }
     if (CF) showShot();
   } catch (e) {
