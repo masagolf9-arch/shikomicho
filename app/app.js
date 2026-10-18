@@ -269,8 +269,15 @@ const lblDefName = p => /羊羹|ようかん/.test(p.name) ? '和生菓子(羊�
 function lblOf(p) {
   const s = p.lbl || {};
   return { name: s.name || lblDefName(p), dtype: s.dtype || '消費期限', days: s.days === 0 || s.days ? Number(s.days) : '', storage: s.storage || LBL_STORAGE,
-    content: s.content || `1${U}${p.nutr && p.nutr.weight ? `(${p.nutr.weight}g)` : ''}`, jan: s.jan || '', nut: !!s.nut && !!(p.nutr && p.nutr.per), saved: !!p.lbl };
+    content: s.content || `1${U}${p.nutr && p.nutr.weight ? `(${p.nutr.weight}g)` : ''}`, jan: s.jan || '', nut: !!s.nut && !!(p.nutr && p.nutr.per), saved: !!p.lbl,
+    packs: Array.isArray(s.packs) ? s.packs : [] };
 }
+// 包装の種類の入力行(包装・内容量・JAN)
+const packRow = (k, i) => `<div class="pkrow" style="display:grid;grid-template-columns:1.2fr 1fr 1.6fr auto;gap:6px;margin-bottom:6px">
+  <input class="pk-name" placeholder="例 4個入り袋" value="${esc(k.name || '')}" aria-label="包装${i + 1}の名前">
+  <input class="pk-ct" placeholder="例 4個" value="${esc(k.content || '')}" aria-label="包装${i + 1}の内容量">
+  <input class="pk-jan" inputmode="numeric" placeholder="JAN(13桁)" value="${esc(k.jan || '')}" aria-label="包装${i + 1}のJANコード">
+  <button class="btn ghost pk-del" type="button" aria-label="この包装を消す" style="padding:0 12px">×</button></div>`;
 function janCheck(d) {
   d = String(d || '').replace(/[\s-]/g, '');
   if (!d) return { ok: true, empty: true };
@@ -323,11 +330,12 @@ function lblPrintCard(p, L) {
         <span class="k">名称</span><input id="lb-name" value="${esc(L.name)}">
         <span class="k">期限</span><span style="display:flex;gap:6px;align-items:center"><select id="lb-dtype"><option${L.dtype === '消費期限' ? ' selected' : ''}>消費期限</option><option${L.dtype === '賞味期限' ? ' selected' : ''}>賞味期限</option></select>作った日から<input id="lb-days" inputmode="numeric" value="${L.days}" style="width:4em">日</span>
         <span class="k">保存方法</span><input id="lb-st" value="${esc(L.storage)}">
-        <span class="k">内容量</span><input id="lb-ct" value="${esc(L.content)}">
-        <span class="k">JANコード</span><input id="lb-jan" inputmode="numeric" value="${esc(L.jan)}" placeholder="卸の商品だけ(13桁)">
+        <span class="k">包装</span><div><div id="lb-packs">${(L.packs.length ? L.packs : [{ name: '', content: L.content, jan: L.jan }]).map(packRow).join('')}</div>
+          <button class="btn ghost" type="button" id="lb-addpack">包装を足す</button><p class="k" style="margin:4px 0 0">袋・箱など包装ごとに、内容量とJANコード(卸の商品だけ)を入れます</p></div>
         ${p.nutr && p.nutr.per ? `<span class="k">栄養成分</span><label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="lb-nut"${L.nut ? ' checked' : ''} style="width:auto">ラベルに載せる</label>` : ''}
       </div><div class="ask"><button class="btn ghost" type="button" id="lb-save">設定を保存</button><span class="k" id="lb-msg"></span></div></details>
     <div class="fld" style="margin-top:8px">
+      ${L.packs.length > 1 ? `<span class="k">包装</span><select id="lb-pack">${L.packs.map((k, i) => `<option value="${i}">${esc(k.name || k.content)}</option>`).join('')}</select>` : ''}
       <span class="k">用紙</span><select id="lb-sheet">${Object.entries(SHEETS).map(([k, v]) => `<option value="${k}"${k === S.sheet ? ' selected' : ''}>${v[0]} ${v[1]}×${v[2]}ミリ</option>`).join('')}</select>
       <span class="k">作った日</span><input id="lb-day" type="date" value="${iso}">
       <span class="k">枚数</span><span style="display:flex;gap:6px;align-items:center"><input id="lb-n" inputmode="numeric" value="${per}" style="width:5em">枚</span>
@@ -339,17 +347,29 @@ function lblPrintCard(p, L) {
 }
 function bindLblPrint(p, L) {
   const val = id => $(id) ? $(id).value.trim() : '';
+  const box = $('lb-packs');
+  const bindDel = () => box.querySelectorAll('.pk-del').forEach(b => b.onclick = () => { if (box.children.length > 1) b.closest('.pkrow').remove(); else b.closest('.pkrow').querySelectorAll('input').forEach(x => x.value = ''); });
+  bindDel();
+  $('lb-addpack').onclick = () => { if (box.children.length >= 8) return; box.insertAdjacentHTML('beforeend', packRow({}, box.children.length)); bindDel(); };
   $('lb-save').onclick = () => {
-    const j = janCheck(val('lb-jan')); if (!j.ok) { $('lb-msg').textContent = j.msg; return; }
+    const packs = [];
+    for (const r of box.querySelectorAll('.pkrow')) {
+      const k = { name: r.querySelector('.pk-name').value.trim(), content: r.querySelector('.pk-ct').value.trim(), jan: r.querySelector('.pk-jan').value.trim() };
+      if (!k.name && !k.content && !k.jan) continue;
+      const j = janCheck(k.jan); if (!j.ok) { $('lb-msg').textContent = `「${k.name || k.content}」: ${j.msg}`; return; }
+      k.jan = j.code || ''; packs.push(k);
+    }
     const d = val('lb-days'); if (d !== '' && !(/^\d{1,3}$/.test(d))) { $('lb-msg').textContent = '日数は数字で'; return; }
-    setValueX({ field: 'lbl', product: p.name, value: { name: val('lb-name'), dtype: val('lb-dtype'), days: d, storage: val('lb-st'), content: val('lb-ct'), jan: j.code || '', nut: $('lb-nut') ? $('lb-nut').checked : false } });
+    const first = packs[0] || {};
+    setValueX({ field: 'lbl', product: p.name, value: { name: val('lb-name'), dtype: val('lb-dtype'), days: d, storage: val('lb-st'), content: first.content || '', jan: first.jan || '', packs, nut: $('lb-nut') ? $('lb-nut').checked : false } });
   };
   const keep = () => { const S = lsGet(); S.sheet = val('lb-sheet'); S.pt = +val('lb-pt') || 6; S.dx = +val('lb-dx') || 0; S.dy = +val('lb-dy') || 0; lsSet(S); return S; };
   $('lb-sheet').onchange = () => { keep(); const sh = SHEETS[val('lb-sheet')]; $('lb-n').value = sh[3] * sh[4]; };
   $('lb-print').onclick = () => {
     if (p.label.check.length && !confirmOnce('lbchk', `「${p.label.check.join('、')}」が要確認のままです。このまま刷るならもう一度押してください`)) return;
     const S = keep(), n = Math.min(Math.max(parseInt(val('lb-n')) || 0, 1), 500), skip = Math.max(parseInt(val('lb-skip')) || 0, 0);
-    openLabelSheet(p, L, S, n, skip, val('lb-day'));
+    const pk = L.packs[+val('lb-pack') || 0];
+    openLabelSheet(p, pk ? Object.assign({}, L, { content: pk.content || L.content, jan: pk.jan, pack: pk.name }) : L, S, n, skip, val('lb-day'));
   };
 }
 let confirmKey = '';
@@ -385,7 +405,7 @@ function openLabelSheet(p, L, S, n, skip, day) {
   }
   const v = $('inv');
   v.innerHTML = `<div class="bar3" style="margin-top:0"><button class="btn" type="button" id="inv-print">印刷する</button><button class="btn ghost" type="button" id="inv-close">閉じる</button></div>
-    <p class="k lnote">${esc(p.name)} ${n}枚 · ${esc(sh[0])}(${Math.ceil(slots.length / per)}ページ)。印刷の画面で「倍率100%」「余白なし」にしてください。<span id="lb-over"></span></p>
+    <p class="k lnote">${esc(p.name)}${L.pack ? ' ' + esc(L.pack) : ''} ${n}枚 · ${esc(sh[0])}(${Math.ceil(slots.length / per)}ページ)。印刷の画面で「倍率100%」「余白なし」にしてください。<span id="lb-over"></span></p>
     <div class="lwrap" id="lwrap">${pages}</div>`;
   v.hidden = false; v.classList.add('lprint');
   let st = document.getElementById('lb-page'); if (!st) { st = document.createElement('style'); st.id = 'lb-page'; document.head.appendChild(st); }
