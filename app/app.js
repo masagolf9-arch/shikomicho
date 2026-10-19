@@ -73,12 +73,14 @@ function openCamera() {
 // ---------- きょう ----------
 function notices() {
   const list = [];
-  for (const u of D.ups) list.push({ type: 'up', html: `<p><b>${esc(u.item)}が値上がり</b></p><p class="k">${esc(u.supplier)} ${esc(u.spec)} ${u.old.toLocaleString()}円 → ${u.now.toLocaleString()}円(+${u.pct}%)</p>` });
+  for (const u of D.ups) list.push({ type: 'up', html: `<p><b>${esc(u.item)}が値上がり</b></p><p class="k">${esc(u.supplier)} ${esc(u.spec)} ${u.old.toLocaleString()}円 → ${u.now.toLocaleString()}円(+${u.pct}%)</p><div class="ask"><button class="btn ghost" type="button" data-go-mat="up">材料の値段を見る</button><button class="btn ghost" type="button" data-go-cost>原価を見る</button></div>` });
   const needPw = D.products.filter(p => !p.pw);
   if (needPw.length) list.push({ type: 'q', html: `<p><b>1${U}は何g?(${needPw.length}品)</b></p><p class="k">数えなくても、重さから個数と1個の原価を出します。分かるものだけで大丈夫</p>` +
     needPw.map((p, i) => `<div class="ask"><span style="min-width:6em">${esc(p.name)}</span><input id="pw-${i}" inputmode="decimal" placeholder="例 40" aria-label="${esc(p.name)}の1${U}の重さ"><span class="k">g</span><button class="btn" data-pw="${i}" type="button">決める</button></div>`).join('') });
   const unknown = new Set(); D.products.forEach(p => p.unknown.forEach(n => unknown.add(n)));
-  for (const n of unknown) list.push({ type: 'q', html: `<p><b>「${esc(n)}」って何の材料ですか?</b></p><p class="k">まだ辞書にない材料です。もなかに教えてください</p>` });
+  const matNames = D.materials.filter(m => !m.packaging).map(m => m.name);
+  [...unknown].forEach((n, i) => list.push({ type: 'q', html: `<p><b>「${esc(n)}」って何の材料ですか?</b></p><p class="k">まだ材料の表にありません。表にある材料と同じなら選んで「同じ」を、新しい材料なら「新しく足す」を押してください</p>
+    <div class="ask"><select id="unk-${i}" style="font:inherit;font-size:15px;padding:6px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);max-width:12em"><option value="">表の材料から選ぶ…</option>${matNames.map(m => `<option>${esc(m)}</option>`).join('')}</select><button class="btn" type="button" data-unk-same="${i}" data-n="${esc(n)}">同じ</button><button class="btn ghost" type="button" data-unk-new="${esc(n)}">新しく足す</button></div>` }));
   const check = new Set(); D.products.forEach(p => p.label.check.forEach(n => { if (!unknown.has(n)) check.add(n); }));
   for (const n of check) list.push({ type: 'q', cam: true, html: `<p><b>「${esc(n)}」の袋の裏を写真で</b></p><p class="k">名称欄が分かれば、裏表示が確定します</p>` });
   if (!D.products.length) list.push({ type: 'q', cam: true, html: '<p><b>まずはレシピの写真を1枚</b></p><p class="k">' + CAMTXT + 'で手書きのレシピを撮ると、ここに原価と裏表示の案が出ます</p>' });
@@ -95,6 +97,10 @@ function renderToday() {
     setValue(needPw[i].name, 'pw', v);
   });
   $('notices').querySelectorAll('[data-cam]').forEach(b => b.onclick = openCamera);
+  $('notices').querySelectorAll('[data-go-mat]').forEach(b => b.onclick = () => { matF = b.dataset.goMat; show('mat'); });
+  $('notices').querySelectorAll('[data-go-cost]').forEach(b => b.onclick = () => show('cost'));
+  $('notices').querySelectorAll('[data-unk-same]').forEach(b => b.onclick = () => { const sel = $('unk-' + b.dataset.unkSame); if (!sel.value) { sel.focus(); chat('表の材料を選んでください'); return; } setValueX({ field: 'mat', name: sel.value, value: { alias: b.dataset.n } }); });
+  $('notices').querySelectorAll('[data-unk-new]').forEach(b => b.onclick = () => { show('mat', true); setTimeout(() => matEdit(null, { name: b.dataset.unkNew }), 100); });
   const q = list.length; const bd = $('badge'); bd.textContent = q; bd.hidden = !q;
   const up0 = unpaid(), bb = $('badge-book'); bb.textContent = up0.length; bb.hidden = !up0.length;
   const hm0 = hygMissing().length, bh = $('badge-hyg'); bh.textContent = hm0; bh.hidden = !hm0;
@@ -497,11 +503,11 @@ function matAddBtn() {
   b.querySelector('button').onclick = () => matEdit(null);
   $('mats').closest('.card').after(b);
 }
-function matEdit(name) {
-  const m = name ? D.materials.find(x => x.name === name) : {};
+function matEdit(name, preset) {
+  const m = name ? D.materials.find(x => x.name === name) : (preset || {});
   matBox(`<p style="margin:0 0 8px"><b>${name ? esc(name) : '材料(商品)を足す'}</b></p>${kindList()}
     <div style="display:grid;gap:8px">
-    ${name ? '' : `<label>名前(袋に書いてある商品名)${inp('me-name', '', '例 ハイラード')}</label>`}
+    ${name ? '' : `<label>名前(袋に書いてある商品名)${inp('me-name', m.name, '例 ハイラード')}</label>`}
     <label>種類${inp('me-kind', m.kind, '例 マーガリン・強力粉・生クリーム')}</label>
     <label>規格${inp('me-spec', m.spec, '例 25kg・500g×20')}</label>
     <label>業者${inp('me-sup', m.supplier, '例 三浦商事')}</label>
@@ -533,7 +539,7 @@ async function setValueX(extra) {
   chat('記録しています…');
   const out = await api(Object.assign({ kind: 'app_set' }, extra));
   if (!out.ok) { chat(out.error || 'うまく記録できませんでした'); return; }
-  D = out.data; renderAll(); if (out.msg) { chat(out.msg); return; } chat(extra.field === 'hyg' ? '記録しました。' : extra.field === 'deliv' ? '納品を記録しました。' : extra.field === 'shop' ? 'お店の情報を保存しました。' : extra.field === 'lbl' ? 'ラベルの設定を保存しました。' : extra.field === 'paybank' ? `振込は「${esc((payBank() || {}).name || '')}」を開くようにしました。` : ['biz', 'closed', 'wsprice', 'regalias'].includes(extra.field) ? '変えました。' : extra.field === 'mat' ? '材料を保存しました。' : extra.field === 'hygnotice' ? (extra.value === 'off' ? '衛生記録のお知らせは送らないようにしました。' : `衛生記録のお知らせは${extra.value}時に送ります。`) : extra.field === 'sales' ? '売上を記録しました。' : extra.field === 'cycle' ? `棚卸は「${extra.value}」にしました。その前にLINEでお知らせします。` : '覚えました。在庫を計算しなおしました。', 'heart');
+  D = out.data; renderAll(); if (out.msg) { chat(out.msg); return; } chat(extra.field === 'hyg' ? '記録しました。' : extra.field === 'deliv' ? '納品を記録しました。' : extra.field === 'shop' ? 'お店の情報を保存しました。' : extra.field === 'lbl' ? 'ラベルの設定を保存しました。' : extra.field === 'paybank' ? `振込は「${esc((payBank() || {}).name || '')}」を開くようにしました。` : ['biz', 'closed', 'wsprice', 'regalias'].includes(extra.field) ? '変えました。' : extra.field === 'mat' ? (extra.value && extra.value.alias ? `「${esc(extra.value.alias)}」を「${esc(extra.name)}」の別名にしました。原価に反映しました。` : '材料を保存しました。') : extra.field === 'hygnotice' ? (extra.value === 'off' ? '衛生記録のお知らせは送らないようにしました。' : `衛生記録のお知らせは${extra.value}時に送ります。`) : extra.field === 'sales' ? '売上を記録しました。' : extra.field === 'cycle' ? `棚卸は「${extra.value}」にしました。その前にLINEでお知らせします。` : '覚えました。在庫を計算しなおしました。', 'heart');
 }
 function renderJournal() {
   const box = $('journal');
