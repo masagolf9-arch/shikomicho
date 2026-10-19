@@ -119,11 +119,11 @@ function renderGreet() {
   $('greet-p').textContent = `${D.shop} · ${$('date').textContent}`;
 }
 function renderHomeProds() {
-  const box = $('home-prods'), ps = D.products.slice(0, 8);
+  const box = $('home-prods'), goods = D.products.filter(p => p.kind !== 'part'), ps = goods.slice(0, 8);
   $('prods-h').hidden = !D.products.length; box.hidden = !D.products.length;
   box.innerHTML = ps.map(p => { const r = p.price && p.per_piece != null ? Math.round(p.per_piece / p.price * 100) : null;
     return `<div class="pc" role="button" tabindex="0" data-p="${esc(p.name)}">${avatar(p.name)}<div class="nm">${esc(p.name)}</div><div class="pr">${p.per_piece != null ? yen1(p.per_piece) : '<span class="k">重さ待ち</span>'}${p.per_piece != null ? `<small>/ 1${U}</small>` : ''}</div><div class="k">${r != null ? `原価率 ${r}%` : p.price ? '' : '売価は未設定'}${p.sure < 100 ? ` · 確定 ${p.sure}%` : ''}</div></div>`; }).join('') +
-    (D.products.length > 8 ? `<div class="pc" role="button" tabindex="0" data-more style="justify-content:center;align-items:center;color:var(--accent);font-weight:700">ほか ${D.products.length - 8}品 ›</div>` : '');
+    (goods.length > 8 ? `<div class="pc" role="button" tabindex="0" data-more style="justify-content:center;align-items:center;color:var(--accent);font-weight:700">ほか ${goods.length - 8}品 ›</div>` : '');
   box.querySelectorAll('[data-p]').forEach(el => el.onclick = () => { open.add(el.dataset.p); show('cost'); setTimeout(() => { const c = document.querySelector(`.prod[data-name="${CSS.escape(el.dataset.p)}"]`); if (c) c.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 150); });
   box.querySelectorAll('[data-more]').forEach(el => el.onclick = () => show('cost'));
 }
@@ -264,17 +264,20 @@ const open = new Set();
 function renderCost() {
   const box = $('costs');
   if (!D.products.length) { box.innerHTML = '<div class="card"><p class="k" style="margin:0">まだレシピがありません。' + CAMTXT + 'でレシピを撮ってください。</p></div>'; return; }
-  box.innerHTML = D.products.map((p, i) => {
+  const ordered = D.products.map((p, i) => [p, i]).sort((a, b) => (a[0].kind === 'part') - (b[0].kind === 'part'));
+  let partHead = false;
+  box.innerHTML = ordered.map(([p, i]) => {
     const head = p.per_piece != null ? `<div class="big">${yen1(p.per_piece)}<span class="k" style="font-weight:400"> / 1${U}</span></div>` : '<div class="big" style="font-size:18px;color:var(--ink-2)">1個の重さ待ち</div>';
     const meta = [`<span class="pill gray">1仕込み ${yen(p.batch_cost)}</span>`];
     if (p.pieces) meta.push(`<span class="pill gray">約${p.pieces}個</span>`);
     if (p.price && p.per_piece != null) { const r = p.per_piece / p.price * 100; meta.push(`<span class="pill ${r > 40 ? 'warn' : ''}">原価率 ${Math.round(r)}%</span>`); }
     if (p.unknown.length) meta.push(`<span class="pill warn">不明な材料 ${p.unknown.length}</span>`);
-    const det = `<table>${p.rows.map(r => `<tr><td>${esc(r.name)} <span class="k">${r.grams.toLocaleString()}g</span>${r.src === 'est' ? ' <span class="pill warn">仮</span>' : r.src === 'unknown' ? ' <span class="pill warn">不明</span>' : ''}${r.which ? `<br><span class="k">→ ${esc(r.which)}${r.cands ? '(同じ種類が' + r.cands.length + 'つ。どれか確かめてください)' : ''}</span>` : ''}</td><td class="n">${r.cost == null ? '-' : yen1(r.cost)}</td></tr>`).join('')}<tr><td><b>1仕込み</b></td><td class="n"><b>${yen(p.batch_cost)}</b></td></tr></table>
+    const det = `<table>${p.rows.map(r => `<tr><td>${esc(r.name)} <span class="k">${r.grams.toLocaleString()}g</span>${r.src === 'est' ? ' <span class="pill warn">仮</span>' : r.src === 'unknown' ? ' <span class="pill warn">不明</span>' : r.src === 'part' ? ' <span class="pill gray">半製品</span>' : ''}${r.which && r.src !== 'part' ? `<br><span class="k">→ ${esc(r.which)}${r.cands ? '(同じ種類が' + r.cands.length + 'つ。どれか確かめてください)' : ''}</span>` : ''}</td><td class="n">${r.cost == null ? '-' : yen1(r.cost)}</td></tr>`).join('')}<tr><td><b>1仕込み</b></td><td class="n"><b>${yen(p.batch_cost)}</b></td></tr></table>
       <div class="set"><span class="k">1${U}の重さ</span><input id="spw-${i}" inputmode="decimal" value="${p.pw || ''}" placeholder="例 40"><span class="k">g</span><button class="btn ghost" type="button" data-set="pw" data-i="${i}">決める</button></div>
       <div class="set"><span class="k">売価</span><input id="sprice-${i}" inputmode="decimal" value="${p.price || ''}" placeholder="例 250"><span class="k">円</span><button class="btn ghost" type="button" data-set="price" data-i="${i}">決める</button></div>`;
     const isOpen = open.has(p.name);
-    return `<div class="card prod" data-name="${esc(p.name)}"><div class="hd" role="button" tabindex="0" aria-expanded="${isOpen}" data-toggle>${avatar(p.name)}<span class="nm">${esc(p.name)} <span class="k">${esc(p.part)}</span></span><span class="k">${p.sure}% 確定</span></div>${head}<div class="meta">${meta.join('')}</div><div class="bar" aria-label="請求書で確かめた割合 ${p.sure}%"><i style="width:${p.sure}%"></i></div><div class="detail" ${isOpen ? '' : 'hidden'}>${det}</div></div>`;
+    const ph = p.kind === 'part' && !partHead ? (partHead = true, '<div style="grid-column:1/-1;margin-top:8px"><b>生地・餡などの半製品</b> <span class="k">商品ではなく、ほかのレシピの材料になるもの。「〇〇は商品」と話すと戻せます</span></div>') : '';
+    return ph + `<div class="card prod" data-name="${esc(p.name)}"><div class="hd" role="button" tabindex="0" aria-expanded="${isOpen}" data-toggle>${avatar(p.name)}<span class="nm">${esc(p.name)} <span class="k">${esc(p.part)}</span></span><span class="k">${p.sure}% 確定</span></div>${head}<div class="meta">${meta.join('')}</div><div class="bar" aria-label="請求書で確かめた割合 ${p.sure}%"><i style="width:${p.sure}%"></i></div><div class="detail" ${isOpen ? '' : 'hidden'}>${det}</div></div>`;
   }).join('');
   box.querySelectorAll('.prod').forEach(c => {
     const t = c.querySelector('[data-toggle]'), name = c.dataset.name;
@@ -318,11 +321,11 @@ const sellFace = () => (D.shopInfo || {}).sell === 'face';
 const ALG_MUST = () => (D.allergenRules || {})['義務'] || ['えび', 'かに', 'くるみ', '小麦', 'そば', '卵', '乳', '落花生', 'カシューナッツ'];
 const ALG_REC = () => (D.allergenRules || {})['推奨'] || [];
 function allergenTable(forPrint) {
-  const must = ALG_MUST(), used = new Set(); D.products.forEach(p => p.label.allergens.forEach(a => used.add(a)));
+  const must = ALG_MUST(), used = new Set(), goods = D.products.filter(p => p.kind !== 'part'); goods.forEach(p => p.label.allergens.forEach(a => used.add(a)));
   const rec = ALG_REC().filter(a => used.has(a));
   const col = a => `<th style="padding:4px 3px;font-size:11.5px;line-height:1.25;white-space:normal;min-width:2.6em;vertical-align:bottom">${esc(a.replace('成分', ''))}</th>`;
   return `<table class="hgrid alg"><tr><th style="text-align:left">商品</th>${must.map(col).join('')}${rec.length ? `<th style="border-left:2px solid var(--line)"></th>${rec.map(col).join('')}` : ''}</tr>` +
-    D.products.map(p => { const has = new Set(p.label.allergens); return `<tr><td style="text-align:left;white-space:nowrap"><b>${esc(p.name)}</b>${p.label.check.length ? ' <span class="k">※</span>' : ''}</td>${must.map(a => `<td>${has.has(a) ? '●' : ''}</td>`).join('')}${rec.length ? `<td style="border-left:2px solid var(--line)"></td>${rec.map(a => `<td>${has.has(a) ? '●' : ''}</td>`).join('')}` : ''}</tr>`; }).join('') +
+    goods.map(p => { const has = new Set(p.label.allergens); return `<tr><td style="text-align:left;white-space:nowrap"><b>${esc(p.name)}</b>${p.label.check.length ? ' <span class="k">※</span>' : ''}</td>${must.map(a => `<td>${has.has(a) ? '●' : ''}</td>`).join('')}${rec.length ? `<td style="border-left:2px solid var(--line)"></td>${rec.map(a => `<td>${has.has(a) ? '●' : ''}</td>`).join('')}` : ''}</tr>`; }).join('') +
     `</table><p class="k" style="margin:6px 0 0">左が表示義務の${must.length}品目${rec.length ? '、右が表示推奨のうち使っているもの' : ''}。${D.products.some(p => p.label.check.length) ? '※は材料の確認がまだの商品で、変わることがあります。' : ''}レシピから自動で出した案です。最終確認はお店で。</p>`;
 }
 function priceCard(p) {
@@ -343,7 +346,7 @@ function bindStore() {
   if ($('alg-print')) $('alg-print').onclick = () => openPrint(head + allergenTable(true).replace(/class="k"/g, 'style="font-size:11px"'));
   const cards = ps => `<style>.pcg{display:grid;grid-template-columns:1fr 1fr;gap:8mm}.pcard{border:1.5px solid #111;border-radius:4mm;padding:6mm;min-height:48mm;break-inside:avoid}.pn{font-size:22px;font-weight:700}.pp{font-size:34px;font-weight:700;margin:4px 0}.pp small{font-size:16px}.pa{font-size:14px;border-top:1px solid #999;padding-top:4px;margin-top:6px}</style><div class="pcg">${ps.map(priceCard).join('')}</div>`;
   if ($('pc-print')) $('pc-print').onclick = () => openPrint(cards([D.products.find(x => x.name === labelName) || D.products[0]]));
-  if ($('pc-print-all')) $('pc-print-all').onclick = () => openPrint(cards(D.products));
+  if ($('pc-print-all')) $('pc-print-all').onclick = () => openPrint(cards(D.products.filter(p => p.kind !== 'part')));
 }
 function renderLabel() {
   const chips = $('label-chips'), box = $('label-box'), face = sellFace();
@@ -351,8 +354,10 @@ function renderLabel() {
   $('label-lead').innerHTML = face ? '対面販売では裏表示は要りません。店頭に置くアレルゲン一覧表とプライスカードを出します。卸す商品だけ、下でラベルを作れます。' : '一括表示の原案とラベル印刷。<mark>色つき</mark>は要確認。最終確認と表示の責任はお店にあります。';
   if (!D.products.length) { chips.innerHTML = ''; box.innerHTML = '<div class="card"><p class="k" style="margin:0">レシピを撮ると、ここに' + (face ? 'アレルゲン一覧表' : '裏表示の案') + 'が出ます。</p></div>'; return; }
   if (!D.products.find(p => p.name === labelName)) labelName = D.products[0].name;
-  chips.innerHTML = D.products.map(p => `<button class="chip" type="button" aria-pressed="${p.name === labelName}">${esc(p.name)}</button>`).join('');
-  chips.querySelectorAll('.chip').forEach((b, i) => b.onclick = () => { labelName = D.products[i].name; renderLabel(); });
+  const goods = D.products.filter(p => p.kind !== 'part');
+  if (goods.length && !goods.find(p => p.name === labelName)) labelName = goods[0].name;
+  chips.innerHTML = goods.map(p => `<button class="chip" type="button" aria-pressed="${p.name === labelName}">${esc(p.name)}</button>`).join('');
+  chips.querySelectorAll('.chip').forEach((b, i) => b.onclick = () => { labelName = goods[i].name; renderLabel(); });
   const p = D.products.find(x => x.name === labelName), lb = p.label, L = lblOf(p), si = D.shopInfo || {};
   box.innerHTML = (face ? storeBox() + `<details class="card" style="margin-top:14px" id="face-lbl"><summary><b>包装して卸す商品のラベル</b> <span class="k">道の駅・スーパーに出す分だけ</span></summary><div style="margin-top:10px">` : '') + `<div class="label">
     <div class="r"><div class="h">名称</div><div class="v">${esc(L.name)}</div></div>
