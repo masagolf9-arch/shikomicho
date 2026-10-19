@@ -98,10 +98,31 @@ function renderToday() {
   const q = list.length; const bd = $('badge'); bd.textContent = q; bd.hidden = !q;
   const up0 = unpaid(), bb = $('badge-book'); bb.textContent = up0.length; bb.hidden = !up0.length;
   const hm0 = hygMissing().length, bh = $('badge-hyg'); bh.textContent = hm0; bh.hidden = !hm0;
-  renderHero(q); renderMenu(q);
+  renderHero(q); renderMenu(q); renderGreet(); renderHomeProds();
   $('made').innerHTML = D.made.length ? D.made.map(m => `<div class="row"><span>${esc(m.text)}</span><span class="k">${new Date(m.t).toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' })}</span></div>`).join('')
     : '<p class="k" style="margin:0">まだありません。夕方に' + VIA + '「栗万十 90、チーズ万十 100」のように送ると、ここに出ます</p>';
 }
+
+// ---------- ホーム: あいさつ・商品の並び ----------
+const AVC = ['cost', 'label', 'mat', 'stock', 'hyg', 'book', 'ws', 'post', 'sales', 'cam'];
+const avColor = n => { let h = 0; for (const ch of String(n)) h = (h * 31 + ch.charCodeAt(0)) | 0; return 'var(--c-' + AVC[Math.abs(h) % AVC.length] + ')'; };
+const avatar = (n, small) => `<span class="av${small ? ' s' : ''}" style="--c:${avColor(n)}" aria-hidden="true">${esc(String(n).trim().slice(0, 1))}</span>`;
+function renderGreet() {
+  const h = new Date().getHours(), g = h < 10 ? 'おはようございます' : h < 17 ? 'こんにちは' : 'こんばんは';
+  $('greet-h').textContent = `${g}${profileName ? '、' + profileName + 'さん' : ''}`;
+  $('greet-p').textContent = `${D.shop} · ${$('date').textContent}`;
+}
+function renderHomeProds() {
+  const box = $('home-prods'), ps = D.products.slice(0, 8);
+  $('prods-h').hidden = !D.products.length; box.hidden = !D.products.length;
+  box.innerHTML = ps.map(p => { const r = p.price && p.per_piece != null ? Math.round(p.per_piece / p.price * 100) : null;
+    return `<div class="pc" role="button" tabindex="0" data-p="${esc(p.name)}">${avatar(p.name)}<div class="nm">${esc(p.name)}</div><div class="pr">${p.per_piece != null ? yen1(p.per_piece) : '<span class="k">重さ待ち</span>'}${p.per_piece != null ? `<small>/ 1${U}</small>` : ''}</div><div class="k">${r != null ? `原価率 ${r}%` : p.price ? '' : '売価は未設定'}${p.sure < 100 ? ` · 確定 ${p.sure}%` : ''}</div></div>`; }).join('') +
+    (D.products.length > 8 ? `<div class="pc" role="button" tabindex="0" data-more style="justify-content:center;align-items:center;color:var(--accent);font-weight:700">ほか ${D.products.length - 8}品 ›</div>` : '');
+  box.querySelectorAll('[data-p]').forEach(el => el.onclick = () => { open.add(el.dataset.p); show('cost'); setTimeout(() => { const c = document.querySelector(`.prod[data-name="${CSS.escape(el.dataset.p)}"]`); if (c) c.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 150); });
+  box.querySelectorAll('[data-more]').forEach(el => el.onclick = () => show('cost'));
+}
+// ホームと上の帯の「もなかに聞く」欄: 入れた言葉を、もなかの窓に送る
+['askbar-home', 'askbar-top'].forEach(id => { const f = $(id); if (!f) return; f.onsubmit = e => { e.preventDefault(); const inp = f.querySelector('input'), v = inp.value.trim(); inp.value = ''; openAsk(); if (v) ask(v); }; });
 
 // ---------- 帳簿(支払い・仕分け・仕訳) ----------
 const unpaid = () => (D.pays || []).filter(p => p.status === '未払い').sort((a, b) => (a.due || '9') < (b.due || '9') ? -1 : 1);
@@ -115,16 +136,16 @@ function renderHero(q) {
   if (low.length) cards.push({ cls: 'warn', t: 'そろそろ買うもの', v: `${low.length}<small>品</small>`, k: low.slice(0, 3).map(x => esc(x.key)).join('・') + (low.length > 3 ? ' ほか' : ''), go: () => { matF = 'low'; show('mat'); } });
   const hm = hygMissing();
   if (hm.length) cards.push({ cls: 'warn', t: '今日の衛生記録', v: `あと${hm.length}<small>つ</small>`, k: hm.map(esc).join('・'), go: () => show('hyg') });
-  if (q) cards.push({ cls: '', t: '確認待ち', v: `${q}<small>件</small>`, k: '答えると原価と裏表示が確定します', go: () => $('notices').scrollIntoView({ behavior: 'smooth', block: 'start' }) });
+  if (q) cards.push({ cls: '', c: 'cam', t: '確認待ち', v: `${q}<small>件</small>`, k: '答えると原価と裏表示が確定します', go: () => $('notices').scrollIntoView({ behavior: 'smooth', block: 'start' }) });
   const ms = Object.keys(D.months || {}).sort(), lm = ms[ms.length - 1];
   const sm = Object.keys(D.sales || {}).sort().pop();
-  if (sm) { const o = D.sales[sm]; cards.push({ cls: '', t: `${+sm.slice(5)}月の売上`, v: `${Math.round(o.total).toLocaleString('ja-JP')}<small>円</small>`, k: `${o.nDays}日分 · 1日平均 ${yen(o.total / Math.max(1, o.nDays))}`, go: () => show('sales') }); }
+  if (sm) { const o = D.sales[sm]; cards.push({ cls: '', c: 'sales', t: `${+sm.slice(5)}月の売上`, v: `${Math.round(o.total).toLocaleString('ja-JP')}<small>円</small>`, k: `${o.nDays}日分 · 1日平均 ${yen(o.total / Math.max(1, o.nDays))}`, go: () => show('sales') }); }
   const wm = Object.keys(D.ws || {}).sort().pop();
-  if (wm) { const w = D.ws[wm], tot = Object.values(w).reduce((a, x) => a + x.total, 0); cards.push({ cls: '', t: `${+wm.slice(5)}月の卸(税抜)`, v: `${Math.round(tot).toLocaleString('ja-JP')}<small>円</small>`, k: Object.keys(w).map(esc).join('・'), go: () => show('ws') }); }
+  if (wm) { const w = D.ws[wm], tot = Object.values(w).reduce((a, x) => a + x.total, 0); cards.push({ cls: '', c: 'ws', t: `${+wm.slice(5)}月の卸(税抜)`, v: `${Math.round(tot).toLocaleString('ja-JP')}<small>円</small>`, k: Object.keys(w).map(esc).join('・'), go: () => show('ws') }); }
   if (lm) { const by = D.months[lm].by, top = Object.keys(by).sort((a, b) => by[b] - by[a]).slice(0, 2);
-    cards.push({ cls: '', t: `${+lm.slice(5) || lm}月の仕入れ`, v: `${Math.round(D.months[lm].total).toLocaleString('ja-JP')}<small>円</small>`, k: top.map(esc).join('・'), go: () => show('book') }); }
+    cards.push({ cls: '', c: 'book', t: `${+lm.slice(5) || lm}月の仕入れ`, v: `${Math.round(D.months[lm].total).toLocaleString('ja-JP')}<small>円</small>`, k: top.map(esc).join('・'), go: () => show('book') }); }
   const h = $('hero');
-  h.innerHTML = cards.map((c, i) => `<div class="hc ${c.cls}" role="button" tabindex="0" data-i="${i}"><div class="t">${c.t}</div><div class="v">${c.v}</div><div class="k">${c.k}</div><div class="go">くわしく ›</div></div>`).join('');
+  h.innerHTML = cards.map((c, i) => `<div class="hc ${c.cls}" role="button" tabindex="0" data-i="${i}"${c.c ? ` style="--c:var(--c-${c.c})"` : ''}><div class="t">${c.t}</div><div class="v">${c.v}</div><div class="k">${c.k}</div><div class="go">くわしく ›</div></div>`).join('');
   h.querySelectorAll('.hc').forEach(el => el.onclick = () => cards[el.dataset.i].go());
   $('hero-dots').innerHTML = cards.length > 1 ? cards.map((_, i) => `<i class="${i ? '' : 'on'}"></i>`).join('') : '';
   h.onscroll = () => { const w = h.firstChild ? h.firstChild.offsetWidth + 10 : 1, i = Math.round(h.scrollLeft / w); $('hero-dots').querySelectorAll('i').forEach((d, j) => d.className = j === i ? 'on' : ''); };
@@ -150,13 +171,14 @@ function renderMenu(q) {
     ['cam', '撮る', openCamera, 0, 'p'], ['cost', '原価', () => show('cost')], ['label', '裏表示', () => show('label')], ['mat', '材料', () => { matF = 'all'; show('mat'); }],
     ['stock', '在庫', () => { matF = 'low'; show('mat'); }, low], ['hyg', '衛生', () => show('hyg'), hygMissing().length, hygMissing().length], ['book', '帳簿', () => show('book'), up], ['ws', '卸', () => show('ws')], ['post', '発信', () => show('post')], ['sales', '売上', () => show('sales')]];
   const m = $('menu');
-  m.innerHTML = items.map(([k, l, , b, w], i) => `<button type="button" data-i="${i}"><span class="ic${w === 'p' ? ' p' : w ? ' w' : ''}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[k]}</svg></span>${l}${b ? `<span class="badge">${b}</span>` : ''}</button>`).join('');
+  m.innerHTML = items.map(([k, l, , b, w], i) => `<button type="button" data-i="${i}" style="--c:var(--c-${k})"><span class="ic${w === 'p' ? ' p' : ''}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[k]}</svg></span>${l}${b ? `<span class="badge">${b}</span>` : ''}</button>`).join('');
   m.querySelectorAll('button').forEach(b => b.onclick = () => items[b.dataset.i][2]());
   // パソコンの広い画面では、同じメニューを左に縦に並べる
   const TAB = { cost: 'cost', label: 'label', mat: 'mat', hyg: 'hyg', book: 'book', ws: 'ws', post: 'post', sales: 'sales' };
   const all = [['home', 'ホーム', () => show('today'), 0, 0, 'today']].concat(items.map(x => [x[0], x[1], x[2], x[3] || 0, x[4] || 0, TAB[x[0]] || '']), [['set', '設定', () => show('set'), 0, 0, 'set']]);
   const side = $('side');
-  side.innerHTML = `<div class="sname">${esc(D.shop)}<small>${esc($('date').textContent)}</small></div>` + all.map(([k, l, , b, w, t], i) => `<button type="button" data-i="${i}" data-tab="${t}" class="${w === 'p' ? 'p' : w ? 'w' : ''}"${t && t === cur ? ' aria-current="page"' : ''}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[k]}</svg>${l}${b ? `<span class="badge">${b}</span>` : ''}</button>`).join('');
+  side.innerHTML = `<div class="sname"><i></i>${esc(D.shop)}<small>${esc($('date').textContent)}</small></div>` + all.map(([k, l, , b, w, t], i) => `<button type="button" data-i="${i}" data-tab="${t}" class="${w === 'p' ? 'p' : ''}" style="--c:var(--c-${k})"${t && t === cur ? ' aria-current="page"' : ''}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[k]}</svg>${l}${b ? `<span class="badge">${b}</span>` : ''}</button>`).join('');
+  side.insertAdjacentHTML('beforeend', `<div class="gap"></div><div class="who">${esc(profileName || '')}${profileName ? ' · ' : ''}${esc(D.shop)}</div>`);
   side.querySelectorAll('button').forEach(b => b.onclick = () => all[b.dataset.i][2]());
 }
 function renderBook() { renderPays(); renderSort(); renderJournal(); }
@@ -246,7 +268,7 @@ function renderCost() {
       <div class="set"><span class="k">1${U}の重さ</span><input id="spw-${i}" inputmode="decimal" value="${p.pw || ''}" placeholder="例 40"><span class="k">g</span><button class="btn ghost" type="button" data-set="pw" data-i="${i}">決める</button></div>
       <div class="set"><span class="k">売価</span><input id="sprice-${i}" inputmode="decimal" value="${p.price || ''}" placeholder="例 250"><span class="k">円</span><button class="btn ghost" type="button" data-set="price" data-i="${i}">決める</button></div>`;
     const isOpen = open.has(p.name);
-    return `<div class="card prod" data-name="${esc(p.name)}"><div class="row" role="button" tabindex="0" aria-expanded="${isOpen}" data-toggle><span style="font-weight:700">${esc(p.name)} <span class="k">${esc(p.part)}</span></span><span class="k">${p.sure}% 確定</span></div>${head}<div class="meta">${meta.join('')}</div><div class="bar" aria-label="請求書で確かめた割合 ${p.sure}%"><i style="width:${p.sure}%"></i></div><div class="detail" ${isOpen ? '' : 'hidden'}>${det}</div></div>`;
+    return `<div class="card prod" data-name="${esc(p.name)}"><div class="hd" role="button" tabindex="0" aria-expanded="${isOpen}" data-toggle>${avatar(p.name)}<span class="nm">${esc(p.name)} <span class="k">${esc(p.part)}</span></span><span class="k">${p.sure}% 確定</span></div>${head}<div class="meta">${meta.join('')}</div><div class="bar" aria-label="請求書で確かめた割合 ${p.sure}%"><i style="width:${p.sure}%"></i></div><div class="detail" ${isOpen ? '' : 'hidden'}>${det}</div></div>`;
   }).join('');
   box.querySelectorAll('.prod').forEach(c => {
     const t = c.querySelector('[data-toggle]'), name = c.dataset.name;
@@ -527,7 +549,7 @@ function renderJournal() {
 function renderAll() {
   U = (D.words || {}).unit || '個';
   renderToday(); renderCost(); renderLabel(); renderMat(); renderBook(); renderHyg(); renderSales(); renderWs(); renderPost(); renderSet();
-  $('shop').textContent = D.shop;
+  $('shop').textContent = D.shop; if ($('shop2')) { $('shop2').textContent = D.shop; $('date2').textContent = $('date').textContent; }
   $('foot').textContent = `${new Date(D.at).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} 時点。開き直すと新しくなります。キャラの絵はAtelier SAISPEのLINE絵文字。`;
 }
 
