@@ -242,7 +242,7 @@ function renderCost() {
     if (p.pieces) meta.push(`<span class="pill gray">約${p.pieces}個</span>`);
     if (p.price && p.per_piece != null) { const r = p.per_piece / p.price * 100; meta.push(`<span class="pill ${r > 40 ? 'warn' : ''}">原価率 ${Math.round(r)}%</span>`); }
     if (p.unknown.length) meta.push(`<span class="pill warn">不明な材料 ${p.unknown.length}</span>`);
-    const det = `<table>${p.rows.map(r => `<tr><td>${esc(r.name)} <span class="k">${r.grams.toLocaleString()}g</span>${r.src === 'est' ? ' <span class="pill warn">仮</span>' : r.src === 'unknown' ? ' <span class="pill warn">不明</span>' : ''}</td><td class="n">${r.cost == null ? '-' : yen1(r.cost)}</td></tr>`).join('')}<tr><td><b>1仕込み</b></td><td class="n"><b>${yen(p.batch_cost)}</b></td></tr></table>
+    const det = `<table>${p.rows.map(r => `<tr><td>${esc(r.name)} <span class="k">${r.grams.toLocaleString()}g</span>${r.src === 'est' ? ' <span class="pill warn">仮</span>' : r.src === 'unknown' ? ' <span class="pill warn">不明</span>' : ''}${r.which ? `<br><span class="k">→ ${esc(r.which)}${r.cands ? '(同じ種類が' + r.cands.length + 'つ。どれか確かめてください)' : ''}</span>` : ''}</td><td class="n">${r.cost == null ? '-' : yen1(r.cost)}</td></tr>`).join('')}<tr><td><b>1仕込み</b></td><td class="n"><b>${yen(p.batch_cost)}</b></td></tr></table>
       <div class="set"><span class="k">1${U}の重さ</span><input id="spw-${i}" inputmode="decimal" value="${p.pw || ''}" placeholder="例 40"><span class="k">g</span><button class="btn ghost" type="button" data-set="pw" data-i="${i}">決める</button></div>
       <div class="set"><span class="k">売価</span><input id="sprice-${i}" inputmode="decimal" value="${p.price || ''}" placeholder="例 250"><span class="k">円</span><button class="btn ghost" type="button" data-set="price" data-i="${i}">決める</button></div>`;
     const isOpen = open.has(p.name);
@@ -450,11 +450,51 @@ function renderMat() {
   if (matF === 'up') rows = rows.filter(m => upNames.has(m.name));
   const stk = {}; ((D.stock || {}).items || []).forEach(x => stk[x.key] = x);
   if (matF === 'low') rows = rows.filter(m => stk[m.name] && stk[m.name].known);
-  $('mats').innerHTML = rows.map(m => `<tr><td><b>${esc(m.name)}</b>${upNames.has(m.name) ? ' <span class="up">↑</span>' : ''}<br><span class="k">${esc(m.display)}${m.allergens.length ? ' · ' + m.allergens.map(esc).join('・') : ''}</span>${stk[m.name] && stk[m.name].known ? `<br><span class="pill ${stk[m.name].low ? 'warn' : 'gray'}">残り ${amt(stk[m.name].left, stk[m.name].unit)}${stk[m.name].days != null ? ' · 約' + stk[m.name].days + '日' : ''}</span>` : ''}</td><td class="n">${m.ppg ? Math.round(m.ppg * 1000).toLocaleString() + '円/kg' : '-'}<br>${m.ok ? '<span class="pill">請求書</span>' : '<span class="pill warn">仮</span>'}</td></tr>`).join('') || '<tr><td class="k">ありません</td></tr>';
+  const row = m => `<tr data-m="${esc(m.name)}" style="cursor:pointer"><td><b>${esc(m.name)}</b>${upNames.has(m.name) ? ' <span class="up">↑</span>' : ''}${m.spec || m.supplier ? ` <span class="k">${esc([m.spec, m.supplier].filter(Boolean).join(' · '))}</span>` : ''}<br><span class="k">${esc(m.display)}${m.allergens.length ? ' · ' + m.allergens.map(esc).join('・') : ''}${m.attrs ? ' · ' + esc(m.attrs) : ''}</span>${m.fromKind ? ' <span class="pill warn">種類の値で仮</span>' : ''}${stk[m.name] && stk[m.name].known ? `<br><span class="pill ${stk[m.name].low ? 'warn' : 'gray'}">残り ${amt(stk[m.name].left, stk[m.name].unit)}${stk[m.name].days != null ? ' · 約' + stk[m.name].days + '日' : ''}</span>` : ''}</td><td class="n">${m.ppg ? Math.round(m.ppg * 1000).toLocaleString() + '円/kg' : '-'}<br>${m.ok ? '<span class="pill">請求書</span>' : '<span class="pill warn">仮</span>'}</td></tr>`;
+  const groups = {}; rows.forEach(m => (groups[m.kind || ''] = groups[m.kind || ''] || []).push(m));
+  const gk = Object.keys(groups).sort((a, b) => (a === '') - (b === '') || a.localeCompare(b, 'ja'));
+  $('mats').innerHTML = (gk.length > 1 || gk[0] ? gk.map(k => `<tr><td colspan="2" style="padding-top:10px"><b class="k">${k ? '種類: ' + esc(k) : '種類をまだ決めていない材料'}</b>${k && groups[k].length > 1 ? ' <span class="k">(' + groups[k].length + '商品)</span>' : ''}</td></tr>` + groups[k].map(row).join('')).join('') : rows.map(row).join('')) || '<tr><td class="k">ありません</td></tr>';
+  $('mats').querySelectorAll('tr[data-m]').forEach(tr => tr.onclick = () => matEdit(tr.dataset.m));
+  matAddBtn();
   const all = D.materials.filter(m => !m.packaging), est = all.filter(m => !m.ok).length;
   const ms = Object.keys(D.months).sort(), lastM = ms[ms.length - 1];
   setTimeout(renderCount, 0);
   $('mat-sum').textContent = `材料 ${all.length}種類のうち、確かめた ${all.length - est}、仮 ${est}。` + (lastM ? `${lastM.replace('-', '年')}月の仕入れ ${yen(D.months[lastM].total)}。` : '');
+}
+const kindList = () => `<datalist id="kinds">${(D.kinds || []).map(k => `<option value="${esc(k)}">`).join('')}</datalist>`;
+const inp = (id, v, ph, w) => `<input id="${id}" value="${esc(v || '')}" placeholder="${esc(ph)}" style="width:${w || '100%'};box-sizing:border-box;font:inherit;font-size:15px;padding:6px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)">`;
+function matBox(html) {
+  let b = $('mat-edit'); if (!b) { b = document.createElement('div'); b.id = 'mat-edit'; b.className = 'card'; b.style.margin = '0 0 12px'; $('mats').closest('.card').before(b); }
+  b.innerHTML = html; b.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+function matBoxClose() { const b = $('mat-edit'); if (b) b.remove(); }
+function matAddBtn() {
+  let b = $('mat-add'); if (b) return;
+  b = document.createElement('div'); b.id = 'mat-add'; b.style.margin = '10px 0';
+  b.innerHTML = '<button class="btn" type="button">＋ 材料(商品)を足す</button> <span class="k">種類(例: マーガリン)の中に、ブランドや規格ちがいの商品を足せます</span>';
+  b.querySelector('button').onclick = () => matEdit(null);
+  $('mats').closest('.card').after(b);
+}
+function matEdit(name) {
+  const m = name ? D.materials.find(x => x.name === name) : {};
+  matBox(`<p style="margin:0 0 8px"><b>${name ? esc(name) : '材料(商品)を足す'}</b></p>${kindList()}
+    <div style="display:grid;gap:8px">
+    ${name ? '' : `<label>名前(袋に書いてある商品名)${inp('me-name', '', '例 ハイラード')}</label>`}
+    <label>種類${inp('me-kind', m.kind, '例 マーガリン・強力粉・生クリーム')}</label>
+    <label>規格${inp('me-spec', m.spec, '例 25kg・500g×20')}</label>
+    <label>業者${inp('me-sup', m.supplier, '例 三浦商事')}</label>
+    <label>中身${inp('me-attrs', m.attrs, '例 乳脂肪分47%・発酵・無塩・植物性')}</label>
+    ${name ? `<label>別名を足す(レシピや請求書での書き方)${inp('me-alias', '', '例 ブルスター')}</label>${m.aliases && m.aliases.length ? `<span class="k">いまの別名: ${m.aliases.map(esc).join('、')}</span>` : ''}` : `<label>値段(1kgあたり・分かれば)${inp('me-ppkg', '', '例 600', '8em')}</label>`}
+    </div><p class="k" style="margin:8px 0">原材料・アレルゲン・栄養は、袋の裏を撮ると本物に置きかわります。それまでは同じ種類の値で仮に出して「要確認」にします。</p>
+    <button class="btn" type="button" id="me-go">保存</button> <button class="btn ghost" type="button" id="me-x">やめる</button>`);
+  $('me-x').onclick = matBoxClose;
+  $('me-kind').setAttribute('list', 'kinds');
+  $('me-go').onclick = () => {
+    const v = { kind: $('me-kind').value, spec: $('me-spec').value, supplier: $('me-sup').value, attrs: $('me-attrs').value };
+    if (name) { const al = $('me-alias').value.trim(); if (al) v.alias = al; setValueX({ field: 'mat', name, value: v }); }
+    else { const nm = $('me-name').value.trim(); if (!nm) { $('me-name').focus(); return; } v.ppkg = parseFloat($('me-ppkg').value) || ''; setValueX({ field: 'mat', name: nm, create: true, value: v }); }
+    matBoxClose();
+  };
 }
 function renderCount() {
   let box = $('countbox');
@@ -471,7 +511,7 @@ async function setValueX(extra) {
   chat('記録しています…');
   const out = await api(Object.assign({ kind: 'app_set' }, extra));
   if (!out.ok) { chat(out.error || 'うまく記録できませんでした'); return; }
-  D = out.data; renderAll(); if (out.msg) { chat(out.msg); return; } chat(extra.field === 'hyg' ? '記録しました。' : extra.field === 'deliv' ? '納品を記録しました。' : extra.field === 'shop' ? 'お店の情報を保存しました。' : extra.field === 'lbl' ? 'ラベルの設定を保存しました。' : extra.field === 'paybank' ? `振込は「${esc((payBank() || {}).name || '')}」を開くようにしました。` : ['biz', 'closed', 'wsprice', 'regalias'].includes(extra.field) ? '変えました。' : extra.field === 'hygnotice' ? (extra.value === 'off' ? '衛生記録のお知らせは送らないようにしました。' : `衛生記録のお知らせは${extra.value}時に送ります。`) : extra.field === 'sales' ? '売上を記録しました。' : extra.field === 'cycle' ? `棚卸は「${extra.value}」にしました。その前にLINEでお知らせします。` : '覚えました。在庫を計算しなおしました。', 'heart');
+  D = out.data; renderAll(); if (out.msg) { chat(out.msg); return; } chat(extra.field === 'hyg' ? '記録しました。' : extra.field === 'deliv' ? '納品を記録しました。' : extra.field === 'shop' ? 'お店の情報を保存しました。' : extra.field === 'lbl' ? 'ラベルの設定を保存しました。' : extra.field === 'paybank' ? `振込は「${esc((payBank() || {}).name || '')}」を開くようにしました。` : ['biz', 'closed', 'wsprice', 'regalias'].includes(extra.field) ? '変えました。' : extra.field === 'mat' ? '材料を保存しました。' : extra.field === 'hygnotice' ? (extra.value === 'off' ? '衛生記録のお知らせは送らないようにしました。' : `衛生記録のお知らせは${extra.value}時に送ります。`) : extra.field === 'sales' ? '売上を記録しました。' : extra.field === 'cycle' ? `棚卸は「${extra.value}」にしました。その前にLINEでお知らせします。` : '覚えました。在庫を計算しなおしました。', 'heart');
 }
 function renderJournal() {
   const box = $('journal');
