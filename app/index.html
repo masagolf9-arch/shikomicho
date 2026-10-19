@@ -116,6 +116,9 @@ td.n{text-align:right;white-space:nowrap;padding-left:10px}
 .label .h{padding:6px 8px;border-right:1px solid var(--ink);font-weight:500}
 .label .v{padding:6px 8px}
 .label .tbd{color:var(--warn)}
+.alg th,.alg td{text-align:center}.alg td{font-size:15px}
+.pcard{border:1.5px solid var(--ink);border-radius:12px;padding:12px 14px;max-width:320px}.pcard .pn{font-size:20px;font-weight:700}.pcard .pp{font-family:var(--round);font-size:30px;font-weight:700;margin:2px 0}.pcard .pp small{font-size:14px}.pcard .pa{font-size:13px;border-top:1px solid var(--line);padding-top:4px;margin-top:6px}
+details.card summary{cursor:pointer}
 
 /* 材料 */
 .mat td:first-child{padding-right:8px}
@@ -347,8 +350,8 @@ section.inR{animation:inR .12s ease-out}section.inL{animation:inL .12s ease-out}
   </section>
 
   <section id="t-label" hidden>
-    <h1>裏表示</h1>
-    <p class="lead">一括表示の原案とラベル印刷。<mark>色つき</mark>は要確認。最終確認と表示の責任はお店にあります。</p>
+    <h1 id="label-h">裏表示</h1>
+    <p class="lead" id="label-lead">一括表示の原案とラベル印刷。<mark>色つき</mark>は要確認。最終確認と表示の責任はお店にあります。</p>
     <div class="chips" id="label-chips"></div>
     <div id="label-box"></div>
   </section>
@@ -476,6 +479,6 @@ section.inR{animation:inR .12s ease-out}section.inL{animation:inL .12s ease-out}
 </div></nav>
 
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-<script src="app.js?v=36"></script>
+<script src="app.js?v=37"></script>
 </body>
 </html>

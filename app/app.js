@@ -174,7 +174,7 @@ const IC = {
 function renderMenu(q) {
   const low = ((D.stock || {}).items || []).filter(x => x.low).length, up = unpaid().length;
   const items = [
-    ['cam', '撮る', openCamera, 0, 'p'], ['cost', '原価', () => show('cost')], ['label', '裏表示', () => show('label')], ['mat', '材料', () => { matF = 'all'; show('mat'); }],
+    ['cam', '撮る', openCamera, 0, 'p'], ['cost', '原価', () => show('cost')], ['label', sellFace() ? 'アレルゲン' : '裏表示', () => show('label')], ['mat', '材料', () => { matF = 'all'; show('mat'); }],
     ['stock', '在庫', () => { matF = 'low'; show('mat'); }, low], ['hyg', '衛生', () => show('hyg'), hygMissing().length, hygMissing().length], ['book', '帳簿', () => show('book'), up], ['ws', '卸', () => show('ws')], ['post', '発信', () => show('post')], ['sales', '売上', () => show('sales')]];
   const m = $('menu');
   m.innerHTML = items.map(([k, l, , b, w], i) => w === 'p' ? '' : `<button type="button" data-i="${i}" style="--c:var(--c-${k})"><span class="ic${w === 'p' ? ' p' : ''}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[k]}</svg></span>${l}${b ? `<span class="badge">${b}</span>` : ''}</button>`).join('');
@@ -313,14 +313,48 @@ function janCheck(d) {
   let t = 0; for (let i = 0; i < 12; i++) t += +d[i] * (i % 2 ? 3 : 1);
   return (10 - t % 10) % 10 === +d[12] ? { ok: true, code: d } : { ok: false, msg: '最後の数字が合いません。番号を見直してください' };
 }
+const sellFace = () => (D.shopInfo || {}).sell === 'face';
+// 店頭に置くもの: アレルゲン一覧表(全商品 × 特定原材料)とプライスカード。対面販売のお店はこちらが主役
+const ALG_MUST = () => (D.allergenRules || {})['義務'] || ['えび', 'かに', 'くるみ', '小麦', 'そば', '卵', '乳', '落花生', 'カシューナッツ'];
+const ALG_REC = () => (D.allergenRules || {})['推奨'] || [];
+function allergenTable(forPrint) {
+  const must = ALG_MUST(), used = new Set(); D.products.forEach(p => p.label.allergens.forEach(a => used.add(a)));
+  const rec = ALG_REC().filter(a => used.has(a));
+  const col = a => `<th style="padding:4px 3px;font-size:11.5px;line-height:1.25;white-space:normal;min-width:2.6em;vertical-align:bottom">${esc(a.replace('成分', ''))}</th>`;
+  return `<table class="hgrid alg"><tr><th style="text-align:left">商品</th>${must.map(col).join('')}${rec.length ? `<th style="border-left:2px solid var(--line)"></th>${rec.map(col).join('')}` : ''}</tr>` +
+    D.products.map(p => { const has = new Set(p.label.allergens); return `<tr><td style="text-align:left;white-space:nowrap"><b>${esc(p.name)}</b>${p.label.check.length ? ' <span class="k">※</span>' : ''}</td>${must.map(a => `<td>${has.has(a) ? '●' : ''}</td>`).join('')}${rec.length ? `<td style="border-left:2px solid var(--line)"></td>${rec.map(a => `<td>${has.has(a) ? '●' : ''}</td>`).join('')}` : ''}</tr>`; }).join('') +
+    `</table><p class="k" style="margin:6px 0 0">左が表示義務の${must.length}品目${rec.length ? '、右が表示推奨のうち使っているもの' : ''}。${D.products.some(p => p.label.check.length) ? '※は材料の確認がまだの商品で、変わることがあります。' : ''}レシピから自動で出した案です。最終確認はお店で。</p>`;
+}
+function priceCard(p) {
+  const L = lblOf(p), alg = p.label.allergens;
+  return `<div class="pcard"><div class="pn">${esc(p.name)}</div><div class="pp">${p.price ? p.price.toLocaleString('ja-JP') + '<small>円</small>' : '<small class="k">売価は原価の画面で</small>'}</div>
+    <div class="pa">${alg.length ? 'アレルゲン: ' + alg.map(esc).join('・') : 'アレルゲン: 特定原材料は使っていません'}</div></div>`;
+}
+function storeBox() {
+  if (!D.products.length) return '';
+  const sel = D.products.find(x => x.name === labelName) || D.products[0];
+  return `<div class="card" id="alg-card"><p style="margin:0 0 6px"><b>アレルゲン一覧表</b> <span class="k">店頭に置く・聞かれたら見せる</span></p><div class="scroll">${allergenTable()}</div>
+      <div class="ask"><button class="btn ghost" type="button" id="alg-print">一覧表を印刷・PDF</button></div></div>
+    <div class="card" style="margin-top:10px"><p style="margin:0 0 6px"><b>プライスカード</b> <span class="k">${esc(sel.name)} · 名前・値段・アレルゲン</span></p>${priceCard(sel)}
+      <div class="ask"><button class="btn ghost" type="button" id="pc-print">この商品を印刷</button><button class="btn ghost" type="button" id="pc-print-all">全部の商品を印刷</button></div></div>`;
+}
+function bindStore() {
+  const head = `<h2 style="letter-spacing:.1em">アレルゲン一覧表</h2><p>${esc(D.shop)} · ${new Date().toLocaleDateString('ja-JP')}時点</p>`;
+  if ($('alg-print')) $('alg-print').onclick = () => openPrint(head + allergenTable(true).replace(/class="k"/g, 'style="font-size:11px"'));
+  const cards = ps => `<style>.pcg{display:grid;grid-template-columns:1fr 1fr;gap:8mm}.pcard{border:1.5px solid #111;border-radius:4mm;padding:6mm;min-height:48mm;break-inside:avoid}.pn{font-size:22px;font-weight:700}.pp{font-size:34px;font-weight:700;margin:4px 0}.pp small{font-size:16px}.pa{font-size:14px;border-top:1px solid #999;padding-top:4px;margin-top:6px}</style><div class="pcg">${ps.map(priceCard).join('')}</div>`;
+  if ($('pc-print')) $('pc-print').onclick = () => openPrint(cards([D.products.find(x => x.name === labelName) || D.products[0]]));
+  if ($('pc-print-all')) $('pc-print-all').onclick = () => openPrint(cards(D.products));
+}
 function renderLabel() {
-  const chips = $('label-chips'), box = $('label-box');
-  if (!D.products.length) { chips.innerHTML = ''; box.innerHTML = '<div class="card"><p class="k" style="margin:0">レシピを撮ると、ここに裏表示の案が出ます。</p></div>'; return; }
+  const chips = $('label-chips'), box = $('label-box'), face = sellFace();
+  $('label-h').textContent = face ? 'アレルゲン・店頭' : '裏表示';
+  $('label-lead').innerHTML = face ? '対面販売では裏表示は要りません。店頭に置くアレルゲン一覧表とプライスカードを出します。卸す商品だけ、下でラベルを作れます。' : '一括表示の原案とラベル印刷。<mark>色つき</mark>は要確認。最終確認と表示の責任はお店にあります。';
+  if (!D.products.length) { chips.innerHTML = ''; box.innerHTML = '<div class="card"><p class="k" style="margin:0">レシピを撮ると、ここに' + (face ? 'アレルゲン一覧表' : '裏表示の案') + 'が出ます。</p></div>'; return; }
   if (!D.products.find(p => p.name === labelName)) labelName = D.products[0].name;
   chips.innerHTML = D.products.map(p => `<button class="chip" type="button" aria-pressed="${p.name === labelName}">${esc(p.name)}</button>`).join('');
   chips.querySelectorAll('.chip').forEach((b, i) => b.onclick = () => { labelName = D.products[i].name; renderLabel(); });
   const p = D.products.find(x => x.name === labelName), lb = p.label, L = lblOf(p), si = D.shopInfo || {};
-  box.innerHTML = `<div class="label">
+  box.innerHTML = (face ? storeBox() + `<details class="card" style="margin-top:14px" id="face-lbl"><summary><b>包装して卸す商品のラベル</b> <span class="k">道の駅・スーパーに出す分だけ</span></summary><div style="margin-top:10px">` : '') + `<div class="label">
     <div class="r"><div class="h">名称</div><div class="v">${esc(L.name)}</div></div>
     <div class="r"><div class="h">原材料名</div><div class="v"><span id="ing">${esc(lb.text) || '(まだ出せません)'}</span>${lb.check.length ? `、<mark>${lb.check.map(esc).join('、')}(要確認)</mark>` : ''}${esc(lb.contains)}</div></div>
     <div class="r"><div class="h">内容量</div><div class="v">${esc(L.content)}</div></div>
@@ -329,7 +363,8 @@ function renderLabel() {
     <div class="r"><div class="h">製造者</div><div class="v">${esc(si.name || D.shop)} ${si.addr ? esc(si.addr) : '<span class="k">(住所は設定から)</span>'}</div></div></div>
     <div class="ask" style="margin-top:10px"><button class="btn" id="copy" type="button">原材料名をコピー</button><span class="copied" id="copied"></span></div>
     ${lblPrintCard(p, L)}
-    ${nutrBox(p)}`;
+    ${nutrBox(p)}` + (face ? '</div></details>' : '<h1 class="sub" style="margin-top:20px">店頭に置くもの</h1>' + storeBox());
+  bindStore();
   if ($('bk-go')) $('bk-go').onclick = () => { const v = parseFloat($('bk-v').value); if (!(v > 0)) { $('bk-v').focus(); return; } setValue(p.name, 'baked', v); };
   if ($('nu-copy')) $('nu-copy').onclick = async () => { try { await navigator.clipboard.writeText($('nu-txt').innerText); chat('コピーしました', 'heart'); } catch (e) { chat('長押しで選んでコピーしてください'); } };
   $('copy').onclick = async () => {
@@ -539,7 +574,7 @@ async function setValueX(extra) {
   chat('記録しています…');
   const out = await api(Object.assign({ kind: 'app_set' }, extra));
   if (!out.ok) { chat(out.error || 'うまく記録できませんでした'); return; }
-  D = out.data; renderAll(); if (out.msg) { chat(out.msg); return; } chat(extra.field === 'hyg' ? '記録しました。' : extra.field === 'deliv' ? '納品を記録しました。' : extra.field === 'shop' ? 'お店の情報を保存しました。' : extra.field === 'lbl' ? 'ラベルの設定を保存しました。' : extra.field === 'paybank' ? `振込は「${esc((payBank() || {}).name || '')}」を開くようにしました。` : ['biz', 'closed', 'wsprice', 'regalias'].includes(extra.field) ? '変えました。' : extra.field === 'mat' ? (extra.value && extra.value.alias ? `「${esc(extra.value.alias)}」を「${esc(extra.name)}」の別名にしました。原価に反映しました。` : '材料を保存しました。') : extra.field === 'hygnotice' ? (extra.value === 'off' ? '衛生記録のお知らせは送らないようにしました。' : `衛生記録のお知らせは${extra.value}時に送ります。`) : extra.field === 'sales' ? '売上を記録しました。' : extra.field === 'cycle' ? `棚卸は「${extra.value}」にしました。その前にLINEでお知らせします。` : '覚えました。在庫を計算しなおしました。', 'heart');
+  D = out.data; renderAll(); if (out.msg) { chat(out.msg); return; } chat(extra.field === 'hyg' ? '記録しました。' : extra.field === 'deliv' ? '納品を記録しました。' : extra.field === 'shop' ? 'お店の情報を保存しました。' : extra.field === 'lbl' ? 'ラベルの設定を保存しました。' : extra.field === 'paybank' ? `振込は「${esc((payBank() || {}).name || '')}」を開くようにしました。` : ['biz', 'sell', 'closed', 'wsprice', 'regalias'].includes(extra.field) ? '変えました。' : extra.field === 'mat' ? (extra.value && extra.value.alias ? `「${esc(extra.value.alias)}」を「${esc(extra.name)}」の別名にしました。原価に反映しました。` : '材料を保存しました。') : extra.field === 'hygnotice' ? (extra.value === 'off' ? '衛生記録のお知らせは送らないようにしました。' : `衛生記録のお知らせは${extra.value}時に送ります。`) : extra.field === 'sales' ? '売上を記録しました。' : extra.field === 'cycle' ? `棚卸は「${extra.value}」にしました。その前にLINEでお知らせします。` : '覚えました。在庫を計算しなおしました。', 'heart');
 }
 function renderJournal() {
   const box = $('journal');
@@ -601,6 +636,7 @@ function renderSet() {
     <div class="set-row"><span>文字の大きさ</span>${seg('size', [['normal', 'ふつう'], ['big', '大きめ']], store.get('size', 'normal'))}</div>
     <div class="set-row"><span>画面の色</span>${seg('theme', [['auto', '自動'], ['light', '明るい'], ['dark', '暗い']], store.get('theme', 'auto'))}</div>
     <div class="set-row"><span>棚卸<br><span class="k">お店みんな共通</span></span>${seg('cycle', [['毎月', '毎月'], ['年1回', '年1回']], cyc)}</div>
+    <div class="set-row"><span>売り方<br><span class="k">対面だけなら裏表示は要らず、店頭のアレルゲン表が主役になります</span></span>${seg('sell', [['pack', '包装して売る'], ['face', '対面だけ']], (D.shopInfo || {}).sell || 'pack')}</div>
     <div class="set-row"><span>業種<br><span class="k">お店みんな共通</span></span>${seg('biz', ((D.words || {}).list || []).map(b => [b, b]), (D.words || {}).biz)}</div>
     <div class="set-row"><span>衛生記録のお知らせ<br><span class="k">記録がまだのとき、LINEで念押しする時刻</span></span><div class="seg" id="hygnotice" style="flex-wrap:wrap;justify-content:flex-end">${[['off', '送らない'], ['9', '9時'], ['12', '12時'], ['15', '15時'], ['17', '17時'], ['19', '19時'], ['21', '21時']].map(([v, l]) => `<button type="button" data-v="${v}" aria-pressed="${String((D.shopInfo || {}).hygNotice || '17') === v}">${l}</button>`).join('')}</div></div>
     <div class="set-row"><span>定休日<br><span class="k">衛生の念押しを休む</span></span><div class="seg" id="closed">${['月', '火', '水', '木', '金', '土', '日'].map(w => `<button type="button" data-w="${w}" aria-pressed="${((D.shopInfo || {}).closed || '').includes(w)}">${w}</button>`).join('')}</div></div>
@@ -611,7 +647,7 @@ function renderSet() {
   $('set-box').querySelectorAll('.seg[data-key] button').forEach(b => b.onclick = () => {
     const key = b.parentNode.dataset.key, v = b.dataset.v;
     if (key === 'cycle') { setValueX({ field: 'cycle', value: v }); return; }
-    if (key === 'biz') { setValueX({ field: 'biz', value: v }); return; }
+    if (key === 'biz' || key === 'sell') { setValueX({ field: key, value: v }); return; }
     store.set(key, v);
     if (key === 'pack') { location.reload(); return; }
     applyLook(); renderSet();
