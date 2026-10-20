@@ -178,19 +178,35 @@ function renderHomeEvents() {
   box.style.padding = evs.length ? '0' : '';
 }
 $('ev-more').onclick = () => show('cal');
+// 日本の祝日(計算で出す。春分・秋分は近い年の表)
+const EQX = { 2025: [20, 23], 2026: [20, 23], 2027: [21, 23], 2028: [20, 22], 2029: [20, 23], 2030: [20, 23] };
+function jpHolidays(y) {
+  const H = {}, ymd = (m, d) => `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+  const nthMon = (m, n) => { const d = new Date(y, m - 1, 1), off = (8 - d.getDay()) % 7; return 1 + off + (n - 1) * 7; };
+  H[ymd(1, 1)] = '元日'; H[ymd(1, nthMon(1, 2))] = '成人の日'; H[ymd(2, 11)] = '建国記念の日'; H[ymd(2, 23)] = '天皇誕生日';
+  H[ymd(3, (EQX[y] || [20, 23])[0])] = '春分の日'; H[ymd(4, 29)] = '昭和の日'; H[ymd(5, 3)] = '憲法記念日'; H[ymd(5, 4)] = 'みどりの日'; H[ymd(5, 5)] = 'こどもの日';
+  H[ymd(7, nthMon(7, 3))] = '海の日'; H[ymd(8, 11)] = '山の日'; H[ymd(9, nthMon(9, 3))] = '敬老の日'; H[ymd(9, (EQX[y] || [20, 23])[1])] = '秋分の日';
+  H[ymd(10, nthMon(10, 2))] = 'スポーツの日'; H[ymd(11, 3)] = '文化の日'; H[ymd(11, 23)] = '勤労感謝の日';
+  // 振替休日: 日曜の祝日の次の平日 / 国民の休日: 祝日にはさまれた平日
+  const dt = k => new Date(+k.slice(0, 4), +k.slice(5, 7) - 1, +k.slice(8)), key = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  Object.keys(H).forEach(k => { const d = dt(k); if (d.getDay() === 0) { let n = new Date(d.getTime() + DAY); while (H[key(n)]) n = new Date(n.getTime() + DAY); H[key(n)] = '振替休日'; } });
+  Object.keys(H).forEach(k => { const d = dt(k), n2 = new Date(d.getTime() + 2 * DAY), mid = new Date(d.getTime() + DAY); if (H[key(n2)] && !H[key(mid)] && mid.getDay() !== 0) H[key(mid)] = '国民の休日'; });
+  return H;
+}
 let calYM = null;
 function renderCal() {
   const box = $('cal'); if (!box) return;
   const now = new Date(), ym = calYM || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`, y = +ym.slice(0, 4), m = +ym.slice(5) - 1;
   const first = new Date(y, m, 1), start = new Date(y, m, 1 - first.getDay()), closed = (D.shopInfo || {}).closed || '', WD = ['日', '月', '火', '水', '木', '金', '土'], t = todayS();
   const byDay = {}; (D.events || []).forEach(e => (byDay[e.date] = byDay[e.date] || []).push(e));
+  const HOL = Object.assign({}, jpHolidays(y - 1), jpHolidays(y), jpHolidays(y + 1));
   const cells = []; for (let i = 0; i < 42; i++) { const d = new Date(start.getTime() + i * DAY); if (i >= 35 && d.getMonth() !== m) break;
     const ds = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`, evs = byDay[ds] || [], wd = d.getDay();
-    cells.push(`<div class="d${d.getMonth() !== m ? ' out' : ''}${ds === t ? ' today' : ''}${closed.includes(WD[wd]) ? ' closed' : ''}${wd === 0 ? ' sun' : wd === 6 ? ' sat' : ''}" data-d="${ds}"><span class="dn">${d.getDate()}</span>${evs.slice(0, 2).map(e => `<span class="ev${e.src === 'gcal' ? ' g' : ''}" style="--c:var(--c-${EVK[e.kind] || 'set'})">${e.by && e.src !== 'gcal' ? `<i class="who" style="background:${avColor(e.by)}"></i>` : ''}${esc(e.text)}</span>`).join('')}${evs.length > 2 ? `<span class="k">+${evs.length - 2}</span>` : ''}</div>`); }
+    cells.push(`<div class="d${d.getMonth() !== m ? ' out' : ''}${ds === t ? ' today' : ''}${closed.includes(WD[wd]) ? ' closed' : ''}${HOL[ds] ? ' hol' : ''}${wd === 0 ? ' sun' : wd === 6 ? ' sat' : ''}" data-d="${ds}"${HOL[ds] ? ` title="${esc(HOL[ds])}"` : ''}><span class="dn">${d.getDate()}</span>${HOL[ds] ? `<span class="hn">${esc(HOL[ds])}</span>` : ''}${evs.slice(0, 2).map(e => `<span class="ev${e.src === 'gcal' ? ' g' : ''}" style="--c:var(--c-${EVK[e.kind] || 'set'})">${e.by && e.src !== 'gcal' ? `<i class="who" style="background:${avColor(e.by)}"></i>` : ''}${esc(e.text)}</span>`).join('')}${evs.length > 2 ? `<span class="k">+${evs.length - 2}</span>` : ''}</div>`); }
   const list = (D.events || []).filter(e => e.date.slice(0, 7) === ym);
   box.innerHTML = `<div class="cal-h"><b>${y}年${m + 1}月</b><span class="seg"><button type="button" id="cal-prev" aria-label="前の月">‹</button><button type="button" id="cal-today">今月</button><button type="button" id="cal-next" aria-label="次の月">›</button></span></div>
     <div class="calg">${WD.map((w, i) => `<div class="wd${i === 0 ? ' sun' : i === 6 ? ' sat' : ''}">${w}</div>`).join('')}${cells.join('')}</div>
-    <p class="k" style="margin:8px 0 0">うすい赤の日は定休日(設定で変えられます)。日を押すと、その日の予定を足せます。点線はGoogleカレンダーの予定。${(() => { const who = [...new Set((D.events || []).filter(e => e.by && e.src !== 'gcal').map(e => e.by))]; return who.length ? '丸の色は入れた人: ' + who.map(w => `<i class="who" style="background:${avColor(w)};display:inline-block;width:8px;height:8px;border-radius:50%;margin:0 3px 0 6px"></i>${esc(w)}`).join('') : ''; })()} 当日の朝8時に、今日の予定をLINEでお知らせします。</p>
+    <p class="k" style="margin:8px 0 0">うすい赤の日は定休日(設定で変えられます)、赤い日付は日曜と祝日。日を押すと、その日の予定を足せます。点線はGoogleカレンダーの予定。${(() => { const who = [...new Set((D.events || []).filter(e => e.by && e.src !== 'gcal').map(e => e.by))]; return who.length ? '丸の色は入れた人: ' + who.map(w => `<i class="who" style="background:${avColor(w)};display:inline-block;width:8px;height:8px;border-radius:50%;margin:0 3px 0 6px"></i>${esc(w)}`).join('') : ''; })()} 当日の朝8時に、今日の予定をLINEでお知らせします。</p>
     <h1 class="sub">${m + 1}月の予定</h1><div class="card" style="padding:0">${list.length ? `<ul class="evl">${list.map(e => evRow(e, true)).join('')}</ul>` : '<p class="k" style="margin:0;padding:14px">この月の予定はまだありません。</p>'}</div>` + gcalBox();
   const mv = n => { const d = new Date(y, m + n, 1); calYM = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; renderCal(); };
   $('cal-prev').onclick = () => mv(-1); $('cal-next').onclick = () => mv(1); $('cal-today').onclick = () => { calYM = null; renderCal(); };
