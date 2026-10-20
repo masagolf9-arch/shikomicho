@@ -253,6 +253,30 @@ nav .badge{position:absolute;top:0;left:calc(50% + 6px);min-width:18px;height:18
 .pc .k{line-height:1.4}
 
 
+
+/* 短い知らせ */
+#toast{position:fixed;left:50%;top:14px;transform:translate(-50%,-20px);z-index:40;background:var(--ink);color:var(--card);padding:10px 16px 10px 12px;border-radius:999px;font-size:14.5px;font-weight:700;display:flex;align-items:center;gap:8px;opacity:0;transition:opacity .2s,transform .2s;box-shadow:0 8px 24px rgba(0,0,0,.2);max-width:calc(100% - 32px)}
+#toast.on{opacity:1;transform:translate(-50%,0)}
+#toast[hidden]{display:none}
+#toast .tk{width:20px;height:20px;border-radius:50%;background:var(--ok);flex:0 0 20px;position:relative}
+#toast .tk::after{content:"";position:absolute;left:6px;top:4px;width:5px;height:9px;border:solid #fff;border-width:0 2.5px 2.5px 0;transform:rotate(45deg)}
+#toast.ng .tk{background:var(--warn)}#toast.ng .tk::after{display:none}
+/* 見出しの印 */
+.hic{display:inline-grid;place-items:center;width:34px;height:34px;border-radius:11px;background:color-mix(in srgb,var(--c,var(--accent)) 14%,var(--mix));color:var(--c,var(--accent));vertical-align:-8px;margin-right:10px}
+.hic svg{width:20px;height:20px}
+/* 選ぶ欄 */
+.sel{font:inherit;font-size:14.5px;min-height:42px;padding:0 34px 0 14px;border:1.5px solid var(--line);border-radius:999px;background:var(--card) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235c6470' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") no-repeat right 10px center/18px;color:var(--ink);-webkit-appearance:none;appearance:none}
+/* 設定のまとまり */
+.sgrp{margin-bottom:12px}
+.sgh{display:flex;align-items:center;gap:10px;margin:0 0 4px;font-size:16px}
+.sgh .ic{width:34px;height:34px;border-radius:11px;background:color-mix(in srgb,var(--c,var(--accent)) 14%,var(--mix));color:var(--c,var(--accent))}
+.sgh .ic svg{width:20px;height:20px}
+/* 最近の記録 */
+.tl{list-style:none;margin:0;padding:0}
+.tl li{display:flex;gap:12px;padding:8px 0;border-top:1px solid var(--line-2);align-items:baseline}
+.tl li:first-child{border-top:0}
+.tl .tt{flex:0 0 3.6em;font-size:13px;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.ph-print{display:flex;justify-content:space-between;font-size:13px;color:#444;border-bottom:1px solid #999;padding-bottom:4px;margin-bottom:10px}
 /* ページの頭の右側: さがす欄とボタン */
 .acts{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
 .srch{display:flex;align-items:center;gap:6px;background:var(--card);border:1.5px solid var(--line);border-radius:999px;padding:0 12px;min-height:42px;min-width:200px}
@@ -369,13 +393,13 @@ section.inR{animation:inR .12s ease-out}section.inL{animation:inL .12s ease-out}
     <h1 class="sub">確認待ち・お知らせ</h1>
     <p class="lead">答えるとすぐ原価に反映されます。</p>
     <div class="stack" id="notices"></div>
-    <h1 class="sub">さいきんの報告</h1>
+    <h1 class="sub">最近の記録</h1>
     <div class="card" id="made"></div>
     <button id="go-cam" type="button" hidden></button>
   </section>
 
   <section id="t-cost" hidden>
-    <div class="ph"><div><h1>原価</h1><p class="lead">1個あたりの材料費。下の線は、請求書で確かめた割合。カードを押すと中身と入力欄が出ます。</p></div><div class="acts"><label class="srch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="cost-q" type="search" placeholder="商品をさがす" autocomplete="off"></label></div></div>
+    <div class="ph"><div><h1>原価</h1><p class="lead">1個あたりの材料費。下の線は、請求書で確かめた割合。カードを押すと中身と入力欄が出ます。</p></div><div class="acts"><label class="srch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="cost-q" type="search" placeholder="商品をさがす" autocomplete="off"></label><select id="cost-sort" class="sel" aria-label="並び順"><option value="rate">原価率が高い順</option><option value="name">名前順</option><option value="new">新しい順</option><option value="est">仮が多い順</option></select></div></div>
     <div class="stack" id="costs"></div>
   </section>
 
@@ -434,7 +458,7 @@ section.inR{animation:inR .12s ease-out}section.inL{animation:inL .12s ease-out}
   </section>
   <section id="t-set" hidden>
     <div class="ph"><div><h1>設定</h1><p class="lead">この画面の見え方と、お店の決まりごと。</p></div></div>
-    <div class="card" id="set-box"></div>
+    <div id="set-box"></div>
     <h1 class="sub" id="acct-h" hidden>ログインと招待</h1>
     <div hidden><div class="card" id="acct-box"></div></div>
     <h1 class="sub" id="bank-h">振込に使う銀行</h1>
@@ -501,6 +525,6 @@ section.inR{animation:inR .12s ease-out}section.inL{animation:inL .12s ease-out}
 </div></nav>
 
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-<script src="app.js?v=40"></script>
+<script src="app.js?v=41"></script>
 </body>
 </html>

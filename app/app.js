@@ -55,10 +55,9 @@ async function load() {
   }
 }
 async function setValue(product, field, value) {
-  chat('記録しています…');
   const out = await api({ kind: 'app_set', product, field, value });
-  if (!out.ok) { chat(out.error || 'うまく記録できませんでした'); return; }
-  D = out.data; renderAll(); chat('覚えました。原価に反映しました。', 'heart');
+  if (!out.ok) { toast(out.error || 'うまく記録できませんでした', 'ng'); return; }
+  D = out.data; renderAll(); toast('覚えました。原価に反映しました。', 'ok'); act('heart', 1.3);
 }
 function openCamera() {
   if (CF) {
@@ -105,7 +104,7 @@ function renderToday() {
   const up0 = unpaid(), bb = $('badge-book'); bb.textContent = up0.length; bb.hidden = !up0.length;
   const hm0 = hygMissing().length, bh = $('badge-hyg'); bh.textContent = hm0; bh.hidden = !hm0;
   renderHero(q); renderMenu(q); renderGreet(); renderHomeProds();
-  $('made').innerHTML = D.made.length ? D.made.map(m => `<div class="row"><span>${esc(m.text)}</span><span class="k">${new Date(m.t).toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' })}</span></div>`).join('')
+  $('made').innerHTML = D.made.length ? `<ul class="tl">${D.made.map(m => `<li><span class="tt">${new Date(m.t).toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' })}</span><span>${esc(m.text)}</span></li>`).join('')}</ul>`
     : '<p class="k" style="margin:0">まだありません。夕方に' + VIA + '「栗万十 90、チーズ万十 100」のように送ると、ここに出ます</p>';
 }
 
@@ -270,20 +269,24 @@ const open = new Set();
 function renderCost() {
   const box = $('costs');
   if (!D.products.length) { box.innerHTML = emptyBox('cam', 'まだレシピがありません', '手書きのレシピを1枚撮ると、1個の原価がここに出ます。', ['レシピを撮る', 'cam']); return; }
-  const ordered = D.products.map((p, i) => [p, i]).sort((a, b) => (a[0].kind === 'part') - (b[0].kind === 'part'));
+  const rate = p => p.price && p.per_piece != null ? p.per_piece / p.price : -1;
+  const SORT = { name: (a, b) => a.name.localeCompare(b.name, 'ja'), rate: (a, b) => rate(b) - rate(a), new: (a, b) => (b.updated || 0) - (a.updated || 0), est: (a, b) => a.sure - b.sure };
+  const cs = $('cost-sort'); if (cs && !cs.dataset.bound) { cs.dataset.bound = 1; cs.onchange = () => { store.set('costSort', cs.value); renderCost(); }; }
+  const sortKey = store.get('costSort', 'rate'); if (cs) cs.value = sortKey;
+  const ordered = D.products.map((p, i) => [p, i]).sort((a, b) => ((a[0].kind === 'part') - (b[0].kind === 'part')) || SORT[sortKey](a[0], b[0]));
   let partHead = false;
   box.innerHTML = ordered.map(([p, i]) => {
     const head = p.per_piece != null ? `<div class="big">${yen1(p.per_piece)}<span class="k" style="font-weight:400"> / 1${U}</span></div>` : '<div class="big" style="font-size:18px;color:var(--ink-2)">1個の重さ待ち</div>';
     const meta = [`<span class="pill gray">1仕込み ${yen(p.batch_cost)}</span>`];
     if (p.pieces) meta.push(`<span class="pill gray">約${p.pieces}個</span>`);
-    if (p.price && p.per_piece != null) { const r = p.per_piece / p.price * 100; meta.push(`<span class="pill ${r > 40 ? 'warn' : ''}">原価率 ${Math.round(r)}%</span>`); }
+    if (p.price && p.per_piece != null) { const r = p.per_piece / p.price * 100; meta.push(`<span class="pill ${r > 40 ? 'warn' : r > 30 ? 'gray' : ''}">原価率 ${Math.round(r)}%</span>`); }
     if (p.unknown.length) meta.push(`<span class="pill warn">不明な材料 ${p.unknown.length}</span>`);
     const det = `<table>${p.rows.map(r => `<tr><td>${esc(r.name)} <span class="k">${r.grams.toLocaleString()}g</span>${r.src === 'est' ? ' <span class="pill warn">仮</span>' : r.src === 'unknown' ? ' <span class="pill warn">不明</span>' : r.src === 'part' ? ' <span class="pill gray">半製品</span>' : ''}${r.which && r.src !== 'part' ? `<br><span class="k">→ ${esc(r.which)}${r.cands ? '(同じ種類が' + r.cands.length + 'つ。どれか確かめてください)' : ''}</span>` : ''}</td><td class="n">${r.cost == null ? '-' : yen1(r.cost)}</td></tr>`).join('')}<tr><td><b>1仕込み</b></td><td class="n"><b>${yen(p.batch_cost)}</b></td></tr></table>
       <div class="set"><span class="k">1${U}の重さ</span><input id="spw-${i}" inputmode="decimal" value="${p.pw || ''}" placeholder="例 40"><span class="k">g</span><button class="btn ghost" type="button" data-set="pw" data-i="${i}">決める</button></div>
       <div class="set"><span class="k">売価</span><input id="sprice-${i}" inputmode="decimal" value="${p.price || ''}" placeholder="例 250"><span class="k">円</span><button class="btn ghost" type="button" data-set="price" data-i="${i}">決める</button></div>`;
     const isOpen = open.has(p.name);
     const ph = p.kind === 'part' && !partHead ? (partHead = true, '<div style="grid-column:1/-1;margin-top:8px"><b>生地・餡などの半製品</b> <span class="k">商品ではなく、ほかのレシピの材料になるもの。「〇〇は商品」と話すと戻せます</span></div>') : '';
-    return ph + `<div class="card prod" data-name="${esc(p.name)}"><div class="hd" role="button" tabindex="0" aria-expanded="${isOpen}" data-toggle>${avatar(p.name)}<span class="nm">${esc(p.name)} <span class="k">${esc(p.part)}</span></span><span class="k">${p.sure}% 確定</span></div>${head}<div class="meta">${meta.join('')}</div><div class="bar" aria-label="請求書で確かめた割合 ${p.sure}%"><i style="width:${p.sure}%"></i></div><div class="detail" ${isOpen ? '' : 'hidden'}>${det}</div></div>`;
+    return ph + `<div class="card prod" data-name="${esc(p.name)}"><div class="hd" role="button" tabindex="0" aria-expanded="${isOpen}" data-toggle>${avatar(p.name)}<span class="nm">${esc(p.name)} <span class="k">${esc(p.part)}</span></span><span class="k">${p.sure}% 確定</span></div>${head}<div class="meta">${meta.join('')}</div><div class="bar" aria-label="請求書で確かめた割合 ${p.sure}%" title="請求書で確かめた割合 ${p.sure}%"><i style="width:${p.sure}%"></i></div><div class="detail" ${isOpen ? '' : 'hidden'}>${det}</div></div>`;
   }).join('');
   box.querySelectorAll('.prod').forEach(c => {
     const t = c.querySelector('[data-toggle]'), name = c.dataset.name;
@@ -583,10 +586,9 @@ function renderCount() {
   $('cnt-go').onclick = () => { const v = parseFloat($('cnt-v').value); if (!(v >= 0)) { $('cnt-v').focus(); return; } setValueX({ field: 'count', product: $('cnt-m').value, value: v, unit: $('cnt-u').value }); };
 }
 async function setValueX(extra) {
-  chat('記録しています…');
   const out = await api(Object.assign({ kind: 'app_set' }, extra));
-  if (!out.ok) { chat(out.error || 'うまく記録できませんでした'); return; }
-  D = out.data; renderAll(); if (out.msg) { chat(out.msg); return; } chat(extra.field === 'hyg' ? '記録しました。' : extra.field === 'deliv' ? '納品を記録しました。' : extra.field === 'shop' ? 'お店の情報を保存しました。' : extra.field === 'lbl' ? 'ラベルの設定を保存しました。' : extra.field === 'paybank' ? `振込は「${esc((payBank() || {}).name || '')}」を開くようにしました。` : ['biz', 'sell', 'closed', 'wsprice', 'regalias'].includes(extra.field) ? '変えました。' : extra.field === 'mat' ? (extra.value && extra.value.alias ? `「${esc(extra.value.alias)}」を「${esc(extra.name)}」の別名にしました。原価に反映しました。` : '材料を保存しました。') : extra.field === 'hygnotice' ? (extra.value === 'off' ? '衛生記録のお知らせは送らないようにしました。' : `衛生記録のお知らせは${extra.value}時に送ります。`) : extra.field === 'sales' ? '売上を記録しました。' : extra.field === 'cycle' ? `棚卸は「${extra.value}」にしました。その前にLINEでお知らせします。` : '覚えました。在庫を計算しなおしました。', 'heart');
+  if (!out.ok) { toast(out.error || 'うまく記録できませんでした', 'ng'); return; }
+  D = out.data; renderAll(); if (out.msg) { chat(out.msg); return; } toast(extra.field === 'hyg' ? '記録しました。' : extra.field === 'deliv' ? '納品を記録しました。' : extra.field === 'shop' ? 'お店の情報を保存しました。' : extra.field === 'lbl' ? 'ラベルの設定を保存しました。' : extra.field === 'paybank' ? `振込は「${esc((payBank() || {}).name || '')}」を開くようにしました。` : ['biz', 'sell', 'closed', 'wsprice', 'regalias'].includes(extra.field) ? '変えました。' : extra.field === 'mat' ? (extra.value && extra.value.alias ? `「${esc(extra.value.alias)}」を「${esc(extra.name)}」の別名にしました。原価に反映しました。` : '材料を保存しました。') : extra.field === 'hygnotice' ? (extra.value === 'off' ? '衛生記録のお知らせは送らないようにしました。' : `衛生記録のお知らせは${extra.value}時に送ります。`) : extra.field === 'sales' ? '売上を記録しました。' : extra.field === 'cycle' ? `棚卸は「${extra.value}」にしました。その前にLINEでお知らせします。` : '覚えました。在庫を計算しなおしました。', 'ok'); act('heart', 1.3);
 }
 function renderJournal() {
   const box = $('journal');
@@ -642,20 +644,23 @@ $('nav-cam').onclick = openCamera;
 function renderSet() {
   const seg = (key, opts, cur) => `<div class="seg" data-key="${key}">${opts.map(([v, l]) => `<button type="button" data-v="${v}" aria-pressed="${v === cur}">${l}</button>`).join('')}</div>`;
   const cyc = (D.stock || {}).cycle || '年1回';
-  $('set-box').innerHTML = `
+  const grp = (t, k, body) => `<div class="card sgrp"><div class="sgh"><span class="ic" style="--c:var(--c-${k})"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[k]}</svg></span><b>${t}</b></div>${body}</div>`;
+  $('set-box').innerHTML = grp('見え方', 'set', `
     <div class="set-row"><span>キャラ</span>${seg('pack', [['shirokuma', 'もなか'], ['tanuki', 'ぽん']], PACK)}</div>
     <div class="set-row"><span>キャラの大きさ</span>${seg('csize', [['s', '小'], ['m', '中'], ['l', '大']], store.get('csize', 'm'))}</div>
     <div class="set-row"><span>文字の大きさ</span>${seg('size', [['normal', 'ふつう'], ['big', '大きめ']], store.get('size', 'normal'))}</div>
-    <div class="set-row"><span>画面の色</span>${seg('theme', [['auto', '自動'], ['light', '明るい'], ['dark', '暗い']], store.get('theme', 'auto'))}</div>
+    <div class="set-row"><span>画面の色</span>${seg('theme', [['auto', '自動'], ['light', '明るい'], ['dark', '暗い']], store.get('theme', 'auto'))}</div>`) + grp('お店の決まりごと', 'stock', `
     <div class="set-row"><span>棚卸<br><span class="k">お店みんな共通</span></span>${seg('cycle', [['毎月', '毎月'], ['年1回', '年1回']], cyc)}</div>
     <div class="set-row"><span>売り方<br><span class="k">対面だけなら裏表示は要らず、店頭のアレルゲン表が主役になります</span></span>${seg('sell', [['pack', '包装して売る'], ['face', '対面だけ']], (D.shopInfo || {}).sell || 'pack')}</div>
     <div class="set-row"><span>業種<br><span class="k">お店みんな共通</span></span>${seg('biz', ((D.words || {}).list || []).map(b => [b, b]), (D.words || {}).biz)}</div>
+    `) + grp('お知らせ', 'hyg', `
     <div class="set-row"><span>衛生記録のお知らせ<br><span class="k">記録がまだのとき、LINEで念押しする時刻</span></span><div class="seg" id="hygnotice" style="flex-wrap:wrap;justify-content:flex-end">${[['off', '送らない'], ['9', '9時'], ['12', '12時'], ['15', '15時'], ['17', '17時'], ['19', '19時'], ['21', '21時']].map(([v, l]) => `<button type="button" data-v="${v}" aria-pressed="${String((D.shopInfo || {}).hygNotice || '17') === v}">${l}</button>`).join('')}</div></div>
     <div class="set-row"><span>定休日<br><span class="k">衛生の念押しを休む</span></span><div class="seg" id="closed">${['月', '火', '水', '木', '金', '土', '日'].map(w => `<button type="button" data-w="${w}" aria-pressed="${((D.shopInfo || {}).closed || '').includes(w)}">${w}</button>`).join('')}</div></div>
-    <div class="set-row" style="display:block"><span>お店の情報<br><span class="k">卸の請求書に入ります</span></span>
+    `) + grp('お店の情報', 'ws', `<p class="k" style="margin:0 0 6px">卸の請求書とラベルの製造者欄に入ります</p>
+    <div class="set-row" style="display:block;padding-top:0">
       <div class="fld" style="margin-top:8px">${[['name', '店名'], ['addr', '住所'], ['tel', '電話'], ['reg', '登録番号(T〜)'], ['bank', '振込先']].map(([k, l]) => `<span class="k">${l}</span><input data-shop="${k}" value="${esc((D.shopInfo || {})[k] || '')}">`).join('')}</div>
-      <div class="ask"><button class="btn ghost" type="button" id="shop-save">お店の情報を保存</button></div></div>
-    <div class="set-row"><span class="k">${esc(D.shop)} · ${new Date(D.at).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} 時点</span><span class="seg"><button type="button" id="reload">読み込み直す</button></span></div>`;
+      <div class="ask"><button class="btn" type="button" id="shop-save">お店の情報を保存</button></div></div>`) + `
+    <div class="set-row" style="padding:8px 4px"><span class="k">${esc(D.shop)} · ${new Date(D.at).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} 時点</span><span class="seg"><button type="button" id="reload">読み込み直す</button></span></div>`;
   $('set-box').querySelectorAll('.seg[data-key] button').forEach(b => b.onclick = () => {
     const key = b.parentNode.dataset.key, v = b.dataset.v;
     if (key === 'cycle') { setValueX({ field: 'cycle', value: v }); return; }
@@ -710,6 +715,7 @@ function hygTable(mo) {
   return h + '</table>';
 }
 function openPrint(html) {
+  if (!/<h2/.test(html.slice(0, 200))) html = `<div class="ph-print"><b>${esc(D.shop)}</b><span>${new Date().toLocaleDateString('ja-JP')}</span></div>` + html; else html = html.replace(/<\/h2>/, `</h2><div class="ph-print"><b>${esc(D.shop)}</b><span>${new Date().toLocaleDateString('ja-JP')}</span></div>`);
   const v = $('inv'); v.classList.remove('lprint'); const lp = document.getElementById('lb-page'); if (lp) lp.textContent = ''; v.innerHTML = html + '<div class="bar3"><button class="btn" type="button" id="inv-print">印刷・PDFにする</button><button class="btn ghost" type="button" id="inv-close">閉じる</button></div>'; v.hidden = false;
   $('inv-print').onclick = () => window.print(); $('inv-close').onclick = () => { v.hidden = true; };
 }
@@ -799,6 +805,13 @@ function rest() { clearTimeout(anim.t); ++anim.gen; if (!window.EMOJI) return; c
 async function act(r, speed = 1.3) { if (busy) return; busy = true; try { await play(r, false, speed); } finally { busy = false; rest(); } }
 setInterval(() => { if (!busy && document.visibilityState === 'visible' && Math.random() < .4) { const acts = ['tea', 'tea', 'sleepy', 'think', 'greet']; act(acts[Math.floor(Math.random() * acts.length)], 1.7); } }, 10000);
 function place() {}
+// 画面の上に短く出る知らせ(記録しました、など)。もなかの吹き出しは会話用に残す
+let toastT = null;
+function toast(text, kind) {
+  let t = $('toast'); if (!t) { t = document.createElement('div'); t.id = 'toast'; t.setAttribute('role', 'status'); document.body.appendChild(t); }
+  t.className = kind || ''; t.innerHTML = `<span class="tk"></span>${esc(text)}`; t.hidden = false; requestAnimationFrame(() => t.classList.add('on'));
+  clearTimeout(toastT); toastT = setTimeout(() => { t.classList.remove('on'); setTimeout(() => t.hidden = true, 250); }, 2600);
+}
 function chat(text, role) {
   if (role) act(role, 1.3);
   if (!text) return;
@@ -946,6 +959,9 @@ async function renderAccount() {
   };
 }
 
+// 画面の見出しに、その機能の色の印をつける
+(() => { const M = { cost: 'cost', label: 'label', mat: 'mat', book: 'book', hyg: 'hyg', sales: 'sales', ws: 'ws', post: 'post', set: 'set' };
+  for (const [t, k] of Object.entries(M)) { const h = document.querySelector(`#t-${t} .ph h1, #t-${t} > h1`); if (h && !h.querySelector('.hic')) h.insertAdjacentHTML('afterbegin', `<span class="hic" style="--c:var(--c-${k})"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[k]}</svg></span>`); } })();
 // ページの頭の、さがす欄とボタン
 (() => {
   const filt = (inp, sel, key) => { const q = inp.value.trim().toLowerCase(); document.querySelectorAll(sel).forEach(el => { el.hidden = !!q && !(el.dataset[key] || el.textContent).toLowerCase().includes(q); }); };
