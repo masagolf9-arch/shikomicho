@@ -879,7 +879,7 @@ function faces() { if (!window.EMOJI) return; const el = $('sface'); el.style.ba
 (() => { const s = document.createElement('script'); s.src = 'emoji.js?v=18'; s.async = true; s.onload = faces; document.body.appendChild(s); })();
 function addMsg(html, me) { const d = document.createElement('div'); d.className = 'm' + (me ? ' me' : ''); d.innerHTML = html; msgs.appendChild(d); d.scrollIntoView({ block: 'end', behavior: 'smooth' }); return d; }
 function botSay(html, role) { const d = addMsg('…'); setTimeout(() => { d.innerHTML = html; d.scrollIntoView({ block: 'end', behavior: 'smooth' }); }, 120); if (role) chat(null, role); }
-function openAsk() { if (!D) return; sheet.hidden = false; if (!msgs.children.length) botSay(`${CNAME}です。お店のことなら、ふつうの言葉で話しかけてください。「昨日ゴルフ場に栗万十20個持ってった」のように話してもらえれば、確かめてから記録します。`); renderChips(); setTimeout(() => qIn.focus(), 100); }
+function openAsk() { if (!D) return; sheet.hidden = false; if (!msgs.children.length) botSay(`${CNAME}です。何でも聞いてください。`); renderChips(); setTimeout(() => qIn.focus(), 100); }
 $('sclose').onclick = () => sheet.hidden = true; sheet.onclick = e => { if (e.target === sheet) sheet.hidden = true; };
 ch.onclick = openAsk; ch.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openAsk(); } };
 $('cam').onclick = openCamera;
