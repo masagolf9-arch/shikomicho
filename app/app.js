@@ -253,17 +253,17 @@ async function renderMembers() {
   box.parentNode.hidden = false;
   box.innerHTML = '<p class="k" style="margin:0">読んでいます…</p>';
   const r = await api({ kind: 'app_members' }).catch(() => null); if (!r || !r.ok) { box.innerHTML = `<p class="k" style="margin:0">${esc((r && r.error) || '読めませんでした')}</p>`; return; }
-  drawMembers(r.members);
+  drawMembers(r.members, r.plan, r.count);
 }
-function drawMembers(ms) {
+function drawMembers(ms, plan, count) {
   const box = $('members-box'), live = ms.filter(m => m.role !== '外した'), gone = ms.filter(m => m.role === '外した');
   const idle = m => { if (!m.last) return ''; const d = Math.round((Date.now() - new Date(m.last)) / DAY); return d >= 90 ? `<span style="color:var(--warn);font-weight:700">${Math.floor(d / 30)}か月使っていません</span>` : d >= 1 ? `${d}日前` : '今日'; };
-  box.innerHTML = `<p class="k" style="margin:0 0 6px">${live.filter(m => m.allowed).length}人が使えます。スタッフには原価・帳簿・売上を見せない決まりです(「お金」を入にすると見せます)。辞めた人は「外す」で、その場で入れなくなります(その人が入れた記録は残ります)。</p>
+  box.innerHTML = `<p style="margin:0 0 4px"><b>${esc((plan || {}).name || '')}プラン</b> <span class="k">${plan && plan.limit ? `${plan.limit}人まで(今 ${count}人)` : '人数の上限なし'}${plan && plan.limit && count >= plan.limit ? ' · <span style="color:var(--warn)">いっぱいです。だれかを外すか、プランを上げてください</span>' : ''}</span></p><p class="k" style="margin:0 0 6px">${live.filter(m => m.allowed).length}人が使えます。スタッフには原価・帳簿・売上を見せない決まりです(「お金」を入にすると見せます)。辞めた人は「外す」で、その場で入れなくなります(その人が入れた記録は残ります)。</p>
     <div class="mem-list">${live.map(m => `<div class="mem"${m.allowed ? '' : ' style="opacity:.75"'}>${avatar(m.name, true)}<div class="mb"><b>${esc(m.name)}</b> <span class="pill ${m.role === '店主' ? '' : 'gray'}">${esc(m.role)}</span>${m.allowed ? '' : ' <span class="pill warn">許可待ち</span>'}<span class="k">${m.line ? 'LINE' : 'メール'} · 最後に使った日 ${idle(m) || '—'}</span></div>
       <div class="macts">${m.allowed ? (m.role === '店主' ? '<span class="k">お金 ○</span>' : `<label class="sw"><input type="checkbox" data-money="${m.row}"${m.money ? ' checked' : ''}><span></span>お金</label><button class="btn ghost sm" type="button" data-remove="${m.row}" data-n="${esc(m.name)}">外す</button>`) : `<button class="btn sm" type="button" data-allow="${m.row}">許可</button><button class="btn ghost sm" type="button" data-remove="${m.row}" data-n="${esc(m.name)}">断る</button>`}</div></div>`).join('')}</div>
     ${gone.length ? `<details style="margin-top:8px"><summary class="k">外した人(${gone.length})</summary>${gone.map(m => `<div class="mem" style="opacity:.6">${avatar(m.name, true)}<div class="mb"><b>${esc(m.name)}</b><span class="k">外した</span></div><div class="macts"><button class="btn ghost sm" type="button" data-allow="${m.row}">戻す</button></div></div>`).join('')}</details>` : ''}
     <p class="k" style="margin:8px 0 0">新しい人を入れるには、上の「スタッフを招待するリンク」を送ってください。3か月使っていない人がいると、店主のLINEに「外しますか?」が届きます。</p>`;
-  const act = async (row, action, value) => { const r = await api({ kind: 'app_set', field: 'member', value: { row, action, value } }).catch(() => null); if (!r || !r.ok) { chat((r && r.error) || 'できませんでした'); return; } drawMembers(r.members); toast('メンバーを更新しました', 'ok'); };
+  const act = async (row, action, value) => { const r = await api({ kind: 'app_set', field: 'member', value: { row, action, value } }).catch(() => null); if (!r || !r.ok) { chat((r && r.error) || 'できませんでした'); return; } drawMembers(r.members, r.plan, r.count); toast('メンバーを更新しました', 'ok'); };
   box.querySelectorAll('[data-money]').forEach(i => i.onchange = () => act(+i.dataset.money, 'money', i.checked));
   box.querySelectorAll('[data-allow]').forEach(b => b.onclick = () => act(+b.dataset.allow, 'allow'));
   box.querySelectorAll('[data-remove]').forEach(b => b.onclick = () => { if (confirmOnce('mem' + b.dataset.remove, `もう一度押すと、${b.dataset.n}さんを外します(その場で入れなくなります)`)) act(+b.dataset.remove, 'remove'); });
