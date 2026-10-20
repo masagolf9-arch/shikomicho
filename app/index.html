@@ -261,7 +261,7 @@ nav .badge{position:absolute;top:0;left:calc(50% + 6px);min-width:18px;height:18
 .srch input:focus{outline:none}
 .ph{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .ph>div:first-child{flex:1;min-width:min(100%,320px)}
-@media (max-width:899px){.ph{flex-direction:column;align-items:stretch}.acts{width:100%;margin-top:-4px}.srch{flex:1;min-width:0}.acts .btn{white-space:nowrap}}
+
 /* 読み込み中の骨組み */
 .skel{display:grid;gap:12px;padding:20px 0;text-align:left}
 .skel i,.skr i{display:block;height:18px;border-radius:10px;background:linear-gradient(90deg,var(--line-2) 25%,var(--line) 50%,var(--line-2) 75%);background-size:200% 100%;animation:sk 1.2s infinite}
@@ -282,6 +282,7 @@ nav .badge{position:absolute;top:0;left:calc(50% + 6px);min-width:18px;height:18
 .ph>div{flex:1;min-width:0}
 .ph .lead{margin-bottom:0}
 .ph .btn{margin-bottom:14px}
+@media (max-width:899px){.ph{flex-direction:column;align-items:stretch}.ph>div:first-child{width:100%}.acts{width:100%;margin-top:-4px}.srch{flex:1;min-width:0}.acts .btn{white-space:nowrap}}
 section>h1:first-child{margin-top:22px}
 
 @keyframes inR{from{transform:translateX(40px);opacity:0}to{transform:none;opacity:1}}
@@ -500,6 +501,6 @@ section.inR{animation:inR .12s ease-out}section.inL{animation:inL .12s ease-out}
 </div></nav>
 
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-<script src="app.js?v=39"></script>
+<script src="app.js?v=40"></script>
 </body>
 </html>
