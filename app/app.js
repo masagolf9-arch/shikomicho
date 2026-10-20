@@ -129,6 +129,40 @@ function renderHomeProds() {
 // ホームと上の帯の「もなかに聞く」欄: 入れた言葉を、もなかの窓に送る
 ['askbar-home', 'askbar-top'].forEach(id => { const f = $(id); if (!f) return; f.onsubmit = e => { e.preventDefault(); const inp = f.querySelector('input'), v = inp.value.trim(); inp.value = ''; openAsk(); if (v) ask(v); }; });
 
+// ---------- 小さなグラフ(SVGで描く。色は機能の色1つ、濃さで量) ----------
+const fmtK = v => v >= 10000 ? (Math.round(v / 1000) / 10).toLocaleString('ja-JP') + '万' : Math.round(v).toLocaleString('ja-JP');
+// 縦の棒: data=[{l:ラベル, v:値, sub?:小さな注}] 。いちばん大きい棒だけ値を出し、ほかはかざすと出る
+function barsV(data, color, opt = {}) {
+  if (!data.length) return '';
+  const W = opt.w || 600, H = opt.h || 160, padB = 26, padT = 18, max = Math.max(...data.map(d => d.v), 1), n = data.length, gap = 6, bw = Math.min(72, Math.max(6, (W - gap * (n - 1)) / n)), x0 = (W - (bw * n + gap * (n - 1))) / 2;
+  const top = data.reduce((m, d, i) => d.v > data[m].v ? i : m, 0);
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(opt.label || '')}">
+    <line x1="0" y1="${H - padB + .5}" x2="${W}" y2="${H - padB + .5}" class="ax"/>
+    ${data.map((d, i) => { const h = Math.max(d.v > 0 ? 3 : 0, (H - padB - padT) * d.v / max), x = x0 + i * (bw + gap), y = H - padB - h;
+      return `<g class="bar" style="--c:${color}"><title>${esc(d.l)}: ${Math.round(d.v).toLocaleString('ja-JP')}円${d.sub ? ' ' + esc(d.sub) : ''}</title><rect x="${x}" y="${y}" width="${bw}" height="${h}" rx="3"/><rect x="${x}" y="${padT}" width="${bw}" height="${H - padB - padT}" fill="transparent"/>
+        ${i === top && d.v > 0 ? `<text x="${x + bw / 2}" y="${y - 5}" class="val" text-anchor="middle">${fmtK(d.v)}</text>` : ''}
+        ${(n <= 12 || i % Math.ceil(n / 10) === 0) ? `<text x="${x + bw / 2}" y="${H - 8}" class="lbl" text-anchor="middle">${esc(d.l)}</text>` : ''}</g>`; }).join('')}</svg>`;
+}
+// 横の棒: 項目ごとの大きさ(内訳)。値は右に直書き
+function barsH(data, color, opt = {}) {
+  if (!data.length) return '';
+  const max = Math.max(...data.map(d => d.v), 1), unit = opt.unit || '円';
+  return `<div class="hbars" style="--c:${color}">${data.map(d => `<div class="hb"><span class="hl">${esc(d.l)}</span><span class="ht"><i style="width:${Math.max(1, d.v / max * 100)}%"></i></span><span class="hv">${Math.round(d.v).toLocaleString('ja-JP')}${unit}${d.pct != null ? ` <small>${d.pct}%</small>` : ''}</span></div>`).join('')}</div>`;
+}
+// 輪のグラフ(円グラフ): 内訳。5つまでにして、残りは「ほか」。色は同じ系統の濃さちがい
+function donut(data, color, opt = {}) {
+  const tot = data.reduce((a, d) => a + d.v, 0); if (!tot) return '';
+  const top = data.slice().sort((a, b) => b.v - a.v), main = top.slice(0, 5), rest = top.slice(5).reduce((a, d) => a + d.v, 0);
+  if (rest) main.push({ l: 'ほか', v: rest });
+  const shades = [1, .78, .58, .42, .3, .2]; let acc = 0; const R = 42, C = 2 * Math.PI * R;
+  return `<div class="dn"><svg viewBox="0 0 120 120" role="img" aria-label="${esc(opt.label || '')}">${main.map((d, i) => { const f = d.v / tot, off = acc; acc += f;
+      return `<circle cx="60" cy="60" r="${R}" fill="none" stroke="${color}" stroke-opacity="${shades[i]}" stroke-width="16" stroke-dasharray="${Math.max(0, f * C - 2)} ${C}" stroke-dashoffset="${-off * C}" transform="rotate(-90 60 60)"><title>${esc(d.l)} ${Math.round(f * 100)}%</title></circle>`; }).join('')}
+    <text x="60" y="56" text-anchor="middle" class="dv">${fmtK(tot)}</text><text x="60" y="72" text-anchor="middle" class="dl">${esc(opt.center || '合計')}</text></svg>
+    <ul class="dlg">${main.map((d, i) => `<li><i style="background:${color};opacity:${shades[i]}"></i><span>${esc(d.l)}</span><b>${Math.round(d.v / tot * 100)}%</b><span class="k">${Math.round(d.v).toLocaleString('ja-JP')}円</span></li>`).join('')}</ul></div>`;
+}
+// 数字の札の並び
+const tiles = arr => `<div class="tiles">${arr.map(t => `<div class="tile"${t.c ? ` style="--c:var(--c-${t.c})"` : ''}><span class="tt">${esc(t.t)}</span><span class="tv">${t.v}</span>${t.k ? `<span class="k">${t.k}</span>` : ''}</div>`).join('')}</div>`;
+
 // ---------- 帳簿(支払い・仕分け・仕訳) ----------
 const unpaid = () => (D.pays || []).filter(p => p.status === '未払い').sort((a, b) => (a.due || '9') < (b.due || '9') ? -1 : 1);
 // ---------- きょう: 横にめくるカード ----------
@@ -197,7 +231,12 @@ function renderSort() {
   chips.querySelectorAll('[data-m]').forEach(b => b.onclick = () => { chips.dataset.m = b.dataset.m; renderSort(); });
   const rows = all.filter(p => p.month === sel).sort((a, b) => a.supplier.localeCompare(b.supplier, 'ja'));
   const tot = rows.reduce((a, p) => a + p.total, 0), done = rows.filter(p => p.status !== '未払い' && p.status !== '請求待ち').reduce((a, p) => a + p.total, 0);
-  box.innerHTML = `<table>${rows.map(p => `<tr><td><b>${esc(p.supplier)}</b><br><span class="k">${esc(p.doc)}${p.paidOn ? ' · ' + esc(p.paidOn.slice(5).replace('-', '/')) + '払い' : p.due ? ' · 期限 ' + esc(p.due.slice(5).replace('-', '/')) : ''}</span></td><td class="n">${yen(p.total)}<br><span class="pill ${PILL[p.status] ?? 'gray'}">${esc(p.status)}</span></td></tr>`).join('')}
+  const msAsc = Object.keys(D.months || {}).filter(k => k !== '不明').sort().slice(-6), jr = (D.journal || {})[sel] || {};
+  const bySup = Object.entries((D.months || {})[sel] ? D.months[sel].by : {}).map(([l, v]) => ({ l, v })).sort((a, b) => b.v - a.v);
+  box.innerHTML = `<div class="chgrid"><div><p class="ct">月ごとの仕入れ</p>${barsV(msAsc.map(k => ({ l: +k.slice(5) + '月', v: D.months[k].total })), 'var(--c-book)', { label: '月ごとの仕入れ', w: 320, h: 170 })}</div>
+    ${Object.keys(jr).length ? `<div><p class="ct">${esc(sel.replace('-', '年'))}月の科目(案)</p>${donut(Object.entries(jr).map(([l, v]) => ({ l, v })), 'var(--c-book)', { center: '合計', label: '科目の内訳' })}</div>` : ''}
+    ${bySup.length ? `<div class="wide"><p class="ct">業者ごと</p>${barsH(bySup.slice(0, 8), 'var(--c-book)')}</div>` : ''}</div>
+    <table>${rows.map(p => `<tr><td><b>${esc(p.supplier)}</b><br><span class="k">${esc(p.doc)}${p.paidOn ? ' · ' + esc(p.paidOn.slice(5).replace('-', '/')) + '払い' : p.due ? ' · 期限 ' + esc(p.due.slice(5).replace('-', '/')) : ''}</span></td><td class="n">${yen(p.total)}<br><span class="pill ${PILL[p.status] ?? 'gray'}">${esc(p.status)}</span></td></tr>`).join('')}
     <tr><td><b>合計 ${rows.length}件</b></td><td class="n"><b>${yen(tot)}</b><br><span class="k">払い済み ${yen(done)}</span></td></tr></table>
     <div class="ask" style="margin-top:8px"><button class="btn ghost" type="button" id="sort-copy">この月をコピー</button></div>
     <p class="k" style="margin:6px 0 0">コピーすると、税理士さんへのメールや会計ソフトのメモに貼りつけられます</p>`;
@@ -730,8 +769,10 @@ function renderWs() {
   const sel = chips.dataset.m && ms.includes(chips.dataset.m) ? chips.dataset.m : ms[0];
   chips.innerHTML = ms.map(m => `<button class="chip" type="button" data-m="${m}" aria-pressed="${m === sel}">${m.replace('-', '年')}月</button>`).join('');
   chips.querySelectorAll('[data-m]').forEach(b => b.onclick = () => { chips.dataset.m = b.dataset.m; renderWs(); });
-  const by = ws[sel];
-  $('ws-list').innerHTML = Object.keys(by).map((to, i) => { const o = by[to], miss = [...new Set(o.lines.filter(l => l.unit == null).map(l => l.item))];
+  const by = ws[sel], wsTot = Object.values(by).reduce((a, x) => a + x.total, 0);
+  const prevK = ms[ms.indexOf(sel) + 1], prevTot = prevK ? Object.values(ws[prevK]).reduce((a, x) => a + x.total, 0) : null;
+  $('ws-list').innerHTML = `<div class="card">${tiles([{ t: `${+sel.slice(5)}月の卸(税抜)`, v: yen(wsTot), c: 'ws', k: prevTot != null ? `前月 ${yen(prevTot)}(${wsTot >= prevTot ? '+' : ''}${Math.round((wsTot - prevTot) / Math.max(1, prevTot) * 100)}%)` : '' }, { t: '卸先', v: Object.keys(by).length + '<small style="font-size:14px;font-weight:500"> 件</small>', c: 'ws' }])}
+    ${Object.keys(by).length > 1 ? `<p class="ct" style="margin-top:12px">卸先ごと</p>${barsH(Object.keys(by).map(to => ({ l: to, v: by[to].total })).sort((a, b) => b.v - a.v), 'var(--c-ws)')}` : ''}</div>` + Object.keys(by).map((to, i) => { const o = by[to], miss = [...new Set(o.lines.filter(l => l.unit == null).map(l => l.item))];
     return `<div class="card"><div class="row"><b>${esc(to)}</b><span class="big" style="font-size:20px">${yen(o.total)}</span></div><p class="k" style="margin:2px 0 6px">税抜 · ${o.lines.length}回の納品</p>
     ${miss.length ? `<div class="ask" style="margin-top:0">${miss.map((it, j) => `<span class="k">${esc(it)}の卸値</span><input id="wp-${i}-${j}" inputmode="numeric" placeholder="円" style="width:80px"><button class="btn ghost" type="button" data-wp="${i}-${j}" data-to="${esc(to)}" data-it="${esc(it)}">決める</button>`).join('')}</div>` : ''}
     <div class="ask"><button class="btn ghost" type="button" data-inv="${esc(to)}">請求書を見る・印刷</button></div></div>`; }).join('');
@@ -766,10 +807,14 @@ function renderSales() {
   chips.querySelectorAll('[data-m]').forEach(b => b.onclick = () => { chips.dataset.m = b.dataset.m; renderSales(); });
   const o = sa[sel], items = Object.keys(o.items).sort((a, b) => (o.items[b].amount - o.items[b].cost) - (o.items[a].amount - o.items[a].cost)), unk = Object.keys(o.unknown || {});
   const rate = o.madeCost ? Math.round(o.madeCost / Math.max(1, o.total) * 100) : null;
-  $('sales-box').innerHTML = `<div class="card"><div class="row"><span>売上(税込)</span><span class="big">${yen(o.total)}</span></div>
+  const [sy, smn] = sel.split('-').map(Number), nd = new Date(sy, smn, 0).getDate(), daily = []; for (let d = 1; d <= nd; d++) { const k = `${sel}-${String(d).padStart(2, '0')}`; daily.push({ l: String(d), v: (o.days || {})[k] || 0 }); }
+  const prof = o.madeCost ? o.total - o.madeCost : null;
+  $('sales-box').innerHTML = `<div class="card">${tiles([{ t: '売上(税込)', v: yen(o.total), c: 'sales', k: `${o.nDays}日分 · 1日平均 ${yen(o.total / Math.max(1, o.nDays))}` }, { t: '作った分の材料費', v: o.madeCost ? yen(o.madeCost) : '<span class="k">—</span>', c: 'cost', k: rate != null ? `原価率の目安 ${rate}%` : '1個の重さと作った数から' }, { t: 'もうけ(材料費を引いた分)', v: prof != null ? yen(prof) : '<span class="k">—</span>', c: 'ws', k: '人件費・光熱費は入っていません' }])}
+    <p class="ct" style="margin-top:12px">日ごとの売上</p>${barsV(daily, 'var(--c-sales)', { label: '日ごとの売上', h: 150 })}</div>
+    <div class="card" hidden><div class="row"><span>売上(税込)</span><span class="big">${yen(o.total)}</span></div>
       <p class="k" style="margin:4px 0 0">${o.nDays}日分 · 1日平均 ${yen(o.total / Math.max(1, o.nDays))}${o.customers ? ` · 客数 ${o.customers}人 · 客単価 ${yen(o.total / o.customers)}` : ''}</p>
       ${rate != null ? `<div class="row" style="margin-top:8px"><span>作った分の材料費</span><b>${yen(o.madeCost)}</b></div><p class="k" style="margin:2px 0 0">原価率の目安 ${rate}%(製造メモ × 1${U}の原価 ÷ 売上)</p>` : ''}</div>
-    ${items.length ? `<div class="card"><p style="margin:0 0 6px"><b>商品ごとのもうけ</b> <span class="k">売上 − 材料費</span></p><table><tr><td class="k">商品</td><td class="n k">数</td><td class="n k">売上</td><td class="n k">もうけ</td></tr>${items.map(n => { const x = o.items[n], g = x.amount - x.cost; return `<tr><td>${esc(n)}${x.unit == null ? ' <span class="pill warn">重さ待ち</span>' : ''}</td><td class="n">${x.qty}</td><td class="n">${yen(x.amount)}</td><td class="n"><b>${yen(g)}</b><br><span class="k">${x.amount ? Math.round(g / x.amount * 100) : 0}%</span></td></tr>`; }).join('')}</table>
+    ${items.length ? `<div class="card"><p style="margin:0 0 6px"><b>商品ごとのもうけ</b> <span class="k">売上 − 材料費</span></p>${barsH(items.slice(0, 8).map(n => ({ l: n, v: o.items[n].amount - o.items[n].cost })), 'var(--c-sales)')}<table><tr><td class="k">商品</td><td class="n k">数</td><td class="n k">売上</td><td class="n k">もうけ</td></tr>${items.map(n => { const x = o.items[n], g = x.amount - x.cost; return `<tr><td>${esc(n)}${x.unit == null ? ' <span class="pill warn">重さ待ち</span>' : ''}</td><td class="n">${x.qty}</td><td class="n">${yen(x.amount)}</td><td class="n"><b>${yen(g)}</b><br><span class="k">${x.amount ? Math.round(g / x.amount * 100) : 0}%</span></td></tr>`; }).join('')}</table>
       <p class="k" style="margin:6px 0 0">人件費・光熱費などは入っていません。材料費だけを引いた額です</p></div>` : ''}
     ${unk.length ? `<div class="card"><p style="margin:0 0 6px"><b>レジの名前と商品をつなぐ</b></p><p class="k" style="margin:0 0 6px">商品ごとに打っている名前は、仕込帳の商品を選ぶともうけが出ます。部門(和菓子など)はそのままで大丈夫です</p>
       ${unk.map((u, i) => `<div class="ask"><span style="min-width:7em">${esc(u)} <span class="k">${yen(o.unknown[u])}</span></span><select id="ra-${i}" style="font:inherit;font-size:14px;padding:5px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)"><option value="">選ぶ</option>${D.products.map(p => `<option>${esc(p.name)}</option>`).join('')}</select><button class="btn ghost" type="button" data-ra="${i}" data-reg="${esc(u)}">つなぐ</button></div>`).join('')}</div>` : ''}`;
