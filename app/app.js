@@ -171,7 +171,7 @@ $('memo-add').onclick = () => {
   $('memo-go').onclick = () => { const v = $('memo-text').value.trim(); if (!v) { $('memo-text').focus(); return; } setValueX({ field: 'memo', value: { text: v } }); };
 };
 // 予定: ホームにはこれからの5件、予定の画面には月の表と一覧
-const evRow = (e, del) => `<li style="--c:var(--c-${EVK[e.kind] || 'set'})"><span class="ed"><b>${+e.date.slice(8)}</b><small>${+e.date.slice(5, 7)}月 ${['日', '月', '火', '水', '木', '金', '土'][new Date(e.date.slice(0, 4), +e.date.slice(5, 7) - 1, +e.date.slice(8)).getDay()]}</small></span><span class="ek">${esc(e.kind)}</span><span class="et">${esc(e.text)}${e.who ? `<span class="k">${esc(e.who)}</span>` : ''}</span>${del ? `<button class="x" type="button" data-del="${e.row}" aria-label="消す">✕</button>` : ''}</li>`;
+const evRow = (e, del) => `<li style="--c:var(--c-${EVK[e.kind] || 'set'})"${e.src === 'gcal' ? ' title="Googleカレンダーの予定"' : ''}><span class="ed"><b>${+e.date.slice(8)}</b><small>${+e.date.slice(5, 7)}月 ${['日', '月', '火', '水', '木', '金', '土'][new Date(e.date.slice(0, 4), +e.date.slice(5, 7) - 1, +e.date.slice(8)).getDay()]}</small></span><span class="ek">${esc(e.kind)}</span><span class="et">${esc(e.text)}${e.who ? `<span class="k">${esc(e.who)}</span>` : ''}${e.src === 'gcal' ? '<span class="k">Googleカレンダーから</span>' : ''}</span>${del && e.src !== 'gcal' ? `<button class="x" type="button" data-del="${e.row}" aria-label="消す">✕</button>` : ''}</li>`;
 function renderHomeEvents() {
   const box = $('home-events'), t = todayS(), evs = (D.events || []).filter(e => e.date >= t).slice(0, 5);
   box.innerHTML = evs.length ? `<ul class="evl">${evs.map(e => evRow(e)).join('')}</ul>` : `<p class="k" style="margin:0">これからの予定はありません。${VIA}「予定 10/25 〇〇ゴルフ 納品」と送るか、予定の画面で足せます。</p>`;
@@ -186,15 +186,16 @@ function renderCal() {
   const byDay = {}; (D.events || []).forEach(e => (byDay[e.date] = byDay[e.date] || []).push(e));
   const cells = []; for (let i = 0; i < 42; i++) { const d = new Date(start.getTime() + i * DAY); if (i >= 35 && d.getMonth() !== m) break;
     const ds = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`, evs = byDay[ds] || [], wd = d.getDay();
-    cells.push(`<div class="d${d.getMonth() !== m ? ' out' : ''}${ds === t ? ' today' : ''}${closed.includes(WD[wd]) ? ' closed' : ''}${wd === 0 ? ' sun' : wd === 6 ? ' sat' : ''}" data-d="${ds}"><span class="dn">${d.getDate()}</span>${evs.slice(0, 2).map(e => `<span class="ev" style="--c:var(--c-${EVK[e.kind] || 'set'})">${esc(e.text)}</span>`).join('')}${evs.length > 2 ? `<span class="k">+${evs.length - 2}</span>` : ''}</div>`); }
+    cells.push(`<div class="d${d.getMonth() !== m ? ' out' : ''}${ds === t ? ' today' : ''}${closed.includes(WD[wd]) ? ' closed' : ''}${wd === 0 ? ' sun' : wd === 6 ? ' sat' : ''}" data-d="${ds}"><span class="dn">${d.getDate()}</span>${evs.slice(0, 2).map(e => `<span class="ev${e.src === 'gcal' ? ' g' : ''}" style="--c:var(--c-${EVK[e.kind] || 'set'})">${esc(e.text)}</span>`).join('')}${evs.length > 2 ? `<span class="k">+${evs.length - 2}</span>` : ''}</div>`); }
   const list = (D.events || []).filter(e => e.date.slice(0, 7) === ym);
   box.innerHTML = `<div class="cal-h"><b>${y}年${m + 1}月</b><span class="seg"><button type="button" id="cal-prev" aria-label="前の月">‹</button><button type="button" id="cal-today">今月</button><button type="button" id="cal-next" aria-label="次の月">›</button></span></div>
     <div class="calg">${WD.map((w, i) => `<div class="wd${i === 0 ? ' sun' : i === 6 ? ' sat' : ''}">${w}</div>`).join('')}${cells.join('')}</div>
     <p class="k" style="margin:8px 0 0">うすい赤の日は定休日(設定で変えられます)。日を押すと、その日の予定を足せます。</p>
-    <h1 class="sub">${m + 1}月の予定</h1><div class="card" style="padding:0">${list.length ? `<ul class="evl">${list.map(e => evRow(e, true)).join('')}</ul>` : '<p class="k" style="margin:0;padding:14px">この月の予定はまだありません。</p>'}</div>`;
+    <h1 class="sub">${m + 1}月の予定</h1><div class="card" style="padding:0">${list.length ? `<ul class="evl">${list.map(e => evRow(e, true)).join('')}</ul>` : '<p class="k" style="margin:0;padding:14px">この月の予定はまだありません。</p>'}</div>` + gcalBox();
   const mv = n => { const d = new Date(y, m + n, 1); calYM = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; renderCal(); };
   $('cal-prev').onclick = () => mv(-1); $('cal-next').onclick = () => mv(1); $('cal-today').onclick = () => { calYM = null; renderCal(); };
   box.querySelectorAll('.d').forEach(el => el.onclick = () => evForm(el.dataset.d));
+  bindGcal(box);
   box.querySelectorAll('[data-del]').forEach(b => b.onclick = () => { if (confirmOnce('ev' + b.dataset.del, 'もう一度押すと、この予定を消します')) setValueX({ field: 'event', value: { row: +b.dataset.del, del: true } }); });
 }
 function evForm(date) {
@@ -207,6 +208,23 @@ function evForm(date) {
   $('ev-go').onclick = () => { const kind = $('ev-kind').querySelector('[aria-pressed="true"]').dataset.v, text = $('ev-text').value.trim(); if (!text && kind !== '休み') { $('ev-text').focus(); return; } setValueX({ field: 'event', value: { date: $('ev-date').value, kind, text: text || kind, who: $('ev-who').value.trim() } }); f.hidden = true; };
 }
 $('ev-add-top').onclick = () => evForm();
+// Googleカレンダーとつなぐ(購読の仕組み。入れるのは1か所でいい)
+function gcalBox() {
+  const c = D.cal || {}; if (!D.me || !D.me.owner) return c.gcal ? '<p class="k" style="margin:10px 0 0">Googleカレンダーの予定も、この表に出ています(店主の設定)。</p>' : '';
+  return `<h1 class="sub">Googleカレンダーとつなぐ <span class="k" style="font-weight:400;font-size:13px">(お店が選べます。つながなくても使えます)</span></h1>
+  <div class="card"><p style="margin:0 0 4px"><b>① 仕込帳の予定を、スマホのGoogleカレンダーにも出す</b></p><p class="k" style="margin:0 0 8px">仕込帳に入れた納品・催事・休みが、自動でGoogleカレンダーに出ます(数時間遅れることがあります)。</p>
+    <div class="ask" style="margin-top:0"><input id="cal-feed" readonly value="${esc(c.feed || '')}" style="flex:1;min-width:0;font-size:13px"><button class="btn ghost sm" type="button" id="cal-copy">コピー</button></div>
+    <details style="margin-top:6px"><summary class="k">Googleカレンダーでの入れ方</summary><ol class="k" style="margin:6px 0 0;padding-left:1.4em;line-height:1.8"><li>パソコンで Googleカレンダー を開く</li><li>左の「他のカレンダー」の「＋」→「URLで追加」</li><li>上の住所を貼って「カレンダーを追加」</li><li>スマホのGoogleカレンダーの設定で、そのカレンダーの表示をオンにする</li></ol><p class="k" style="margin:6px 0 0">この住所は合言葉つきです。お店の人以外には教えないでください。</p></details>
+    <hr style="border:0;border-top:1px solid var(--line-2);margin:14px 0">
+    <p style="margin:0 0 4px"><b>② Googleカレンダーの予定を、仕込帳にも出す</b></p><p class="k" style="margin:0 0 8px">Googleカレンダーの設定 › そのカレンダー › 「iCal形式の秘密のアドレス」をコピーして、ここに貼ります。Googleに入れた予定が仕込帳の予定と「今日やること」に出ます(見るだけ。消す・直すはGoogle側で)。</p>
+    <div class="ask" style="margin-top:0"><input id="gcal-url" placeholder="https://calendar.google.com/calendar/ical/…/basic.ics" value="${esc(c.gcal || '')}" style="flex:1;min-width:0;font-size:13px"><button class="btn sm" type="button" id="gcal-save">${c.gcal ? '貼り直す' : 'つなぐ'}</button>${c.gcal ? '<button class="btn ghost sm" type="button" id="gcal-off">外す</button>' : ''}</div>
+    ${c.gcal ? '<p class="k" style="margin:6px 0 0">つながっています。Googleの予定は1時間ごとに読み直します。</p>' : ''}</div>`;
+}
+function bindGcal(root) {
+  const cp = root.querySelector('#cal-copy'); if (cp) cp.onclick = async () => { try { await navigator.clipboard.writeText($('cal-feed').value); toast('住所をコピーしました', 'ok'); } catch (e) { $('cal-feed').select(); } };
+  const sv = root.querySelector('#gcal-save'); if (sv) sv.onclick = () => { const v = $('gcal-url').value.trim(); if (!v) { $('gcal-url').focus(); return; } setValueX({ field: 'gcal', value: v }); };
+  const off = root.querySelector('#gcal-off'); if (off) off.onclick = () => setValueX({ field: 'gcal', value: '' });
+}
 // 連絡先(業者・卸先の電話と担当)
 const contactOf = n => (D.contacts || []).find(c => c.name === n || (n && (n.includes(c.name) || c.name.includes(n))));
 const telLink = n => { const c = contactOf(n); return c && c.tel ? ` <a href="tel:${esc(c.tel.replace(/[^\\d+]/g, ''))}" style="color:var(--accent);text-decoration:none;font-weight:600;white-space:nowrap" title="${esc(c.person ? '担当 ' + c.person : '')}">☎ ${esc(c.tel)}</a>` : ''; };
