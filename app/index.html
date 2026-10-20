@@ -514,7 +514,7 @@ section.inR{animation:inR .12s ease-out}section.inL{animation:inL .12s ease-out}
     <div class="shop"><img src="logo_mark.webp?v=1" alt="" onerror="this.remove()"><span id="shop">お店</span></div>
     <div class="date" id="date"></div>
   </div>
-  <div class="appbar"><div><span class="sname" id="shop2"></span><span class="date" id="date2"></span><form class="askbar" id="askbar-top" autocomplete="off"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6.5h16M4 12h16M4 17.5h10"/></svg><input id="ask-top" placeholder="もなかに聞く・記録する(例: 栗万十 90)" aria-label="もなかに聞く"><button class="btn" type="submit">送る</button></form></div></div>
+  <div class="appbar"><div><span class="sname" id="shop2"></span><span class="date" id="date2"></span><form class="askbar" id="askbar-top" autocomplete="off"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6.5h16M4 12h16M4 17.5h10"/></svg><input id="ask-top" placeholder="もなかに話す(例: さっき栗万十20焼いた)" aria-label="もなかに聞く"><button class="btn" type="submit">送る</button></form></div></div>
 
   <div class="bar" id="bar" hidden role="status"></div>
   <div class="crumb" id="crumb" hidden aria-label="今いる場所"></div>
@@ -523,7 +523,7 @@ section.inR{animation:inR .12s ease-out}section.inL{animation:inL .12s ease-out}
 
   <section id="t-today" hidden>
     <div class="greet"><h1 id="greet-h">こんにちは</h1><p id="greet-p">何をしますか?</p></div>
-    <form class="askbar" id="askbar-home" autocomplete="off"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6.5h16M4 12h16M4 17.5h10"/></svg><input id="ask-home" placeholder="もなかに聞く・記録する(例: 栗万十 90)" aria-label="もなかに聞く"><button class="btn" type="submit">送る</button></form>
+    <form class="askbar" id="askbar-home" autocomplete="off"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6.5h16M4 12h16M4 17.5h10"/></svg><input id="ask-home" placeholder="もなかに話す(例: さっき栗万十20焼いた)" aria-label="もなかに聞く"><button class="btn" type="submit">送る</button></form>
     <div class="menu" id="menu"></div>
     <div class="card start" id="start" hidden></div>
     <div class="cols">
@@ -631,35 +631,8 @@ section.inR{animation:inR .12s ease-out}section.inL{animation:inL .12s ease-out}
       <textarea id="ct-text" rows="4" maxlength="2000" placeholder="例: 請求書の写真がうまく読めません" aria-label="問い合わせの内容"></textarea>
       <div class="ask"><button class="btn" type="button" id="ct-go">送る</button><span class="k" id="ct-via">LINEで「問い合わせ 〜」と送ってもOK</span></div>
     </div>
-    <h1 class="sub" id="words-h">LINEで送れる言葉</h1>
-    <div class="card"><table class="howto">
-      <tr><td>写真を送る</td><td class="k">レシピ・請求書・納品書・レシート・袋の裏を読みます</td></tr>
-      <tr><td>栗万十 90、チーズ万十 100</td><td class="k">きょう作った数(夕方に)</td></tr>
-      <tr><td>栗万十は1個30g</td><td class="k">1個の重さ。原価と使った量の計算に使います</td></tr>
-      <tr><td>栗万十は250円</td><td class="k">売る値段</td></tr>
-      <tr><td>支払い</td><td class="k">払っていない請求書</td></tr>
-      <tr><td>三浦商事 払った</td><td class="k">払ったら済にします</td></tr>
-      <tr><td>仕訳</td><td class="k">科目ごとの合計</td></tr>
-      <tr><td>在庫 / 買い出し</td><td class="k">計算上の残り / そろそろ買うもの</td></tr>
-      <tr><td>バイオレット 残り2袋</td><td class="k">数えた量(棚卸)</td></tr>
-      <tr><td>冷蔵 3 冷凍 -18 清掃OK</td><td class="k">衛生・温度の記録</td></tr>
-      <tr><td>衛生</td><td class="k">今日まだの記録</td></tr>
-      <tr><td>ポップ 栗万十</td><td class="k">ポップ・インスタ・お知らせの案</td></tr>
-      <tr><td>納品 〇〇ゴルフ 栗万十20</td><td class="k">卸の納品を記録</td></tr>
-      <tr><td>伝言 田中さんから栗万十30個、明日10時</td><td class="k">お店のみんなへのメモ(ホームに出ます)</td></tr>
-      <tr><td>予定 10/25 〇〇ゴルフ 納品</td><td class="k">納品・催事・休みの予定</td></tr>
-      <tr><td>連絡先 三浦商事 電話 03-1234-5678 担当 山田</td><td class="k">業者・卸先の電話と担当</td></tr>
-      <tr><td>卸値 〇〇ゴルフ 栗万十 180</td><td class="k">卸の単価(税抜)</td></tr>
-      <tr><td>卸の請求</td><td class="k">今月の卸の合計</td></tr>
-      <tr><td>精算レシートの写真</td><td class="k">1日の売上を記録</td></tr>
-      <tr><td>売上 52300 客 48人</td><td class="k">写真なしで売上を記録</td></tr>
-      <tr><td>売上</td><td class="k">今月の売上ともうけ</td></tr>
-      <tr><td>レジ 栗まんじゅう=栗万十</td><td class="k">レジでの名前を教える</td></tr>
-      <tr><td>栄養 栗万十</td><td class="k">栄養成分表示の案</td></tr>
-      <tr><td>栗万十 焼き上がり 26g</td><td class="k">表示用の1個の重さ</td></tr>
-      <tr><td>材料の袋の栄養表示の写真</td><td class="k">その材料の栄養を袋の値に</td></tr>
-      <tr><td>定休日は水曜</td><td class="k">その日は念押しを休みます</td></tr>
-    </table></div>
+    <h1 class="sub" id="words-h">もなかに話す</h1>
+    <div class="card"><p style="margin:0">決まった言い方はありません。ふだんの言葉で話しかけてください。</p><p class="k" style="margin:6px 0 0">例: 「さっき栗万十20焼いた」「三浦さんに払っといた」「冷蔵3度だった」「昨日ゴルフ場に栗万十20持ってった」「田中さんから栗万十30個の注文、明日10時」「来週の火曜は休み」「今月どう?」「栗万十の売値いくらにしたらいい?」</p><p class="k" style="margin:6px 0 0">記録の前には「〜として記録しますか?」と確かめます。「はい」で確定した言い方は覚えて、次からは同じ意味に取ります。分からないときは聞き返します。</p></div>
   </section>
   <p class="foot" id="foot">試作。キャラの絵はAtelier SAISPEのLINE絵文字。</p>
 </div>
@@ -689,6 +662,6 @@ section.inR{animation:inR .12s ease-out}section.inL{animation:inL .12s ease-out}
 </div></nav>
 
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-<script src="app.js?v=53"></script>
+<script src="app.js?v=54"></script>
 </body>
 </html>

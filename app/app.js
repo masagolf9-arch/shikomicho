@@ -159,7 +159,7 @@ function renderStart() {
 function renderMemos() {
   const box = $('memos'), ms = D.memos || [], me = profileName || '';
   box.innerHTML = ms.length ? `<div class="card" style="padding:0">${ms.map(m => `<div class="memo"><div class="mb"><p>${esc(m.text)}</p><span class="k">${esc(m.by)} · ${m.t ? new Date(m.t).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}${m.seen.length ? ' · 見た: ' + m.seen.map(esc).join('、') : ''}</span></div><span class="acts">${m.seen.includes(me) ? '' : `<button class="btn sm" type="button" data-seen="${m.row}">見た</button>`}<button class="btn ghost sm" type="button" data-done="${m.row}">済</button></span></div>`).join('')}</div>`
-    : `<div class="card"><p class="k" style="margin:0">伝言はありません。「＋ 書く」か、${VIA}「伝言 田中さんから栗万十30個、明日10時」のように送ると、お店のみんなのホームに出ます。</p></div>`;
+    : `<div class="card"><p class="k" style="margin:0">伝言はありません。「＋ 書く」か、もなかに「田中さんから栗万十30個の注文、明日10時に受け取り、って伝えておいて」と話すと、お店のみんなのホームに出ます。</p></div>`;
   box.querySelectorAll('[data-seen]').forEach(b => b.onclick = () => setValueX({ field: 'memo', value: { row: +b.dataset.seen } }));
   box.querySelectorAll('[data-done]').forEach(b => b.onclick = () => setValueX({ field: 'memo', value: { row: +b.dataset.done, done: true } }));
 }
@@ -174,7 +174,7 @@ $('memo-add').onclick = () => {
 const evRow = (e, del) => `<li style="--c:var(--c-${EVK[e.kind] || 'set'})"${e.src === 'gcal' ? ' title="Googleカレンダーの予定"' : ''}><span class="ed"><b>${+e.date.slice(8)}</b><small>${+e.date.slice(5, 7)}月 ${['日', '月', '火', '水', '木', '金', '土'][new Date(e.date.slice(0, 4), +e.date.slice(5, 7) - 1, +e.date.slice(8)).getDay()]}</small></span><span class="ek">${esc(e.kind)}</span><span class="et">${esc(e.text)}${e.who ? `<span class="k">${esc(e.who)}</span>` : ''}${e.src === 'gcal' ? '<span class="k">Googleカレンダーから</span>' : e.by ? `<span class="k">${avatar(e.by, true)} ${esc(e.by)}</span>` : ''}${(e.notes || []).length ? `<ul class="notes">${e.notes.map(n => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}${del && e.src !== 'gcal' ? `<span class="ask" style="margin-top:6px"><input class="note-in" data-row="${e.row}" placeholder="ひと言(8時に出発、袋は多めに…)" style="flex:1;min-width:0;font-size:13px;padding:5px 8px"><button class="btn ghost sm" type="button" data-note="${e.row}">足す</button></span>` : ''}</span>${del && e.src !== 'gcal' ? `<button class="x" type="button" data-del="${e.row}" aria-label="消す">✕</button>` : ''}</li>`;
 function renderHomeEvents() {
   const box = $('home-events'), t = todayS(), evs = (D.events || []).filter(e => e.date >= t).slice(0, 5);
-  box.innerHTML = evs.length ? `<ul class="evl">${evs.map(e => evRow(e)).join('')}</ul>` : `<p class="k" style="margin:0">これからの予定はありません。${VIA}「予定 10/25 〇〇ゴルフ 納品」と送るか、予定の画面で足せます。</p>`;
+  box.innerHTML = evs.length ? `<ul class="evl">${evs.map(e => evRow(e)).join('')}</ul>` : `<p class="k" style="margin:0">これからの予定はありません。もなかに「25日に〇〇ゴルフに納品」と話すか、予定の画面で足せます。</p>`;
   box.style.padding = evs.length ? '0' : '';
 }
 $('ev-more').onclick = () => show('cal');
@@ -235,7 +235,7 @@ const telLink = n => { const c = contactOf(n); return c && c.tel ? ` <a href="te
 function contactsBox() {
   const cs = D.contacts || [], sup = Object.keys(Object.assign({}, ...Object.values(D.months || {}).map(m => m.by))), tos = Object.keys(Object.assign({}, ...Object.values(D.ws || {})));
   const cand = [...new Set(sup.concat(tos))].filter(n => !cs.find(c => c.name === n));
-  return `<p class="k" style="margin:0 0 6px">支払いや卸の画面に電話のリンクが出ます。${VIA}「連絡先 三浦商事 電話 03-1234-5678 担当 山田」でも入ります</p>
+  return `<p class="k" style="margin:0 0 6px">支払いや卸の画面に電話のボタンと振込先が出ます。請求書を撮ると自動で入り、もなかに「三浦商事の電話は03-1234-5678」と話しても入ります</p>
     ${cs.map(c => `<div class="contact-row"><b>${esc(c.name)}</b><span class="k">${esc(c.kind)}</span><span>${c.tel ? `<a href="tel:${esc(c.tel.replace(/[^\\d+]/g, ''))}">☎ ${esc(c.tel)}</a>` : '<span class="k">電話なし</span>'}</span><span class="k">${esc(c.person)}</span><button class="btn ghost sm" type="button" data-ct-edit="${esc(c.name)}">直す</button>${c.bank || c.number ? `<div class="k" style="grid-column:1/-1;margin-top:-4px">振込先: ${esc([c.bank, c.branch, c.type, c.number, c.holder].filter(Boolean).join(' '))}</div>` : ''}</div>`).join('')}
     <div id="ct-form" style="margin-top:10px"><div class="fld"><span class="k">名前</span><input id="ct-name" list="ct-cand" placeholder="業者・卸先の名前"><datalist id="ct-cand">${cand.map(n => `<option value="${esc(n)}">`).join('')}</datalist><span class="k">種類</span><div class="seg" id="ct-kind">${['業者', '卸先', 'その他'].map((k, i) => `<button type="button" data-v="${k}" aria-pressed="${i === 0}">${k}</button>`).join('')}</div><span class="k">電話</span><input id="ct-tel" inputmode="tel" placeholder="03-1234-5678"><span class="k">担当</span><input id="ct-person" placeholder="山田さん"><span class="k">振込先</span><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px"><input id="ct-bank" placeholder="銀行"><input id="ct-branch" placeholder="支店"><select id="ct-type" class="sel"><option value="">種別</option><option>普通</option><option>当座</option></select><input id="ct-number" inputmode="numeric" placeholder="口座番号"><input id="ct-holder" placeholder="名義(カナ)" style="grid-column:1/-1"></div></div><p class="k" style="margin:4px 0 0">請求書を撮ると、電話・担当・振込先は自動で入ります(読めなかったところだけ空のまま)</p><div class="ask"><button class="btn" type="button" id="ct-save">連絡先を保存</button><button class="btn ghost" type="button" id="ct-del" hidden>消す</button></div></div>`;
 }
@@ -942,9 +942,9 @@ function renderWs() {
   const ws = D.ws || {}, ms = Object.keys(ws).sort().reverse(), chips = $('ws-chips');
   const tos = [...new Set(ms.flatMap(m => Object.keys(ws[m])))];
   $('ws-add').innerHTML = `<p style="margin:0 0 6px"><b>納品を記録</b></p><div class="fld"><span class="k">卸先</span><input id="ws-to" list="ws-tos" placeholder="〇〇ゴルフ"><datalist id="ws-tos">${tos.map(t => `<option value="${esc(t)}">`).join('')}</datalist>
-    <span class="k">商品と数</span><input id="ws-items" placeholder="栗万十20 チーズ万十10"></div><div class="ask"><button class="btn" type="button" id="ws-go">記録</button><span class="k">${VIA}「納品 〇〇ゴルフ 栗万十20」でもOK</span></div>`;
+    <span class="k">商品と数</span><input id="ws-items" placeholder="栗万十20 チーズ万十10"></div><div class="ask"><button class="btn" type="button" id="ws-go">記録</button><span class="k">もなかに「〇〇ゴルフに栗万十20持ってった」と話してもOK</span></div>`;
   $('ws-go').onclick = () => { const to = $('ws-to').value.trim(), it = $('ws-items').value.trim(); if (!to || !it) { chat('卸先と、商品と数を入れてください'); return; } setValueX({ field: 'deliv', value: to + ' ' + it }); };
-  if (!ms.length) { chips.innerHTML = ''; $('ws-list').innerHTML = emptyBox('ws', 'まだ納品の記録がありません', '上の欄に卸先と商品・数を入れるか、もなかに「納品 〇〇ゴルフ 栗万十20」と話すと、ここに月ごとに並びます。'); return; }
+  if (!ms.length) { chips.innerHTML = ''; $('ws-list').innerHTML = emptyBox('ws', 'まだ納品の記録がありません', '上の欄に卸先と商品・数を入れるか、もなかに「〇〇ゴルフに栗万十20持ってった」と話すと、ここに月ごとに並びます。'); return; }
   const sel = chips.dataset.m && ms.includes(chips.dataset.m) ? chips.dataset.m : ms[0];
   chips.innerHTML = ms.map(m => `<button class="chip" type="button" data-m="${m}" aria-pressed="${m === sel}">${m.replace('-', '年')}月</button>`).join('');
   chips.querySelectorAll('[data-m]').forEach(b => b.onclick = () => { chips.dataset.m = b.dataset.m; renderWs(); });
