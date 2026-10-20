@@ -4,6 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>仕込帳</title>
+<meta name="theme-color" content="#185fa5">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="仕込帳">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@700&display=swap" rel="stylesheet">
 <style>
@@ -247,6 +252,31 @@ nav .badge{position:absolute;top:0;left:calc(50% + 6px);min-width:18px;height:18
 .pc .pr small{font-size:12px;font-weight:500;color:var(--ink-2);margin-left:2px}
 .pc .k{line-height:1.4}
 
+
+/* ページの頭の右側: さがす欄とボタン */
+.acts{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+.srch{display:flex;align-items:center;gap:6px;background:var(--card);border:1.5px solid var(--line);border-radius:999px;padding:0 12px;min-height:42px;min-width:200px}
+.srch svg{width:18px;height:18px;color:var(--ink-2);flex:0 0 18px}
+.srch input{border:0;background:transparent;font:inherit;font-size:15px;color:var(--ink);min-width:0;flex:1;padding:6px 0}
+.srch input:focus{outline:none}
+.ph{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.ph>div:first-child{flex:1;min-width:min(100%,320px)}
+@media (max-width:899px){.ph{flex-direction:column;align-items:stretch}.acts{width:100%;margin-top:-4px}.srch{flex:1;min-width:0}.acts .btn{white-space:nowrap}}
+/* 読み込み中の骨組み */
+.skel{display:grid;gap:12px;padding:20px 0;text-align:left}
+.skel i,.skr i{display:block;height:18px;border-radius:10px;background:linear-gradient(90deg,var(--line-2) 25%,var(--line) 50%,var(--line-2) 75%);background-size:200% 100%;animation:sk 1.2s infinite}
+.skr{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px}.skr i{height:56px;border-radius:14px}
+@keyframes sk{from{background-position:200% 0}to{background-position:-200% 0}}
+@media (prefers-reduced-motion:reduce){.skel i,.skr i{animation:none}}
+/* 何もないとき */
+.empty{text-align:center;padding:28px 16px;color:var(--ink-2)}
+.empty .ic{margin:0 auto 10px;width:56px;height:56px;border-radius:18px;background:var(--soft);color:var(--accent);display:grid;place-items:center}
+.empty .ic svg{width:28px;height:28px}
+.empty b{display:block;color:var(--ink);font-size:16px;margin-bottom:4px}
+.empty .btn{margin-top:12px}
+.mat tr[data-m]:hover td{background:var(--line-2)}
+.mat td:last-child::after{content:"›";color:var(--ink-2);margin-left:8px}
+.mat tr:not([data-m]) td:last-child::after{content:""}
 /* ページの頭: 見出しと説明を左、ボタンを右に */
 .ph{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .ph>div{flex:1;min-width:0}
@@ -324,7 +354,7 @@ section.inR{animation:inR .12s ease-out}section.inL{animation:inL .12s ease-out}
   </div>
   <div class="appbar"><div><span class="sname" id="shop2"></span><span class="date" id="date2"></span><form class="askbar" id="askbar-top" autocomplete="off"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6.5h16M4 12h16M4 17.5h10"/></svg><input id="ask-top" placeholder="もなかに聞く・記録する(例: 栗万十 90)" aria-label="もなかに聞く"><button class="btn" type="submit">送る</button></form></div></div>
 
-  <div class="state" id="state">読み込み中…</div>
+  <div class="state" id="state"><div class="skel"><i style="width:40%;height:28px"></i><i style="height:56px;border-radius:999px"></i><div class="skr"><i></i><i></i><i></i><i></i></div><i style="width:30%"></i><div class="skr"><i style="height:120px"></i><i style="height:120px"></i><i style="height:120px"></i><i style="height:120px"></i></div></div></div>
 
   <section id="t-today" hidden>
     <div class="greet"><h1 id="greet-h">こんにちは</h1><p id="greet-p">何をしますか?</p></div>
@@ -344,28 +374,24 @@ section.inR{animation:inR .12s ease-out}section.inL{animation:inL .12s ease-out}
   </section>
 
   <section id="t-cost" hidden>
-    <h1>原価</h1>
-    <p class="lead">1個あたりの材料費。下の線は、請求書で確かめた割合。カードを押すと中身と入力欄が出ます。</p>
+    <div class="ph"><div><h1>原価</h1><p class="lead">1個あたりの材料費。下の線は、請求書で確かめた割合。カードを押すと中身と入力欄が出ます。</p></div><div class="acts"><label class="srch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="cost-q" type="search" placeholder="商品をさがす" autocomplete="off"></label></div></div>
     <div class="stack" id="costs"></div>
   </section>
 
   <section id="t-label" hidden>
-    <h1 id="label-h">裏表示</h1>
-    <p class="lead" id="label-lead">一括表示の原案とラベル印刷。<mark>色つき</mark>は要確認。最終確認と表示の責任はお店にあります。</p>
+    <div class="ph"><div><h1 id="label-h">裏表示</h1><p class="lead" id="label-lead">一括表示の原案とラベル印刷。<mark>色つき</mark>は要確認。最終確認と表示の責任はお店にあります。</p></div><div class="acts"><button class="btn ghost" type="button" id="label-print-top">ラベルを印刷</button></div></div>
     <div class="chips" id="label-chips"></div>
     <div id="label-box"></div>
   </section>
 
   <section id="t-mat" hidden>
-    <h1>材料</h1>
-    <p class="lead">請求書から読んだ単価。「仮」は請求書が来たら置き換わります。</p>
+    <div class="ph"><div><h1>材料</h1><p class="lead">請求書から読んだ単価。「仮」は請求書が来たら置き換わります。</p></div><div class="acts"><label class="srch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="mat-q" type="search" placeholder="材料をさがす" autocomplete="off"></label><button class="btn" type="button" id="mat-add-top">＋ 材料を足す</button></div></div>
     <div class="filter" id="mat-filter"></div>
     <div class="card scroll"><table class="mat" id="mats"></table></div>
     <p class="foot" id="mat-sum"></p>
   </section>
   <section id="t-book" hidden>
-    <h1>帳簿</h1>
-    <p class="lead">請求書を撮ると、業者ごと・月ごとに仕分けて、科目の案もつけます。</p>
+    <div class="ph"><div><h1>帳簿</h1><p class="lead">請求書を撮ると、業者ごと・月ごとに仕分けて、科目の案もつけます。</p></div><div class="acts"><button class="btn ghost" type="button" id="book-copy-top">この月をコピー</button></div></div>
     <div class="stack" id="pays"></div>
     <h1 class="sub">請求書の仕分け</h1>
     <div class="chips" id="sort-chips"></div>
@@ -373,8 +399,7 @@ section.inR{animation:inR .12s ease-out}section.inL{animation:inL .12s ease-out}
     <div id="journal"></div>
   </section>
   <section id="t-hyg" hidden>
-    <h1>衛生記録</h1>
-    <p class="lead">毎日の温度と点検。目安を外れたら、お店のみんなにLINEで知らせます。</p>
+    <div class="ph"><div><h1>衛生記録</h1><p class="lead">毎日の温度と点検。目安を外れたら、お店のみんなにLINEで知らせます。</p></div><div class="acts"><button class="btn ghost" type="button" id="hyg-print-top">記録表を印刷</button></div></div>
     <div class="card" id="hyg-today"></div>
     <h1 class="sub">月の記録表(HACCP)</h1>
     <div class="chips" id="hyg-chips"></div>
@@ -388,30 +413,26 @@ section.inR{animation:inR .12s ease-out}section.inL{animation:inL .12s ease-out}
       </ul></div>
   </section>
   <section id="t-sales" hidden>
-    <h1>売上ともうけ</h1>
-    <p class="lead">レジの精算レシートを撮ると、売上を記録して、原価が分かる商品はもうけを出します。</p>
+    <div class="ph"><div><h1>売上ともうけ</h1><p class="lead">レジの精算レシートを撮ると、売上を記録して、原価が分かる商品はもうけを出します。</p></div></div>
     <div class="chips" id="sales-chips"></div>
     <div class="stack" id="sales-box"></div>
     <div class="card" id="sales-add" style="margin-top:12px"></div>
   </section>
   <section id="t-ws" hidden>
-    <h1>卸</h1>
-    <p class="lead">納品を記録すると、月末に卸先ごとの請求書になります。</p>
+    <div class="ph"><div><h1>卸</h1><p class="lead">納品を記録すると、月末に卸先ごとの請求書になります。</p></div><div class="acts"><button class="btn" type="button" id="ws-add-top">＋ 納品を記録</button></div></div>
     <div class="card" id="ws-add"></div>
     <div class="chips" id="ws-chips" style="margin-top:14px"></div>
     <div class="stack" id="ws-list"></div>
   </section>
   <section id="t-post" hidden>
-    <h1>発信</h1>
-    <p class="lead">ポップ・インスタ・お知らせの文の案を作ります。そのまま使っても、直しても大丈夫です。</p>
+    <div class="ph"><div><h1>発信</h1><p class="lead">ポップ・インスタ・お知らせの文の案を作ります。そのまま使っても、直しても大丈夫です。</p></div></div>
     <div class="card post-in"><div class="ask" style="margin-top:0"><select id="post-p" style="flex:1"></select></div>
       <div class="ask"><input id="post-free" placeholder="または自由に(例: 年末年始の営業のお知らせ)"></div>
       <div class="ask"><button class="btn" type="button" id="post-go">案を作る</button></div></div>
     <div class="stack" id="post-out" style="margin-top:12px"></div>
   </section>
   <section id="t-set" hidden>
-    <h1>設定</h1>
-    <p class="lead">この画面の見え方と、お店の決まりごと。</p>
+    <div class="ph"><div><h1>設定</h1><p class="lead">この画面の見え方と、お店の決まりごと。</p></div></div>
     <div class="card" id="set-box"></div>
     <h1 class="sub" id="acct-h" hidden>ログインと招待</h1>
     <div hidden><div class="card" id="acct-box"></div></div>
@@ -479,6 +500,6 @@ section.inR{animation:inR .12s ease-out}section.inL{animation:inL .12s ease-out}
 </div></nav>
 
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-<script src="app.js?v=38"></script>
+<script src="app.js?v=39"></script>
 </body>
 </html>

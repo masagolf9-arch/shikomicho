@@ -249,7 +249,7 @@ function renderBanks() {
 function renderPays() {
   const box = $('pays');
   const up = unpaid();
-  if (!(D.pays || []).length) { box.innerHTML = '<div class="card"><p class="k" style="margin:0">請求書を撮ると、業者ごと・月ごとに仕分けて、ここに並びます</p></div>'; return; }
+  if (!(D.pays || []).length) { box.innerHTML = emptyBox('book', 'まだ請求書がありません', '請求書を撮ると、業者ごと・月ごとに仕分けて、払っていないものがここに並びます。', ['請求書を撮る', 'cam']); return; }
   const sum = up.reduce((a, p) => a + p.total, 0);
   box.innerHTML = `<div class="card"><div class="row"><span>${up.length ? `払っていないもの ${up.length}件` : '払っていないものはありません'}</span>${up.length ? `<span class="big" style="font-size:20px">${yen(sum)}</span>` : ''}</div>` +
     up.map(p => `<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line)"><div>${esc(p.supplier)} <span class="k">${+p.month.slice(5) || esc(p.month)}月分${p.due ? ' · 期限 ' + esc(p.due.slice(5).replace('-', '/')) : ''}</span></div><div class="row" style="align-items:center;margin-top:6px"><b style="white-space:nowrap;font-size:17px">${yen(p.total)}</b><span style="display:flex;gap:6px;align-items:center;flex:0 0 auto"><button class="btn" style="white-space:nowrap" type="button" data-go="${p.row}">振込へ</button><button class="btn ghost" style="white-space:nowrap" type="button" data-paid="${p.row}">払った</button></span></div>`).join('') +
@@ -259,11 +259,17 @@ function renderPays() {
   if ($('bank-change')) $('bank-change').onclick = e => { e.preventDefault(); show('set'); setTimeout(() => $('bank-box').scrollIntoView({ block: 'start', behavior: 'smooth' }), 300); };
 }
 
+// 何もないときの箱(絵と一言と、次にすること)
+const EMPTY_IC = { cam: IC.cam, book: IC.book, ws: IC.ws, sales: IC.sales, label: IC.label };
+function emptyBox(ic, title, text, btn) {
+  return `<div class="card empty"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${EMPTY_IC[ic] || IC.cam}</svg></div><b>${title}</b><span class="k">${text}</span>${btn ? `<div><button class="btn" type="button" data-empty="${btn[1]}">${btn[0]}</button></div>` : ''}</div>`;
+}
+document.addEventListener('click', e => { const b = e.target.closest('[data-empty]'); if (!b) return; if (b.dataset.empty === 'cam') openCamera(); else if (b.dataset.empty === 'ws') $('ws-to').focus(); });
 // ---------- 原価 ----------
 const open = new Set();
 function renderCost() {
   const box = $('costs');
-  if (!D.products.length) { box.innerHTML = '<div class="card"><p class="k" style="margin:0">まだレシピがありません。' + CAMTXT + 'でレシピを撮ってください。</p></div>'; return; }
+  if (!D.products.length) { box.innerHTML = emptyBox('cam', 'まだレシピがありません', '手書きのレシピを1枚撮ると、1個の原価がここに出ます。', ['レシピを撮る', 'cam']); return; }
   const ordered = D.products.map((p, i) => [p, i]).sort((a, b) => (a[0].kind === 'part') - (b[0].kind === 'part'));
   let partHead = false;
   box.innerHTML = ordered.map(([p, i]) => {
@@ -352,7 +358,7 @@ function renderLabel() {
   const chips = $('label-chips'), box = $('label-box'), face = sellFace();
   $('label-h').textContent = face ? 'アレルゲン・店頭' : '裏表示';
   $('label-lead').innerHTML = face ? '対面販売では裏表示は要りません。店頭に置くアレルゲン一覧表とプライスカードを出します。卸す商品だけ、下でラベルを作れます。' : '一括表示の原案とラベル印刷。<mark>色つき</mark>は要確認。最終確認と表示の責任はお店にあります。';
-  if (!D.products.length) { chips.innerHTML = ''; box.innerHTML = '<div class="card"><p class="k" style="margin:0">レシピを撮ると、ここに' + (face ? 'アレルゲン一覧表' : '裏表示の案') + 'が出ます。</p></div>'; return; }
+  if (!D.products.length) { chips.innerHTML = ''; box.innerHTML = emptyBox('label', 'まだレシピがありません', 'レシピを撮ると、ここに' + (face ? 'アレルゲン一覧表' : '裏表示の案') + 'が出ます。', ['レシピを撮る', 'cam']); return; }
   if (!D.products.find(p => p.name === labelName)) labelName = D.products[0].name;
   const goods = D.products.filter(p => p.kind !== 'part');
   if (goods.length && !goods.find(p => p.name === labelName)) labelName = goods[0].name;
@@ -537,6 +543,7 @@ function matBox(html) {
 }
 function matBoxClose() { const b = $('mat-edit'); if (b) b.remove(); }
 function matAddBtn() {
+  if ($('mat-add-top')) return;
   let b = $('mat-add'); if (b) return;
   b = document.createElement('div'); b.id = 'mat-add'; b.style.margin = '10px 0';
   b.innerHTML = '<button class="btn" type="button">＋ 材料(商品)を足す</button> <span class="k">種類(例: マーガリン)の中に、ブランドや規格ちがいの商品を足せます</span>';
@@ -713,7 +720,7 @@ function renderWs() {
   $('ws-add').innerHTML = `<p style="margin:0 0 6px"><b>納品を記録</b></p><div class="fld"><span class="k">卸先</span><input id="ws-to" list="ws-tos" placeholder="〇〇ゴルフ"><datalist id="ws-tos">${tos.map(t => `<option value="${esc(t)}">`).join('')}</datalist>
     <span class="k">商品と数</span><input id="ws-items" placeholder="栗万十20 チーズ万十10"></div><div class="ask"><button class="btn" type="button" id="ws-go">記録</button><span class="k">${VIA}「納品 〇〇ゴルフ 栗万十20」でもOK</span></div>`;
   $('ws-go').onclick = () => { const to = $('ws-to').value.trim(), it = $('ws-items').value.trim(); if (!to || !it) { chat('卸先と、商品と数を入れてください'); return; } setValueX({ field: 'deliv', value: to + ' ' + it }); };
-  if (!ms.length) { chips.innerHTML = ''; $('ws-list').innerHTML = '<div class="card"><p class="k" style="margin:0">まだ納品の記録がありません</p></div>'; return; }
+  if (!ms.length) { chips.innerHTML = ''; $('ws-list').innerHTML = emptyBox('ws', 'まだ納品の記録がありません', '上の欄に卸先と商品・数を入れるか、もなかに「納品 〇〇ゴルフ 栗万十20」と話すと、ここに月ごとに並びます。'); return; }
   const sel = chips.dataset.m && ms.includes(chips.dataset.m) ? chips.dataset.m : ms[0];
   chips.innerHTML = ms.map(m => `<button class="chip" type="button" data-m="${m}" aria-pressed="${m === sel}">${m.replace('-', '年')}月</button>`).join('');
   chips.querySelectorAll('[data-m]').forEach(b => b.onclick = () => { chips.dataset.m = b.dataset.m; renderWs(); });
@@ -747,7 +754,7 @@ function renderSales() {
   const sa = D.sales || {}, ms = Object.keys(sa).sort().reverse(), chips = $('sales-chips');
   $('sales-add').innerHTML = `<p style="margin:0 0 6px"><b>写真がないときは数字で</b></p><div class="fld"><span class="k">日付</span><input id="sl-date" type="date" value="${new Date().toLocaleDateString('sv-SE')}"><span class="k">売上(税込)</span><input id="sl-total" inputmode="numeric" placeholder="52300"><span class="k">客数</span><input id="sl-cust" inputmode="numeric" placeholder="48(なくても可)"></div><div class="ask"><button class="btn" type="button" id="sl-go">記録</button><span class="k">${SHOT}精算レシートを撮るのが一番かんたんです</span></div>`;
   $('sl-go').onclick = () => { const t = $('sl-total').value.trim(); if (!t) { chat('売上の金額を入れてください'); return; } setValueX({ field: 'sales', value: { date: $('sl-date').value, total: t, customers: $('sl-cust').value.trim() } }); };
-  if (!ms.length) { chips.innerHTML = ''; $('sales-box').innerHTML = '<div class="card"><p class="k" style="margin:0">まだ売上の記録がありません。閉店後にレジの精算レシートを' + SHOT + '撮って送ってください</p></div>'; return; }
+  if (!ms.length) { chips.innerHTML = ''; $('sales-box').innerHTML = emptyBox('sales', 'まだ売上の記録がありません', '閉店後にレジの精算レシートを撮ると、売上ともうけがここに出ます。', ['レシートを撮る', 'cam']); return; }
   const sel = chips.dataset.m && ms.includes(chips.dataset.m) ? chips.dataset.m : ms[0];
   chips.innerHTML = ms.map(m => `<button class="chip" type="button" data-m="${m}" aria-pressed="${m === sel}">${m.replace('-', '年')}月</button>`).join('');
   chips.querySelectorAll('[data-m]').forEach(b => b.onclick = () => { chips.dataset.m = b.dataset.m; renderSales(); });
@@ -939,12 +946,23 @@ async function renderAccount() {
   };
 }
 
+// ページの頭の、さがす欄とボタン
+(() => {
+  const filt = (inp, sel, key) => { const q = inp.value.trim().toLowerCase(); document.querySelectorAll(sel).forEach(el => { el.hidden = !!q && !(el.dataset[key] || el.textContent).toLowerCase().includes(q); }); };
+  if ($('cost-q')) $('cost-q').oninput = () => filt($('cost-q'), '#costs .prod', 'name');
+  if ($('mat-q')) $('mat-q').oninput = () => filt($('mat-q'), '#mats tr[data-m]', 'm');
+  if ($('mat-add-top')) $('mat-add-top').onclick = () => matEdit(null);
+  if ($('label-print-top')) $('label-print-top').onclick = () => { const b = $('lb-print'); if (b) { b.scrollIntoView({ behavior: 'smooth', block: 'center' }); b.click(); } };
+  if ($('book-copy-top')) $('book-copy-top').onclick = () => { const b = $('sort-copy'); if (b) b.click(); else chat('まだ請求書がありません'); };
+  if ($('hyg-print-top')) $('hyg-print-top').onclick = () => { const b = $('hyg-print'); if (b) b.click(); };
+  if ($('ws-add-top')) $('ws-add-top').onclick = () => { const i = $('ws-to'); if (i) { i.scrollIntoView({ behavior: 'smooth', block: 'center' }); i.focus(); } };
+})();
 // ---------- はじまり ----------
 // パソコンの広い画面で左右2列に分けるための入れ物(ケイタイでは入れ物がないのと同じ)
 (() => {
   const SPLIT = { book: 'h1.sub', hyg: 'h1.sub', sales: '#sales-add', ws: '#ws-chips', post: '#post-out', set: '#bank-h' };
   for (const [t, sel] of Object.entries(SPLIT)) {
-    const sec = $('t-' + t), kids = [...sec.children], lead = sec.querySelector(':scope > .lead'), cut = sec.querySelector(':scope > ' + sel);
+    const sec = $('t-' + t), kids = [...sec.children], lead = sec.querySelector(':scope > .ph') || sec.querySelector(':scope > .lead'), cut = sec.querySelector(':scope > ' + sel);
     if (!cut) continue;
     const body = kids.slice(kids.indexOf(lead) + 1), ci = body.indexOf(cut);
     const cols = document.createElement('div'), L = document.createElement('div'), R = document.createElement('div');
