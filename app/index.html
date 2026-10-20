@@ -426,6 +426,13 @@ section>h1:first-child{margin-top:22px}
 .btn.call{text-decoration:none;white-space:nowrap}
 .bkline{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:6px;font-size:13.5px}
 .bkline .bk{font-weight:600;font-variant-numeric:tabular-nums}
+.regrow{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line-2)}
+.regrow:first-of-type{border-top:0}
+.regrow .rb{flex:1;min-width:0}
+.regrow .rb .k{display:block;font-size:13px}
+.regrow.done{opacity:.6}
+.pt{width:100%;border-collapse:collapse;font-size:14px}
+.pt th,.pt td{border:1px solid #999;padding:6px 8px;text-align:left}
 .contact-row{display:grid;grid-template-columns:1.3fr .8fr 1.2fr 1fr auto;gap:6px;align-items:center;padding:8px 0;border-top:1px solid var(--line-2)}
 .contact-row a{color:var(--accent);text-decoration:none;font-weight:600}
 
@@ -532,6 +539,7 @@ section.inR{animation:inR .12s ease-out}section.inL{animation:inL .12s ease-out}
       <div class="colL">
         <h1 class="sub">今日やること</h1>
         <div class="card todo" id="todo"></div>
+        <div hidden><h1 class="sub">レジに入れる値段</h1><div class="card" id="reg-box"></div></div>
         <h1 class="sub">伝言 <button class="btn ghost sm" type="button" id="memo-add">＋ 書く</button></h1>
         <div id="memos"></div>
         <h1 class="sub">確認待ち・お知らせ</h1>
@@ -664,6 +672,6 @@ section.inR{animation:inR .12s ease-out}section.inL{animation:inL .12s ease-out}
 </div></nav>
 
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-<script src="app.js?v=55"></script>
+<script src="app.js?v=56"></script>
 </body>
 </html>
