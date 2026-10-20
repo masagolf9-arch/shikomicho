@@ -339,6 +339,86 @@ nav .badge{position:absolute;top:0;left:calc(50% + 6px);min-width:18px;height:18
 @media (max-width:899px){.ph{flex-direction:column;align-items:stretch}.ph>div:first-child{width:100%}.acts{width:100%;margin-top:-4px}.srch{flex:1;min-width:0}.acts .btn{white-space:nowrap}}
 section>h1:first-child{margin-top:22px}
 
+/* 上の1行のお知らせ(今いちばん大事なこと) */
+.bar[hidden],.crumb[hidden]{display:none!important}
+.bar{display:flex;align-items:center;gap:10px;margin:10px 0 0;padding:9px 14px;border-radius:12px;background:var(--soft);color:var(--accent);font-size:14px;font-weight:600;cursor:pointer;border:1px solid color-mix(in srgb,var(--accent) 22%,transparent)}
+.bar.warn{background:var(--warn-soft);color:var(--warn);border-color:color-mix(in srgb,var(--warn) 25%,transparent)}
+.bar i{flex:0 0 8px;width:8px;height:8px;border-radius:50%;background:currentColor}
+.bar span{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar b{font-weight:600;opacity:.75;white-space:nowrap}
+/* パンくず(どこにいるか) */
+.crumb{display:none;align-items:center;gap:6px;font-size:13px;color:var(--ink-2);margin:10px 0 0}
+.crumb a{color:var(--ink-2);text-decoration:none;cursor:pointer}
+.crumb a:hover{color:var(--accent);text-decoration:underline}
+.crumb b{color:var(--ink);font-weight:600}
+.crumb .sep{opacity:.5}
+/* 今日やること */
+.todo{padding:4px 0}
+.todo .tr{display:flex;align-items:center;gap:12px;padding:11px 14px;border-top:1px solid var(--line-2);cursor:pointer;-webkit-tap-highlight-color:transparent}
+.todo .tr:first-child{border-top:0}
+.todo .tr:hover{background:var(--line-2)}
+.todo .ti{flex:0 0 36px;height:36px;border-radius:10px;display:grid;place-items:center;background:color-mix(in srgb,var(--c,var(--accent)) 14%,var(--mix));color:var(--c,var(--accent))}
+.todo .ti svg{width:20px;height:20px}
+.todo .tb{flex:1;min-width:0}
+.todo .tb b{display:block;font-weight:600;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.todo .tb .k{display:block;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.todo .td{flex:0 0 auto;text-align:right;font-size:12.5px;color:var(--ink-2);white-space:nowrap}
+.todo .td.due{color:var(--warn);font-weight:700}
+.todo .st{font-size:11px;letter-spacing:1px;color:var(--warn)}
+.todo .tr.done{opacity:.55}
+.todo .none{padding:14px;color:var(--ink-2);display:flex;gap:10px;align-items:center}
+.todo .none .mark{flex:0 0 32px;height:32px;border-radius:10px;display:grid;place-items:center;font-weight:700;background:var(--ok-soft);color:var(--ok)}
+/* はじめの5つ */
+.start{padding:14px 16px}
+.start .sh{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
+.start .sh b{font-family:var(--round);font-size:17px}
+.start .pg{height:8px;border-radius:4px;background:var(--line-2);overflow:hidden;margin:4px 0 10px}
+.start .pg i{display:block;height:100%;background:var(--accent);border-radius:4px}
+.start ol{list-style:none;margin:0;padding:0;display:grid;gap:4px}
+.start li{display:flex;align-items:center;gap:10px;padding:7px 6px;border-radius:10px;cursor:pointer}
+.start li:hover{background:var(--line-2)}
+.start li .n{flex:0 0 24px;height:24px;border-radius:50%;border:2px solid var(--line);display:grid;place-items:center;font-size:12px;font-weight:700;color:var(--ink-2)}
+.start li.ok .n{background:var(--ok);border-color:var(--ok);color:#fff}
+.start li.ok span{text-decoration:line-through;color:var(--ink-2)}
+.start li .go{margin-left:auto;color:var(--accent);font-size:13px;white-space:nowrap}
+/* 伝言 */
+.memo{display:flex;gap:12px;align-items:flex-start;padding:12px 14px}
+.memo+.memo{border-top:1px solid var(--line-2)}
+.memo .mb{flex:1;min-width:0}
+.memo .mb p{margin:0;font-size:15px;white-space:pre-wrap}
+.memo .mb .k{display:block;margin-top:4px}
+.memo .acts{display:flex;gap:6px;flex:0 0 auto}
+.btn.sm{padding:5px 10px;font-size:13px;border-radius:999px;vertical-align:middle;margin-left:6px}
+/* 予定(月の表と、一覧) */
+.cal-h{display:flex;align-items:center;justify-content:space-between;margin:14px 0 8px}
+.cal-h b{font-family:var(--round);font-size:19px}
+.cal-h .seg button{min-width:40px}
+.calg{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:8px;box-shadow:var(--shadow)}
+.calg .wd{text-align:center;font-size:11.5px;color:var(--ink-2);padding:2px 0 6px}
+.calg .wd.sun,.calg .d.sun .dn{color:var(--warn)}
+.calg .wd.sat,.calg .d.sat .dn{color:var(--accent)}
+.calg .d{min-height:46px;border-radius:8px;padding:3px 4px;font-size:11px;cursor:pointer;display:flex;flex-direction:column;gap:2px;overflow:hidden}
+.calg .d:hover{background:var(--line-2)}
+.calg .d.out{opacity:.35}
+.calg .d.closed{background:color-mix(in srgb,var(--warn) 7%,transparent)}
+.calg .d.today .dn{background:var(--accent);color:#fff;border-radius:50%}
+.calg .dn{font-size:12.5px;font-weight:600;width:22px;height:22px;display:grid;place-items:center}
+.calg .ev{display:block;border-radius:4px;padding:1px 4px;background:color-mix(in srgb,var(--c,var(--accent)) 16%,var(--mix));color:var(--c,var(--accent));white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
+.calg .dots{display:flex;gap:2px;margin:0}
+.calg .dots i{width:6px;height:6px;border-radius:50%;background:var(--c,var(--accent))}
+.evl{list-style:none;margin:0;padding:0}
+.evl li{display:flex;gap:12px;align-items:center;padding:10px 14px;border-top:1px solid var(--line-2)}
+.evl li:first-child{border-top:0}
+.evl .ed{flex:0 0 56px;text-align:center;line-height:1.1}
+.evl .ed b{display:block;font-family:var(--round);font-size:20px}
+.evl .ed small{font-size:11px;color:var(--ink-2)}
+.evl .ek{flex:0 0 auto;font-size:11.5px;padding:2px 8px;border-radius:999px;background:color-mix(in srgb,var(--c,var(--accent)) 14%,var(--mix));color:var(--c,var(--accent));font-weight:600}
+.evl .et{flex:1;min-width:0}
+.evl .et .k{display:block}
+.evl .x{background:none;border:0;color:var(--ink-2);cursor:pointer;font-size:16px;padding:4px}
+.contact-row{display:grid;grid-template-columns:1.3fr .8fr 1.2fr 1fr auto;gap:6px;align-items:center;padding:8px 0;border-top:1px solid var(--line-2)}
+.contact-row a{color:var(--accent);text-decoration:none;font-weight:600}
+
 @keyframes inR{from{transform:translateX(40px);opacity:0}to{transform:none;opacity:1}}
 @keyframes inL{from{transform:translateX(-40px);opacity:0}to{transform:none;opacity:1}}
 section.inR{animation:inR .12s ease-out}section.inL{animation:inL .12s ease-out}
@@ -373,6 +453,11 @@ section.inR{animation:inR .12s ease-out}section.inL{animation:inL .12s ease-out}
   .appbar .sname{font-family:var(--round);font-weight:700;font-size:18px;white-space:nowrap}
   .appbar .date{font-size:13px;color:var(--ink-2);white-space:nowrap}
   .appbar .askbar{flex:1;max-width:620px;margin-left:auto;box-shadow:none}
+  .crumb{display:flex}
+  .bar{margin-top:0}
+  .wrap>.bar,.wrap>.crumb{max-width:1480px;margin-left:auto;margin-right:auto}
+  #side button[aria-current="page"]{box-shadow:inset 4px 0 0 var(--c,var(--accent))}
+  .calg .d{min-height:78px}
   .greet{margin-top:12px}
   .greet h1{font-size:30px}
   #askbar-home{display:none}
@@ -409,23 +494,46 @@ section.inR{animation:inR .12s ease-out}section.inL{animation:inL .12s ease-out}
   </div>
   <div class="appbar"><div><span class="sname" id="shop2"></span><span class="date" id="date2"></span><form class="askbar" id="askbar-top" autocomplete="off"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6.5h16M4 12h16M4 17.5h10"/></svg><input id="ask-top" placeholder="もなかに聞く・記録する(例: 栗万十 90)" aria-label="もなかに聞く"><button class="btn" type="submit">送る</button></form></div></div>
 
+  <div class="bar" id="bar" hidden role="status"></div>
+  <div class="crumb" id="crumb" hidden aria-label="今いる場所"></div>
+
   <div class="state" id="state"><div class="skel"><i style="width:40%;height:28px"></i><i style="height:56px;border-radius:999px"></i><div class="skr"><i></i><i></i><i></i><i></i></div><i style="width:30%"></i><div class="skr"><i style="height:120px"></i><i style="height:120px"></i><i style="height:120px"></i><i style="height:120px"></i></div></div></div>
 
   <section id="t-today" hidden>
     <div class="greet"><h1 id="greet-h">こんにちは</h1><p id="greet-p">何をしますか?</p></div>
     <form class="askbar" id="askbar-home" autocomplete="off"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6.5h16M4 12h16M4 17.5h10"/></svg><input id="ask-home" placeholder="もなかに聞く・記録する(例: 栗万十 90)" aria-label="もなかに聞く"><button class="btn" type="submit">送る</button></form>
     <div class="menu" id="menu"></div>
-    <div class="hero" id="hero"></div>
-    <div class="dots" id="hero-dots"></div>
+    <div class="card start" id="start" hidden></div>
+    <div class="cols">
+      <div class="colL">
+        <h1 class="sub">今日やること</h1>
+        <div class="card todo" id="todo"></div>
+        <h1 class="sub">伝言 <button class="btn ghost sm" type="button" id="memo-add">＋ 書く</button></h1>
+        <div id="memos"></div>
+        <h1 class="sub">確認待ち・お知らせ</h1>
+        <p class="lead">答えるとすぐ原価に反映されます。</p>
+        <div class="stack" id="notices"></div>
+      </div>
+      <div class="colR">
+        <h1 class="sub">今の数字</h1>
+        <div class="hero" id="hero"></div>
+        <div class="dots" id="hero-dots"></div>
+        <h1 class="sub" id="prods-h">商品</h1>
+        <div class="prods" id="home-prods"></div>
+        <h1 class="sub">これからの予定 <button class="btn ghost sm" type="button" id="ev-more">ぜんぶ見る</button></h1>
+        <div class="card" id="home-events"></div>
+        <h1 class="sub">最近の記録</h1>
+        <div class="card" id="made"></div>
+      </div>
+    </div>
     <p class="swipe-hint">画面は左右にスライドしても切り替わります</p>
-    <h1 class="sub" id="prods-h">商品</h1>
-    <div class="prods" id="home-prods"></div>
-    <h1 class="sub">確認待ち・お知らせ</h1>
-    <p class="lead">答えるとすぐ原価に反映されます。</p>
-    <div class="stack" id="notices"></div>
-    <h1 class="sub">最近の記録</h1>
-    <div class="card" id="made"></div>
     <button id="go-cam" type="button" hidden></button>
+  </section>
+
+  <section id="t-cal" hidden>
+    <div class="ph"><div><h1>予定</h1><p class="lead">納品・催事・休み。もなかに「予定 10/25 〇〇ゴルフ 納品」と話しても入ります。</p></div><div class="acts"><button class="btn" type="button" id="ev-add-top">＋ 予定を足す</button></div></div>
+    <div class="card" id="ev-form" hidden></div>
+    <div id="cal"></div>
   </section>
 
   <section id="t-cost" hidden>
@@ -515,6 +623,9 @@ section.inR{animation:inR .12s ease-out}section.inL{animation:inL .12s ease-out}
       <tr><td>衛生</td><td class="k">今日まだの記録</td></tr>
       <tr><td>ポップ 栗万十</td><td class="k">ポップ・インスタ・お知らせの案</td></tr>
       <tr><td>納品 〇〇ゴルフ 栗万十20</td><td class="k">卸の納品を記録</td></tr>
+      <tr><td>伝言 田中さんから栗万十30個、明日10時</td><td class="k">お店のみんなへのメモ(ホームに出ます)</td></tr>
+      <tr><td>予定 10/25 〇〇ゴルフ 納品</td><td class="k">納品・催事・休みの予定</td></tr>
+      <tr><td>連絡先 三浦商事 電話 03-1234-5678 担当 山田</td><td class="k">業者・卸先の電話と担当</td></tr>
       <tr><td>卸値 〇〇ゴルフ 栗万十 180</td><td class="k">卸の単価(税抜)</td></tr>
       <tr><td>卸の請求</td><td class="k">今月の卸の合計</td></tr>
       <tr><td>精算レシートの写真</td><td class="k">1日の売上を記録</td></tr>
@@ -555,6 +666,6 @@ section.inR{animation:inR .12s ease-out}section.inL{animation:inL .12s ease-out}
 </div></nav>
 
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-<script src="app.js?v=46"></script>
+<script src="app.js?v=47"></script>
 </body>
 </html>

@@ -104,10 +104,135 @@ function renderToday() {
   const up0 = unpaid(), bb = $('badge-book'); bb.textContent = up0.length; bb.hidden = !up0.length;
   const hm0 = hygMissing().length, bh = $('badge-hyg'); bh.textContent = hm0; bh.hidden = !hm0;
   renderHero(q); renderMenu(q); renderGreet(); renderHomeProds();
+  renderTodo(list); renderStart(); renderMemos(); renderHomeEvents(); renderBar(); renderCal();
   $('made').innerHTML = D.made.length ? `<ul class="tl">${D.made.map(m => `<li><span class="tt">${new Date(m.t).toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' })}</span><span>${esc(m.text)}</span></li>`).join('')}</ul>`
     : '<p class="k" style="margin:0">まだありません。夕方に' + VIA + '「栗万十 90、チーズ万十 100」のように送ると、ここに出ます</p>';
 }
 
+// ---------- ホーム: 今日やること(1本のリスト。期限が近いもの・大事なものが上) ----------
+const DAY = 864e5, todayS = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+const dayDiff = s => Math.round((new Date(s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10)) - new Date(new Date().toDateString())) / DAY);
+const EVK = { '納品': 'ws', '催事': 'post', '休み': 'hyg', 'その他': 'set' };
+function todoItems(q) {
+  const t = [], me = profileName || '';
+  (D.memos || []).filter(m => !m.seen.includes(me)).slice(0, 3).forEach(m => t.push({ c: 'post', ic: 'memo', b: `伝言: ${m.text}`, k: `${m.by}から`, d: '', star: 3, go: () => $('memos').scrollIntoView({ behavior: 'smooth', block: 'start' }) }));
+  unpaid().forEach(p => { const dd = p.due ? dayDiff(p.due) : null; if (dd == null || dd <= 7) t.push({ c: 'book', ic: 'book', b: `${p.supplier}に払う ${yen(p.total)}`, k: `${+p.month.slice(5) || p.month}月分`, d: dd == null ? '期限なし' : dd < 0 ? `${-dd}日すぎ` : dd === 0 ? '今日まで' : dd === 1 ? '明日まで' : md(p.due) + 'まで', due: dd != null && dd <= 1, star: dd != null && dd <= 1 ? 3 : 2, go: () => show('book') }); });
+  const hm = hygMissing(); if (hm.length) t.push({ c: 'hyg', ic: 'hyg', b: `今日の衛生記録 あと${hm.length}つ`, k: hm.join('・'), d: '今日', star: new Date().getHours() >= 15 ? 3 : 2, go: () => show('hyg') });
+  (D.events || []).filter(e => { const dd = dayDiff(e.date); return dd >= 0 && dd <= 1; }).forEach(e => t.push({ c: EVK[e.kind] || 'set', ic: 'cal', b: `${e.kind === '納品' ? '納品: ' : ''}${e.text}${e.who ? '(' + e.who + ')' : ''}`, k: e.kind, d: dayDiff(e.date) === 0 ? '今日' : '明日', star: 2, go: () => show('cal') }));
+  if (q) t.push({ c: 'cam', ic: 'cam', b: `確認待ちに答える ${q}件`, k: '答えると原価と裏表示が確定します', d: '', star: 1, go: () => $('notices').scrollIntoView({ behavior: 'smooth', block: 'start' }) });
+  (D.ups || []).slice(-2).forEach(u => t.push({ c: 'mat', ic: 'mat', b: `${u.item}が値上がり(+${u.pct}%)`, k: `${u.supplier} ${u.old.toLocaleString()}円→${u.now.toLocaleString()}円。原価を見直す`, d: '', star: 1, go: () => { matF = 'up'; show('mat'); } }));
+  const low = ((D.stock || {}).items || []).filter(x => x.low); if (low.length) t.push({ c: 'stock', ic: 'stock', b: `そろそろ買うもの ${low.length}品`, k: low.slice(0, 4).map(x => x.key).join('・'), d: '', star: 1, go: () => { matF = 'low'; show('mat'); } });
+  return t.sort((a, b) => b.star - a.star);
+}
+function renderTodo(list) {
+  const t = todoItems(list.length), box = $('todo');
+  box.innerHTML = t.length ? t.map((x, i) => `<div class="tr" role="button" tabindex="0" data-i="${i}" style="--c:var(--c-${x.c})"><span class="ti"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[x.ic]}</svg></span><span class="tb"><b>${esc(x.b)}</b><span class="k">${esc(x.k)}</span></span><span class="td${x.due ? ' due' : ''}">${esc(x.d)}<br><span class="st">${'★'.repeat(x.star)}</span></span></div>`).join('')
+    : `<div class="none"><span class="mark">✓</span><span>今日やることは、ぜんぶ済んでいます。</span></div>`;
+  box.querySelectorAll('.tr').forEach(el => el.onclick = () => t[el.dataset.i].go());
+}
+// 上の1行: 今いちばん大事なこと(1つだけ)
+function renderBar() {
+  const t = todoItems(notices().length).filter(x => x.star >= 2), bar = $('bar');
+  if (!t.length || cur === 'today') { bar.hidden = true; return; }
+  const x = t[0]; bar.hidden = false; bar.className = 'bar' + (x.due || x.star >= 3 ? ' warn' : '');
+  bar.innerHTML = `<i></i><span>${esc(x.b)}${x.k ? ' <small style="opacity:.75">· ' + esc(x.k) + '</small>' : ''}</span><b>${esc(x.d)}${t.length > 1 ? ` · ほか${t.length - 1}件` : ''} ›</b>`;
+  bar.onclick = () => x.go();
+}
+// はじめの5つ(新しいお店。終わると消える)
+function renderStart() {
+  const si = D.shopInfo || {}, goods = D.products.filter(p => p.kind !== 'part');
+  const steps = [
+    ['お店の名前と住所を入れる', !!(si.name && si.addr), () => { show('set'); setTimeout(() => { const i = document.querySelector('[data-shop="name"]'); if (i) i.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, 200); }, '設定へ'],
+    ['レシピの写真を1枚撮る', goods.length > 0, openCamera, '撮る'],
+    ['請求書の写真を1枚撮る(材料の値段が本物になる)', (D.materials || []).some(m => m.ok), openCamera, '撮る'],
+    ['1個の重さと売値を入れる', goods.some(p => p.pw && p.price), () => show('cost'), '原価へ'],
+    ['今日の衛生記録を1回つける', !!(D.hyg && D.hyg.today && D.hyg.today.missing.length < (D.hyg.today.items || []).length) || !!(D.hyg && D.hyg.months && Object.keys(D.hyg.months).length), () => show('hyg'), '衛生へ']];
+  const done = steps.filter(x => x[1]).length, box = $('start');
+  if (done === steps.length || store.get('startHide')) { box.hidden = true; return; }
+  box.hidden = false;
+  box.innerHTML = `<div class="sh"><b>はじめの5つ</b><span class="k">${done}/${steps.length} 済</span></div><div class="pg"><i style="width:${done / steps.length * 100}%"></i></div><ol>${steps.map((x, i) => `<li class="${x[1] ? 'ok' : ''}" data-i="${i}"><span class="n">${x[1] ? '✓' : i + 1}</span><span>${esc(x[0])}</span>${x[1] ? '' : `<span class="go">${esc(x[3])} ›</span>`}</li>`).join('')}</ol><p class="k" style="margin:8px 0 0">5つ終わると、この箱は消えます。<a href="#" id="start-hide" style="color:var(--accent)">今は隠す</a></p>`;
+  box.querySelectorAll('li').forEach(li => li.onclick = () => { const x = steps[li.dataset.i]; if (!x[1]) x[2](); });
+  $('start-hide').onclick = e => { e.preventDefault(); store.set('startHide', 1); box.hidden = true; };
+}
+// 伝言: お店のみんなに残すメモ。「見た」で名前が残り、「済」で消える
+function renderMemos() {
+  const box = $('memos'), ms = D.memos || [], me = profileName || '';
+  box.innerHTML = ms.length ? `<div class="card" style="padding:0">${ms.map(m => `<div class="memo"><div class="mb"><p>${esc(m.text)}</p><span class="k">${esc(m.by)} · ${m.t ? new Date(m.t).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}${m.seen.length ? ' · 見た: ' + m.seen.map(esc).join('、') : ''}</span></div><span class="acts">${m.seen.includes(me) ? '' : `<button class="btn sm" type="button" data-seen="${m.row}">見た</button>`}<button class="btn ghost sm" type="button" data-done="${m.row}">済</button></span></div>`).join('')}</div>`
+    : `<div class="card"><p class="k" style="margin:0">伝言はありません。「＋ 書く」か、${VIA}「伝言 田中さんから栗万十30個、明日10時」のように送ると、お店のみんなのホームに出ます。</p></div>`;
+  box.querySelectorAll('[data-seen]').forEach(b => b.onclick = () => setValueX({ field: 'memo', value: { row: +b.dataset.seen } }));
+  box.querySelectorAll('[data-done]').forEach(b => b.onclick = () => setValueX({ field: 'memo', value: { row: +b.dataset.done, done: true } }));
+}
+$('memo-add').onclick = () => {
+  const box = $('memos'); if ($('memo-form')) { $('memo-form').remove(); return; }
+  box.insertAdjacentHTML('afterbegin', `<div class="card" id="memo-form"><textarea id="memo-text" rows="2" placeholder="例: 田中さんから栗万十30個、明日10時受け取り" style="width:100%;box-sizing:border-box;font:inherit;font-size:15px;padding:8px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)"></textarea><div class="ask"><button class="btn" type="button" id="memo-go">残す</button><button class="btn ghost" type="button" id="memo-cancel">やめる</button><span class="k">お店のみんなにLINEでも届きます</span></div></div>`);
+  $('memo-text').focus();
+  $('memo-cancel').onclick = () => $('memo-form').remove();
+  $('memo-go').onclick = () => { const v = $('memo-text').value.trim(); if (!v) { $('memo-text').focus(); return; } setValueX({ field: 'memo', value: { text: v } }); };
+};
+// 予定: ホームにはこれからの5件、予定の画面には月の表と一覧
+const evRow = (e, del) => `<li style="--c:var(--c-${EVK[e.kind] || 'set'})"><span class="ed"><b>${+e.date.slice(8)}</b><small>${+e.date.slice(5, 7)}月 ${['日', '月', '火', '水', '木', '金', '土'][new Date(e.date.slice(0, 4), +e.date.slice(5, 7) - 1, +e.date.slice(8)).getDay()]}</small></span><span class="ek">${esc(e.kind)}</span><span class="et">${esc(e.text)}${e.who ? `<span class="k">${esc(e.who)}</span>` : ''}</span>${del ? `<button class="x" type="button" data-del="${e.row}" aria-label="消す">✕</button>` : ''}</li>`;
+function renderHomeEvents() {
+  const box = $('home-events'), t = todayS(), evs = (D.events || []).filter(e => e.date >= t).slice(0, 5);
+  box.innerHTML = evs.length ? `<ul class="evl">${evs.map(e => evRow(e)).join('')}</ul>` : `<p class="k" style="margin:0">これからの予定はありません。${VIA}「予定 10/25 〇〇ゴルフ 納品」と送るか、予定の画面で足せます。</p>`;
+  box.style.padding = evs.length ? '0' : '';
+}
+$('ev-more').onclick = () => show('cal');
+let calYM = null;
+function renderCal() {
+  const box = $('cal'); if (!box) return;
+  const now = new Date(), ym = calYM || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`, y = +ym.slice(0, 4), m = +ym.slice(5) - 1;
+  const first = new Date(y, m, 1), start = new Date(y, m, 1 - first.getDay()), closed = (D.shopInfo || {}).closed || '', WD = ['日', '月', '火', '水', '木', '金', '土'], t = todayS();
+  const byDay = {}; (D.events || []).forEach(e => (byDay[e.date] = byDay[e.date] || []).push(e));
+  const cells = []; for (let i = 0; i < 42; i++) { const d = new Date(start.getTime() + i * DAY); if (i >= 35 && d.getMonth() !== m) break;
+    const ds = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`, evs = byDay[ds] || [], wd = d.getDay();
+    cells.push(`<div class="d${d.getMonth() !== m ? ' out' : ''}${ds === t ? ' today' : ''}${closed.includes(WD[wd]) ? ' closed' : ''}${wd === 0 ? ' sun' : wd === 6 ? ' sat' : ''}" data-d="${ds}"><span class="dn">${d.getDate()}</span>${evs.slice(0, 2).map(e => `<span class="ev" style="--c:var(--c-${EVK[e.kind] || 'set'})">${esc(e.text)}</span>`).join('')}${evs.length > 2 ? `<span class="k">+${evs.length - 2}</span>` : ''}</div>`); }
+  const list = (D.events || []).filter(e => e.date.slice(0, 7) === ym);
+  box.innerHTML = `<div class="cal-h"><b>${y}年${m + 1}月</b><span class="seg"><button type="button" id="cal-prev" aria-label="前の月">‹</button><button type="button" id="cal-today">今月</button><button type="button" id="cal-next" aria-label="次の月">›</button></span></div>
+    <div class="calg">${WD.map((w, i) => `<div class="wd${i === 0 ? ' sun' : i === 6 ? ' sat' : ''}">${w}</div>`).join('')}${cells.join('')}</div>
+    <p class="k" style="margin:8px 0 0">うすい赤の日は定休日(設定で変えられます)。日を押すと、その日の予定を足せます。</p>
+    <h1 class="sub">${m + 1}月の予定</h1><div class="card" style="padding:0">${list.length ? `<ul class="evl">${list.map(e => evRow(e, true)).join('')}</ul>` : '<p class="k" style="margin:0;padding:14px">この月の予定はまだありません。</p>'}</div>`;
+  const mv = n => { const d = new Date(y, m + n, 1); calYM = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; renderCal(); };
+  $('cal-prev').onclick = () => mv(-1); $('cal-next').onclick = () => mv(1); $('cal-today').onclick = () => { calYM = null; renderCal(); };
+  box.querySelectorAll('.d').forEach(el => el.onclick = () => evForm(el.dataset.d));
+  box.querySelectorAll('[data-del]').forEach(b => b.onclick = () => { if (confirmOnce('ev' + b.dataset.del, 'もう一度押すと、この予定を消します')) setValueX({ field: 'event', value: { row: +b.dataset.del, del: true } }); });
+}
+function evForm(date) {
+  const f = $('ev-form'); f.hidden = false;
+  const tos = Object.keys(Object.assign({}, ...Object.values(D.ws || {}))).filter(Boolean);
+  f.innerHTML = `<div class="fld"><span class="k">日付</span><input id="ev-date" type="date" value="${esc(date || todayS())}"><span class="k">種類</span><div class="seg" id="ev-kind">${['納品', '催事', '休み', 'その他'].map((k, i) => `<button type="button" data-v="${k}" aria-pressed="${i === 0}">${k}</button>`).join('')}</div><span class="k">内容</span><input id="ev-text" placeholder="例: 栗万十20 チーズ万十10 / 文化祭 / 臨時休業"><span class="k">相手</span><input id="ev-who" list="ev-tos" placeholder="卸先など(なくてもOK)"><datalist id="ev-tos">${tos.map(x => `<option value="${esc(x)}">`).join('')}</datalist></div><div class="ask"><button class="btn" type="button" id="ev-go">予定に入れる</button><button class="btn ghost" type="button" id="ev-cancel">やめる</button></div>`;
+  f.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  $('ev-kind').querySelectorAll('button').forEach(b => b.onclick = () => $('ev-kind').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b)));
+  $('ev-cancel').onclick = () => { f.hidden = true; };
+  $('ev-go').onclick = () => { const kind = $('ev-kind').querySelector('[aria-pressed="true"]').dataset.v, text = $('ev-text').value.trim(); if (!text && kind !== '休み') { $('ev-text').focus(); return; } setValueX({ field: 'event', value: { date: $('ev-date').value, kind, text: text || kind, who: $('ev-who').value.trim() } }); f.hidden = true; };
+}
+$('ev-add-top').onclick = () => evForm();
+// 連絡先(業者・卸先の電話と担当)
+const contactOf = n => (D.contacts || []).find(c => c.name === n || (n && (n.includes(c.name) || c.name.includes(n))));
+const telLink = n => { const c = contactOf(n); return c && c.tel ? ` <a href="tel:${esc(c.tel.replace(/[^\\d+]/g, ''))}" style="color:var(--accent);text-decoration:none;font-weight:600;white-space:nowrap" title="${esc(c.person ? '担当 ' + c.person : '')}">☎ ${esc(c.tel)}</a>` : ''; };
+function contactsBox() {
+  const cs = D.contacts || [], sup = Object.keys(Object.assign({}, ...Object.values(D.months || {}).map(m => m.by))), tos = Object.keys(Object.assign({}, ...Object.values(D.ws || {})));
+  const cand = [...new Set(sup.concat(tos))].filter(n => !cs.find(c => c.name === n));
+  return `<p class="k" style="margin:0 0 6px">支払いや卸の画面に電話のリンクが出ます。${VIA}「連絡先 三浦商事 電話 03-1234-5678 担当 山田」でも入ります</p>
+    ${cs.map(c => `<div class="contact-row"><b>${esc(c.name)}</b><span class="k">${esc(c.kind)}</span><span>${c.tel ? `<a href="tel:${esc(c.tel.replace(/[^\\d+]/g, ''))}">${esc(c.tel)}</a>` : '<span class="k">電話なし</span>'}</span><span class="k">${esc(c.person)}</span><button class="btn ghost sm" type="button" data-ct-edit="${esc(c.name)}">直す</button></div>`).join('')}
+    <div id="ct-form" style="margin-top:10px"><div class="fld"><span class="k">名前</span><input id="ct-name" list="ct-cand" placeholder="業者・卸先の名前"><datalist id="ct-cand">${cand.map(n => `<option value="${esc(n)}">`).join('')}</datalist><span class="k">種類</span><div class="seg" id="ct-kind">${['業者', '卸先', 'その他'].map((k, i) => `<button type="button" data-v="${k}" aria-pressed="${i === 0}">${k}</button>`).join('')}</div><span class="k">電話</span><input id="ct-tel" inputmode="tel" placeholder="03-1234-5678"><span class="k">担当</span><input id="ct-person" placeholder="山田さん"></div><div class="ask"><button class="btn" type="button" id="ct-save">連絡先を保存</button><button class="btn ghost" type="button" id="ct-del" hidden>消す</button></div></div>`;
+}
+function bindContacts(root) {
+  const kindSel = k => root.querySelectorAll('#ct-kind button').forEach(x => x.setAttribute('aria-pressed', x.dataset.v === k));
+  root.querySelectorAll('#ct-kind button').forEach(b => b.onclick = () => kindSel(b.dataset.v));
+  root.querySelectorAll('[data-ct-edit]').forEach(b => b.onclick = () => { const c = (D.contacts || []).find(x => x.name === b.dataset.ctEdit); if (!c) return; $('ct-name').value = c.name; $('ct-tel').value = c.tel; $('ct-person').value = c.person; kindSel(c.kind); $('ct-del').hidden = false; $('ct-name').scrollIntoView({ block: 'center', behavior: 'smooth' }); });
+  $('ct-save').onclick = () => { const name = $('ct-name').value.trim(); if (!name) { $('ct-name').focus(); return; } setValueX({ field: 'contact', value: { name, kind: root.querySelector('#ct-kind [aria-pressed="true"]').dataset.v, tel: $('ct-tel').value.trim(), person: $('ct-person').value.trim() } }); };
+  $('ct-del').onclick = () => { const name = $('ct-name').value.trim(); if (name && confirmOnce('ct' + name, 'もう一度押すと、この連絡先を消します')) setValueX({ field: 'contact', value: { name, del: true } }); };
+}
+// パンくず(パソコン): ホーム › 原価 › 栗万十
+const TABNAME = { today: 'ホーム', cost: '原価', label: '裏表示', mat: '材料', book: '帳簿', hyg: '衛生記録', ws: '卸', post: '発信', sales: '売上', set: '設定', cal: '予定' };
+function setCrumb(parts) {
+  const c = $('crumb'); if (!c) return;
+  if (cur === 'today' && !parts) { c.hidden = true; return; }
+  const all = [['ホーム', 'today'], [TABNAME[cur] || cur, cur]].concat((parts || []).map(x => [x, null]));
+  c.hidden = false;
+  c.innerHTML = all.map((x, i) => i === all.length - 1 ? `<b>${esc(x[0])}</b>` : `<a data-t="${x[1] || ''}">${esc(x[0])}</a><span class="sep">›</span>`).join('');
+  c.querySelectorAll('a[data-t]').forEach(a => a.onclick = () => { if (a.dataset.t) show(a.dataset.t); else show(cur); });
+}
 // ---------- ホーム: あいさつ・商品の並び ----------
 const AVC = ['cost', 'label', 'mat', 'stock', 'hyg', 'book', 'ws', 'post', 'sales', 'cam'];
 const avColor = n => { let h = 0; for (const ch of String(n)) h = (h * 31 + ch.charCodeAt(0)) | 0; return 'var(--c-' + AVC[Math.abs(h) % AVC.length] + ')'; };
@@ -172,10 +297,6 @@ function renderHero(q) {
   if (up.length) { const sum = up.reduce((a, p) => a + p.total, 0), n = up[0];
     cards.push({ cls: 'main', t: '払っていないもの', v: `${Math.round(sum).toLocaleString('ja-JP')}<small>円</small>`, k: `${up.length}件${n.due ? ' · 次の期限 ' + md(n.due) + ' ' + esc(n.supplier) : ''}`, go: () => show('book') }); }
   else cards.push({ cls: 'main', t: '払っていないもの', v: '0<small>円</small>', k: 'ぜんぶ払い済みです', go: () => show('book') });
-  if (low.length) cards.push({ cls: 'warn', t: 'そろそろ買うもの', v: `${low.length}<small>品</small>`, k: low.slice(0, 3).map(x => esc(x.key)).join('・') + (low.length > 3 ? ' ほか' : ''), go: () => { matF = 'low'; show('mat'); } });
-  const hm = hygMissing();
-  if (hm.length) cards.push({ cls: 'warn', t: '今日の衛生記録', v: `あと${hm.length}<small>つ</small>`, k: hm.map(esc).join('・'), go: () => show('hyg') });
-  if (q) cards.push({ cls: '', c: 'cam', t: '確認待ち', v: `${q}<small>件</small>`, k: '答えると原価と裏表示が確定します', go: () => $('notices').scrollIntoView({ behavior: 'smooth', block: 'start' }) });
   const ms = Object.keys(D.months || {}).sort(), lm = ms[ms.length - 1];
   const sm = Object.keys(D.sales || {}).sort().pop();
   if (sm) { const o = D.sales[sm]; cards.push({ cls: '', c: 'sales', t: `${+sm.slice(5)}月の売上`, v: `${Math.round(o.total).toLocaleString('ja-JP')}<small>円</small>`, k: `${o.nDays}日分 · 1日平均 ${yen(o.total / Math.max(1, o.nDays))}`, go: () => show('sales') }); }
@@ -202,18 +323,20 @@ const IC = {
   post: '<path d="M4 10v4h3l6 4V6L7 10z"/><path d="M16.5 9a4 4 0 0 1 0 6M19 6.5a7.5 7.5 0 0 1 0 11"/>',
   sales: '<path d="M4 19h16"/><path d="M6 15.5l4-5 3.5 3 4.5-6"/><path d="M14.5 7.5H18V11"/>',
   home: '<path d="M3 11.2 12 4l9 7.2"/><path d="M5.5 10v10h13V10"/><path d="M10 20v-6h4v6"/>',
+  cal: '<rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/><path d="M8 13h3M8 16.5h3M13.5 13h2.5"/>',
+  memo: '<path d="M4 5.5h16v10H9l-4 3.5z"/><path d="M8 9h8M8 12h5"/>',
   set: '<circle cx="12" cy="12" r="3"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8"/>'
 };
 function renderMenu(q) {
   const low = ((D.stock || {}).items || []).filter(x => x.low).length, up = unpaid().length;
   const items = [
     ['cam', '撮る', openCamera, 0, 'p'], ['cost', '原価', () => show('cost')], ['label', sellFace() ? 'アレルゲン' : '裏表示', () => show('label')], ['mat', '材料', () => { matF = 'all'; show('mat'); }],
-    ['stock', '在庫', () => { matF = 'low'; show('mat'); }, low], ['hyg', '衛生', () => show('hyg'), hygMissing().length, hygMissing().length], ['book', '帳簿', () => show('book'), up], ['ws', '卸', () => show('ws')], ['post', '発信', () => show('post')], ['sales', '売上', () => show('sales')]];
+    ['stock', '在庫', () => { matF = 'low'; show('mat'); }, low], ['hyg', '衛生', () => show('hyg'), hygMissing().length, hygMissing().length], ['book', '帳簿', () => show('book'), up], ['ws', '卸', () => show('ws')], ['post', '発信', () => show('post')], ['sales', '売上', () => show('sales')], ['cal', '予定', () => show('cal'), (D.events || []).filter(e => dayDiff(e.date) === 0).length]];
   const m = $('menu');
   m.innerHTML = items.map(([k, l, , b, w], i) => w === 'p' ? '' : `<button type="button" data-i="${i}" style="--c:var(--c-${k})"><span class="ic${w === 'p' ? ' p' : ''}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[k]}</svg></span>${l}${b ? `<span class="badge">${b}</span>` : ''}</button>`).join('');
   m.querySelectorAll('button').forEach(b => b.onclick = () => items[b.dataset.i][2]());
   // パソコンの広い画面では、同じメニューを左に縦に並べる
-  const TAB = { cost: 'cost', label: 'label', mat: 'mat', hyg: 'hyg', book: 'book', ws: 'ws', post: 'post', sales: 'sales' };
+  const TAB = { cost: 'cost', label: 'label', mat: 'mat', hyg: 'hyg', book: 'book', ws: 'ws', post: 'post', sales: 'sales', cal: 'cal' };
   const all = [['home', 'ホーム', () => show('today'), 0, 0, 'today']].concat(items.map(x => [x[0], x[1], x[2], x[3] || 0, x[4] || 0, TAB[x[0]] || '']), [['set', '設定', () => show('set'), 0, 0, 'set']]);
   const side = $('side');
   side.innerHTML = `<div class="sname"><i></i>${esc(D.shop)}<small>${esc($('date').textContent)}</small></div>` + all.map(([k, l, , b, w, t], i) => `<button type="button" data-i="${i}" data-tab="${t}" class="${w === 'p' ? 'p' : ''}" style="--c:var(--c-${k})"${t && t === cur ? ' aria-current="page"' : ''}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[k]}</svg>${l}${b ? `<span class="badge">${b}</span>` : ''}</button>`).join('');
@@ -290,7 +413,7 @@ function renderPays() {
   if (!(D.pays || []).length) { box.innerHTML = emptyBox('book', 'まだ請求書がありません', '請求書を撮ると、業者ごと・月ごとに仕分けて、払っていないものがここに並びます。', ['請求書を撮る', 'cam']); return; }
   const sum = up.reduce((a, p) => a + p.total, 0);
   box.innerHTML = `<div class="card"><div class="row"><span>${up.length ? `払っていないもの ${up.length}件` : '払っていないものはありません'}</span>${up.length ? `<span class="big" style="font-size:20px">${yen(sum)}</span>` : ''}</div>` +
-    up.map(p => `<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line)"><div>${esc(p.supplier)} <span class="k">${+p.month.slice(5) || esc(p.month)}月分${p.due ? ' · 期限 ' + esc(p.due.slice(5).replace('-', '/')) : ''}</span></div><div class="row" style="align-items:center;margin-top:6px"><b style="white-space:nowrap;font-size:17px">${yen(p.total)}</b><span style="display:flex;gap:6px;align-items:center;flex:0 0 auto"><button class="btn" style="white-space:nowrap" type="button" data-go="${p.row}">振込へ</button><button class="btn ghost" style="white-space:nowrap" type="button" data-paid="${p.row}">払った</button></span></div>`).join('') +
+    up.map(p => `<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line)"><div>${esc(p.supplier)}${telLink(p.supplier)} <span class="k">${+p.month.slice(5) || esc(p.month)}月分${p.due ? ' · 期限 ' + esc(p.due.slice(5).replace('-', '/')) : ''}</span></div><div class="row" style="align-items:center;margin-top:6px"><b style="white-space:nowrap;font-size:17px">${yen(p.total)}</b><span style="display:flex;gap:6px;align-items:center;flex:0 0 auto"><button class="btn" style="white-space:nowrap" type="button" data-go="${p.row}">振込へ</button><button class="btn ghost" style="white-space:nowrap" type="button" data-paid="${p.row}">払った</button></span></div>`).join('') +
     `<p class="k" style="margin:8px 0 0">${payBank() ? `振込は ${esc(payBank().name)} を開きます(<a href="#" id="bank-change" style="color:var(--accent)">変える</a>)。` : '「振込へ」を使うには、<a href="#" id="bank-change" style="color:var(--accent)">設定で銀行を選んでください</a>。'}${VIA}「業者名 払った」でも済にできます</p></div>`;
   box.querySelectorAll('[data-paid]').forEach(b => b.onclick = () => setValue('', 'paid', +b.dataset.paid));
   box.querySelectorAll('[data-go]').forEach(b => b.onclick = () => goPay(up.find(p => p.row === +b.dataset.go)));
@@ -406,6 +529,7 @@ function renderLabel() {
   if (goods.length && !goods.find(p => p.name === labelName)) labelName = goods[0].name;
   chips.innerHTML = goods.map(p => `<button class="chip" type="button" aria-pressed="${p.name === labelName}">${esc(p.name)}</button>`).join('');
   chips.querySelectorAll('.chip').forEach((b, i) => b.onclick = () => { labelName = goods[i].name; renderLabel(); });
+  if (cur === 'label' && labelName) setCrumb([labelName]);
   const p = D.products.find(x => x.name === labelName), lb = p.label, L = lblOf(p), si = D.shopInfo || {};
   box.innerHTML = (face ? storeBox() + `<details class="card" style="margin-top:14px" id="face-lbl"><summary><b>包装して卸す商品のラベル</b> <span class="k">道の駅・スーパーに出す分だけ</span></summary><div style="margin-top:10px">` : '') + `<div class="label">
     <div class="r"><div class="h">名称</div><div class="v">${esc(L.name)}</div></div>
@@ -594,6 +718,7 @@ function matAddBtn() {
 }
 function matEdit(name, preset) {
   const m = name ? D.materials.find(x => x.name === name) : (preset || {});
+  setCrumb([name || '材料を足す']);
   matBox(`<p style="margin:0 0 8px"><b>${name ? esc(name) : '材料(商品)を足す'}</b></p>${kindList()}
     <div style="display:grid;gap:8px">
     ${name ? '' : `<label>名前(袋に書いてある商品名)${inp('me-name', m.name, '例 ハイラード')}</label>`}
@@ -648,7 +773,7 @@ function renderAll() {
 }
 
 // ---------- タブ ----------
-const tabs = ['today', 'hyg', 'sales', 'cost', 'label', 'mat', 'book', 'ws', 'post', 'set'];
+const tabs = ['today', 'hyg', 'sales', 'cost', 'label', 'mat', 'book', 'ws', 'post', 'cal', 'set'];
 let cur = 'today';
 function show(t, quiet, keep) {
   if (!D) return;
@@ -659,7 +784,8 @@ function show(t, quiet, keep) {
   document.querySelectorAll('nav button[data-t]').forEach(b => b.dataset.t === t ? b.setAttribute('aria-current', 'page') : b.removeAttribute('aria-current'));
   document.querySelectorAll('#side button[data-tab]').forEach(b => b.dataset.tab === t ? b.setAttribute('aria-current', 'page') : b.removeAttribute('aria-current'));
   store.set('tab', t); if (!keep) window.scrollTo(0, 0);
-  if (!quiet) chat({ today: null, cost: '原価です。カードを押すと中身と入力欄が出ます。', label: '裏表示の案です。色のついたところだけ確かめてください。', mat: '材料の値段です。「仮」は請求書が来たら置き換えます。', set: '設定です。キャラや文字の大きさを変えられます。', hyg: hygMissing().length ? `今日まだの記録が${hygMissing().length}つあります。` : '今日の衛生記録はそろっています。', ws: '卸の納品と請求書です。', sales: '売上ともうけです。精算レシートを撮ると増えていきます。', post: 'ポップやインスタの文、いっしょに考えます。', book: unpaid().length ? `払っていないものが${unpaid().length}件あります。払ったら「払った」を押してください。` : '帳簿です。請求書は月ごとに仕分けてあります。' }[t], t === 'cost' ? 'clap' : t === 'label' ? 'point' : null);
+  setCrumb(null); renderBar();
+  if (!quiet) chat({ today: null, cost: '原価です。カードを押すと中身と入力欄が出ます。', label: '裏表示の案です。色のついたところだけ確かめてください。', mat: '材料の値段です。「仮」は請求書が来たら置き換えます。', set: '設定です。キャラや文字の大きさを変えられます。', hyg: hygMissing().length ? `今日まだの記録が${hygMissing().length}つあります。` : '今日の衛生記録はそろっています。', ws: '卸の納品と請求書です。', sales: '売上ともうけです。精算レシートを撮ると増えていきます。', post: 'ポップやインスタの文、いっしょに考えます。', cal: '予定です。納品・催事・休みを入れておくと、当日の「今日やること」に出ます。', book: unpaid().length ? `払っていないものが${unpaid().length}件あります。払ったら「払った」を押してください。` : '帳簿です。請求書は月ごとに仕分けてあります。' }[t], t === 'cost' ? 'clap' : t === 'label' ? 'point' : null);
 }
 document.querySelectorAll('nav button[data-t]').forEach(b => b.onclick = () => show(b.dataset.t));
 // 左右スワイプで隣の画面へ(横に動く部品の上では反応しない)
@@ -695,7 +821,7 @@ function renderSet() {
     `) + grp('お知らせ', 'hyg', `
     <div class="set-row"><span>衛生記録のお知らせ<br><span class="k">記録がまだのとき、LINEで念押しする時刻</span></span><div class="seg" id="hygnotice" style="flex-wrap:wrap;justify-content:flex-end">${[['off', '送らない'], ['9', '9時'], ['12', '12時'], ['15', '15時'], ['17', '17時'], ['19', '19時'], ['21', '21時']].map(([v, l]) => `<button type="button" data-v="${v}" aria-pressed="${String((D.shopInfo || {}).hygNotice || '17') === v}">${l}</button>`).join('')}</div></div>
     <div class="set-row"><span>定休日<br><span class="k">衛生の念押しを休む</span></span><div class="seg" id="closed">${['月', '火', '水', '木', '金', '土', '日'].map(w => `<button type="button" data-w="${w}" aria-pressed="${((D.shopInfo || {}).closed || '').includes(w)}">${w}</button>`).join('')}</div></div>
-    `) + grp('お店の情報', 'ws', `<p class="k" style="margin:0 0 6px">卸の請求書とラベルの製造者欄に入ります</p>
+    `) + grp('連絡先', 'book', contactsBox()) + grp('お店の情報', 'ws', `<p class="k" style="margin:0 0 6px">卸の請求書とラベルの製造者欄に入ります</p>
     <div class="set-row" style="display:block;padding-top:0">
       <div class="fld" style="margin-top:8px">${[['name', '店名'], ['addr', '住所'], ['tel', '電話'], ['reg', '登録番号(T〜)'], ['bank', '振込先']].map(([k, l]) => `<span class="k">${l}</span><input data-shop="${k}" value="${esc((D.shopInfo || {})[k] || '')}">`).join('')}</div>
       <div class="ask"><button class="btn" type="button" id="shop-save">お店の情報を保存</button></div></div>`) + `
@@ -709,6 +835,7 @@ function renderSet() {
     applyLook(); renderSet();
   });
   $('reload').onclick = () => location.reload();
+  bindContacts($('set-box'));
   $('hygnotice').querySelectorAll('button').forEach(b => b.onclick = () => setValueX({ field: 'hygnotice', value: b.dataset.v }));
   $('closed').querySelectorAll('button').forEach(b => b.onclick = () => { b.setAttribute('aria-pressed', b.getAttribute('aria-pressed') !== 'true'); const v = [...$('closed').querySelectorAll('[aria-pressed="true"]')].map(x => x.dataset.w).join(''); setValueX({ field: 'closed', value: v }); });
   $('shop-save').onclick = () => { const v = {}; $('set-box').querySelectorAll('[data-shop]').forEach(i => v[i.dataset.shop] = i.value.trim()); setValueX({ field: 'shop', value: v }); };
@@ -773,7 +900,7 @@ function renderWs() {
   const prevK = ms[ms.indexOf(sel) + 1], prevTot = prevK ? Object.values(ws[prevK]).reduce((a, x) => a + x.total, 0) : null;
   $('ws-list').innerHTML = `<div class="card">${tiles([{ t: `${+sel.slice(5)}月の卸(税抜)`, v: yen(wsTot), c: 'ws', k: prevTot != null ? `前月 ${yen(prevTot)}(${wsTot >= prevTot ? '+' : ''}${Math.round((wsTot - prevTot) / Math.max(1, prevTot) * 100)}%)` : '' }, { t: '卸先', v: Object.keys(by).length + '<small style="font-size:14px;font-weight:500"> 件</small>', c: 'ws' }])}
     ${Object.keys(by).length > 1 ? `<p class="ct" style="margin-top:12px">卸先ごと</p>${barsH(Object.keys(by).map(to => ({ l: to, v: by[to].total })).sort((a, b) => b.v - a.v), 'var(--c-ws)')}` : ''}</div>` + Object.keys(by).map((to, i) => { const o = by[to], miss = [...new Set(o.lines.filter(l => l.unit == null).map(l => l.item))];
-    return `<div class="card"><div class="row"><b>${esc(to)}</b><span class="big" style="font-size:20px">${yen(o.total)}</span></div><p class="k" style="margin:2px 0 6px">税抜 · ${o.lines.length}回の納品</p>
+    return `<div class="card"><div class="row"><b>${esc(to)}${telLink(to)}</b><span class="big" style="font-size:20px">${yen(o.total)}</span></div><p class="k" style="margin:2px 0 6px">税抜 · ${o.lines.length}回の納品</p>
     ${miss.length ? `<div class="ask" style="margin-top:0">${miss.map((it, j) => `<span class="k">${esc(it)}の卸値</span><input id="wp-${i}-${j}" inputmode="numeric" placeholder="円" style="width:80px"><button class="btn ghost" type="button" data-wp="${i}-${j}" data-to="${esc(to)}" data-it="${esc(it)}">決める</button>`).join('')}</div>` : ''}
     <div class="ask"><button class="btn ghost" type="button" data-inv="${esc(to)}">請求書を見る・印刷</button></div></div>`; }).join('');
   $('ws-list').querySelectorAll('[data-wp]').forEach(b => b.onclick = () => { const v = +$('wp-' + b.dataset.wp).value; if (!(v > 0)) return; setValueX({ field: 'wsprice', to: b.dataset.to, product: b.dataset.it, value: v }); });
