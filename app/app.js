@@ -121,7 +121,7 @@ function renderA2hs() {
   const ext = location.origin + location.pathname.replace(/^\/l\//, '/') + (location.search ? location.search + '&' : '?') + 'openExternalBrowser=1';
   let how;
   if (IN_LINE) how = `<p class="k" style="margin:4px 0 8px">LINEの中からはホーム画面に置けません。下のボタンでいつものブラウザで開いてから、そこで置いてください。</p><a class="btn" id="a2hs-ext" href="${esc(ext)}" style="text-decoration:none">ブラウザで開く</a>`;
-  else if (android || a2hsEvt) how = `<p style="margin:10px 0 0"><button class="btn" type="button" id="a2hs-go" style="font-size:17px;padding:12px 22px">ホーム画面に置く</button></p>`;
+  else if (android || ios || a2hsEvt) how = `<p style="margin:10px 0 0"><button class="btn" type="button" id="a2hs-go" style="font-size:17px;padding:12px 22px">ホーム画面に置く</button></p>`;
   else if (ios) how = `<ol class="k" style="margin:4px 0 0;padding-left:1.3em;line-height:1.9"><li>画面の下(または上)の <b>共有ボタン</b>(四角に上向きの矢印)を押す</li><li><b>「ホーム画面に追加」</b>を押す</li><li>右上の<b>「追加」</b>を押す</li></ol>`;
   else how = `<p class="k" style="margin:4px 0 0">ブラウザのメニューから「ホーム画面に追加」を選んでください。</p>`;
   box.hidden = false;
@@ -137,7 +137,12 @@ function renderA2hs() {
 function a2hsHelp() {
   const ov = document.createElement('div');
   ov.className = 'a2ov';
-  const steps = [
+  const iosSteps = [
+    { t: 'まず、もう置いてあるか見てみましょう', b: '携帯のホーム画面(アプリが並んでいる画面)に戻って、「仕込帳」のアイコンがないか見てください。横にめくった先にあることもあります。' },
+    { t: '無かったら: 共有のマークを押します', b: '画面の<b>いちばん下のまん中</b>にある、<b>四角から矢印が上に出ているマーク</b>を押してください。<br><span class="k">見当たらないときは、右下の「…」を押すと「共有」が出てきます。それを押してください。</span>', img: 'a2hs_ios_1.webp' },
+    { t: '「ホーム画面に追加」を押します', b: '出てきた一覧を指で少し上に動かすと<b>「ホーム画面に追加」</b>があります。それを押してください。', img: 'a2hs_ios_2.webp' },
+    { t: '最後に右上の「追加」を押します', b: '右上の<b>「追加」</b>を押します。<br>これで携帯のホーム画面に「仕込帳」のアイコンができます。', img: 'a2hs_ios_3.webp' }];
+  const steps = /iPhone|iPad|iPod/.test(navigator.userAgent) ? iosSteps : [
     { t: 'まず、もう置いてあるか見てみましょう', b: '前に一度「インストール」を押していれば、もう置いてあります。いったん携帯のホーム画面(アプリが並んでいる画面)に戻って、「仕込帳」のアイコンがないか見てください。横にめくった先にあることもあります。', pic: '' },
     { t: '無かったら: 点が3つのマークを押します', b: '画面の<b>いちばん下の右はし</b>(携帯によっては<b>いちばん上の右はし</b>)にある <b style="font-size:20px">︙</b> を押してください。', img: 'a2hs_1.webp' },
     { t: '「ショートカット作成」を押します', b: '出てきた一覧から<b>「ショートカット作成」</b>を押します。<br><span class="k">携帯によっては<b>「ホーム画面に追加」「アプリをインストール」「ページを追加」</b>と書いてあります。どれか1つがあれば、それを押してください。</span>', img: 'a2hs_2.webp' },
