@@ -1038,8 +1038,8 @@ function hygTable(mo) {
     h += `<tr><td>${d}(${'日月火水木金土'[new Date(y, m - 1, d).getDay()]})</td>${names.map(x => r[x] ? `<td class="${r[x].j === 'OK' ? '' : 'bad'}">${esc(String(r[x].v))}</td>` : '<td></td>').join('')}<td>${esc(who)}</td></tr>`; }
   return h + '</table>';
 }
-function openPrint(html) {
-  if (!/<h2/.test(html.slice(0, 200))) html = `<div class="ph-print"><b>${esc(D.shop)}</b><span>${new Date().toLocaleDateString('ja-JP')}</span></div>` + html; else html = html.replace(/<\/h2>/, `</h2><div class="ph-print"><b>${esc(D.shop)}</b><span>${new Date().toLocaleDateString('ja-JP')}</span></div>`);
+function openPrint(html, opt) {
+  if (opt && opt.bare) {} else if (!/<h2/.test(html.slice(0, 200))) html = `<div class="ph-print"><b>${esc(D.shop)}</b><span>${new Date().toLocaleDateString('ja-JP')}</span></div>` + html; else html = html.replace(/<\/h2>/, `</h2><div class="ph-print"><b>${esc(D.shop)}</b><span>${new Date().toLocaleDateString('ja-JP')}</span></div>`);
   const v = $('inv'); v.classList.remove('lprint'); const lp = document.getElementById('lb-page'); if (lp) lp.textContent = ''; v.innerHTML = html + '<div class="bar3"><button class="btn" type="button" id="inv-print">印刷・PDFにする</button><button class="btn ghost" type="button" id="inv-close">閉じる</button></div>'; v.hidden = false;
   $('inv-print').onclick = () => window.print(); $('inv-close').onclick = () => { v.hidden = true; };
 }
@@ -1106,17 +1106,128 @@ function renderSales() {
   $('sales-box').querySelectorAll('[data-ra]').forEach(b => b.onclick = () => { const p = $('ra-' + b.dataset.ra).value; if (!p) return; setValueX({ field: 'regalias', reg: b.dataset.reg, product: p }); });
 }
 // ---------- 発信 ----------
+// ---------- 発信: SNSに上げる画像・店に置くもの(ポップ・値札・貼り紙) ----------
+// 絵は画面の中(canvas)で作る。AIは言葉だけ。写真を入れると写真の上に文字をのせる
+const THEMES = {
+  wa: { bg: '#f5ecdc', bg2: '#ead9bd', ink: '#2b1d12', accent: '#a8322a', soft: '#7a5a3a', font: '"Shippori Mincho B1","Hiragino Mincho ProN","Yu Mincho",serif', label: '和' },
+  white: { bg: '#ffffff', bg2: '#eef3f1', ink: '#1d2a28', accent: '#2f7d6d', soft: '#5d6b68', font: '"Zen Maru Gothic","Hiragino Maru Gothic ProN",sans-serif', label: 'しろ' },
+  pop: { bg: '#ffe9a8', bg2: '#ffd45e', ink: '#3a2306', accent: '#d9481c', soft: '#7a5214', font: '"Zen Maru Gothic","Hiragino Maru Gothic ProN",sans-serif', label: 'あかるい' }
+};
+const PS = { theme: store.get('pTheme', 'wa'), size: 'sq', photo: null, d: null };
+function wrapJa(ctx, text, maxW) {
+  const out = []; let line = '';
+  for (const ch of String(text || '')) {
+    if (ch === '\n') { out.push(line); line = ''; continue; }
+    if (ctx.measureText(line + ch).width > maxW && line) { if (/^[、。」』）)！!？?ー〜]$/.test(ch)) { line += ch; out.push(line); line = ''; continue; } out.push(line); line = ch; } else line += ch;
+  }
+  if (line) out.push(line); return out;
+}
+// 1枚の絵を描く。w,hはピクセル。kind: sns / pop / notice
+function drawCard(cv, o) {
+  const T = THEMES[o.theme] || THEMES.wa, w = cv.width, h = cv.height, c = cv.getContext('2d'), u = w / 1080;
+  c.clearRect(0, 0, w, h);
+  const photo = o.photo && o.kind !== 'notice';
+  if (photo) {
+    const im = o.photo, sc = Math.max(w / im.width, h / im.height), iw = im.width * sc, ih = im.height * sc;
+    c.drawImage(im, (w - iw) / 2, (h - ih) / 2, iw, ih);
+    const g = c.createLinearGradient(0, h * .38, 0, h); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,.72)'); c.fillStyle = g; c.fillRect(0, 0, w, h);
+  } else {
+    c.fillStyle = T.bg; c.fillRect(0, 0, w, h);
+    c.fillStyle = T.bg2; c.globalAlpha = .55;
+    c.beginPath(); c.arc(w * .92, h * .1, w * .32, 0, 7); c.fill(); c.beginPath(); c.arc(w * .05, h * .95, w * .26, 0, 7); c.fill(); c.globalAlpha = 1;
+    c.strokeStyle = T.accent; c.lineWidth = 6 * u; c.strokeRect(36 * u, 36 * u, w - 72 * u, h - 72 * u);
+    c.lineWidth = 2 * u; c.strokeRect(50 * u, 50 * u, w - 100 * u, h - 100 * u);
+  }
+  const ink = photo ? '#fff' : T.ink, soft = photo ? 'rgba(255,255,255,.88)' : T.soft, pad = 110 * u, maxW = w - pad * 2;
+  c.textAlign = 'center'; c.textBaseline = 'alphabetic';
+  // 店名(上)
+  c.fillStyle = photo ? 'rgba(255,255,255,.95)' : T.accent; c.font = `700 ${40 * u}px ${T.font}`;
+  if (!photo) c.fillText(o.shop || '', w / 2, 130 * u);
+  // 見出し・ひと言・商品名と値段
+  let fs = (o.kind === 'notice' ? 84 : 116) * u; c.font = `700 ${fs}px ${T.font}`;
+  let lines = wrapJa(c, o.catch, maxW);
+  // はみ出す1〜2文字だけの行ができないように、少し小さくして収める
+  while ((lines.length > 3 || (lines.length > 1 && [...lines[lines.length - 1]].length <= 2)) && fs > 64 * u) { fs -= 4 * u; c.font = `700 ${fs}px ${T.font}`; lines = wrapJa(c, o.catch, maxW); }
+  const sfs = (o.kind === 'notice' ? 58 : 46) * u; c.font = `500 ${sfs}px ${T.font}`; const slines = wrapJa(c, o.sub, maxW).slice(0, o.kind === 'notice' ? 8 : 3);
+  const nm = o.name ? o.name + (o.price ? '  ' + Number(o.price).toLocaleString('ja-JP') + '円' : '') : '';
+  const blockH = lines.length * fs * 1.25 + (slines.length ? 40 * u + slines.length * sfs * 1.5 : 0) + (nm ? 110 * u : 0);
+  let y = photo ? h - 120 * u - blockH + fs : Math.max(220 * u + fs, (h - blockH) / 2 + fs * .9);
+  if (photo) { c.textAlign = 'left'; }
+  const x = photo ? pad * .7 : w / 2;
+  c.fillStyle = ink; c.font = `700 ${fs}px ${T.font}`;
+  if (photo) { c.shadowColor = 'rgba(0,0,0,.35)'; c.shadowBlur = 12 * u; }
+  lines.forEach(l => { c.fillText(l, x, y); y += fs * 1.25; });
+  if (!photo && lines.length) { c.fillStyle = T.accent; c.fillRect(w / 2 - 60 * u, y - fs * .55, 120 * u, 6 * u); }
+  y += 40 * u - fs * .25 + sfs; c.fillStyle = soft; c.font = `500 ${sfs}px ${T.font}`;
+  slines.forEach(l => { c.fillText(l, x, y); y += sfs * 1.5; });
+  if (nm) {
+    y += 40 * u; c.font = `700 ${52 * u}px ${T.font}`; const tw = Math.min(maxW, c.measureText(nm).width + 70 * u), bx = photo ? x - 10 * u : w / 2 - tw / 2;
+    c.shadowBlur = 0; c.fillStyle = photo ? 'rgba(255,255,255,.92)' : T.accent; c.beginPath(); c.roundRect ? c.roundRect(bx, y - 62 * u, tw, 88 * u, 44 * u) : c.rect(bx, y - 62 * u, tw, 88 * u); c.fill();
+    c.fillStyle = photo ? T.ink : '#fff'; c.textAlign = 'center'; c.fillText(nm, bx + tw / 2, y - 2 * u);
+  }
+  c.shadowBlur = 0;
+  if (photo) { c.textAlign = 'right'; c.fillStyle = 'rgba(255,255,255,.9)'; c.font = `700 ${34 * u}px ${T.font}`; c.fillText(o.shop || '', w - 50 * u, 80 * u); }
+}
+async function fontsReady() { try { await Promise.all([document.fonts.load('700 40px "Shippori Mincho B1"'), document.fonts.load('700 40px "Zen Maru Gothic"')]); } catch (e) {} }
+function cardOpts(kind) { const d = PS.d || {}; return { kind, theme: PS.theme, photo: PS.photo, shop: D.shop, catch: ($('ps-catch') || {}).value ?? d.catch, sub: ($('ps-sub') || {}).value ?? d.sub, name: ($('ps-name') && $('ps-name').checked) ? d.name : '', price: d.price }; }
+function snsDraw() { const cv = $('ps-cv'); if (!cv) return; cv.width = 1080; cv.height = PS.size === 'tall' ? 1350 : 1080; drawCard(cv, cardOpts('sns')); }
+function canvasBlob(cv) { return new Promise(r => cv.toBlob(r, 'image/png')); }
+function printImage(cv, size) {
+  const url = cv.toDataURL('image/jpeg', .92);
+  openPrint(`<style>@page{size:${size};margin:0}.pimg{max-width:100%;max-height:calc(100vh - 110px);box-shadow:0 2px 12px rgba(0,0,0,.15)}@media print{.pimg{max-height:none;width:100%;box-shadow:none;display:block}}</style><div style="text-align:center"><img class="pimg" src="${url}" alt=""></div>`, { bare: true });
+}
+// 値札カード(A4に8枚)。商品名・値段・アレルゲン
+function priceCards(list) {
+  const T = THEMES[PS.theme] || THEMES.wa;
+  const cards = list.map(p => `<div class="pc" style="border-color:${T.accent};background:${T.bg};color:${T.ink};font-family:${esc(T.font)}"><div class="pc-shop" style="color:${T.accent}">${esc(D.shop)}</div><div class="pc-name">${esc(p.name)}</div><div class="pc-price">${p.price ? Number(p.price).toLocaleString('ja-JP') + '<small>円</small>' : '<span style="display:inline-block;width:32mm;border-bottom:.4mm solid currentColor">&nbsp;</span><small>円</small>'}</div>${p.label && p.label.allergens && p.label.allergens.length ? `<div class="pc-al">アレルゲン: ${esc(p.label.allergens.join('・'))}</div>` : ''}</div>`).join('');
+  openPrint(`<style>@page{size:A4;margin:8mm}.pcs{display:grid;grid-template-columns:1fr 1fr;gap:4mm}.pc{border:1.2mm double;border-radius:3mm;height:62mm;padding:4mm 5mm;box-sizing:border-box;display:flex;flex-direction:column;justify-content:center;text-align:center;break-inside:avoid}.pc-shop{font-size:10pt;font-weight:700;letter-spacing:.1em}.pc-name{font-size:20pt;font-weight:700;line-height:1.3;margin:2mm 0}.pc-price{font-size:26pt;font-weight:700}.pc-price small{font-size:12pt;margin-left:1mm}.pc-al{font-size:8.5pt;margin-top:2mm;opacity:.85}</style><div class="pcs">${cards}</div>`, { bare: true });
+}
 function renderPost() {
-  $('post-p').innerHTML = '<option value="">商品から選ぶ</option>' + D.products.map(p => `<option>${esc(p.name)}</option>`).join('');
+  const box = $('post-shop');
+  if (box) {
+    const goods = D.products.filter(p => p.kind !== 'part');
+    box.innerHTML = `<div class="row"><b>店に置くもの</b></div>
+      <p class="k" style="margin:4px 0 10px">印刷して店頭に。色は下の「SNSに上げる画像」と同じ3種類から選べます。</p>
+      <div class="ps-acts"><button class="btn ghost" type="button" id="ps-cards">値札カード(全商品・A4に8枚)</button>${sellFace() ? '<button class="btn ghost" type="button" id="ps-al">アレルゲン表</button>' : ''}
+      <button class="btn ghost" type="button" id="ps-pop" ${PS.d ? '' : 'disabled'}>ポップ(A5)</button><button class="btn ghost" type="button" id="ps-notice" ${PS.d ? '' : 'disabled'}>お知らせの貼り紙(A4)</button></div>
+      ${PS.d ? '' : '<p class="k" style="margin:6px 0 0">ポップと貼り紙は、下で案を作るとできます。</p>'}`;
+    $('ps-cards').onclick = () => { if (!goods.length) { chat('商品がまだありません'); return; } priceCards(goods); };
+    if ($('ps-al')) $('ps-al').onclick = () => show('label');
+    $('ps-pop').onclick = async () => { await fontsReady(); const cv = document.createElement('canvas'); cv.width = 1748; cv.height = 2480; drawCard(cv, Object.assign(cardOpts('pop'), { photo: null })); printImage(cv, 'A5 portrait'); };
+    $('ps-notice').onclick = async () => { await fontsReady(); const cv = document.createElement('canvas'); cv.width = 2480; cv.height = 3508; const o = cardOpts('notice'); drawCard(cv, Object.assign(o, { photo: null, catch: o.catch, sub: (PS.d && PS.d.notice) || o.sub, name: '' })); printImage(cv, 'A4 portrait'); };
+  }
+  $('post-p').innerHTML = '<option value="">商品から選ぶ</option>' + D.products.filter(p => p.kind !== 'part').map(p => `<option>${esc(p.name)}</option>`).join('');
   $('post-go').onclick = async () => {
     const sub = $('post-free').value.trim() || $('post-p').value; if (!sub) { chat('商品を選ぶか、テーマを書いてください'); return; }
     $('post-out').innerHTML = '<div class="card"><p class="k" style="margin:0">考えています…(10秒ほど)</p></div>'; chat('考えています…', 'think');
     const out = await api({ kind: 'app_gen', subject: sub });
     if (!out.ok) { $('post-out').innerHTML = ''; chat(out.error || 'うまく作れませんでした'); return; }
-    const d = out.drafts;
-    $('post-out').innerHTML = [['ポップ', d.pop], ['インスタ', d.insta], ['お知らせ', d.notice]].map(([l, t], i) => `<div class="card"><div class="row"><b>${l}</b><button class="btn ghost" type="button" data-cp="${i}">コピー</button></div><p class="draft" id="dr-${i}">${esc(t || '')}</p></div>`).join('');
+    const d = out.drafts; d.catch = d.catch || String(d.pop || '').split('\n')[0].slice(0, 14); d.sub = d.sub || ''; PS.d = d; PS.photo = null;
+    const segs = (id, list, v) => `<div class="seg" id="${id}">${list.map(([k, l]) => `<button type="button" data-v="${k}" aria-pressed="${k === v}">${l}</button>`).join('')}</div>`;
+    $('post-out').innerHTML = `<div class="card"><div class="row"><b>SNSに上げる画像</b></div>
+      <p class="k" style="margin:4px 0 10px">商品の写真を入れると、写真の上に言葉がのります。保存してインスタやLINEにそのまま上げられます。</p>
+      <div class="ps-grid"><div><canvas id="ps-cv" class="ps-cv" width="1080" height="1080" aria-label="SNS用の画像"></canvas></div>
+      <div class="ps-ctl">${segs('ps-theme', Object.keys(THEMES).map(k => [k, THEMES[k].label]), PS.theme)}${segs('ps-size', [['sq', '正方形'], ['tall', '縦長']], PS.size)}
+        <label class="btn ghost ps-photo">📷 写真を入れる<input type="file" id="ps-file" accept="image/*" hidden></label><button class="btn ghost" type="button" id="ps-nophoto" hidden>写真を外す</button>
+        <span class="k">大きい言葉</span><input id="ps-catch" value="${esc(d.catch)}"><span class="k">小さい言葉</span><input id="ps-sub" value="${esc(d.sub)}">
+        ${d.name ? `<label class="k" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="ps-name" checked> 商品名と値段を入れる</label>` : ''}
+        <div class="ps-acts"><button class="btn" type="button" id="ps-save">画像を保存</button><button class="btn ghost" type="button" id="ps-share" hidden>共有(インスタ・LINEへ)</button></div></div></div></div>
+      ${[['インスタの投稿文', d.insta, 'insta'], ['ポップの文', d.pop, 'pop'], ['お知らせの文(LINEなど)', d.notice, 'notice']].map(([l, t, k]) => `<div class="card"><div class="row"><b>${l}</b><button class="btn ghost" type="button" data-cp="${k}">コピー</button></div><p class="draft" id="dr-${k}">${esc(t || '')}</p></div>`).join('')}`;
+    const redraw = () => snsDraw();
     $('post-out').querySelectorAll('[data-cp]').forEach(b => b.onclick = async () => { try { await navigator.clipboard.writeText($('dr-' + b.dataset.cp).textContent); chat('コピーしました', 'heart'); } catch (e) { chat('長押しで選んでコピーしてください'); } });
-    chat('案ができました。書かれていないことは足していません。', 'clap');
+    $('ps-theme').querySelectorAll('button').forEach(b => b.onclick = () => { PS.theme = b.dataset.v; store.set('pTheme', PS.theme); $('ps-theme').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b)); redraw(); });
+    $('ps-size').querySelectorAll('button').forEach(b => b.onclick = () => { PS.size = b.dataset.v; $('ps-size').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b)); redraw(); });
+    ['ps-catch', 'ps-sub'].forEach(id => $(id).oninput = redraw); if ($('ps-name')) $('ps-name').onchange = redraw;
+    $('ps-file').onchange = e => { const f = e.target.files[0]; if (!f) return; const im = new Image(); im.onload = () => { PS.photo = im; $('ps-nophoto').hidden = false; redraw(); }; im.src = URL.createObjectURL(f); };
+    $('ps-nophoto').onclick = () => { PS.photo = null; $('ps-nophoto').hidden = true; $('ps-file').value = ''; redraw(); };
+    const fname = () => `${(d.name || 'post').replace(/[\\/:*?"<>|\s]/g, '')}_${PS.size === 'tall' ? '縦' : '正方形'}.png`;
+    $('ps-save').onclick = async () => { const bl = await canvasBlob($('ps-cv')); const a = document.createElement('a'); a.href = URL.createObjectURL(bl); a.download = fname(); document.body.appendChild(a); a.click(); a.remove(); chat('画像を保存しました。投稿文は「コピー」で写せます', 'clap'); };
+    if (navigator.canShare && navigator.canShare({ files: [new File([''], 'a.png', { type: 'image/png' })] })) {
+      $('ps-share').hidden = false;
+      $('ps-share').onclick = async () => { try { try { await navigator.clipboard.writeText(d.insta || ''); } catch (e) {} const bl = await canvasBlob($('ps-cv')); await navigator.share({ files: [new File([bl], fname(), { type: 'image/png' })], text: d.insta || '' }); chat('投稿文はコピーしてあります。貼り付けるだけです', 'heart'); } catch (e) {} };
+    }
+    await fontsReady(); redraw(); renderPost();
+    chat('案と画像ができました。書かれていないことは足していません。', 'clap');
   };
 }
 

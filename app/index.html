@@ -10,7 +10,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="ピタット原価">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@700&family=Zen+Maru+Gothic:wght@500;700&display=swap" rel="stylesheet">
 <style>
 /* ピタット原価 お店の画面 v16
    参考: Canva(大きな「何をしますか?」と色つきの丸いボタン)と STORES(白くすっきりした管理画面と数字の札)。
@@ -155,7 +155,7 @@ details.card summary{cursor:pointer}
 .bank.on button{color:var(--accent);font-weight:700}
 .contact textarea{display:block;width:100%;margin-top:10px;font:inherit;font-size:16px;padding:9px 11px;border:1.5px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);resize:vertical}
 .fld{display:grid;grid-template-columns:6.5em 1fr;gap:6px 8px;align-items:center}
-.fld input,.fld select,.post-in input,.post-in select{font:inherit;font-size:16px;padding:8px 10px;border:1.5px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);min-width:0;width:100%}
+.fld input,.fld select,.post-in input,.post-in select,.ps-ctl input:not([type]){font:inherit;font-size:16px;padding:8px 10px;border:1.5px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);min-width:0;width:100%}
 
 /* 印刷(請求書・記録表)は白い紙のまま */
 .inv{position:fixed;inset:0;z-index:30;background:#fff;color:#111;overflow:auto;padding:24px 18px 80px;font-size:14px}
@@ -442,6 +442,12 @@ section>h1:first-child{margin-top:22px}
 .contact-row{display:grid;grid-template-columns:1.3fr .8fr 1.2fr 1fr auto;gap:6px;align-items:center;padding:8px 0;border-top:1px solid var(--line-2)}
 .contact-row a{color:var(--accent);text-decoration:none;font-weight:600}
 .contact-row .tel{white-space:nowrap}
+.ps-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:start}
+.ps-cv{width:100%;height:auto;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,.12);display:block}
+.ps-ctl{display:flex;flex-direction:column;gap:8px}.ps-ctl input:not([type]){width:100%}
+.ps-acts{display:flex;flex-wrap:wrap;gap:8px}.ps-photo{cursor:pointer;align-self:flex-start}
+@media(max-width:700px){.ps-grid{grid-template-columns:1fr}}
+
 @media(max-width:640px){.contact-row{display:flex;flex-wrap:wrap;gap:4px 12px}.contact-row>b{flex:1 0 100%;font-size:16px}.contact-row>button{margin-left:auto}.contact-row>div{flex:1 0 100%;margin-top:0!important}}
 
 /* メンバー */
@@ -633,7 +639,8 @@ section.inR{animation:inR .12s ease-out}section.inL{animation:inL .12s ease-out}
     <div class="stack" id="ws-list"></div>
   </section>
   <section id="t-post" hidden>
-    <div class="ph"><div><h1>発信</h1><p class="lead">ポップ・インスタ・お知らせの文の案を作ります。そのまま使っても、直しても大丈夫です。</p></div></div>
+    <div class="ph"><div><h1>発信</h1><p class="lead">SNSに上げる画像と投稿文、店に置くポップ・値札・貼り紙を作ります。そのまま使っても、直しても大丈夫です。</p></div></div>
+    <div class="card" id="post-shop" style="margin-bottom:12px"></div>
     <div class="card post-in"><div class="ask" style="margin-top:0"><select id="post-p" style="flex:1"></select></div>
       <div class="ask"><input id="post-free" placeholder="または自由に(例: 年末年始の営業のお知らせ)"></div>
       <div class="ask"><button class="btn" type="button" id="post-go">案を作る</button></div></div>
@@ -685,6 +692,6 @@ section.inR{animation:inR .12s ease-out}section.inL{animation:inL .12s ease-out}
 </div></nav>
 
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-<script src="app.js?v=70"></script>
+<script src="app.js?v=71"></script>
 </body>
 </html>
