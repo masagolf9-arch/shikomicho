@@ -1667,6 +1667,7 @@ async function renderAccount() {
     ${a.email ? '' : '<div class="ask" style="margin-top:0"><input id="ac-mail" type="email" placeholder="メールアドレス" style="flex:1" aria-label="メールアドレス"><button class="btn ghost" type="button" id="ac-mail-go">メールでも入れるように</button></div><p class="k" id="ac-mail-msg" style="margin:4px 0 0"></p>'}
     ${a.line || IN_LINE || !a.lineLogin ? '' : '<div class="ask"><a class="btn ghost" href="/auth/line?link=1&next=/app/">LINEとつなぐ</a></div>'}
     <div class="ask"><button class="btn ghost" type="button" id="ac-inv">スタッフを招待するリンク</button></div><p class="k" id="ac-inv-out" style="margin:4px 0 0;word-break:break-all"></p>
+    ${IN_LINE ? '' : '<div class="ask"><a class="btn ghost" href="/password">パスワードを決めなおす</a></div>'}
     ${IN_LINE ? '' : '<form method="post" action="/auth/logout" class="ask"><button class="btn ghost" type="submit">ログアウト</button></form>'}`;
   if ($('ac-mail-go')) $('ac-mail-go').onclick = async () => {
     const m = $('ac-mail').value.trim(); if (!m) { $('ac-mail').focus(); return; }
