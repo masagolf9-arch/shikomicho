@@ -121,15 +121,46 @@ function renderA2hs() {
   const ext = location.origin + location.pathname.replace(/^\/l\//, '/') + (location.search ? location.search + '&' : '?') + 'openExternalBrowser=1';
   let how;
   if (IN_LINE) how = `<p class="k" style="margin:4px 0 8px">LINEの中からはホーム画面に置けません。下のボタンでいつものブラウザで開いてから、そこで置いてください。</p><a class="btn" id="a2hs-ext" href="${esc(ext)}" style="text-decoration:none">ブラウザで開く</a>`;
-  else if (a2hsEvt) how = `<p class="k" style="margin:4px 0 8px">押すと、ホーム画面に仕込帳のアイコンができます。</p><button class="btn" type="button" id="a2hs-go">ホーム画面に置く</button>`;
+  else if (android || a2hsEvt) how = `<p style="margin:10px 0 0"><button class="btn" type="button" id="a2hs-go" style="font-size:17px;padding:12px 22px">ホーム画面に置く</button></p>`;
   else if (ios) how = `<ol class="k" style="margin:4px 0 0;padding-left:1.3em;line-height:1.9"><li>画面の下(または上)の <b>共有ボタン</b>(四角に上向きの矢印)を押す</li><li><b>「ホーム画面に追加」</b>を押す</li><li>右上の<b>「追加」</b>を押す</li></ol>`;
-  else if (android) how = `<ol class="k" style="margin:4px 0 0;padding-left:1.3em;line-height:1.9"><li>画面の右上か右下にある <b>︙</b>(または <b>≡</b>)を押す</li><li><b>「ホーム画面に追加」</b>を押す(「ページを追加」→「ホーム画面」、「アプリをインストール」と書いてあることもあります)</li><li><b>「追加」</b>か<b>「インストール」</b>を押す</li></ol>`;
   else how = `<p class="k" style="margin:4px 0 0">ブラウザのメニューから「ホーム画面に追加」を選んでください。</p>`;
   box.hidden = false;
   box.innerHTML = `<div style="display:flex;gap:12px;align-items:flex-start"><img src="icon-192.png" alt="" width="44" height="44" style="border-radius:12px;flex:0 0 44px"><div style="flex:1;min-width:0"><b>ホーム画面に仕込帳を置く</b><p class="k" style="margin:2px 0 0">次からはアイコンを押すだけで、LINEを通らずこの画面が開きます。</p>${how}<p style="margin:8px 0 0"><a href="#" id="a2hs-no" class="k" style="color:var(--accent)">今はいい</a></p></div></div>`;
-  const go = $('a2hs-go'); if (go) go.onclick = async () => { a2hsEvt.prompt(); const r = await a2hsEvt.userChoice.catch(() => null); a2hsEvt = null; if (r && r.outcome === 'accepted') { store.set('a2hsHide', 1); box.hidden = true; toast('ホーム画面に置きました', 'ok'); } else renderA2hs(); };
+  const go = $('a2hs-go'); if (go) go.onclick = async () => {
+    if (a2hsEvt) { const ev = a2hsEvt; ev.prompt(); const r = await ev.userChoice.catch(() => null); a2hsEvt = null; if (r && r.outcome === 'accepted') { store.set('a2hsHide', 1); box.hidden = true; toast('ホーム画面に置きました', 'ok'); } return; }
+    a2hsHelp();
+  };
   const ex = $('a2hs-ext'); if (ex && window.liff && liff.isInClient && liff.isInClient()) ex.onclick = e => { e.preventDefault(); liff.openWindow({ url: location.origin + location.pathname, external: true }); };
   $('a2hs-no').onclick = e => { e.preventDefault(); store.set('a2hsHide', 1); box.hidden = true; };
+}
+// 「ホーム画面に置く」を押したのに、ブラウザが自動で置いてくれないとき: 1つずつ、絵つきで案内する
+function a2hsHelp() {
+  const ov = document.createElement('div');
+  ov.className = 'a2ov';
+  const steps = [
+    { t: 'まず、もう置いてあるか見てみましょう', b: '前に一度「インストール」を押していれば、もう置いてあります。いったん携帯のホーム画面(アプリが並んでいる画面)に戻って、「仕込帳」のアイコンがないか見てください。横にめくった先にあることもあります。', pic: '' },
+    { t: '無かったら: 点が3つのマークを押します', b: '画面の<b>いちばん下の右はし</b>か、<b>いちばん上の右はし</b>にある <b style="font-size:20px">︙</b>(点が縦に3つ)を押してください。', pic: 'dots' },
+    { t: '「ホーム画面に追加」を押します', b: '出てきた一覧の中から<b>「ホーム画面に追加」</b>を探して押してください。<br><span class="k">見つからないときは、一覧を指で上に動かすと出てきます。「アプリをインストール」「ページを追加」と書いてあることもあります。</span>', pic: 'menu' },
+    { t: '最後に「追加」を押します', b: '確認が出たら<b>「追加」</b>(または「インストール」)を押します。<br>これで携帯のホーム画面に「仕込帳」のアイコンができます。', pic: 'done' }];
+  let i = 0;
+  const PIC = {
+    dots: `<svg viewBox="0 0 240 150" width="240" height="150" aria-hidden="true"><rect x="20" y="6" width="200" height="138" rx="16" fill="#fff" stroke="#c9d3df" stroke-width="3"/><rect x="34" y="18" width="172" height="20" rx="10" fill="#eef2f7"/><circle cx="198" cy="28" r="3" fill="#555"/><circle cx="198" cy="20" r="3" fill="#555"/><circle cx="198" cy="36" r="3" fill="#555"/><rect x="34" y="112" width="172" height="20" rx="6" fill="#eef2f7"/><circle cx="196" cy="114" r="3" fill="#555"/><circle cx="196" cy="122" r="3" fill="#555"/><circle cx="196" cy="130" r="3" fill="#555"/><circle cx="198" cy="28" r="14" fill="none" stroke="#e2531c" stroke-width="4"/><circle cx="196" cy="122" r="14" fill="none" stroke="#e2531c" stroke-width="4"/><text x="120" y="80" font-size="14" text-anchor="middle" fill="#8a94a3">上か下の右はし</text></svg>`,
+    menu: `<svg viewBox="0 0 240 150" width="240" height="150" aria-hidden="true"><rect x="60" y="6" width="160" height="138" rx="12" fill="#fff" stroke="#c9d3df" stroke-width="3"/><rect x="74" y="20" width="110" height="10" rx="5" fill="#e3e8ef"/><rect x="74" y="42" width="90" height="10" rx="5" fill="#e3e8ef"/><rect x="68" y="60" width="144" height="28" rx="8" fill="#fff4e8" stroke="#e2531c" stroke-width="3"/><text x="140" y="79" font-size="14" text-anchor="middle" fill="#b23d0f" font-weight="700">ホーム画面に追加</text><rect x="74" y="100" width="100" height="10" rx="5" fill="#e3e8ef"/><rect x="74" y="120" width="80" height="10" rx="5" fill="#e3e8ef"/></svg>`,
+    done: `<svg viewBox="0 0 240 150" width="240" height="150" aria-hidden="true"><rect x="70" y="6" width="100" height="138" rx="16" fill="#fff" stroke="#c9d3df" stroke-width="3"/><rect x="86" y="24" width="20" height="20" rx="5" fill="#e3e8ef"/><rect x="110" y="24" width="20" height="20" rx="5" fill="#e3e8ef"/><rect x="134" y="24" width="20" height="20" rx="5" fill="#e3e8ef"/><rect x="86" y="54" width="20" height="20" rx="5" fill="#185fa5"/><rect x="91" y="59" width="10" height="11" fill="none" stroke="#fff" stroke-width="2"/><text x="96" y="88" font-size="9" text-anchor="middle" fill="#333">仕込帳</text><circle cx="96" cy="64" r="17" fill="none" stroke="#e2531c" stroke-width="3"/></svg>`
+  };
+  const draw = () => {
+    const s0 = steps[i];
+    ov.innerHTML = `<div class="a2card" role="dialog" aria-modal="true"><div class="k" style="margin-bottom:6px">${i + 1} / ${steps.length}</div><h3 style="margin:0 0 8px;font-size:20px">${s0.t}</h3>${s0.pic ? `<div style="text-align:center;margin:6px 0 10px">${PIC[s0.pic]}</div>` : ''}<p style="margin:0;font-size:16px;line-height:1.8">${s0.b}</p>
+      <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">${i < steps.length - 1 ? `<button class="btn" type="button" data-next style="font-size:16px;padding:10px 20px">${i === 0 ? '無かった(つぎへ)' : 'つぎへ'}</button>` : ''}${i === 0 ? '<button class="btn ghost" type="button" data-have style="font-size:16px;padding:10px 20px">あった</button>' : ''}${i > 0 ? '<button class="btn ghost" type="button" data-back>もどる</button>' : ''}<button class="btn ghost" type="button" data-close>${i === steps.length - 1 ? 'できた' : '閉じる'}</button></div>
+      <p class="k" style="margin:12px 0 0">うまくいかないときは、その画面のスクリーンショットを、設定の「問い合わせ」から送ってください。</p></div>`;
+    const q = sel => ov.querySelector(sel);
+    if (q('[data-next]')) q('[data-next]').onclick = () => { i++; draw(); };
+    if (q('[data-back]')) q('[data-back]').onclick = () => { i--; draw(); };
+    if (q('[data-have]')) q('[data-have]').onclick = () => { store.set('a2hsHide', 1); ov.remove(); const b = $('a2hs'); if (b) b.hidden = true; toast('もう置いてありました。次からはアイコンから開けます', 'ok'); };
+    q('[data-close]').onclick = () => { if (i === steps.length - 1) { store.set('a2hsHide', 1); const b = $('a2hs'); if (b) b.hidden = true; } ov.remove(); };
+  };
+  ov.onclick = e => { if (e.target === ov) ov.remove(); };
+  document.body.appendChild(ov); draw();
 }
 window.addEventListener('appinstalled', () => { store.set('a2hsHide', 1); const b = $('a2hs'); if (b) b.hidden = true; });
 // ---------- ホーム: 今日やること(1本のリスト。期限が近いもの・大事なものが上) ----------
