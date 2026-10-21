@@ -400,10 +400,11 @@ section>h1:first-child{margin-top:22px}
 /* 伝言 */
 .memo{display:flex;gap:12px;align-items:flex-start;padding:12px 14px}
 .memo+.memo{border-top:1px solid var(--line-2)}
+.prk{display:inline-block;font-size:11px;font-weight:700;color:var(--c);border:1px solid var(--c);border-radius:6px;padding:0 5px;margin-right:6px;vertical-align:2px}.prdue{color:#c0392b}.prf{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px}.prf label{display:flex;flex-direction:column;font-size:12px;color:var(--ink-2,#666);gap:3px}.prf input,.prf select{width:100%;box-sizing:border-box;font:inherit;font-size:15px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);min-width:0}
 .memo .mb{flex:1;min-width:0}
 .memo .mb p{margin:0;font-size:15px;white-space:pre-wrap}
 .memo .mb .k{display:block;margin-top:4px}
-.memo .acts{display:flex;gap:6px;flex:0 0 auto}
+.memo .acts{display:flex;gap:6px;flex:0 0 auto;width:auto;margin:0}
 .btn.sm{padding:5px 10px;font-size:13px;border-radius:999px;vertical-align:middle;margin-left:6px}
 /* 予定(月の表と、一覧) */
 .cal-h{display:flex;align-items:center;justify-content:space-between;margin:14px 0 8px}
@@ -578,6 +579,8 @@ section.inR{animation:inR .12s ease-out}section.inL{animation:inL .12s ease-out}
         <h1 class="sub">今日やること</h1>
         <div class="card todo" id="todo"></div>
         <div hidden><h1 class="sub">レジに入れる値段</h1><div class="card" id="reg-box"></div></div>
+        <h1 class="sub">約束 <button class="btn ghost sm" type="button" id="pr-add">＋ 受けた</button></h1>
+        <div id="promises"></div>
         <h1 class="sub">伝言 <button class="btn ghost sm" type="button" id="memo-add">＋ 書く</button></h1>
         <div id="memos"></div>
         <h1 class="sub">確認待ち・お知らせ</h1>
@@ -718,6 +721,6 @@ section.inR{animation:inR .12s ease-out}section.inL{animation:inL .12s ease-out}
 </div></nav>
 
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-<script src="app.js?v=77"></script>
+<script src="app.js?v=78"></script>
 </body>
 </html>

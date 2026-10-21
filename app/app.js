@@ -105,7 +105,7 @@ function renderToday() {
   const up0 = unpaid(), bb = $('badge-book'); bb.textContent = up0.length; bb.hidden = !up0.length;
   const hm0 = hygMissing().length, bh = $('badge-hyg'); bh.textContent = hm0; bh.hidden = !hm0;
   renderHero(q); renderMenu(q); renderGreet(); renderHomeProds();
-  renderA2hs(); renderTodo(list); renderStart(); renderMemos(); renderHomeEvents(); renderBar(); renderCal(); renderReg(); renderCt();
+  renderA2hs(); renderTodo(list); renderStart(); renderMemos(); renderPromises(); renderHomeEvents(); renderBar(); renderCal(); renderReg(); renderCt();
   $('made').innerHTML = D.made.length ? `<ul class="tl">${D.made.map(m => `<li><span class="tt">${new Date(m.t).toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' })}</span><span>${esc(m.text)}</span></li>`).join('')}</ul>`
     : '<p class="k" style="margin:0">まだありません。作った数を話しかけると、ここに出ます</p>';
 }
@@ -183,6 +183,7 @@ function todoItems(q) {
   if (!noMoney()) unpaid().forEach(p => { const dd = p.due ? dayDiff(p.due) : null; if (dd == null || dd <= 7) t.push({ c: 'book', ic: 'book', b: `${p.supplier}に払う ${yen(p.total)}`, k: `${+p.month.slice(5) || p.month}月分`, d: dd == null ? '期限なし' : dd < 0 ? `${-dd}日すぎ` : dd === 0 ? '今日まで' : dd === 1 ? '明日まで' : md(p.due) + 'まで', due: dd != null && dd <= 1, star: dd != null && dd <= 1 ? 3 : 2, go: () => show('book') }); });
   const regs = noMoney() ? [] : (D.priceChanges || []).filter(x => !x.done); if (regs.length) t.push({ c: 'sales', ic: 'sales', b: `レジの値段を直す ${regs.length}品`, k: regs.slice(0, 3).map(x => `${x.name} ${x.old ? x.old + '→' : ''}${x.now}円`).join('・') + (regs.length > 3 ? ' ほか' : ''), d: regs.some(x => x.at && Date.now() - x.at > DAY) ? '昨日から' : '今日', star: 3, go: () => { $('reg-box').scrollIntoView({ behavior: 'smooth', block: 'start' }); } });
   const hm = hygMissing(); if (hm.length) t.push({ c: 'hyg', ic: 'hyg', b: `今日の衛生記録 あと${hm.length}つ`, k: hm.join('・'), d: '今日', star: new Date().getHours() >= 15 ? 3 : 2, go: () => show('hyg') });
+  (D.promises || []).forEach(p => { const dd = p.date ? dayDiff(p.date) : null; if (dd != null && dd > 1) return; if (dd == null && !['折り返し', '返事'].includes(p.kind)) return; t.push({ c: PRK[p.kind] || 'set', ic: 'memo', b: `${p.kind}: ${p.text}`, k: `${p.who || ''}${p.who ? ' · ' : ''}${p.src}で受けた`, d: dd == null ? '期限なし' : prDue(p), due: dd != null && dd <= 0, star: dd != null && dd <= 0 ? 3 : 2, go: () => $('promises').scrollIntoView({ behavior: 'smooth', block: 'start' }) }); });
   (D.events || []).filter(e => { const dd = dayDiff(e.date); return dd >= 0 && dd <= 1; }).forEach(e => t.push({ c: EVK[e.kind] || 'set', ic: 'cal', b: `${e.kind === '納品' ? '納品: ' : ''}${e.text}${e.who ? '(' + e.who + ')' : ''}`, k: e.kind, d: dayDiff(e.date) === 0 ? '今日' : '明日', star: 2, go: () => show('cal') }));
   if (q) t.push({ c: 'cam', ic: 'cam', b: `確認待ちに答える ${q}件`, k: '答えると原価と裏表示が確定します', d: '', star: 1, go: () => $('notices').scrollIntoView({ behavior: 'smooth', block: 'start' }) });
   (D.ups || []).slice(-2).forEach(u => t.push({ c: 'mat', ic: 'mat', b: `${u.item}が値上がり(+${u.pct}%)`, k: `${u.supplier} ${u.old.toLocaleString()}円→${u.now.toLocaleString()}円。原価を見直す`, d: '', star: 1, go: () => { matF = 'up'; show('mat'); } }));
@@ -233,6 +234,46 @@ $('memo-add').onclick = () => {
   $('memo-text').focus();
   $('memo-cancel').onclick = () => $('memo-form').remove();
   $('memo-go').onclick = () => { const v = $('memo-text').value.trim(); if (!v) { $('memo-text').focus(); return; } setValueX({ field: 'memo', value: { text: v } }); };
+};
+// 約束: 電話・メール・店頭で受けた予約・注文、折り返し、返事、支払い。言ったまま入れるとAIが分ける。済で消える
+const PRK = { '予約・注文': 'ws', '折り返し': 'post', '返事': 'post', '支払い': 'book', 'その他': 'set' };
+const prDue = p => { if (!p.date) return ''; const dd = dayDiff(p.date); return (dd < 0 ? `${-dd}日すぎ` : dd === 0 ? '今日' : dd === 1 ? '明日' : md(p.date)) + (p.time ? ' ' + p.time : ''); };
+function renderPromises() {
+  const box = $('promises'), ps = D.promises || [];
+  box.innerHTML = ps.length ? `<div class="card" style="padding:0">${ps.map(p => { const dd = p.date ? dayDiff(p.date) : null; return `<div class="memo" style="--c:var(--c-${PRK[p.kind] || 'set'})"><div class="mb"><p><span class="prk">${esc(p.kind)}</span>${esc(p.text)}</p><span class="k">${p.who ? esc(p.who) + ' ' : ''}${p.tel ? `<a href="tel:${esc(p.tel.replace(/[^\d+]/g, ''))}">☎ ${esc(p.tel)}</a> ` : ''}· ${p.date ? `<b class="${dd != null && dd <= 0 ? 'prdue' : ''}">${esc(prDue(p))}</b>` : '期限なし'} · ${esc(p.src)}で${esc(p.by)}が受けた</span></div><span class="acts"><button class="btn ghost sm" type="button" data-pedit="${p.row}">直す</button><button class="btn sm" type="button" data-pdone="${p.row}">済</button></span></div>`; }).join('')}</div>`
+    : `<div class="card"><p class="k" style="margin:0">済んでいない約束はありません。電話を切ったら「＋ 受けた」で、聞いたことをそのまま入れてください。</p></div>`;
+  box.querySelectorAll('[data-pdone]').forEach(b => b.onclick = () => setValueX({ field: 'promise', value: { row: +b.dataset.pdone, done: true } }));
+  box.querySelectorAll('[data-pedit]').forEach(b => b.onclick = () => editPromise(ps.find(p => p.row === +b.dataset.pedit), b.closest('.memo')));
+}
+function editPromise(p, el) {
+  if (!p || !el) return; if (el.nextElementSibling && el.nextElementSibling.id === 'pr-edit') { el.nextElementSibling.remove(); return; }
+  const f = document.getElementById('pr-edit'); if (f) f.remove();
+  el.insertAdjacentHTML('afterend', `<div class="memo" id="pr-edit" style="display:block"><div class="prf"><label>中身<input id="pe-text" value="${esc(p.text)}"></label><label>種類<select id="pe-kind">${Object.keys(PRK).map(k => `<option${k === p.kind ? ' selected' : ''}>${k}</option>`).join('')}</select></label><label>相手<input id="pe-who" value="${esc(p.who)}"></label><label>電話<input id="pe-tel" inputmode="tel" value="${esc(p.tel)}"></label><label>期限<input id="pe-date" type="date" value="${esc(p.date)}"></label><label>時間<input id="pe-time" type="time" value="${esc(p.time)}"></label></div>${p.raw ? `<p class="k" style="margin:8px 0 0">受けたときの言葉: ${esc(p.raw)}</p>` : ''}<div class="ask"><button class="btn" type="button" id="pe-save">直す</button><button class="btn ghost" type="button" id="pe-del">消す</button></div></div>`);
+  $('pe-save').onclick = () => setValueX({ field: 'promise', value: { row: p.row, text: $('pe-text').value, kind: $('pe-kind').value, who: $('pe-who').value, tel: $('pe-tel').value, date: $('pe-date').value, time: $('pe-time').value } });
+  $('pe-del').onclick = () => { if (confirm('この約束を消しますか?(済んだときは「済」を押してください)')) setValueX({ field: 'promise', value: { row: p.row, del: true } }); };
+}
+let prRec = null;
+$('pr-add').onclick = () => {
+  const box = $('promises'); if ($('pr-form')) { $('pr-form').remove(); return; }
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  box.insertAdjacentHTML('afterbegin', `<div class="card" id="pr-form"><div class="seg segw" id="pr-src">${['電話', 'メール', '店頭', 'LINE'].map((s, i) => `<button type="button" data-s="${s}" aria-pressed="${i === 0}">${s}</button>`).join('')}</div>
+    <textarea id="pr-text" rows="3" placeholder="聞いたことをそのまま。例: 山田さん 土曜の10時 チーズ饅頭8個 箱で 取りに来る 090-xxxx" style="width:100%;box-sizing:border-box;font:inherit;font-size:15px;padding:8px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);margin-top:8px"></textarea>
+    <div class="ask">${SR ? '<button class="btn ghost" type="button" id="pr-mic">🎤 話して入れる</button>' : ''}<button class="btn" type="button" id="pr-go">約束に入れる</button><button class="btn ghost" type="button" id="pr-cancel">やめる</button></div>
+    <p class="k" style="margin:6px 0 0">順番はバラバラで大丈夫。AIが相手・中身・期限に分けて、足りないことがあれば教えます。${SR ? '' : 'キーボードのマイクで話して入れることもできます。'}</p></div>`);
+  let src = '電話';
+  $('pr-src').querySelectorAll('button').forEach(b => b.onclick = () => { src = b.dataset.s; $('pr-src').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b)); });
+  const stop = () => { if (prRec) { try { prRec.stop(); } catch (e) {} prRec = null; } const m = $('pr-mic'); if (m) m.textContent = '🎤 話して入れる'; };
+  if (SR) $('pr-mic').onclick = () => {
+    if (prRec) { stop(); return; }
+    const r = new SR(), ta = $('pr-text'), base = ta.value ? ta.value + ' ' : ''; r.lang = 'ja-JP'; r.continuous = true; r.interimResults = true;
+    r.onresult = e => { ta.value = base + [...e.results].map(x => x[0].transcript).join(''); };
+    r.onerror = e => { stop(); if (e.error === 'not-allowed') toast('マイクが使えません。ブラウザでマイクを許可するか、キーボードのマイクで入れてください', 'ng'); };
+    r.onend = () => { if (prRec === r) stop(); };
+    try { r.start(); prRec = r; $('pr-mic').textContent = '■ 止める'; } catch (e) { toast('マイクを始められませんでした', 'ng'); }
+  };
+  $('pr-text').focus();
+  $('pr-cancel').onclick = () => { stop(); $('pr-form').remove(); };
+  $('pr-go').onclick = async () => { stop(); const v = $('pr-text').value.trim(); if (!v) { $('pr-text').focus(); return; } const b = $('pr-go'); b.disabled = true; b.textContent = '分けています…'; await setValueX({ field: 'promise', value: { raw: v, src } }); if ($('pr-go')) { b.disabled = false; b.textContent = '約束に入れる'; } };
 };
 // 予定: ホームにはこれからの5件、予定の画面には月の表と一覧
 const evRow = (e, del) => `<li style="--c:var(--c-${EVK[e.kind] || 'set'})"${e.src === 'gcal' ? ' title="Googleカレンダーの予定"' : ''}><span class="ed"><b>${+e.date.slice(8)}</b><small>${+e.date.slice(5, 7)}月 ${['日', '月', '火', '水', '木', '金', '土'][new Date(e.date.slice(0, 4), +e.date.slice(5, 7) - 1, +e.date.slice(8)).getDay()]}</small></span><span class="ek">${esc(e.kind)}</span><span class="et">${esc(e.text)}${e.who ? `<span class="k">${esc(e.who)}</span>` : ''}${e.src === 'gcal' ? '<span class="k">Googleカレンダーから</span>' : e.by ? `<span class="k">${avatar(e.by, true)} ${esc(e.by)}</span>` : ''}${(e.notes || []).length ? `<ul class="notes">${e.notes.map(n => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}${del && e.src !== 'gcal' ? `<span class="ask" style="margin-top:6px"><input class="note-in" data-row="${e.row}" placeholder="ひと言" style="flex:1;min-width:0;font-size:13px;padding:5px 8px"><button class="btn ghost sm" type="button" data-note="${e.row}">足す</button></span>` : ''}</span>${del && e.src !== 'gcal' ? `<button class="x" type="button" data-del="${e.row}" aria-label="消す">✕</button>` : ''}</li>`;
