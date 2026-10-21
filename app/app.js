@@ -615,6 +615,9 @@ function renderCost() {
 // ---------- 裏表示 ----------
 let labelName = null;
 const LBL_STORAGE = '直射日光、高温多湿を避けて保存してください';
+// 保存方法のよく使う言い方(選ぶか、自分で書く)
+const STORAGES = ['直射日光や高温多湿を避けて保存してください。', '直射日光や高温多湿を避けて冷暗所で保存してください。', '直射日光や高温多湿を避け冷暗所又は冷蔵庫で保存してください。', '高温・多湿を避けて保存してください。',
+  '要冷蔵(10℃以下で保存してください)', '要冷蔵(4℃以下で保存してください)', '要冷凍(-18℃以下で保存してください)', '開封後は冷蔵庫に入れ、お早めにお召し上がりください。'];
 const lblDefName = p => /羊羹|ようかん/.test(p.name) ? '和生菓子(羊羹)' : /餅|もち/.test(p.name) ? '和生菓子' : '和菓子';
 // 商品ごとのラベル設定(未設定のところは案で埋める)
 function lblOf(p) {
@@ -734,7 +737,8 @@ function lblPrintCard(p, L) {
       <div class="fld" style="margin-top:8px">
         <span class="k">名称</span><input id="lb-name" value="${esc(L.name)}">
         <span class="k">期限</span><span style="display:flex;gap:6px;align-items:center"><select id="lb-dtype"><option${L.dtype === '消費期限' ? ' selected' : ''}>消費期限</option><option${L.dtype === '賞味期限' ? ' selected' : ''}>賞味期限</option></select>作った日から<input id="lb-days" inputmode="numeric" value="${L.days}" style="width:4em">日</span>
-        <span class="k">保存方法</span><input id="lb-st" value="${esc(L.storage)}">
+        <span class="k">保存方法</span><div><select id="lb-stsel" style="width:100%">${STORAGES.map(x => `<option${x === L.storage ? ' selected' : ''}>${esc(x)}</option>`).join('')}<option value=""${STORAGES.includes(L.storage) ? '' : ' selected'}>自分で書く</option></select>
+          <input id="lb-st" value="${esc(L.storage)}" style="margin-top:6px${STORAGES.includes(L.storage) ? ';display:none' : ''}" placeholder="保存方法を書く"></div>
         <span class="k">包装</span><div><div id="lb-packs">${(L.packs.length ? L.packs : [{ name: '', content: L.content, jan: L.jan }]).map(packRow).join('')}</div>
           <button class="btn ghost" type="button" id="lb-addpack">包装を足す</button><p class="k" style="margin:4px 0 0">袋・箱など包装ごとに、内容量とJANコード(卸の商品だけ)を入れます</p></div>
         <span class="k">栄養成分</span><div><label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="lb-nut"${L.nut ? ' checked' : ''} style="width:auto">ラベルに載せる</label>
@@ -749,6 +753,7 @@ function lblPrintCard(p, L) {
         ${S.roll === 'custom' ? `<span class="k">幅×長さ</span><span style="display:flex;gap:4px;align-items:center"><input id="lb-rw" inputmode="decimal" value="${rw}" style="width:4.5em">×<input id="lb-rh" inputmode="decimal" value="${rh}" style="width:4.5em">ミリ</span>` : ''}
         <span class="k">向き</span><select id="lb-rot"><option value="0"${S.rot ? '' : ' selected'}>そのまま(縦長に刷る)</option><option value="1"${S.rot ? ' selected' : ''}>90度回す(横長に刷る)</option></select>`}
       <span class="k">作った日</span><input id="lb-day" type="date" value="${iso}">
+      <span class="k">期限</span><span style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><select id="lb-dt2"><option${L.dtype === '賞味期限' ? '' : ' selected'}>消費期限</option><option${L.dtype === '賞味期限' ? ' selected' : ''}>賞味期限</option></select><input id="lb-exp" type="date" style="width:auto"><span class="k">${L.days !== '' ? `空なら作った日から${L.days}日` : '日付を入れる'}</span></span>
       <span class="k">枚数</span><span style="display:flex;gap:6px;align-items:center"><input id="lb-n" inputmode="numeric" value="${per}" style="width:5em">枚</span>
       ${sheet ? `<span class="k">使用済み</span><span style="display:flex;gap:6px;align-items:center"><input id="lb-skip" inputmode="numeric" value="0" style="width:5em">枚を飛ばす<span class="k">(使いかけの用紙)</span></span>` : ''}
       <span class="k">文字</span><select id="lb-pt">${[5.5, 6, 7, 8, 9].map(v => `<option${v == S.pt ? ' selected' : ''}>${v}</option>`).join('')}</select>
@@ -772,6 +777,7 @@ function bindLblPrint(p, L) {
   document.querySelectorAll('[data-lm]').forEach(b => b.onclick = () => { const S = lsGet(); S.mode = b.dataset.lm; lsSet(S); renderLabel(); });
   if (!$('lb-packs')) return;
   if ($('lb-mode')) $('lb-mode').onclick = e => { e.preventDefault(); const S = lsGet(); S.mode = ''; lsSet(S); renderLabel(); };
+  if ($('lb-stsel')) $('lb-stsel').onchange = () => { const v = $('lb-stsel').value; $('lb-st').style.display = v ? 'none' : ''; if (v) $('lb-st').value = v; else $('lb-st').focus(); };
   const box = $('lb-packs');
   const bindDel = () => box.querySelectorAll('.pk-del').forEach(b => b.onclick = () => { if (box.children.length > 1) b.closest('.pkrow').remove(); else b.closest('.pkrow').querySelectorAll('input').forEach(x => x.value = ''); });
   bindDel();
@@ -806,7 +812,8 @@ function bindLblPrint(p, L) {
     if (!test && p.label.check.length && !confirmOnce('lbchk', `「${p.label.check.join('、')}」が要確認のままです。このまま刷るならもう一度押してください`)) return;
     const S = keep(), n = Math.min(Math.max(parseInt(val('lb-n')) || 0, 1), 500), skip = Math.max(parseInt(val('lb-skip')) || 0, 0);
     const pk = L.packs[+val('lb-pack') || 0];
-    openLabelSheet(p, pk ? Object.assign({}, L, { content: pk.content || L.content, jan: pk.jan, pack: pk.name }) : L, S, test ? (S.mode === 'sheet' ? sheetOf(S)[3] * sheetOf(S)[4] : 1) : n, test ? 0 : skip, val('lb-day'), test);
+    const L2 = Object.assign({}, L, { dtype: val('lb-dt2') || L.dtype, exp: val('lb-exp') });
+    openLabelSheet(p, pk ? Object.assign({}, L2, { content: pk.content || L.content, jan: pk.jan, pack: pk.name }) : L2, S, test ? (S.mode === 'sheet' ? sheetOf(S)[3] * sheetOf(S)[4] : 1) : n, test ? 0 : skip, val('lb-day'), test);
   };
   $('lb-print').onclick = () => go(false); $('lb-test').onclick = () => go(true);
 }
@@ -828,7 +835,8 @@ function janSvg(code, wmm) {
 function openLabelSheet(p, L, S, n, skip, day, test) {
   const sheet = S.mode !== 'roll', si = D.shopInfo || {}, lb = p.label, k = (S.scale || 100) / 100;
   let date = '';
-  if (L.days !== '' && /^\d{4}-\d\d-\d\d$/.test(day)) { const d = new Date(day + 'T00:00:00'); d.setDate(d.getDate() + Number(L.days)); date = `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`; }
+  if (L.exp && /^\d{4}-\d\d-\d\d$/.test(L.exp)) date = L.exp.replace(/-/g, '.');
+  else if (L.days !== '' && /^\d{4}-\d\d-\d\d$/.test(day)) { const d = new Date(day + 'T00:00:00'); d.setDate(d.getDate() + Number(L.days)); date = `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`; }
   const j = janCheck(L.jan);
   // 栄養: 手で入れた値があればそれ(100g当たり/1個当たり)、なければ計算した1個当たり
   const nm = L.nut ? (L.nutMan ? { v: L.nutMan.v.map(Number), base: L.nutMan.base === '1個' ? `1${U}当たり` : '100g当たり', est: true } : (p.nutr && p.nutr.per ? { v: p.nutr.per, base: `1${U}当たり`, est: true } : null)) : null;
