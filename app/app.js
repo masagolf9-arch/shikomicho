@@ -105,11 +105,33 @@ function renderToday() {
   const up0 = unpaid(), bb = $('badge-book'); bb.textContent = up0.length; bb.hidden = !up0.length;
   const hm0 = hygMissing().length, bh = $('badge-hyg'); bh.textContent = hm0; bh.hidden = !hm0;
   renderHero(q); renderMenu(q); renderGreet(); renderHomeProds();
-  renderTodo(list); renderStart(); renderMemos(); renderHomeEvents(); renderBar(); renderCal(); renderReg();
+  renderA2hs(); renderTodo(list); renderStart(); renderMemos(); renderHomeEvents(); renderBar(); renderCal(); renderReg();
   $('made').innerHTML = D.made.length ? `<ul class="tl">${D.made.map(m => `<li><span class="tt">${new Date(m.t).toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' })}</span><span>${esc(m.text)}</span></li>`).join('')}</ul>`
     : '<p class="k" style="margin:0">まだありません。作った数をもなかに話すと、ここに出ます</p>';
 }
 
+// ホーム画面にアイコンを置く案内(ケイタイだけ・1回だけ)。置けばLINEを通らず直接この画面が開く
+let a2hsEvt = null;
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); a2hsEvt = e; if (D) renderA2hs(); });
+function renderA2hs() {
+  const box = $('a2hs'); if (!box) return;
+  const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+  if (standalone || !matchMedia('(pointer:coarse)').matches || store.get('a2hsHide')) { box.hidden = true; return; }
+  const ua = navigator.userAgent, ios = /iPhone|iPad|iPod/.test(ua), android = /Android/.test(ua);
+  const ext = location.origin + location.pathname.replace(/^\/l\//, '/') + (location.search ? location.search + '&' : '?') + 'openExternalBrowser=1';
+  let how;
+  if (IN_LINE) how = `<p class="k" style="margin:4px 0 8px">LINEの中からはホーム画面に置けません。下のボタンでいつものブラウザで開いてから、そこで置いてください。</p><a class="btn" id="a2hs-ext" href="${esc(ext)}" style="text-decoration:none">ブラウザで開く</a>`;
+  else if (a2hsEvt) how = `<p class="k" style="margin:4px 0 8px">押すと、ホーム画面に仕込帳のアイコンができます。</p><button class="btn" type="button" id="a2hs-go">ホーム画面に置く</button>`;
+  else if (ios) how = `<ol class="k" style="margin:4px 0 0;padding-left:1.3em;line-height:1.9"><li>画面の下(または上)の <b>共有ボタン</b>(四角に上向きの矢印)を押す</li><li><b>「ホーム画面に追加」</b>を押す</li><li>右上の<b>「追加」</b>を押す</li></ol>`;
+  else if (android) how = `<ol class="k" style="margin:4px 0 0;padding-left:1.3em;line-height:1.9"><li>右上の <b>︙</b> を押す</li><li><b>「ホーム画面に追加」</b>(または「アプリをインストール」)を押す</li></ol>`;
+  else how = `<p class="k" style="margin:4px 0 0">ブラウザのメニューから「ホーム画面に追加」を選んでください。</p>`;
+  box.hidden = false;
+  box.innerHTML = `<div style="display:flex;gap:12px;align-items:flex-start"><img src="icon-192.png" alt="" width="44" height="44" style="border-radius:12px;flex:0 0 44px"><div style="flex:1;min-width:0"><b>ホーム画面に仕込帳を置く</b><p class="k" style="margin:2px 0 0">次からはアイコンを押すだけで、LINEを通らずこの画面が開きます。</p>${how}<p style="margin:8px 0 0"><a href="#" id="a2hs-no" class="k" style="color:var(--accent)">今はいい</a></p></div></div>`;
+  const go = $('a2hs-go'); if (go) go.onclick = async () => { a2hsEvt.prompt(); const r = await a2hsEvt.userChoice.catch(() => null); a2hsEvt = null; if (r && r.outcome === 'accepted') { store.set('a2hsHide', 1); box.hidden = true; toast('ホーム画面に置きました', 'ok'); } else renderA2hs(); };
+  const ex = $('a2hs-ext'); if (ex && window.liff && liff.isInClient && liff.isInClient()) ex.onclick = e => { e.preventDefault(); liff.openWindow({ url: location.origin + location.pathname, external: true }); };
+  $('a2hs-no').onclick = e => { e.preventDefault(); store.set('a2hsHide', 1); box.hidden = true; };
+}
+window.addEventListener('appinstalled', () => { store.set('a2hsHide', 1); const b = $('a2hs'); if (b) b.hidden = true; });
 // ---------- ホーム: 今日やること(1本のリスト。期限が近いもの・大事なものが上) ----------
 const DAY = 864e5, todayS = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 const dayDiff = s => Math.round((new Date(s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10)) - new Date(new Date().toDateString())) / DAY);
