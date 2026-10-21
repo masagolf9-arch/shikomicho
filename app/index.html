@@ -20,7 +20,7 @@
   --accent:#185fa5; --accent-ink:#fff; --soft:#e6f0fb; --ok:#1b7a4a; --ok-soft:#e3f3ea;
   --warn:#c43a2e; --warn-soft:#fdecea; --sun:#f2b632; --sun-ink:#3d2a00; --sun-soft:#fff3d6;
   --nav:#ffffff; --nav-ink:#6b7280; --nav-on:#185fa5;
-  --c-cam:#185fa5; --c-cost:#d98a12; --c-label:#0f8c85; --c-mat:#2f9a4e; --c-stock:#e26a1a; --c-hyg:#1a9ad6; --c-book:#5a4fcf; --c-ws:#8a5a2b; --c-post:#d63f78; --c-sales:#8a3fc2; --c-set:#6b7280; --c-home:#185fa5;
+  --c-cam:#185fa5; --c-cost:#d98a12; --c-label:#0f8c85; --c-mat:#2f9a4e; --c-stock:#e26a1a; --c-hyg:#1a9ad6; --c-book:#5a4fcf; --c-ws:#8a5a2b; --c-ct:#2f7d6d; --c-post:#d63f78; --c-sales:#8a3fc2; --c-set:#6b7280; --c-home:#185fa5;
   --mix:#ffffff; --shadow:0 1px 2px rgba(20,40,70,.05),0 8px 24px rgba(20,40,70,.06);
   --font:"Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic UI","Yu Gothic","Meiryo","Noto Sans JP",sans-serif;
   --round:"Zen Maru Gothic",var(--font);
@@ -441,6 +441,8 @@ section>h1:first-child{margin-top:22px}
 .a2card{max-height:calc(100vh - 24px);overflow:auto;background:var(--card);color:var(--ink);border-radius:20px;padding:20px;width:100%;max-width:460px;box-shadow:0 12px 40px rgba(0,0,0,.25);margin-bottom:max(12px,env(safe-area-inset-bottom))}
 .contact-row{display:grid;grid-template-columns:1.3fr .8fr 1.2fr 1fr auto;gap:6px;align-items:center;padding:8px 0;border-top:1px solid var(--line-2)}
 .contact-row a{color:var(--accent);text-decoration:none;font-weight:600}
+.contact-row .tel{white-space:nowrap}
+@media(max-width:640px){.contact-row{display:flex;flex-wrap:wrap;gap:4px 12px}.contact-row>b{flex:1 0 100%;font-size:16px}.contact-row>button{margin-left:auto}.contact-row>div{flex:1 0 100%;margin-top:0!important}}
 
 /* メンバー */
 .mem-list{display:grid;gap:4px}
@@ -569,6 +571,10 @@ section.inR{animation:inR .12s ease-out}section.inL{animation:inL .12s ease-out}
     <button id="go-cam" type="button" hidden></button>
   </section>
 
+  <section id="t-ct" hidden>
+    <div class="ph"><div><h1>業者・卸先</h1><p class="lead">仕入れ先と卸先の電話・担当・振込先。請求書を撮ると自動で入ります。☎を押すと電話がかかります。</p></div></div>
+    <div class="card" id="ct-box"></div>
+  </section>
   <section id="t-cal" hidden>
     <div class="ph"><div><h1>予定</h1><p class="lead">納品・催事・休み。話しかけても入ります。</p></div><div class="acts"><button class="btn" type="button" id="ev-add-top">＋ 予定を足す</button></div></div>
     <div class="card" id="ev-form" hidden></div>
@@ -679,6 +685,6 @@ section.inR{animation:inR .12s ease-out}section.inL{animation:inL .12s ease-out}
 </div></nav>
 
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-<script src="app.js?v=68"></script>
+<script src="app.js?v=69"></script>
 </body>
 </html>
