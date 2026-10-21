@@ -523,7 +523,7 @@ section.inR{animation:inR .12s ease-out}section.inL{animation:inL .12s ease-out}
     <div class="shop"><img src="logo_mark.webp?v=1" alt="" onerror="this.remove()"><span id="shop">お店</span></div>
     <div class="date" id="date"></div>
   </div>
-  <div class="appbar"><div><span class="sname" id="shop2"></span><span class="date" id="date2"></span><form class="askbar" id="askbar-top" autocomplete="off"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6.5h16M4 12h16M4 17.5h10"/></svg><input id="ask-top" placeholder="もなかに話す(例: さっき栗万十20焼いた)" aria-label="もなかに聞く"><button class="btn" type="submit">送る</button></form></div></div>
+  <div class="appbar"><div><span class="sname" id="shop2"></span><span class="date" id="date2"></span><form class="askbar" id="askbar-top" autocomplete="off"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6.5h16M4 12h16M4 17.5h10"/></svg><input id="ask-top" placeholder="もなかに話す" aria-label="もなかに聞く"><button class="btn" type="submit">送る</button></form></div></div>
 
   <div class="bar" id="bar" hidden role="status"></div>
   <div class="crumb" id="crumb" hidden aria-label="今いる場所"></div>
@@ -532,7 +532,7 @@ section.inR{animation:inR .12s ease-out}section.inL{animation:inL .12s ease-out}
 
   <section id="t-today" hidden>
     <div class="greet"><h1 id="greet-h">こんにちは</h1><p id="greet-p">何をしますか?</p></div>
-    <form class="askbar" id="askbar-home" autocomplete="off"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6.5h16M4 12h16M4 17.5h10"/></svg><input id="ask-home" placeholder="もなかに話す(例: さっき栗万十20焼いた)" aria-label="もなかに聞く"><button class="btn" type="submit">送る</button></form>
+    <form class="askbar" id="askbar-home" autocomplete="off"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6.5h16M4 12h16M4 17.5h10"/></svg><input id="ask-home" placeholder="もなかに話す" aria-label="もなかに聞く"><button class="btn" type="submit">送る</button></form>
     <div class="menu" id="menu"></div>
     <div class="card start" id="start" hidden></div>
     <div class="cols">
@@ -563,7 +563,7 @@ section.inR{animation:inR .12s ease-out}section.inL{animation:inL .12s ease-out}
   </section>
 
   <section id="t-cal" hidden>
-    <div class="ph"><div><h1>予定</h1><p class="lead">納品・催事・休み。もなかに「予定 10/25 〇〇ゴルフ 納品」と話しても入ります。</p></div><div class="acts"><button class="btn" type="button" id="ev-add-top">＋ 予定を足す</button></div></div>
+    <div class="ph"><div><h1>予定</h1><p class="lead">納品・催事・休み。もなかに話しても入ります。</p></div><div class="acts"><button class="btn" type="button" id="ev-add-top">＋ 予定を足す</button></div></div>
     <div class="card" id="ev-form" hidden></div>
     <div id="cal"></div>
   </section>
@@ -642,7 +642,7 @@ section.inR{animation:inR .12s ease-out}section.inL{animation:inL .12s ease-out}
       <div class="ask"><button class="btn" type="button" id="ct-go">送る</button><span class="k" id="ct-via">LINEで「問い合わせ 〜」と送ってもOK</span></div>
     </div>
     <h1 class="sub" id="words-h">もなかに話す</h1>
-    <div class="card"><p style="margin:0">決まった言い方はありません。ふだんの言葉で話しかけてください。</p><p class="k" style="margin:6px 0 0">例: 「さっき栗万十20焼いた」「三浦さんに払っといた」「冷蔵3度だった」「昨日ゴルフ場に栗万十20持ってった」「田中さんから栗万十30個の注文、明日10時」「来週の火曜は休み」「今月どう?」「栗万十の売値いくらにしたらいい?」</p><p class="k" style="margin:6px 0 0">記録の前には「〜として記録しますか?」と確かめます。「はい」で確定した言い方は覚えて、次からは同じ意味に取ります。分からないときは聞き返します。</p></div>
+    <div class="card"><p style="margin:0">決まった言い方はありません。ふだんの言葉で話しかけてください。</p><p class="k" style="margin:6px 0 0">作った数、払ったこと、冷蔵庫の温度、納品、予定、「今月どう?」のような相談まで、話しかけるだけで大丈夫です。</p><p class="k" style="margin:6px 0 0">記録の前には「〜として記録しますか?」と確かめます。「はい」で確定した言い方は覚えて、次からは同じ意味に取ります。分からないときは聞き返します。</p></div>
   </section>
   <p class="foot" id="foot">試作。キャラの絵はAtelier SAISPEのLINE絵文字。</p>
 </div>
@@ -672,6 +672,6 @@ section.inR{animation:inR .12s ease-out}section.inL{animation:inL .12s ease-out}
 </div></nav>
 
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-<script src="app.js?v=56"></script>
+<script src="app.js?v=57"></script>
 </body>
 </html>

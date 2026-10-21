@@ -107,7 +107,7 @@ function renderToday() {
   renderHero(q); renderMenu(q); renderGreet(); renderHomeProds();
   renderTodo(list); renderStart(); renderMemos(); renderHomeEvents(); renderBar(); renderCal(); renderReg();
   $('made').innerHTML = D.made.length ? `<ul class="tl">${D.made.map(m => `<li><span class="tt">${new Date(m.t).toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' })}</span><span>${esc(m.text)}</span></li>`).join('')}</ul>`
-    : '<p class="k" style="margin:0">まだありません。夕方に' + VIA + '「栗万十 90、チーズ万十 100」のように送ると、ここに出ます</p>';
+    : '<p class="k" style="margin:0">まだありません。作った数をもなかに話すと、ここに出ます</p>';
 }
 
 // ---------- ホーム: 今日やること(1本のリスト。期限が近いもの・大事なものが上) ----------
@@ -160,22 +160,22 @@ function renderStart() {
 function renderMemos() {
   const box = $('memos'), ms = D.memos || [], me = profileName || '';
   box.innerHTML = ms.length ? `<div class="card" style="padding:0">${ms.map(m => `<div class="memo"><div class="mb"><p>${esc(m.text)}</p><span class="k">${esc(m.by)} · ${m.t ? new Date(m.t).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}${m.seen.length ? ' · 見た: ' + m.seen.map(esc).join('、') : ''}</span></div><span class="acts">${m.seen.includes(me) ? '' : `<button class="btn sm" type="button" data-seen="${m.row}">見た</button>`}<button class="btn ghost sm" type="button" data-done="${m.row}">済</button></span></div>`).join('')}</div>`
-    : `<div class="card"><p class="k" style="margin:0">伝言はありません。「＋ 書く」か、もなかに「田中さんから栗万十30個の注文、明日10時に受け取り、って伝えておいて」と話すと、お店のみんなのホームに出ます。</p></div>`;
+    : `<div class="card"><p class="k" style="margin:0">伝言はありません。「＋ 書く」で、お店のみんなのホームに出ます。</p></div>`;
   box.querySelectorAll('[data-seen]').forEach(b => b.onclick = () => setValueX({ field: 'memo', value: { row: +b.dataset.seen } }));
   box.querySelectorAll('[data-done]').forEach(b => b.onclick = () => setValueX({ field: 'memo', value: { row: +b.dataset.done, done: true } }));
 }
 $('memo-add').onclick = () => {
   const box = $('memos'); if ($('memo-form')) { $('memo-form').remove(); return; }
-  box.insertAdjacentHTML('afterbegin', `<div class="card" id="memo-form"><textarea id="memo-text" rows="2" placeholder="例: 田中さんから栗万十30個、明日10時受け取り" style="width:100%;box-sizing:border-box;font:inherit;font-size:15px;padding:8px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)"></textarea><div class="ask"><button class="btn" type="button" id="memo-go">残す</button><button class="btn ghost" type="button" id="memo-cancel">やめる</button><span class="k">お店のみんなにLINEでも届きます</span></div></div>`);
+  box.insertAdjacentHTML('afterbegin', `<div class="card" id="memo-form"><textarea id="memo-text" rows="2" placeholder="伝言を書く" style="width:100%;box-sizing:border-box;font:inherit;font-size:15px;padding:8px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)"></textarea><div class="ask"><button class="btn" type="button" id="memo-go">残す</button><button class="btn ghost" type="button" id="memo-cancel">やめる</button><span class="k">お店のみんなにLINEでも届きます</span></div></div>`);
   $('memo-text').focus();
   $('memo-cancel').onclick = () => $('memo-form').remove();
   $('memo-go').onclick = () => { const v = $('memo-text').value.trim(); if (!v) { $('memo-text').focus(); return; } setValueX({ field: 'memo', value: { text: v } }); };
 };
 // 予定: ホームにはこれからの5件、予定の画面には月の表と一覧
-const evRow = (e, del) => `<li style="--c:var(--c-${EVK[e.kind] || 'set'})"${e.src === 'gcal' ? ' title="Googleカレンダーの予定"' : ''}><span class="ed"><b>${+e.date.slice(8)}</b><small>${+e.date.slice(5, 7)}月 ${['日', '月', '火', '水', '木', '金', '土'][new Date(e.date.slice(0, 4), +e.date.slice(5, 7) - 1, +e.date.slice(8)).getDay()]}</small></span><span class="ek">${esc(e.kind)}</span><span class="et">${esc(e.text)}${e.who ? `<span class="k">${esc(e.who)}</span>` : ''}${e.src === 'gcal' ? '<span class="k">Googleカレンダーから</span>' : e.by ? `<span class="k">${avatar(e.by, true)} ${esc(e.by)}</span>` : ''}${(e.notes || []).length ? `<ul class="notes">${e.notes.map(n => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}${del && e.src !== 'gcal' ? `<span class="ask" style="margin-top:6px"><input class="note-in" data-row="${e.row}" placeholder="ひと言(8時に出発、袋は多めに…)" style="flex:1;min-width:0;font-size:13px;padding:5px 8px"><button class="btn ghost sm" type="button" data-note="${e.row}">足す</button></span>` : ''}</span>${del && e.src !== 'gcal' ? `<button class="x" type="button" data-del="${e.row}" aria-label="消す">✕</button>` : ''}</li>`;
+const evRow = (e, del) => `<li style="--c:var(--c-${EVK[e.kind] || 'set'})"${e.src === 'gcal' ? ' title="Googleカレンダーの予定"' : ''}><span class="ed"><b>${+e.date.slice(8)}</b><small>${+e.date.slice(5, 7)}月 ${['日', '月', '火', '水', '木', '金', '土'][new Date(e.date.slice(0, 4), +e.date.slice(5, 7) - 1, +e.date.slice(8)).getDay()]}</small></span><span class="ek">${esc(e.kind)}</span><span class="et">${esc(e.text)}${e.who ? `<span class="k">${esc(e.who)}</span>` : ''}${e.src === 'gcal' ? '<span class="k">Googleカレンダーから</span>' : e.by ? `<span class="k">${avatar(e.by, true)} ${esc(e.by)}</span>` : ''}${(e.notes || []).length ? `<ul class="notes">${e.notes.map(n => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}${del && e.src !== 'gcal' ? `<span class="ask" style="margin-top:6px"><input class="note-in" data-row="${e.row}" placeholder="ひと言" style="flex:1;min-width:0;font-size:13px;padding:5px 8px"><button class="btn ghost sm" type="button" data-note="${e.row}">足す</button></span>` : ''}</span>${del && e.src !== 'gcal' ? `<button class="x" type="button" data-del="${e.row}" aria-label="消す">✕</button>` : ''}</li>`;
 function renderHomeEvents() {
   const box = $('home-events'), t = todayS(), evs = (D.events || []).filter(e => e.date >= t).slice(0, 5);
-  box.innerHTML = evs.length ? `<ul class="evl">${evs.map(e => evRow(e)).join('')}</ul>` : `<p class="k" style="margin:0">これからの予定はありません。もなかに「25日に〇〇ゴルフに納品」と話すか、予定の画面で足せます。</p>`;
+  box.innerHTML = evs.length ? `<ul class="evl">${evs.map(e => evRow(e)).join('')}</ul>` : `<p class="k" style="margin:0">これからの予定はありません。予定の画面で足せます。</p>`;
   box.style.padding = evs.length ? '0' : '';
 }
 $('ev-more').onclick = () => show('cal');
@@ -233,7 +233,7 @@ function renderCal() {
 function evForm(date) {
   const f = $('ev-form'); f.hidden = false;
   const tos = Object.keys(Object.assign({}, ...Object.values(D.ws || {}))).filter(Boolean);
-  f.innerHTML = `<div class="fld"><span class="k">日付</span><input id="ev-date" type="date" value="${esc(date || todayS())}"><span class="k">種類</span><div class="seg" id="ev-kind">${['納品', '催事', '休み', 'その他'].map((k, i) => `<button type="button" data-v="${k}" aria-pressed="${i === 0}">${k}</button>`).join('')}</div><span class="k">内容</span><input id="ev-text" placeholder="例: 栗万十20 チーズ万十10 / 文化祭 / 臨時休業"><span class="k">相手・誰</span><input id="ev-who" list="ev-tos" placeholder="卸先。休みならスタッフの名前(なくてもOK)"><datalist id="ev-tos">${tos.map(x => `<option value="${esc(x)}">`).join('')}</datalist></div><div class="ask"><button class="btn" type="button" id="ev-go">予定に入れる</button><button class="btn ghost" type="button" id="ev-cancel">やめる</button></div>`;
+  f.innerHTML = `<div class="fld"><span class="k">日付</span><input id="ev-date" type="date" value="${esc(date || todayS())}"><span class="k">種類</span><div class="seg" id="ev-kind">${['納品', '催事', '休み', 'その他'].map((k, i) => `<button type="button" data-v="${k}" aria-pressed="${i === 0}">${k}</button>`).join('')}</div><span class="k">内容</span><input id="ev-text" placeholder="内容"><span class="k">相手・誰</span><input id="ev-who" list="ev-tos" placeholder="なくてもOK"><datalist id="ev-tos">${tos.map(x => `<option value="${esc(x)}">`).join('')}</datalist></div><div class="ask"><button class="btn" type="button" id="ev-go">予定に入れる</button><button class="btn ghost" type="button" id="ev-cancel">やめる</button></div>`;
   f.scrollIntoView({ behavior: 'smooth', block: 'start' });
   $('ev-kind').querySelectorAll('button').forEach(b => b.onclick = () => $('ev-kind').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b)));
   $('ev-cancel').onclick = () => { f.hidden = true; };
@@ -265,9 +265,9 @@ const telLink = n => { const c = contactOf(n); return c && c.tel ? ` <a href="te
 function contactsBox() {
   const cs = D.contacts || [], sup = Object.keys(Object.assign({}, ...Object.values(D.months || {}).map(m => m.by))), tos = Object.keys(Object.assign({}, ...Object.values(D.ws || {})));
   const cand = [...new Set(sup.concat(tos))].filter(n => !cs.find(c => c.name === n));
-  return `<p class="k" style="margin:0 0 6px">支払いや卸の画面に電話のボタンと振込先が出ます。請求書を撮ると自動で入り、もなかに「三浦商事の電話は03-1234-5678」と話しても入ります</p>
+  return `<p class="k" style="margin:0 0 6px">支払いや卸の画面に電話のボタンと振込先が出ます。請求書を撮ると自動で入ります</p>
     ${cs.map(c => `<div class="contact-row"><b>${esc(c.name)}</b><span class="k">${esc(c.kind)}</span><span>${c.tel ? `<a href="tel:${esc(c.tel.replace(/[^\\d+]/g, ''))}">☎ ${esc(c.tel)}</a>` : '<span class="k">電話なし</span>'}</span><span class="k">${esc(c.person)}</span><button class="btn ghost sm" type="button" data-ct-edit="${esc(c.name)}">直す</button>${c.bank || c.number ? `<div class="k" style="grid-column:1/-1;margin-top:-4px">振込先: ${esc([c.bank, c.branch, c.type, c.number, c.holder].filter(Boolean).join(' '))}</div>` : ''}</div>`).join('')}
-    <div id="ct-form" style="margin-top:10px"><div class="fld"><span class="k">名前</span><input id="ct-name" list="ct-cand" placeholder="業者・卸先の名前"><datalist id="ct-cand">${cand.map(n => `<option value="${esc(n)}">`).join('')}</datalist><span class="k">種類</span><div class="seg" id="ct-kind">${['業者', '卸先', 'その他'].map((k, i) => `<button type="button" data-v="${k}" aria-pressed="${i === 0}">${k}</button>`).join('')}</div><span class="k">電話</span><input id="ct-tel" inputmode="tel" placeholder="03-1234-5678"><span class="k">担当</span><input id="ct-person" placeholder="山田さん"><span class="k">振込先</span><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px"><input id="ct-bank" placeholder="銀行"><input id="ct-branch" placeholder="支店"><select id="ct-type" class="sel"><option value="">種別</option><option>普通</option><option>当座</option></select><input id="ct-number" inputmode="numeric" placeholder="口座番号"><input id="ct-holder" placeholder="名義(カナ)" style="grid-column:1/-1"></div></div><p class="k" style="margin:4px 0 0">請求書を撮ると、電話・担当・振込先は自動で入ります(読めなかったところだけ空のまま)</p><div class="ask"><button class="btn" type="button" id="ct-save">連絡先を保存</button><button class="btn ghost" type="button" id="ct-del" hidden>消す</button></div></div>`;
+    <div id="ct-form" style="margin-top:10px"><div class="fld"><span class="k">名前</span><input id="ct-name" list="ct-cand" placeholder="業者・卸先の名前"><datalist id="ct-cand">${cand.map(n => `<option value="${esc(n)}">`).join('')}</datalist><span class="k">種類</span><div class="seg" id="ct-kind">${['業者', '卸先', 'その他'].map((k, i) => `<button type="button" data-v="${k}" aria-pressed="${i === 0}">${k}</button>`).join('')}</div><span class="k">電話</span><input id="ct-tel" inputmode="tel" placeholder="電話番号"><span class="k">担当</span><input id="ct-person" placeholder="担当者"><span class="k">振込先</span><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px"><input id="ct-bank" placeholder="銀行"><input id="ct-branch" placeholder="支店"><select id="ct-type" class="sel"><option value="">種別</option><option>普通</option><option>当座</option></select><input id="ct-number" inputmode="numeric" placeholder="口座番号"><input id="ct-holder" placeholder="名義(カナ)" style="grid-column:1/-1"></div></div><p class="k" style="margin:4px 0 0">請求書を撮ると、電話・担当・振込先は自動で入ります(読めなかったところだけ空のまま)</p><div class="ask"><button class="btn" type="button" id="ct-save">連絡先を保存</button><button class="btn ghost" type="button" id="ct-del" hidden>消す</button></div></div>`;
 }
 function bindContacts(root) {
   const kindSel = k => root.querySelectorAll('#ct-kind button').forEach(x => x.setAttribute('aria-pressed', x.dataset.v === k));
@@ -382,7 +382,8 @@ function renderHero(q) {
   if (lm) { const by = D.months[lm].by, top = Object.keys(by).sort((a, b) => by[b] - by[a]).slice(0, 2);
     cards.push({ cls: '', c: 'book', t: `${+lm.slice(5) || lm}月の仕入れ`, v: `${Math.round(D.months[lm].total).toLocaleString('ja-JP')}<small>円</small>`, k: top.map(esc).join('・'), go: () => show('book') }); }
   const h = $('hero');
-  if (noMoney()) { h.innerHTML = ''; h.previousElementSibling.hidden = true; $('hero-dots').innerHTML = ''; return; }
+  h.previousElementSibling.hidden = noMoney();
+  if (noMoney()) { h.innerHTML = ''; $('hero-dots').innerHTML = ''; return; }
   h.innerHTML = cards.map((c, i) => `<div class="hc ${c.cls}" role="button" tabindex="0" data-i="${i}"${c.c ? ` style="--c:var(--c-${c.c})"` : ''}><div class="t">${c.t}</div><div class="v">${c.v}</div><div class="k">${c.k}</div><div class="go">くわしく ›</div></div>`).join('');
   h.querySelectorAll('.hc').forEach(el => el.onclick = () => cards[el.dataset.i].go());
   $('hero-dots').innerHTML = cards.length > 1 ? cards.map((_, i) => `<i class="${i ? '' : 'on'}"></i>`).join('') : '';
@@ -800,12 +801,12 @@ function matEdit(name, preset) {
   setCrumb([name || '材料を足す']);
   matBox(`<p style="margin:0 0 8px"><b>${name ? esc(name) : '材料(商品)を足す'}</b></p>${kindList()}
     <div style="display:grid;gap:8px">
-    ${name ? '' : `<label>名前(袋に書いてある商品名)${inp('me-name', m.name, '例 ハイラード')}</label>`}
+    ${name ? '' : `<label>名前(袋に書いてある商品名)${inp('me-name', m.name, '商品名')}</label>`}
     <label>種類${inp('me-kind', m.kind, '例 マーガリン・強力粉・生クリーム')}</label>
     <label>規格${inp('me-spec', m.spec, '例 25kg・500g×20')}</label>
-    <label>業者${inp('me-sup', m.supplier, '例 三浦商事')}</label>
+    <label>業者${inp('me-sup', m.supplier, '業者名')}</label>
     <label>中身${inp('me-attrs', m.attrs, '例 乳脂肪分47%・発酵・無塩・植物性')}</label>
-    ${name ? `<label>別名を足す(レシピや請求書での書き方)${inp('me-alias', '', '例 ブルスター')}</label>${m.aliases && m.aliases.length ? `<span class="k">いまの別名: ${m.aliases.map(esc).join('、')}</span>` : ''}` : `<label>値段(1kgあたり・分かれば)${inp('me-ppkg', '', '例 600', '8em')}</label>`}
+    ${name ? `<label>別名を足す(レシピや請求書での書き方)${inp('me-alias', '', '商品名')}</label>${m.aliases && m.aliases.length ? `<span class="k">いまの別名: ${m.aliases.map(esc).join('、')}</span>` : ''}` : `<label>値段(1kgあたり・分かれば)${inp('me-ppkg', '', '例 600', '8em')}</label>`}
     </div><p class="k" style="margin:8px 0">原材料・アレルゲン・栄養は、袋の裏を撮ると本物に置きかわります。それまでは同じ種類の値で仮に出して「要確認」にします。</p>
     <button class="btn" type="button" id="me-go">保存</button> <button class="btn ghost" type="button" id="me-x">やめる</button>`);
   $('me-x').onclick = matBoxClose;
@@ -971,10 +972,10 @@ function openPrint(html) {
 function renderWs() {
   const ws = D.ws || {}, ms = Object.keys(ws).sort().reverse(), chips = $('ws-chips');
   const tos = [...new Set(ms.flatMap(m => Object.keys(ws[m])))];
-  $('ws-add').innerHTML = `<p style="margin:0 0 6px"><b>納品を記録</b></p><div class="fld"><span class="k">卸先</span><input id="ws-to" list="ws-tos" placeholder="〇〇ゴルフ"><datalist id="ws-tos">${tos.map(t => `<option value="${esc(t)}">`).join('')}</datalist>
-    <span class="k">商品と数</span><input id="ws-items" placeholder="栗万十20 チーズ万十10"></div><div class="ask"><button class="btn" type="button" id="ws-go">記録</button><span class="k">もなかに「〇〇ゴルフに栗万十20持ってった」と話してもOK</span></div>`;
+  $('ws-add').innerHTML = `<p style="margin:0 0 6px"><b>納品を記録</b></p><div class="fld"><span class="k">卸先</span><input id="ws-to" list="ws-tos" placeholder="卸先"><datalist id="ws-tos">${tos.map(t => `<option value="${esc(t)}">`).join('')}</datalist>
+    <span class="k">商品と数</span><input id="ws-items" placeholder="商品と数"></div><div class="ask"><button class="btn" type="button" id="ws-go">記録</button><span class="k">もなかに話しても入ります</span></div>`;
   $('ws-go').onclick = () => { const to = $('ws-to').value.trim(), it = $('ws-items').value.trim(); if (!to || !it) { chat('卸先と、商品と数を入れてください'); return; } setValueX({ field: 'deliv', value: to + ' ' + it }); };
-  if (!ms.length) { chips.innerHTML = ''; $('ws-list').innerHTML = emptyBox('ws', 'まだ納品の記録がありません', '上の欄に卸先と商品・数を入れるか、もなかに「〇〇ゴルフに栗万十20持ってった」と話すと、ここに月ごとに並びます。'); return; }
+  if (!ms.length) { chips.innerHTML = ''; $('ws-list').innerHTML = emptyBox('ws', 'まだ納品の記録がありません', '上の欄に卸先と商品・数を入れると、ここに月ごとに並びます。'); return; }
   const sel = chips.dataset.m && ms.includes(chips.dataset.m) ? chips.dataset.m : ms[0];
   chips.innerHTML = ms.map(m => `<button class="chip" type="button" data-m="${m}" aria-pressed="${m === sel}">${m.replace('-', '年')}月</button>`).join('');
   chips.querySelectorAll('[data-m]').forEach(b => b.onclick = () => { chips.dataset.m = b.dataset.m; renderWs(); });
