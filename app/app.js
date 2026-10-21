@@ -750,8 +750,9 @@ function lblPrintCard(p, L) {
       ${L.packs.length > 1 ? `<span class="k">包装</span><select id="lb-pack">${L.packs.map((k, i) => `<option value="${i}">${esc(k.name || k.content)}</option>`).join('')}</select>` : ''}
       ${sheet ? `<span class="k">用紙</span><select id="lb-sheet">${Object.entries(SHEETS).map(([k, v]) => `<option value="${k}"${k === S.sheet ? ' selected' : ''}>${v[0]} ${v[1]}×${v[2]}ミリ</option>`).join('')}<option value="custom"${S.sheet === 'custom' ? ' selected' : ''}>どれも合わない(自分で測って入れる)</option></select>`
         : `<span class="k">ラベルの大きさ</span><select id="lb-roll">${Object.entries(ROLLS).map(([k, v]) => `<option value="${k}"${k === S.roll ? ' selected' : ''}>幅${v[0]}×長さ${v[1]}ミリ</option>`).join('')}<option value="custom"${S.roll === 'custom' ? ' selected' : ''}>ほかの大きさ</option></select>
-        ${S.roll === 'custom' ? `<span class="k">幅×長さ</span><span style="display:flex;gap:4px;align-items:center"><input id="lb-rw" inputmode="decimal" value="${rw}" style="width:4.5em">×<input id="lb-rh" inputmode="decimal" value="${rh}" style="width:4.5em">ミリ</span>` : ''}
-        <span class="k">向き</span><select id="lb-rot"><option value="0"${S.rot ? '' : ' selected'}>そのまま(縦長に刷る)</option><option value="1"${S.rot ? ' selected' : ''}>90度回す(横長に刷る)</option></select>`}
+        ${S.roll === 'custom' ? `<span class="k">幅×長さ</span><span style="display:flex;gap:4px;align-items:center"><input id="lb-rw" inputmode="decimal" value="${rw}" style="width:4.5em">×<input id="lb-rh" inputmode="decimal" value="${rh}" style="width:4.5em">ミリ</span>` : ''}`}
+      <span class="k">向き</span><select id="lb-rot"><option value="0"${S.rot ? '' : ' selected'}>ラベルの向きのまま刷る</option><option value="1"${S.rot ? ' selected' : ''}>90度回して刷る(縦と横を入れかえ)</option></select>
+      <span class="k">並べ方</span><select id="lb-lay"><option value="auto"${(S.lay || 'auto') === 'auto' ? ' selected' : ''}>おまかせ(形に合わせる)</option><option value="side"${S.lay === 'side' ? ' selected' : ''}>横版(栄養・バーコードは右)</option><option value="stack"${S.lay === 'stack' ? ' selected' : ''}>縦版(栄養・バーコードは下)</option></select>
       <span class="k">作った日</span><input id="lb-day" type="date" value="${iso}">
       <span class="k">期限</span><span style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><select id="lb-dt2"><option${L.dtype === '賞味期限' ? '' : ' selected'}>消費期限</option><option${L.dtype === '賞味期限' ? ' selected' : ''}>賞味期限</option></select><input id="lb-exp" type="date" style="width:auto"><span class="k">${L.days !== '' ? `空なら作った日から${L.days}日` : '日付を入れる'}</span></span>
       <span class="k">枚数</span><span style="display:flex;gap:6px;align-items:center"><input id="lb-n" inputmode="numeric" value="${per}" style="width:5em">枚</span>
@@ -800,7 +801,7 @@ function bindLblPrint(p, L) {
   const keep = () => {
     const S = lsGet();
     if ($('lb-sheet')) S.sheet = val('lb-sheet'); if ($('lb-roll')) S.roll = val('lb-roll'); if ($('lb-rw')) { S.rw = n0('lb-rw', 62); S.rh = n0('lb-rh', 100); }
-    if ($('lb-rot')) S.rot = val('lb-rot') === '1';
+    if ($('lb-rot')) S.rot = val('lb-rot') === '1'; if ($('lb-lay')) S.lay = val('lb-lay');
     S.pt = +val('lb-pt') || 6; S.dx = n0('lb-dx', 0); S.dy = n0('lb-dy', 0); S.scale = Math.min(130, Math.max(70, n0('lb-scale', 100))); S.datePos = val('lb-dpos') || 'foot';
     if ($('lc-w')) S.custom = { w: n0('lc-w', 86.4), h: n0('lc-h', 42.3), cols: Math.max(1, Math.round(n0('lc-cols', 2))), rows: Math.max(1, Math.round(n0('lc-rows', 6))), top: n0('lc-top', 0), left: n0('lc-left', 0), gx: n0('lc-gx', 0), gy: n0('lc-gy', 0) };
     lsSet(S); return S;
@@ -849,7 +850,9 @@ function openLabelSheet(p, L, S, n, skip, day, test) {
   // ラベル1枚の大きさ(回すときは中身を横長にする)
   let w, h, sh;
   if (sheet) { sh = sheetOf(S); w = sh[1]; h = sh[2]; } else { [w, h] = rollOf(S); }
-  const cw = !sheet && S.rot ? h : w, chh = !sheet && S.rot ? w : h;
+  const cw = S.rot ? h : w, chh = S.rot ? w : h;
+  // 縦版(栄養・バーコードを下に)か横版(右に)か。おまかせは、刷る形が縦長なら縦版
+  const stack = S.lay === 'stack' || ((S.lay || 'auto') === 'auto' && chh > cw * 1.1);
   const bcw = Math.min(37.29 * 0.8, cw * 0.4);
   const foot = S.datePos === 'foot' && date ? `${esc(L.dtype)} ${date}` : '';
   const side = nutBox || pla || (j.ok && j.code) ? `<div class="lside">${nutBox}<div class="lsrow">${pla}${j.ok && j.code ? janSvg(j.code, Math.min(20, cw * 0.24)) : ''}</div></div>` : '';
@@ -857,8 +860,8 @@ function openLabelSheet(p, L, S, n, skip, day, test) {
     <div class="lfoot">${foot}</div>`;
   const box = (x, y) => {
     const st = `width:${cw}mm;height:${chh}mm;font-size:${S.pt}pt`;
-    if (!sheet && S.rot) return `<div class="lcell${test ? ' lt' : ''}" style="left:${x}mm;top:${y}mm;${st};transform-origin:0 0;transform:translate(${w}mm,0) rotate(90deg)">${cell}</div>`;
-    return `<div class="lcell${test ? ' lt' : ''}" style="left:${x}mm;top:${y}mm;${st}">${cell}</div>`;
+    if (S.rot) return `<div class="lcell${test ? ' lt' : ''}${stack ? ' lport' : ''}" style="left:${x}mm;top:${y}mm;${st};transform-origin:0 0;transform:translate(${w}mm,0) rotate(90deg)">${cell}</div>`;
+    return `<div class="lcell${test ? ' lt' : ''}${stack ? ' lport' : ''}" style="left:${x}mm;top:${y}mm;${st}">${cell}</div>`;
   };
   let pages = '', pageCount = 0, pageCss;
   if (sheet) {
