@@ -139,9 +139,9 @@ function a2hsHelp() {
   ov.className = 'a2ov';
   const steps = [
     { t: 'まず、もう置いてあるか見てみましょう', b: '前に一度「インストール」を押していれば、もう置いてあります。いったん携帯のホーム画面(アプリが並んでいる画面)に戻って、「仕込帳」のアイコンがないか見てください。横にめくった先にあることもあります。', pic: '' },
-    { t: '無かったら: 点が3つのマークを押します', b: '画面の<b>いちばん下の右はし</b>か、<b>いちばん上の右はし</b>にある <b style="font-size:20px">︙</b>(点が縦に3つ)を押してください。', pic: 'dots' },
-    { t: '「ホーム画面に追加」(または「ショートカット作成」)を押します', b: '出てきた一覧の中から<b>「ホーム画面に追加」</b>を探して押してください。<br><span class="k">携帯によって言い方が違います。<b>「ショートカット作成」「アプリをインストール」「ページを追加」</b>のどれかがあれば、それを押してください。見つからないときは、一覧を指で上に動かすと出てきます。</span>', pic: 'menu' },
-    { t: '最後に「追加」を押します', b: '確認が出たら<b>「追加」</b>(または「インストール」)を押します。<br>これで携帯のホーム画面に「仕込帳」のアイコンができます。', pic: 'done' }];
+    { t: '無かったら: 点が3つのマークを押します', b: '画面の<b>いちばん下の右はし</b>(携帯によっては<b>いちばん上の右はし</b>)にある <b style="font-size:20px">︙</b> を押してください。', img: 'a2hs_1.webp' },
+    { t: '「ショートカット作成」を押します', b: '出てきた一覧から<b>「ショートカット作成」</b>を押します。<br><span class="k">携帯によっては<b>「ホーム画面に追加」「アプリをインストール」「ページを追加」</b>と書いてあります。どれか1つがあれば、それを押してください。</span>', img: 'a2hs_2.webp' },
+    { t: '最後に「追加」を押します', b: '確認が出たら<b>「追加」</b>(または「OK」「インストール」)を押します。<br>これで携帯のホーム画面に「仕込帳」のアイコンができます。', img: 'a2hs_3.webp' }];
   let i = 0;
   const PIC = {
     dots: `<svg viewBox="0 0 240 150" width="240" height="150" aria-hidden="true"><rect x="20" y="6" width="200" height="138" rx="16" fill="#fff" stroke="#c9d3df" stroke-width="3"/><rect x="34" y="18" width="172" height="20" rx="10" fill="#eef2f7"/><circle cx="198" cy="28" r="3" fill="#555"/><circle cx="198" cy="20" r="3" fill="#555"/><circle cx="198" cy="36" r="3" fill="#555"/><rect x="34" y="112" width="172" height="20" rx="6" fill="#eef2f7"/><circle cx="196" cy="114" r="3" fill="#555"/><circle cx="196" cy="122" r="3" fill="#555"/><circle cx="196" cy="130" r="3" fill="#555"/><circle cx="198" cy="28" r="14" fill="none" stroke="#e2531c" stroke-width="4"/><circle cx="196" cy="122" r="14" fill="none" stroke="#e2531c" stroke-width="4"/><text x="120" y="80" font-size="14" text-anchor="middle" fill="#8a94a3">上か下の右はし</text></svg>`,
@@ -150,7 +150,7 @@ function a2hsHelp() {
   };
   const draw = () => {
     const s0 = steps[i];
-    ov.innerHTML = `<div class="a2card" role="dialog" aria-modal="true"><div class="k" style="margin-bottom:6px">${i + 1} / ${steps.length}</div><h3 style="margin:0 0 8px;font-size:20px">${s0.t}</h3>${s0.pic ? `<div style="text-align:center;margin:6px 0 10px">${PIC[s0.pic]}</div>` : ''}<p style="margin:0;font-size:16px;line-height:1.8">${s0.b}</p>
+    ov.innerHTML = `<div class="a2card" role="dialog" aria-modal="true"><div class="k" style="margin-bottom:6px">${i + 1} / ${steps.length}</div><h3 style="margin:0 0 8px;font-size:20px">${s0.t}</h3>${s0.img ? `<div style="text-align:center;margin:6px 0 10px"><img src="${s0.img}?v=1" alt="" style="max-width:100%;max-height:46vh;border-radius:12px;border:1px solid var(--line)"></div>` : s0.pic ? `<div style="text-align:center;margin:6px 0 10px">${PIC[s0.pic]}</div>` : ''}<p style="margin:0;font-size:16px;line-height:1.8">${s0.b}</p>
       <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">${i < steps.length - 1 ? `<button class="btn" type="button" data-next style="font-size:16px;padding:10px 20px">${i === 0 ? '無かった(つぎへ)' : 'つぎへ'}</button>` : ''}${i === 0 ? '<button class="btn ghost" type="button" data-have style="font-size:16px;padding:10px 20px">あった</button>' : ''}${i > 0 ? '<button class="btn ghost" type="button" data-back>もどる</button>' : ''}<button class="btn ghost" type="button" data-close>${i === steps.length - 1 ? 'できた' : '閉じる'}</button></div>
       <p class="k" style="margin:12px 0 0">うまくいかないときは、その画面のスクリーンショットを、設定の「問い合わせ」から送ってください。</p></div>`;
     const q = sel => ov.querySelector(sel);

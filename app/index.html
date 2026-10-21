@@ -434,7 +434,7 @@ section>h1:first-child{margin-top:22px}
 .pt{width:100%;border-collapse:collapse;font-size:14px}
 .pt th,.pt td{border:1px solid #999;padding:6px 8px;text-align:left}
 .a2ov{position:fixed;inset:0;background:rgba(10,20,35,.45);z-index:60;display:flex;align-items:flex-end;justify-content:center;padding:12px}
-.a2card{background:var(--card);color:var(--ink);border-radius:20px;padding:20px;width:100%;max-width:460px;box-shadow:0 12px 40px rgba(0,0,0,.25);margin-bottom:max(12px,env(safe-area-inset-bottom))}
+.a2card{max-height:calc(100vh - 24px);overflow:auto;background:var(--card);color:var(--ink);border-radius:20px;padding:20px;width:100%;max-width:460px;box-shadow:0 12px 40px rgba(0,0,0,.25);margin-bottom:max(12px,env(safe-area-inset-bottom))}
 .contact-row{display:grid;grid-template-columns:1.3fr .8fr 1.2fr 1fr auto;gap:6px;align-items:center;padding:8px 0;border-top:1px solid var(--line-2)}
 .contact-row a{color:var(--accent);text-decoration:none;font-weight:600}
 
@@ -675,6 +675,6 @@ section.inR{animation:inR .12s ease-out}section.inL{animation:inL .12s ease-out}
 </div></nav>
 
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-<script src="app.js?v=62"></script>
+<script src="app.js?v=63"></script>
 </body>
 </html>
