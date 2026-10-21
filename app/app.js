@@ -123,7 +123,7 @@ function renderA2hs() {
   if (IN_LINE) how = `<p class="k" style="margin:4px 0 8px">LINEの中からはホーム画面に置けません。下のボタンでいつものブラウザで開いてから、そこで置いてください。</p><a class="btn" id="a2hs-ext" href="${esc(ext)}" style="text-decoration:none">ブラウザで開く</a>`;
   else if (a2hsEvt) how = `<p class="k" style="margin:4px 0 8px">押すと、ホーム画面に仕込帳のアイコンができます。</p><button class="btn" type="button" id="a2hs-go">ホーム画面に置く</button>`;
   else if (ios) how = `<ol class="k" style="margin:4px 0 0;padding-left:1.3em;line-height:1.9"><li>画面の下(または上)の <b>共有ボタン</b>(四角に上向きの矢印)を押す</li><li><b>「ホーム画面に追加」</b>を押す</li><li>右上の<b>「追加」</b>を押す</li></ol>`;
-  else if (android) how = `<ol class="k" style="margin:4px 0 0;padding-left:1.3em;line-height:1.9"><li>右上の <b>︙</b> を押す</li><li><b>「ホーム画面に追加」</b>(または「アプリをインストール」)を押す</li></ol>`;
+  else if (android) how = `<ol class="k" style="margin:4px 0 0;padding-left:1.3em;line-height:1.9"><li>画面の右上か右下にある <b>︙</b>(または <b>≡</b>)を押す</li><li><b>「ホーム画面に追加」</b>を押す(「ページを追加」→「ホーム画面」、「アプリをインストール」と書いてあることもあります)</li><li><b>「追加」</b>か<b>「インストール」</b>を押す</li></ol>`;
   else how = `<p class="k" style="margin:4px 0 0">ブラウザのメニューから「ホーム画面に追加」を選んでください。</p>`;
   box.hidden = false;
   box.innerHTML = `<div style="display:flex;gap:12px;align-items:flex-start"><img src="icon-192.png" alt="" width="44" height="44" style="border-radius:12px;flex:0 0 44px"><div style="flex:1;min-width:0"><b>ホーム画面に仕込帳を置く</b><p class="k" style="margin:2px 0 0">次からはアイコンを押すだけで、LINEを通らずこの画面が開きます。</p>${how}<p style="margin:8px 0 0"><a href="#" id="a2hs-no" class="k" style="color:var(--accent)">今はいい</a></p></div></div>`;
