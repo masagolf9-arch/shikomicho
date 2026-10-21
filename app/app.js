@@ -701,19 +701,35 @@ function renderLabel() {
   bindLblPrint(p, L);
 }
 
-// ---------- ラベル印刷(A4のラベル用紙。コピー機・家庭用プリンタで) ----------
+// ---------- ラベル印刷: どの機械で刷るかを最初に聞く ----------
+// シート: コピー機・家庭用プリンタでA4のシール用紙に刷る(用紙は種類が多いので、面数と大きさ・自分で測った値で合わせる)
+// ロール: ラベルプリンターのロールに1枚ずつ刷る(1枚=1ページ)
+// 設定は機械ごとに違うので、この端末に覚える
 const SHEETS = {
   p10: ['10面', 86.4, 50.8, 2, 5, 21.5, 18.6, 0, 0], p12: ['12面', 86.4, 42.3, 2, 6, 21.6, 18.6, 0, 0], p14: ['14面', 99.1, 38.1, 2, 7, 15.15, 4.65, 2.5, 0],
   p18: ['18面', 70, 42.3, 3, 6, 21.6, 0, 0, 0], p18b: ['18面 余白付', 63.5, 46.6, 3, 6, 8.7, 7.25, 2.5, 0], p21: ['21面', 63.5, 38.1, 3, 7, 15.15, 7.25, 2.5, 0],
   p24: ['24面', 70, 33.9, 3, 8, 12.9, 0, 0, 0], p44: ['44面', 48.3, 25.4, 4, 11, 8.8, 8.4, 0, 0]
 }; // 名前, 幅, 高さ, 列, 段, 上余白, 左余白, 横すき間, 縦すき間(ミリ)
-const lsGet = () => { try { return Object.assign({ sheet: 'p12', pt: 6, dx: 0, dy: 0 }, JSON.parse(localStorage.getItem('shikomi:lblsheet') || '{}')); } catch (e) { return { sheet: 'p12', pt: 6, dx: 0, dy: 0 }; } };
+const ROLLS = { r62x100: [62, 100], r62x60: [62, 60], r62x29: [62, 29], r60x40: [60, 40], r50x30: [50, 30], r40x30: [40, 30], r80x60: [80, 60], r100x60: [100, 60] };
+const LS_DEF = { mode: '', sheet: 'p12', pt: 6, dx: 0, dy: 0, scale: 100, datePos: 'foot', custom: { w: 86.4, h: 42.3, cols: 2, rows: 6, top: 21.6, left: 18.6, gx: 0, gy: 0 }, roll: 'r62x100', rw: 62, rh: 100, rot: false };
+const lsGet = () => { try { const o = JSON.parse(localStorage.getItem('shikomi:lblsheet') || '{}'); return Object.assign({}, LS_DEF, o, { custom: Object.assign({}, LS_DEF.custom, o.custom || {}) }); } catch (e) { return JSON.parse(JSON.stringify(LS_DEF)); } };
 const lsSet = o => { try { localStorage.setItem('shikomi:lblsheet', JSON.stringify(o)); } catch (e) {} };
+// 用紙の形(シート): [名前, 幅, 高さ, 列, 段, 上余白, 左余白, 横すき間, 縦すき間]
+const sheetOf = S => S.sheet === 'custom' ? ['自分で測った用紙', +S.custom.w, +S.custom.h, +S.custom.cols, +S.custom.rows, +S.custom.top, +S.custom.left, +S.custom.gx, +S.custom.gy] : (SHEETS[S.sheet] || SHEETS.p12);
+const rollOf = S => S.roll === 'custom' ? [+S.rw || 62, +S.rh || 100] : (ROLLS[S.roll] || ROLLS.r62x100);
 function lblPrintCard(p, L) {
-  const S = lsGet(), sh = SHEETS[S.sheet] || SHEETS.p12, per = sh[3] * sh[4];
+  const S = lsGet();
+  const head = `<p style="margin:0 0 4px"><b>ラベルを印刷</b></p>`;
+  if (!S.mode) return `<div class="card lpc" style="margin-top:14px">${head}
+    <p style="margin:0 0 10px">どの機械で印刷しますか?</p>
+    <div class="lmode"><button type="button" data-lm="sheet"><b>コピー機・家庭用プリンタ</b><span>A4のシール用紙(10面・12面・21面など)に、まとめて刷ります</span></button>
+    <button type="button" data-lm="roll"><b>ラベルプリンター</b><span>ロールのラベルに、1枚ずつ刷ります(ブラザーのQLシリーズなど)</span></button></div>
+    <p class="k" style="margin:8px 0 0">あとで変えられます。この端末に覚えます。</p></div>`;
   const today = new Date(), iso = new Date(today - today.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
-  return `<div class="card lpc" style="margin-top:14px"><p style="margin:0 0 4px"><b>ラベルを印刷</b></p>
-    <p class="k" style="margin:0 0 8px">A4のラベル用紙に、上の裏表示をそのまま刷ります。</p>
+  const sheet = S.mode === 'sheet', sh = sheetOf(S), per = sheet ? sh[3] * sh[4] : 10, [rw, rh] = rollOf(S), C = S.custom;
+  const num = (id, v, u) => `<span style="display:flex;gap:4px;align-items:center"><input id="${id}" inputmode="decimal" value="${v}" style="width:5em">${u || ''}</span>`;
+  return `<div class="card lpc" style="margin-top:14px">${head}
+    <p class="k" style="margin:0 0 8px">刷る機械: <b>${sheet ? 'コピー機・家庭用プリンタ(A4のシール用紙)' : 'ラベルプリンター(ロール)'}</b> <a href="#" id="lb-mode" style="color:var(--accent)">変える</a></p>
     <details${L.saved ? '' : ' open'}><summary class="k">この商品のラベル設定${L.saved ? '' : '(はじめに1回)'}</summary>
       <div class="fld" style="margin-top:8px">
         <span class="k">名称</span><input id="lb-name" value="${esc(L.name)}">
@@ -725,17 +741,34 @@ function lblPrintCard(p, L) {
       </div><div class="ask"><button class="btn ghost" type="button" id="lb-save">設定を保存</button><span class="k" id="lb-msg"></span></div></details>
     <div class="fld" style="margin-top:8px">
       ${L.packs.length > 1 ? `<span class="k">包装</span><select id="lb-pack">${L.packs.map((k, i) => `<option value="${i}">${esc(k.name || k.content)}</option>`).join('')}</select>` : ''}
-      <span class="k">用紙</span><select id="lb-sheet">${Object.entries(SHEETS).map(([k, v]) => `<option value="${k}"${k === S.sheet ? ' selected' : ''}>${v[0]} ${v[1]}×${v[2]}ミリ</option>`).join('')}</select>
+      ${sheet ? `<span class="k">用紙</span><select id="lb-sheet">${Object.entries(SHEETS).map(([k, v]) => `<option value="${k}"${k === S.sheet ? ' selected' : ''}>${v[0]} ${v[1]}×${v[2]}ミリ</option>`).join('')}<option value="custom"${S.sheet === 'custom' ? ' selected' : ''}>どれも合わない(自分で測って入れる)</option></select>`
+        : `<span class="k">ラベルの大きさ</span><select id="lb-roll">${Object.entries(ROLLS).map(([k, v]) => `<option value="${k}"${k === S.roll ? ' selected' : ''}>幅${v[0]}×長さ${v[1]}ミリ</option>`).join('')}<option value="custom"${S.roll === 'custom' ? ' selected' : ''}>ほかの大きさ</option></select>
+        ${S.roll === 'custom' ? `<span class="k">幅×長さ</span><span style="display:flex;gap:4px;align-items:center"><input id="lb-rw" inputmode="decimal" value="${rw}" style="width:4.5em">×<input id="lb-rh" inputmode="decimal" value="${rh}" style="width:4.5em">ミリ</span>` : ''}
+        <span class="k">向き</span><select id="lb-rot"><option value="0"${S.rot ? '' : ' selected'}>そのまま(縦長に刷る)</option><option value="1"${S.rot ? ' selected' : ''}>90度回す(横長に刷る)</option></select>`}
       <span class="k">作った日</span><input id="lb-day" type="date" value="${iso}">
       <span class="k">枚数</span><span style="display:flex;gap:6px;align-items:center"><input id="lb-n" inputmode="numeric" value="${per}" style="width:5em">枚</span>
-      <span class="k">使用済み</span><span style="display:flex;gap:6px;align-items:center"><input id="lb-skip" inputmode="numeric" value="0" style="width:5em">枚を飛ばす</span>
-      <span class="k">文字</span><select id="lb-pt">${[5.5, 6, 7, 8].map(v => `<option${v == S.pt ? ' selected' : ''}>${v}</option>`).join('')}</select>
+      ${sheet ? `<span class="k">使用済み</span><span style="display:flex;gap:6px;align-items:center"><input id="lb-skip" inputmode="numeric" value="0" style="width:5em">枚を飛ばす<span class="k">(使いかけの用紙)</span></span>` : ''}
+      <span class="k">文字</span><select id="lb-pt">${[5.5, 6, 7, 8, 9].map(v => `<option${v == S.pt ? ' selected' : ''}>${v}</option>`).join('')}</select>
+      <span class="k">期限の日付</span><select id="lb-dpos"><option value="foot"${S.datePos === 'foot' ? ' selected' : ''}>ラベルの下に刷る</option><option value="inside"${S.datePos === 'inside' ? ' selected' : ''}>表の中に刷る</option><option value="stamp"${S.datePos === 'stamp' ? ' selected' : ''}>刷らない(日付印を押す)</option></select>
     </div>
-    <details><summary class="k">印刷がずれるとき</summary><div class="fld" style="margin-top:8px"><span class="k">右へ(ミリ)</span><input id="lb-dx" inputmode="decimal" value="${S.dx}"><span class="k">下へ(ミリ)</span><input id="lb-dy" inputmode="decimal" value="${S.dy}"></div></details>
-    <div class="ask"><button class="btn" type="button" id="lb-print">印刷する</button><span class="k">パソコンかスマホのブラウザで。倍率は「100%」に</span></div></div>`;
+    ${sheet && S.sheet === 'custom' ? `<details open><summary class="k">用紙を定規で測って入れる(ミリ)</summary><p class="k" style="margin:6px 0">用紙のふくろに書いてある大きさでも大丈夫です。左上のラベルから測ります。</p><div class="fld">
+      <span class="k">1枚の幅×高さ</span><span style="display:flex;gap:4px;align-items:center"><input id="lc-w" inputmode="decimal" value="${C.w}" style="width:4.5em">×<input id="lc-h" inputmode="decimal" value="${C.h}" style="width:4.5em"></span>
+      <span class="k">横に何枚×縦に何段</span><span style="display:flex;gap:4px;align-items:center"><input id="lc-cols" inputmode="numeric" value="${C.cols}" style="width:3.5em">×<input id="lc-rows" inputmode="numeric" value="${C.rows}" style="width:3.5em"></span>
+      <span class="k">紙の上の端から</span>${num('lc-top', C.top, 'ミリ')}<span class="k">紙の左の端から</span>${num('lc-left', C.left, 'ミリ')}
+      <span class="k">ラベルの間(横・縦)</span><span style="display:flex;gap:4px;align-items:center"><input id="lc-gx" inputmode="decimal" value="${C.gx}" style="width:4.5em"><input id="lc-gy" inputmode="decimal" value="${C.gy}" style="width:4.5em">ミリ</span></div></details>` : ''}
+    <details${S.dx || S.dy || S.scale != 100 ? ' open' : ''}><summary class="k">印刷がずれるとき・大きさが合わないとき</summary>
+      <p class="k" style="margin:6px 0">まず「合わせ用に試し刷り」を普通の紙に刷って、シール用紙(ラベル)に重ねて見てください。ずれた分だけ入れます。</p>
+      <div class="fld"><span class="k">右へ(ミリ)</span><input id="lb-dx" inputmode="decimal" value="${S.dx}"><span class="k">下へ(ミリ)</span><input id="lb-dy" inputmode="decimal" value="${S.dy}">
+      <span class="k">大きさ(%)</span><input id="lb-scale" inputmode="decimal" value="${S.scale}"></div>
+      <p class="k" style="margin:4px 0 0">左へ・上へは、マイナス(-1.5 など)で入れます。</p></details>
+    <div class="ask"><button class="btn" type="button" id="lb-print">印刷する</button><button class="btn ghost" type="button" id="lb-test">合わせ用に試し刷り</button></div>
+    <p class="k" style="margin:4px 0 0">${sheet ? '印刷の画面で、用紙はA4、倍率は「100%」(実際のサイズ)、余白は「なし」にしてください。' : '印刷の画面で、プリンターにラベルプリンターを選び、用紙の大きさをラベルと同じにしてください(倍率100%・余白なし)。'}</p></div>`;
 }
 function bindLblPrint(p, L) {
   const val = id => $(id) ? $(id).value.trim() : '';
+  document.querySelectorAll('[data-lm]').forEach(b => b.onclick = () => { const S = lsGet(); S.mode = b.dataset.lm; lsSet(S); renderLabel(); });
+  if (!$('lb-packs')) return;
+  if ($('lb-mode')) $('lb-mode').onclick = e => { e.preventDefault(); const S = lsGet(); S.mode = ''; lsSet(S); renderLabel(); };
   const box = $('lb-packs');
   const bindDel = () => box.querySelectorAll('.pk-del').forEach(b => b.onclick = () => { if (box.children.length > 1) b.closest('.pkrow').remove(); else b.closest('.pkrow').querySelectorAll('input').forEach(x => x.value = ''); });
   bindDel();
@@ -752,14 +785,25 @@ function bindLblPrint(p, L) {
     const first = packs[0] || {};
     setValueX({ field: 'lbl', product: p.name, value: { name: val('lb-name'), dtype: val('lb-dtype'), days: d, storage: val('lb-st'), content: first.content || '', jan: first.jan || '', packs, nut: $('lb-nut') ? $('lb-nut').checked : false } });
   };
-  const keep = () => { const S = lsGet(); S.sheet = val('lb-sheet'); S.pt = +val('lb-pt') || 6; S.dx = +val('lb-dx') || 0; S.dy = +val('lb-dy') || 0; lsSet(S); return S; };
-  $('lb-sheet').onchange = () => { keep(); const sh = SHEETS[val('lb-sheet')]; $('lb-n').value = sh[3] * sh[4]; };
-  $('lb-print').onclick = () => {
-    if (p.label.check.length && !confirmOnce('lbchk', `「${p.label.check.join('、')}」が要確認のままです。このまま刷るならもう一度押してください`)) return;
+  const n0 = (id, d) => { const v = parseFloat(val(id)); return isFinite(v) ? v : d; };
+  const keep = () => {
+    const S = lsGet();
+    if ($('lb-sheet')) S.sheet = val('lb-sheet'); if ($('lb-roll')) S.roll = val('lb-roll'); if ($('lb-rw')) { S.rw = n0('lb-rw', 62); S.rh = n0('lb-rh', 100); }
+    if ($('lb-rot')) S.rot = val('lb-rot') === '1';
+    S.pt = +val('lb-pt') || 6; S.dx = n0('lb-dx', 0); S.dy = n0('lb-dy', 0); S.scale = Math.min(130, Math.max(70, n0('lb-scale', 100))); S.datePos = val('lb-dpos') || 'foot';
+    if ($('lc-w')) S.custom = { w: n0('lc-w', 86.4), h: n0('lc-h', 42.3), cols: Math.max(1, Math.round(n0('lc-cols', 2))), rows: Math.max(1, Math.round(n0('lc-rows', 6))), top: n0('lc-top', 0), left: n0('lc-left', 0), gx: n0('lc-gx', 0), gy: n0('lc-gy', 0) };
+    lsSet(S); return S;
+  };
+  if ($('lb-sheet')) $('lb-sheet').onchange = () => { const was = lsGet().sheet; const S = keep(); if ((was === 'custom') !== (S.sheet === 'custom')) { renderLabel(); return; } const sh = sheetOf(S); $('lb-n').value = sh[3] * sh[4]; };
+  if ($('lb-roll')) $('lb-roll').onchange = () => { const was = lsGet().roll; const S = keep(); if ((was === 'custom') !== (S.roll === 'custom')) renderLabel(); };
+  document.querySelectorAll('.lpc input, .lpc select').forEach(x => { if (!x.closest('#lb-packs') && !/^lb-(name|dtype|days|st|nut|day|n|skip|pack)$/.test(x.id)) x.addEventListener('change', keep); });
+  const go = test => {
+    if (!test && p.label.check.length && !confirmOnce('lbchk', `「${p.label.check.join('、')}」が要確認のままです。このまま刷るならもう一度押してください`)) return;
     const S = keep(), n = Math.min(Math.max(parseInt(val('lb-n')) || 0, 1), 500), skip = Math.max(parseInt(val('lb-skip')) || 0, 0);
     const pk = L.packs[+val('lb-pack') || 0];
-    openLabelSheet(p, pk ? Object.assign({}, L, { content: pk.content || L.content, jan: pk.jan, pack: pk.name }) : L, S, n, skip, val('lb-day'));
+    openLabelSheet(p, pk ? Object.assign({}, L, { content: pk.content || L.content, jan: pk.jan, pack: pk.name }) : L, S, test ? (S.mode === 'sheet' ? sheetOf(S)[3] * sheetOf(S)[4] : 1) : n, test ? 0 : skip, val('lb-day'), test);
   };
+  $('lb-print').onclick = () => go(false); $('lb-test').onclick = () => go(true);
 }
 let confirmKey = '';
 function confirmOnce(k, msg) { if (confirmKey === k) { confirmKey = ''; return true; } confirmKey = k; chat(esc(msg), 'think'); setTimeout(() => { if (confirmKey === k) confirmKey = ''; }, 8000); return false; }
@@ -776,32 +820,52 @@ function janSvg(code, wmm) {
   for (let n = 0; n < 6; n++) t += `<text x="${q + 3 + n * 7 + 3.5}" y="78">${code[n + 1]}</text><text x="${q + 50 + n * 7 + 3.5}" y="78">${code[n + 7]}</text>`;
   return `<svg class="jan" viewBox="0 0 113 79" style="width:${wmm}mm;height:${wmm * 79 / 113}mm" fill="#000" font-size="8.6" text-anchor="middle" font-family="Helvetica,Arial,sans-serif">${r}${t}</svg>`;
 }
-function openLabelSheet(p, L, S, n, skip, day) {
-  const sh = SHEETS[S.sheet] || SHEETS.p12, [, w, h, cols, rows, top, left, gx, gy] = sh, per = cols * rows, si = D.shopInfo || {}, lb = p.label;
+function openLabelSheet(p, L, S, n, skip, day, test) {
+  const sheet = S.mode !== 'roll', si = D.shopInfo || {}, lb = p.label, k = (S.scale || 100) / 100;
   let date = '';
   if (L.days !== '' && /^\d{4}-\d\d-\d\d$/.test(day)) { const d = new Date(day + 'T00:00:00'); d.setDate(d.getDate() + Number(L.days)); date = `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`; }
   const j = janCheck(L.jan), nu = L.nut ? p.nutr.per : null;
   const salt = nu ? (nu[4] > 0 && nu[4] < 0.1 ? (Math.round(nu[4] * 100) / 100).toFixed(2) : r1(nu[4])) : '';
-  const rowsH = [['名称', L.name], ['原材料名', lb.text + (lb.check.length ? '、' + lb.check.join('、') : '') + (lb.contains || '')], ['内容量', L.content], [L.dtype, '枠外下部に記載'], ['保存方法', L.storage], ['製造者', [si.name || D.shop, si.addr].filter(Boolean).join(' ')]];
+  const inside = S.datePos === 'inside' && date;
+  const rowsH = [['名称', L.name], ['原材料名', lb.text + (lb.check.length ? '、' + lb.check.join('、') : '') + (lb.contains || '')], ['内容量', L.content], [L.dtype, inside ? date : '枠外下部に記載'], ['保存方法', L.storage], ['製造者', [si.name || D.shop, si.addr].filter(Boolean).join(' ')]];
   if (nu) rowsH.push([`栄養成分表示<br>(1${esc(U)}当たり)`, `熱量${Math.round(nu[0])}kcal、たんぱく質${r1(nu[1])}g、脂質${r1(nu[2])}g、炭水化物${r1(nu[3])}g、食塩相当量${salt}g(推定値)`]);
-  const bcw = Math.min(37.29 * 0.8, w * 0.4);
-  const cell = `<div class="lbody"><table>${rowsH.map(([a, b], i) => `<tr><th>${i === 6 ? a : esc(a)}</th><td>${esc(b)}</td></tr>`).join('')}</table>${j.ok && j.code ? janSvg(j.code, bcw) : ''}</div>
-    <div class="lfoot">${date ? `${esc(L.dtype)} ${date}` : ''}</div>`;
-  const slots = []; for (let i = 0; i < skip % per; i++) slots.push(false); for (let i = 0; i < n; i++) slots.push(true);
-  let pages = '';
-  for (let pg = 0; pg < slots.length; pg += per) {
-    pages += '<div class="lsheet">' + slots.slice(pg, pg + per).map((on, i) => on ? `<div class="lcell" style="left:${left + (i % cols) * (w + gx) + S.dx}mm;top:${top + Math.floor(i / cols) * (h + gy) + S.dy}mm;width:${w}mm;height:${h}mm;font-size:${S.pt}pt">${cell}</div>` : '').join('') + '</div>';
+  // ラベル1枚の大きさ(回すときは中身を横長にする)
+  let w, h, sh;
+  if (sheet) { sh = sheetOf(S); w = sh[1]; h = sh[2]; } else { [w, h] = rollOf(S); }
+  const cw = !sheet && S.rot ? h : w, chh = !sheet && S.rot ? w : h;
+  const bcw = Math.min(37.29 * 0.8, cw * 0.4);
+  const foot = S.datePos === 'foot' && date ? `${esc(L.dtype)} ${date}` : '';
+  const cell = test ? `<div class="ltest"><span>${cw}×${chh}</span></div>` : `<div class="lbody"><table>${rowsH.map(([a, b], i) => `<tr><th>${i === 6 ? a : esc(a)}</th><td>${esc(b)}</td></tr>`).join('')}</table>${j.ok && j.code ? janSvg(j.code, bcw) : ''}</div>
+    <div class="lfoot">${foot}</div>`;
+  const box = (x, y) => {
+    const st = `width:${cw}mm;height:${chh}mm;font-size:${S.pt}pt`;
+    if (!sheet && S.rot) return `<div class="lcell${test ? ' lt' : ''}" style="left:${x}mm;top:${y}mm;${st};transform-origin:0 0;transform:translate(${w}mm,0) rotate(90deg)">${cell}</div>`;
+    return `<div class="lcell${test ? ' lt' : ''}" style="left:${x}mm;top:${y}mm;${st}">${cell}</div>`;
+  };
+  let pages = '', pageCount = 0, pageCss;
+  if (sheet) {
+    const [, , , cols, rows, top, left, gx, gy] = sh, per = cols * rows;
+    const slots = []; for (let i = 0; i < skip % per; i++) slots.push(false); for (let i = 0; i < n; i++) slots.push(true);
+    for (let pg = 0; pg < slots.length; pg += per) {
+      pages += `<div class="lsheet"><div class="lscale" style="transform:translate(${S.dx}mm,${S.dy}mm) scale(${k})">` + slots.slice(pg, pg + per).map((on, i) => on ? box(left + (i % cols) * (w + gx), top + Math.floor(i / cols) * (h + gy)) : '').join('') + '</div></div>';
+      pageCount++;
+    }
+    pageCss = '@page{size:A4 portrait;margin:0}';
+  } else {
+    for (let i = 0; i < n; i++) pages += `<div class="lsheet lroll" style="width:${w}mm;height:${h}mm"><div class="lscale" style="transform:translate(${S.dx}mm,${S.dy}mm) scale(${k})">${box(0, 0)}</div></div>`;
+    pageCount = n; pageCss = `@page{size:${w}mm ${h}mm;margin:0}`;
   }
   const v = $('inv');
   v.innerHTML = `<div class="bar3" style="margin-top:0"><button class="btn" type="button" id="inv-print">印刷する</button><button class="btn ghost" type="button" id="inv-close">閉じる</button></div>
-    <p class="k lnote">${esc(p.name)}${L.pack ? ' ' + esc(L.pack) : ''} ${n}枚 · ${esc(sh[0])}(${Math.ceil(slots.length / per)}ページ)。印刷の画面で「倍率100%」「余白なし」にしてください。<span id="lb-over"></span></p>
+    <p class="k lnote">${test ? '合わせ用の試し刷り(枠と真ん中の十字だけ)。普通の紙に刷って、ラベルに重ねて見てください。' : `${esc(p.name)}${L.pack ? ' ' + esc(L.pack) : ''} ${n}枚`} · ${sheet ? esc(sh[0]) + `(${pageCount}ページ)。印刷の画面で、用紙はA4、倍率は「100%」、余白は「なし」に。` : `ラベル ${w}×${h}ミリ(${pageCount}枚)。印刷の画面で、ラベルプリンターと同じ大きさの用紙を選んでください。`}<span id="lb-over"></span></p>
     <div class="lwrap" id="lwrap">${pages}</div>`;
   v.hidden = false; v.classList.add('lprint');
   let st = document.getElementById('lb-page'); if (!st) { st = document.createElement('style'); st.id = 'lb-page'; document.head.appendChild(st); }
-  st.textContent = '@page{size:A4 portrait;margin:0}';
-  const fit = () => { const wr = $('lwrap'); if (!wr) return; const k = Math.min(1, (wr.clientWidth || 360) / (210 * 96 / 25.4)); wr.style.setProperty('--k', k); };
+  st.textContent = pageCss;
+  const pw = sheet ? 210 : w;
+  const fit = () => { const wr = $('lwrap'); if (!wr) return; const kk = Math.min(sheet ? 1 : 3, (wr.clientWidth || 360) / (pw * 96 / 25.4)); wr.style.setProperty('--k', kk); };
   fit(); window.addEventListener('resize', fit);
-  const c0 = v.querySelector('.lcell'); if (c0 && c0.scrollHeight > c0.clientHeight + 1) $('lb-over').innerHTML = '<br><mark>文字がラベルからはみ出しています。文字を小さくするか、大きいラベル用紙にしてください。</mark>';
+  const c0 = v.querySelector('.lcell'); if (!test && c0 && c0.scrollHeight > c0.clientHeight + 1) $('lb-over').innerHTML = '<br><mark>文字がラベルからはみ出しています。文字を小さくするか、大きいラベルにしてください。</mark>';
   const close = () => { v.hidden = true; v.classList.remove('lprint'); st.textContent = ''; window.removeEventListener('resize', fit); };
   $('inv-print').onclick = () => window.print(); $('inv-close').onclick = close;
 }
