@@ -142,7 +142,12 @@ function a2hsHelp() {
     { t: '無かったら: 共有のマークを押します', b: '画面の<b>いちばん下のまん中</b>にある、<b>四角から矢印が上に出ているマーク</b>を押してください。<br><span class="k">見当たらないときは、右下の「…」を押すと「共有」が出てきます。それを押してください。</span>', img: 'a2hs_ios_1.webp' },
     { t: '「ホーム画面に追加」を押します', b: '出てきた一覧を指で少し上に動かすと<b>「ホーム画面に追加」</b>があります。それを押してください。', img: 'a2hs_ios_2.webp' },
     { t: '最後に右上の「追加」を押します', b: '右上の<b>「追加」</b>を押します。<br>これで携帯のホーム画面に「仕込帳」のアイコンができます。', img: 'a2hs_ios_3.webp' }];
-  const steps = /iPhone|iPad|iPod/.test(navigator.userAgent) ? iosSteps : [
+  const pcSteps = [
+    { t: 'パソコンに仕込帳を置く', b: '<b>Chrome</b>か<b>Edge</b>で開いているときにできます。アドレス欄(上の、住所が書いてある欄)の右はしにある<b>「インストール」マーク</b>(画面に下向きの矢印)を押して、出てきた確認で<b>「インストール」</b>を押してください。', img: 'a2hs_pc_1.webp' },
+    { t: 'マークが無いとき', b: '右上の <b>︙</b> を押して、<b>「キャスト、保存、共有」</b>→<b>「ページをアプリとしてインストール」</b>を押します。<br><span class="k">Edgeの場合は、右上の「…」→「アプリ」→「このサイトをアプリとしてインストール」です。Macの Safari なら、上のメニューの「ファイル」→「Dockに追加」です。</span>', img: 'a2hs_pc_2.webp' },
+    { t: 'できあがり', b: 'デスクトップやタスクバーに「仕込帳」のアイコンができます。押すと、仕込帳だけの画面で開きます。', img: 'a2hs_pc_3.webp' }];
+  const isPc = !matchMedia('(pointer:coarse)').matches;
+  const steps = isPc ? pcSteps : /iPhone|iPad|iPod/.test(navigator.userAgent) ? iosSteps : [
     { t: 'まず、もう置いてあるか見てみましょう', b: '前に一度「インストール」を押していれば、もう置いてあります。いったん携帯のホーム画面(アプリが並んでいる画面)に戻って、「仕込帳」のアイコンがないか見てください。横にめくった先にあることもあります。', pic: '' },
     { t: '無かったら: 点が3つのマークを押します', b: '画面の<b>いちばん下の右はし</b>(携帯によっては<b>いちばん上の右はし</b>)にある <b style="font-size:20px">︙</b> を押してください。', img: 'a2hs_1.webp' },
     { t: '「ショートカット作成」を押します', b: '出てきた一覧から<b>「ショートカット作成」</b>を押します。<br><span class="k">携帯によっては<b>「ホーム画面に追加」「アプリをインストール」「ページを追加」</b>と書いてあります。どれか1つがあれば、それを押してください。</span>', img: 'a2hs_2.webp' },
@@ -156,7 +161,7 @@ function a2hsHelp() {
   const draw = () => {
     const s0 = steps[i];
     ov.innerHTML = `<div class="a2card" role="dialog" aria-modal="true"><div class="k" style="margin-bottom:6px">${i + 1} / ${steps.length}</div><h3 style="margin:0 0 8px;font-size:20px">${s0.t}</h3>${s0.img ? `<div style="text-align:center;margin:6px 0 10px"><img src="${s0.img}?v=1" alt="" style="max-width:100%;max-height:46vh;border-radius:12px;border:1px solid var(--line)"></div>` : s0.pic ? `<div style="text-align:center;margin:6px 0 10px">${PIC[s0.pic]}</div>` : ''}<p style="margin:0;font-size:16px;line-height:1.8">${s0.b}</p>
-      <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">${i < steps.length - 1 ? `<button class="btn" type="button" data-next style="font-size:16px;padding:10px 20px">${i === 0 ? '無かった(つぎへ)' : 'つぎへ'}</button>` : ''}${i === 0 ? '<button class="btn ghost" type="button" data-have style="font-size:16px;padding:10px 20px">あった</button>' : ''}${i > 0 ? '<button class="btn ghost" type="button" data-back>もどる</button>' : ''}<button class="btn ghost" type="button" data-close>${i === steps.length - 1 ? 'できた' : '閉じる'}</button></div>
+      <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">${i < steps.length - 1 ? `<button class="btn" type="button" data-next style="font-size:16px;padding:10px 20px">${i === 0 && !isPc ? '無かった(つぎへ)' : 'つぎへ'}</button>` : ''}${i === 0 && !isPc ? '<button class="btn ghost" type="button" data-have style="font-size:16px;padding:10px 20px">あった</button>' : ''}${i > 0 ? '<button class="btn ghost" type="button" data-back>もどる</button>' : ''}<button class="btn ghost" type="button" data-close>${i === steps.length - 1 ? 'できた' : '閉じる'}</button></div>
       <p class="k" style="margin:12px 0 0">うまくいかないときは、その画面のスクリーンショットを、設定の「問い合わせ」から送ってください。</p></div>`;
     const q = sel => ov.querySelector(sel);
     if (q('[data-next]')) q('[data-next]').onclick = () => { i++; draw(); };
@@ -950,7 +955,7 @@ function renderSet() {
   const cyc = (D.stock || {}).cycle || '年1回';
   const grp = (t, k, body) => `<div class="card sgrp"><div class="sgh"><span class="ic" style="--c:var(--c-${k})"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[k]}</svg></span><b>${t}</b></div>${body}</div>`;
   const stand = matchMedia('(display-mode: standalone)').matches || navigator.standalone;
-  const homeIcon = `<div class="card" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><b>ホーム画面のアイコン</b>${stand ? '<span class="pill">アイコンから開いています(置けています)</span>' : '<button class="btn sm" type="button" id="set-a2hs">ホーム画面に置く</button><span class="k">LINEを通らず、アイコンから開けるようにします</span>'}</div>`;
+  const homeIcon = `<div class="card" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><b>${matchMedia('(pointer:coarse)').matches ? 'ホーム画面のアイコン' : 'パソコンのアイコン'}</b>${stand ? '<span class="pill">アイコンから開いています(置けています)</span>' : `<button class="btn sm" type="button" id="set-a2hs">${matchMedia('(pointer:coarse)').matches ? 'ホーム画面に置く' : 'パソコンに置く'}</button><span class="k">LINEやブラウザを通らず、アイコンから開けるようにします</span>`}</div>`;
   $('set-box').innerHTML = homeIcon + (CF ? `<div class="card" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><b>使い方ガイド</b><a class="btn ghost sm" href="/guide/start" target="_blank">はじめの設定(店主向け)</a><a class="btn ghost sm" href="/guide/daily" target="_blank">ふだんの使い方(みんな向け)</a></div>` : '') + grp('見え方', 'set', `
     <div class="set-row"><span>キャラ</span>${seg('pack', [['shirokuma', 'もなか'], ['tanuki', 'ぽん']], PACK)}</div>
     <div class="set-row"><span>キャラの大きさ</span>${seg('csize', [['s', '小'], ['m', '中'], ['l', '大']], store.get('csize', 'm'))}</div>
