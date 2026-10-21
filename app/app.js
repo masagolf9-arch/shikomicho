@@ -1,4 +1,4 @@
-// 仕込帳 お店の画面(LINEの中でも、パソコンのブラウザでも開ける)
+// ピタット原価 お店の画面(LINEの中でも、パソコンのブラウザでも開ける)
 // データは Google の記録の表から読む。見られるのは「メンバー」シートで許可された人だけ。
 const LIFF_ID = '2012003912-ltVppjVx';
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbxShAkcy1uEzK5ZUGWgW8lzdFBcd8baDNKjHwGKCBx7ocrEUNDHmzrSFdrZDikqL2VO/exec';
@@ -38,7 +38,7 @@ async function load() {
   try {
     const out = await api({ kind: 'app_data' });
     if (!out.ok) {
-      if (out.error === 'removed') { store.set('data', null); D = null; document.querySelectorAll('section').forEach(s => s.hidden = true); return state('<b>このお店の仕込帳からは外されています。</b><br>心当たりがなければ、店主に聞いてください。' + (CF && !IN_LINE ? '<form method="post" action="/auth/logout" style="margin-top:10px"><button class="btn ghost">ログアウト</button></form>' : '')); }
+      if (out.error === 'removed') { store.set('data', null); D = null; document.querySelectorAll('section').forEach(s => s.hidden = true); return state('<b>このお店のピタット原価からは外されています。</b><br>心当たりがなければ、店主に聞いてください。' + (CF && !IN_LINE ? '<form method="post" action="/auth/logout" style="margin-top:10px"><button class="btn ghost">ログアウト</button></form>' : '')); }
       if (out.error === 'wait' || out.error === 'login') { store.set('data', null); if (D) { D = null; document.querySelectorAll('section').forEach(s => s.hidden = true); } }
       if (out.error === 'wait') return state('<b>店主の許可待ちです。</b><br>店主のLINEに「見たい」とお知らせを送りました。<br>店主が「許可」を押したら、もう一度開いてください。<br><button class="btn ghost" onclick="load()">もう一度読む</button>');
       if (out.error === 'login' && CF && !IN_LINE) { location.href = '/login?next=' + encodeURIComponent(location.pathname); return; }
@@ -125,7 +125,7 @@ function renderA2hs() {
   else if (ios) how = `<ol class="k" style="margin:4px 0 0;padding-left:1.3em;line-height:1.9"><li>画面の下(または上)の <b>共有ボタン</b>(四角に上向きの矢印)を押す</li><li><b>「ホーム画面に追加」</b>を押す</li><li>右上の<b>「追加」</b>を押す</li></ol>`;
   else how = `<p class="k" style="margin:4px 0 0">ブラウザのメニューから「ホーム画面に追加」を選んでください。</p>`;
   box.hidden = false;
-  box.innerHTML = `<div style="display:flex;gap:12px;align-items:flex-start"><img src="icon-192.png" alt="" width="44" height="44" style="border-radius:12px;flex:0 0 44px"><div style="flex:1;min-width:0"><b>ホーム画面に仕込帳を置く</b><p class="k" style="margin:2px 0 0">次からはアイコンを押すだけで、LINEを通らずこの画面が開きます。</p>${how}<p style="margin:8px 0 0"><a href="#" id="a2hs-no" class="k" style="color:var(--accent)">今はいい</a></p></div></div>`;
+  box.innerHTML = `<div style="display:flex;gap:12px;align-items:flex-start"><img src="icon-192.png" alt="" width="44" height="44" style="border-radius:12px;flex:0 0 44px"><div style="flex:1;min-width:0"><b>ホーム画面にピタット原価を置く</b><p class="k" style="margin:2px 0 0">次からはアイコンを押すだけで、LINEを通らずこの画面が開きます。</p>${how}<p style="margin:8px 0 0"><a href="#" id="a2hs-no" class="k" style="color:var(--accent)">今はいい</a></p></div></div>`;
   const go = $('a2hs-go'); if (go) go.onclick = async () => {
     if (a2hsEvt) { const ev = a2hsEvt; ev.prompt(); const r = await ev.userChoice.catch(() => null); a2hsEvt = null; if (r && r.outcome === 'accepted') { store.set('a2hsHide', 1); box.hidden = true; toast('ホーム画面に置きました', 'ok'); } return; }
     a2hsHelp();
@@ -138,25 +138,25 @@ function a2hsHelp() {
   const ov = document.createElement('div');
   ov.className = 'a2ov';
   const iosSteps = [
-    { t: 'まず、もう置いてあるか見てみましょう', b: '携帯のホーム画面(アプリが並んでいる画面)に戻って、「仕込帳」のアイコンがないか見てください。横にめくった先にあることもあります。' },
-    { t: '無かったら: 共有のマークを押します', b: '画面の<b>いちばん下のまん中</b>にある、<b>四角から矢印が上に出ているマーク</b>を押してください。<br><span class="k">見当たらないときは、右下の「…」を押すと「共有」が出てきます。それを押してください。</span>', img: 'a2hs_ios_1.webp' },
-    { t: '「ホーム画面に追加」を押します', b: '出てきた一覧を指で少し上に動かすと<b>「ホーム画面に追加」</b>があります。それを押してください。', img: 'a2hs_ios_2.webp' },
-    { t: '最後に右上の「追加」を押します', b: '右上の<b>「追加」</b>を押します。<br>これで携帯のホーム画面に「仕込帳」のアイコンができます。', img: 'a2hs_ios_3.webp' }];
+    { t: 'まず、もう置いてあるか見てみましょう', b: '携帯のホーム画面(アプリが並んでいる画面)に戻って、「ピタット原価」のアイコンがないか見てください。横にめくった先にあることもあります。' },
+    { t: '無かったら: 共有のマークを押します', b: '画面の<b>いちばん下のまん中</b>にある、<b>四角から矢印が上に出ているマーク</b>を押してください。<br><span class="k">見当たらないときは、右下の「…」を押すと「共有」が出てきます。それを押してください。</span>', img: 'a2hs_ios_1.webp?v=2' },
+    { t: '「ホーム画面に追加」を押します', b: '出てきた一覧を指で少し上に動かすと<b>「ホーム画面に追加」</b>があります。それを押してください。', img: 'a2hs_ios_2.webp?v=2' },
+    { t: '最後に右上の「追加」を押します', b: '右上の<b>「追加」</b>を押します。<br>これで携帯のホーム画面に「ピタット原価」のアイコンができます。', img: 'a2hs_ios_3.webp?v=2' }];
   const pcSteps = [
-    { t: 'パソコンに仕込帳を置く', b: '<b>Chrome</b>か<b>Edge</b>で開いているときにできます。アドレス欄(上の、住所が書いてある欄)の右はしにある<b>「インストール」マーク</b>(画面に下向きの矢印)を押して、出てきた確認で<b>「インストール」</b>を押してください。', img: 'a2hs_pc_1.webp' },
-    { t: 'マークが無いとき', b: '右上の <b>︙</b> を押して、<b>「キャスト、保存、共有」</b>→<b>「ページをアプリとしてインストール」</b>を押します。<br><span class="k">Edgeの場合は、右上の「…」→「アプリ」→「このサイトをアプリとしてインストール」です。Macの Safari なら、上のメニューの「ファイル」→「Dockに追加」です。</span>', img: 'a2hs_pc_2.webp' },
-    { t: 'できあがり', b: 'デスクトップやタスクバーに「仕込帳」のアイコンができます。押すと、仕込帳だけの画面で開きます。', img: 'a2hs_pc_3.webp' }];
+    { t: 'パソコンにピタット原価を置く', b: '<b>Chrome</b>か<b>Edge</b>で開いているときにできます。アドレス欄(上の、住所が書いてある欄)の右はしにある<b>「インストール」マーク</b>(画面に下向きの矢印)を押して、出てきた確認で<b>「インストール」</b>を押してください。', img: 'a2hs_pc_1.webp?v=2' },
+    { t: 'マークが無いとき', b: '右上の <b>︙</b> を押して、<b>「キャスト、保存、共有」</b>→<b>「ページをアプリとしてインストール」</b>を押します。<br><span class="k">Edgeの場合は、右上の「…」→「アプリ」→「このサイトをアプリとしてインストール」です。Macの Safari なら、上のメニューの「ファイル」→「Dockに追加」です。</span>', img: 'a2hs_pc_2.webp?v=2' },
+    { t: 'できあがり', b: 'デスクトップやタスクバーに「ピタット原価」のアイコンができます。押すと、ピタット原価だけの画面で開きます。', img: 'a2hs_pc_3.webp?v=2' }];
   const isPc = !matchMedia('(pointer:coarse)').matches;
   const steps = isPc ? pcSteps : /iPhone|iPad|iPod/.test(navigator.userAgent) ? iosSteps : [
-    { t: 'まず、もう置いてあるか見てみましょう', b: '前に一度「インストール」を押していれば、もう置いてあります。いったん携帯のホーム画面(アプリが並んでいる画面)に戻って、「仕込帳」のアイコンがないか見てください。横にめくった先にあることもあります。', pic: '' },
-    { t: '無かったら: 点が3つのマークを押します', b: '画面の<b>いちばん下の右はし</b>(携帯によっては<b>いちばん上の右はし</b>)にある <b style="font-size:20px">︙</b> を押してください。', img: 'a2hs_1.webp' },
-    { t: '「ショートカット作成」を押します', b: '出てきた一覧から<b>「ショートカット作成」</b>を押します。<br><span class="k">携帯によっては<b>「ホーム画面に追加」「アプリをインストール」「ページを追加」</b>と書いてあります。どれか1つがあれば、それを押してください。</span>', img: 'a2hs_2.webp' },
-    { t: '最後に「追加」を押します', b: '確認が出たら<b>「追加」</b>(または「OK」「インストール」)を押します。<br>これで携帯のホーム画面に「仕込帳」のアイコンができます。', img: 'a2hs_3.webp' }];
+    { t: 'まず、もう置いてあるか見てみましょう', b: '前に一度「インストール」を押していれば、もう置いてあります。いったん携帯のホーム画面(アプリが並んでいる画面)に戻って、「ピタット原価」のアイコンがないか見てください。横にめくった先にあることもあります。', pic: '' },
+    { t: '無かったら: 点が3つのマークを押します', b: '画面の<b>いちばん下の右はし</b>(携帯によっては<b>いちばん上の右はし</b>)にある <b style="font-size:20px">︙</b> を押してください。', img: 'a2hs_1.webp?v=2' },
+    { t: '「ショートカット作成」を押します', b: '出てきた一覧から<b>「ショートカット作成」</b>を押します。<br><span class="k">携帯によっては<b>「ホーム画面に追加」「アプリをインストール」「ページを追加」</b>と書いてあります。どれか1つがあれば、それを押してください。</span>', img: 'a2hs_2.webp?v=2' },
+    { t: '最後に「追加」を押します', b: '確認が出たら<b>「追加」</b>(または「OK」「インストール」)を押します。<br>これで携帯のホーム画面に「ピタット原価」のアイコンができます。', img: 'a2hs_3.webp?v=2' }];
   let i = 0;
   const PIC = {
     dots: `<svg viewBox="0 0 240 150" width="240" height="150" aria-hidden="true"><rect x="20" y="6" width="200" height="138" rx="16" fill="#fff" stroke="#c9d3df" stroke-width="3"/><rect x="34" y="18" width="172" height="20" rx="10" fill="#eef2f7"/><circle cx="198" cy="28" r="3" fill="#555"/><circle cx="198" cy="20" r="3" fill="#555"/><circle cx="198" cy="36" r="3" fill="#555"/><rect x="34" y="112" width="172" height="20" rx="6" fill="#eef2f7"/><circle cx="196" cy="114" r="3" fill="#555"/><circle cx="196" cy="122" r="3" fill="#555"/><circle cx="196" cy="130" r="3" fill="#555"/><circle cx="198" cy="28" r="14" fill="none" stroke="#e2531c" stroke-width="4"/><circle cx="196" cy="122" r="14" fill="none" stroke="#e2531c" stroke-width="4"/><text x="120" y="80" font-size="14" text-anchor="middle" fill="#8a94a3">上か下の右はし</text></svg>`,
     menu: `<svg viewBox="0 0 240 150" width="240" height="150" aria-hidden="true"><rect x="60" y="6" width="160" height="138" rx="12" fill="#fff" stroke="#c9d3df" stroke-width="3"/><rect x="74" y="20" width="110" height="10" rx="5" fill="#e3e8ef"/><rect x="74" y="42" width="90" height="10" rx="5" fill="#e3e8ef"/><rect x="68" y="60" width="144" height="28" rx="8" fill="#fff4e8" stroke="#e2531c" stroke-width="3"/><text x="140" y="79" font-size="14" text-anchor="middle" fill="#b23d0f" font-weight="700">ホーム画面に追加</text><rect x="74" y="100" width="100" height="10" rx="5" fill="#e3e8ef"/><rect x="74" y="120" width="80" height="10" rx="5" fill="#e3e8ef"/></svg>`,
-    done: `<svg viewBox="0 0 240 150" width="240" height="150" aria-hidden="true"><rect x="70" y="6" width="100" height="138" rx="16" fill="#fff" stroke="#c9d3df" stroke-width="3"/><rect x="86" y="24" width="20" height="20" rx="5" fill="#e3e8ef"/><rect x="110" y="24" width="20" height="20" rx="5" fill="#e3e8ef"/><rect x="134" y="24" width="20" height="20" rx="5" fill="#e3e8ef"/><rect x="86" y="54" width="20" height="20" rx="5" fill="#185fa5"/><rect x="91" y="59" width="10" height="11" fill="none" stroke="#fff" stroke-width="2"/><text x="96" y="88" font-size="9" text-anchor="middle" fill="#333">仕込帳</text><circle cx="96" cy="64" r="17" fill="none" stroke="#e2531c" stroke-width="3"/></svg>`
+    done: `<svg viewBox="0 0 240 150" width="240" height="150" aria-hidden="true"><rect x="70" y="6" width="100" height="138" rx="16" fill="#fff" stroke="#c9d3df" stroke-width="3"/><rect x="86" y="24" width="20" height="20" rx="5" fill="#e3e8ef"/><rect x="110" y="24" width="20" height="20" rx="5" fill="#e3e8ef"/><rect x="134" y="24" width="20" height="20" rx="5" fill="#e3e8ef"/><rect x="86" y="54" width="20" height="20" rx="5" fill="#185fa5"/><rect x="91" y="59" width="10" height="11" fill="none" stroke="#fff" stroke-width="2"/><text x="96" y="88" font-size="7" text-anchor="middle" fill="#333">ピタット原価</text><circle cx="96" cy="64" r="17" fill="none" stroke="#e2531c" stroke-width="3"/></svg>`
   };
   const draw = () => {
     const s0 = steps[i];
@@ -242,18 +242,18 @@ function renderHomeEvents() {
   box.style.padding = evs.length ? '0' : '';
 }
 $('ev-more').onclick = () => show('cal');
-// レジに入れる値段(仕込帳で売値を変えた → レジを直して「済」)。値段表の印刷も
+// レジに入れる値段(ピタット原価で売値を変えた → レジを直して「済」)。値段表の印刷も
 function renderReg() {
   const box = $('reg-box'); if (!box) return;
   const all = noMoney() ? [] : (D.priceChanges || []), pend = all.filter(x => !x.done), done = all.filter(x => x.done).slice(-5).reverse();
   box.parentNode.hidden = !all.length;
   if (!all.length) return;
   const row = x => `<div class="regrow${x.done ? ' done' : ''}"><div class="rb"><b>${esc(x.name)}</b>${x.reg && x.reg !== x.name ? ` <span class="k">レジでは「${esc(x.reg)}」</span>` : ''}<span class="k">${x.old ? `${x.old}円 → ` : '新しく '}<b style="color:var(--ink)">${x.now}円</b> · ${x.at ? new Date(x.at).toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' }) : ''}${x.done ? ` · レジ済 ${md(x.done)}${x.by ? ' ' + esc(x.by) : ''}` : ''}</span></div>${x.done ? '' : `<button class="btn sm" type="button" data-regdone="${x.row}">レジに入れた</button>`}</div>`;
-  box.innerHTML = `<p class="k" style="margin:0 0 6px">${pend.length ? `仕込帳で売値を変えた${pend.length}品。レジの値段を直したら「レジに入れた」を押してください。押すまでここに残ります。` : 'レジに入れていない変更はありません。'}</p>
+  box.innerHTML = `<p class="k" style="margin:0 0 6px">${pend.length ? `ピタット原価で売値を変えた${pend.length}品。レジの値段を直したら「レジに入れた」を押してください。押すまでここに残ります。` : 'レジに入れていない変更はありません。'}</p>
     ${pend.map(row).join('')}${done.length ? `<details style="margin-top:8px"><summary class="k">最近レジに入れたもの(${done.length})</summary>${done.map(row).join('')}</details>` : ''}
     ${pend.length ? `<div class="ask"><button class="btn ghost sm" type="button" id="reg-print">レジ用の値段表を出す</button><span class="k">印刷するか、スマホで見ながらレジに入れます</span></div>` : ''}`;
   box.querySelectorAll('[data-regdone]').forEach(b => b.onclick = () => setValueX({ field: 'regdone', value: +b.dataset.regdone }));
-  const pr = $('reg-print'); if (pr) pr.onclick = () => openPrint(`<h2>レジに入れる値段</h2><p class="k">${new Date().toLocaleDateString('ja-JP')} 時点。仕込帳で売値を変えた商品。</p><table class="pt"><tr><th>レジでの名前</th><th>商品</th><th>前の売値</th><th>新しい売値</th><th>変えた日</th><th>レジに入れた✓</th></tr>${pend.map(x => `<tr><td><b>${esc(x.reg || x.name)}</b></td><td>${esc(x.name)}</td><td>${x.old ? x.old + '円' : '—'}</td><td><b style="font-size:18px">${x.now}円</b></td><td>${x.at ? new Date(x.at).toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' }) : ''}</td><td style="width:60px"></td></tr>`).join('')}</table><p class="k">精算レシートを撮ったとき、レジの値段と仕込帳の売値がちがえば、お知らせします。</p>`);
+  const pr = $('reg-print'); if (pr) pr.onclick = () => openPrint(`<h2>レジに入れる値段</h2><p class="k">${new Date().toLocaleDateString('ja-JP')} 時点。ピタット原価で売値を変えた商品。</p><table class="pt"><tr><th>レジでの名前</th><th>商品</th><th>前の売値</th><th>新しい売値</th><th>変えた日</th><th>レジに入れた✓</th></tr>${pend.map(x => `<tr><td><b>${esc(x.reg || x.name)}</b></td><td>${esc(x.name)}</td><td>${x.old ? x.old + '円' : '—'}</td><td><b style="font-size:18px">${x.now}円</b></td><td>${x.at ? new Date(x.at).toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' }) : ''}</td><td style="width:60px"></td></tr>`).join('')}</table><p class="k">精算レシートを撮ったとき、レジの値段とピタット原価の売値がちがえば、お知らせします。</p>`);
 }
 // 日本の祝日(計算で出す。春分・秋分は近い年の表)
 const EQX = { 2025: [20, 23], 2026: [20, 23], 2027: [21, 23], 2028: [20, 22], 2029: [20, 23], 2030: [20, 23] };
@@ -307,11 +307,11 @@ $('ev-add-top').onclick = () => evForm();
 function gcalBox() {
   const c = D.cal || {}; if (!D.me || !D.me.owner) return c.gcal ? '<p class="k" style="margin:10px 0 0">Googleカレンダーの予定も、この表に出ています(店主の設定)。</p>' : '';
   return `<h1 class="sub">Googleカレンダーとつなぐ <span class="k" style="font-weight:400;font-size:13px">(お店が選べます。つながなくても使えます)</span></h1>
-  <div class="card"><p style="margin:0 0 4px"><b>① 仕込帳の予定を、スマホのGoogleカレンダーにも出す</b></p><p class="k" style="margin:0 0 8px">仕込帳に入れた納品・催事・休みが、自動でGoogleカレンダーに出ます(数時間遅れることがあります)。</p>
+  <div class="card"><p style="margin:0 0 4px"><b>① ピタット原価の予定を、スマホのGoogleカレンダーにも出す</b></p><p class="k" style="margin:0 0 8px">ピタット原価に入れた納品・催事・休みが、自動でGoogleカレンダーに出ます(数時間遅れることがあります)。</p>
     <div class="ask" style="margin-top:0"><input id="cal-feed" readonly value="${esc(c.feed || '')}" style="flex:1;min-width:0;font-size:13px"><button class="btn ghost sm" type="button" id="cal-copy">コピー</button></div>
     <details style="margin-top:6px"><summary class="k">Googleカレンダーでの入れ方</summary><ol class="k" style="margin:6px 0 0;padding-left:1.4em;line-height:1.8"><li>パソコンで Googleカレンダー を開く</li><li>左の「他のカレンダー」の「＋」→「URLで追加」</li><li>上の住所を貼って「カレンダーを追加」</li><li>スマホのGoogleカレンダーの設定で、そのカレンダーの表示をオンにする</li></ol><p class="k" style="margin:6px 0 0">この住所は合言葉つきです。お店の人以外には教えないでください。</p></details>
     <hr style="border:0;border-top:1px solid var(--line-2);margin:14px 0">
-    <p style="margin:0 0 4px"><b>② Googleカレンダーの予定を、仕込帳にも出す</b></p><p class="k" style="margin:0 0 8px">Googleカレンダーの設定 › そのカレンダー › 「iCal形式の秘密のアドレス」をコピーして、ここに貼ります。Googleに入れた予定が仕込帳の予定と「今日やること」に出ます(見るだけ。消す・直すはGoogle側で)。</p>
+    <p style="margin:0 0 4px"><b>② Googleカレンダーの予定を、ピタット原価にも出す</b></p><p class="k" style="margin:0 0 8px">Googleカレンダーの設定 › そのカレンダー › 「iCal形式の秘密のアドレス」をコピーして、ここに貼ります。Googleに入れた予定がピタット原価の予定と「今日やること」に出ます(見るだけ。消す・直すはGoogle側で)。</p>
     <div class="ask" style="margin-top:0"><input id="gcal-url" placeholder="https://calendar.google.com/calendar/ical/…/basic.ics" value="${esc(c.gcal || '')}" style="flex:1;min-width:0;font-size:13px"><button class="btn sm" type="button" id="gcal-save">${c.gcal ? '貼り直す' : 'つなぐ'}</button>${c.gcal ? '<button class="btn ghost sm" type="button" id="gcal-off">外す</button>' : ''}</div>
     ${c.gcal ? '<p class="k" style="margin:6px 0 0">つながっています。Googleの予定は1時間ごとに読み直します。</p>' : ''}</div>`;
 }
@@ -1096,7 +1096,7 @@ function renderSales() {
       ${rate != null ? `<div class="row" style="margin-top:8px"><span>作った分の材料費</span><b>${yen(o.madeCost)}</b></div><p class="k" style="margin:2px 0 0">原価率の目安 ${rate}%(製造メモ × 1${U}の原価 ÷ 売上)</p>` : ''}</div>
     ${items.length ? `<div class="card"><p style="margin:0 0 6px"><b>商品ごとのもうけ</b> <span class="k">売上 − 材料費</span></p>${barsH(items.slice(0, 8).map(n => ({ l: n, v: o.items[n].amount - o.items[n].cost })), 'var(--c-sales)')}<table><tr><td class="k">商品</td><td class="n k">数</td><td class="n k">売上</td><td class="n k">もうけ</td></tr>${items.map(n => { const x = o.items[n], g = x.amount - x.cost; return `<tr><td>${esc(n)}${x.unit == null ? ' <span class="pill warn">重さ待ち</span>' : ''}</td><td class="n">${x.qty}</td><td class="n">${yen(x.amount)}</td><td class="n"><b>${yen(g)}</b><br><span class="k">${x.amount ? Math.round(g / x.amount * 100) : 0}%</span></td></tr>`; }).join('')}</table>
       <p class="k" style="margin:6px 0 0">人件費・光熱費などは入っていません。材料費だけを引いた額です</p></div>` : ''}
-    ${unk.length ? `<div class="card"><p style="margin:0 0 6px"><b>レジの名前と商品をつなぐ</b></p><p class="k" style="margin:0 0 6px">商品ごとに打っている名前は、仕込帳の商品を選ぶともうけが出ます。部門(和菓子など)はそのままで大丈夫です</p>
+    ${unk.length ? `<div class="card"><p style="margin:0 0 6px"><b>レジの名前と商品をつなぐ</b></p><p class="k" style="margin:0 0 6px">商品ごとに打っている名前は、ピタット原価の商品を選ぶともうけが出ます。部門(和菓子など)はそのままで大丈夫です</p>
       ${unk.map((u, i) => `<div class="ask"><span style="min-width:7em">${esc(u)} <span class="k">${yen(o.unknown[u])}</span></span><select id="ra-${i}" style="font:inherit;font-size:14px;padding:5px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)"><option value="">選ぶ</option>${D.products.map(p => `<option>${esc(p.name)}</option>`).join('')}</select><button class="btn ghost" type="button" data-ra="${i}" data-reg="${esc(u)}">つなぐ</button></div>`).join('')}</div>` : ''}`;
   $('sales-box').querySelectorAll('[data-ra]').forEach(b => b.onclick = () => { const p = $('ra-' + b.dataset.ra).value; if (!p) return; setValueX({ field: 'regalias', reg: b.dataset.reg, product: p }); });
 }

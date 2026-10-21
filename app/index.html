@@ -3,16 +3,16 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>仕込帳</title>
+<title>ピタット原価</title>
 <meta name="theme-color" content="#185fa5">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
-<meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="仕込帳">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="ピタット原価">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@700&display=swap" rel="stylesheet">
 <style>
-/* 仕込帳 お店の画面 v16
+/* ピタット原価 お店の画面 v16
    参考: Canva(大きな「何をしますか?」と色つきの丸いボタン)と STORES(白くすっきりした管理画面と数字の札)。
    青1色を軸に、機能ごとに色を1つ持つ。角は大きめの丸。影はごく薄く。キャラは右下に座っていて、押すと会話が開く。 */
 :root{
@@ -643,7 +643,7 @@ section.inR{animation:inR .12s ease-out}section.inL{animation:inL .12s ease-out}
     <div class="card" id="bank-box"></div>
     <h1 class="sub">問い合わせ</h1>
     <div class="card contact">
-      <p class="k" style="margin:0 0 8px">使い方が分からない、うまく動かない、こうしてほしい。仕込帳の担当に届きます。お返事はLINEかメールで。</p>
+      <p class="k" style="margin:0 0 8px">使い方が分からない、うまく動かない、こうしてほしい。ピタット原価の担当に届きます。お返事はLINEかメールで。</p>
       <div class="seg" id="ct-cat" style="flex-wrap:wrap;justify-content:flex-start"><button type="button" data-v="使い方" aria-pressed="true">使い方</button><button type="button" data-v="うまく動かない" aria-pressed="false">うまく動かない</button><button type="button" data-v="こうしてほしい" aria-pressed="false">こうしてほしい</button><button type="button" data-v="その他" aria-pressed="false">その他</button></div>
       <textarea id="ct-text" rows="4" maxlength="2000" placeholder="例: 請求書の写真がうまく読めません" aria-label="問い合わせの内容"></textarea>
       <div class="ask"><button class="btn" type="button" id="ct-go">送る</button><span class="k" id="ct-via">LINEで「問い合わせ 〜」と送ってもOK</span></div>
@@ -679,6 +679,6 @@ section.inR{animation:inR .12s ease-out}section.inL{animation:inL .12s ease-out}
 </div></nav>
 
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-<script src="app.js?v=67"></script>
+<script src="app.js?v=68"></script>
 </body>
 </html>
