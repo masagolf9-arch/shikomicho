@@ -332,15 +332,16 @@ function contactsBox() {
   const cand = [...new Set(sup.concat(tos))].filter(n => !cs.find(c => c.name === n));
   return `${cs.length ? '' : '<p class="k" style="margin:0 0 6px">まだありません。請求書を撮ると業者が自動で入ります。下から手で足すこともできます</p>'}
     ${cs.map(c => `<div class="contact-row"><b>${esc(c.name)}</b><span class="k">${esc(c.kind)}</span><span class="tel">${c.tel ? `<a href="tel:${esc(c.tel.replace(/[^\\d+]/g, ''))}">☎ ${esc(c.tel)}</a>` : '<span class="k">電話なし</span>'}</span><span class="k">${esc(c.person)}</span><button class="btn ghost sm" type="button" data-ct-edit="${esc(c.name)}">直す</button>${c.addr ? `<div class="k" style="grid-column:1/-1;margin-top:-4px">住所: ${esc(c.addr)}</div>` : ''}${c.bank || c.number ? `<div class="k" style="grid-column:1/-1;margin-top:-4px">振込先: ${esc([c.bank, c.branch, c.type, c.number, c.holder].filter(Boolean).join(' '))}</div>` : ''}</div>`).join('')}
-    ${cs.length ? '<div class="ask"><button class="btn ghost" type="button" id="ct-add">＋ 業者・卸先を足す</button></div>' : ''}<div id="ct-form" style="margin-top:10px"${cs.length ? ' hidden' : ''}><div class="fld"><span class="k">名前</span><input id="ct-name" list="ct-cand" placeholder="業者・卸先の名前"><datalist id="ct-cand">${cand.map(n => `<option value="${esc(n)}">`).join('')}</datalist><span class="k">種類</span><div class="seg" id="ct-kind">${['業者', '卸先', 'その他'].map((k, i) => `<button type="button" data-v="${k}" aria-pressed="${i === 0}">${k}</button>`).join('')}</div><span class="k">電話</span><input id="ct-tel" inputmode="tel" placeholder="電話番号"><span class="k">担当</span><input id="ct-person" placeholder="担当者"><span class="k">住所</span><input id="ct-addr" placeholder="住所"><span class="k">振込先</span><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px"><input id="ct-bank" placeholder="銀行"><input id="ct-branch" placeholder="支店"><select id="ct-type" class="sel"><option value="">種別</option><option>普通</option><option>当座</option></select><input id="ct-number" inputmode="numeric" placeholder="口座番号"><input id="ct-holder" placeholder="名義(カナ)" style="grid-column:1/-1"></div></div><p class="k" style="margin:4px 0 0">請求書を撮ると、電話・担当・住所・振込先は自動で入ります(読めなかったところだけ空のまま)</p><div class="ask"><button class="btn" type="button" id="ct-save">連絡先を保存</button><button class="btn ghost" type="button" id="ct-del" hidden>消す</button></div></div>`;
+    ${cs.length ? '<div class="ask"><button class="btn ghost" type="button" id="ct-add">＋ 業者・卸先を足す</button></div>' : ''}<div id="ct-form" style="margin-top:10px"${cs.length ? ' hidden' : ''}><div class="fld"><span class="k">名前</span><input id="ct-name" list="ct-cand" placeholder="業者・卸先の名前"><datalist id="ct-cand">${cand.map(n => `<option value="${esc(n)}">`).join('')}</datalist><span class="k">種類</span><div class="seg" id="ct-kind">${['業者', '卸先', 'その他'].map((k, i) => `<button type="button" data-v="${k}" aria-pressed="${i === 0}">${k}</button>`).join('')}</div><span class="k">電話</span><input id="ct-tel" inputmode="tel" placeholder="電話番号"><span class="k">担当</span><input id="ct-person" placeholder="担当者"><span class="k">住所</span><input id="ct-addr" placeholder="住所">${noMoney() ? '<span class="k">振込先</span><span class="k">店主と、お金を見られる人だけに見えます</span>' : `<span class="k">振込先</span><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px"><input id="ct-bank" placeholder="銀行"><input id="ct-branch" placeholder="支店"><select id="ct-type" class="sel"><option value="">種別</option><option>普通</option><option>当座</option></select><input id="ct-number" inputmode="numeric" placeholder="口座番号"><input id="ct-holder" placeholder="名義(カナ)" style="grid-column:1/-1"></div>`}</div><p class="k" style="margin:4px 0 0">請求書を撮ると、電話・担当・住所・振込先は自動で入ります(読めなかったところだけ空のまま)</p><div class="ask"><button class="btn" type="button" id="ct-save">連絡先を保存</button><button class="btn ghost" type="button" id="ct-del" hidden>消す</button></div></div>`;
 }
+const ctv = id => { const e = $(id); return e ? e.value.trim() : ''; }, ctset = (id, v) => { const e = $(id); if (e) e.value = v; };
 function bindContacts(root) {
   const kindSel = k => root.querySelectorAll('#ct-kind button').forEach(x => x.setAttribute('aria-pressed', x.dataset.v === k));
   root.querySelectorAll('#ct-kind button').forEach(b => b.onclick = () => kindSel(b.dataset.v));
   const open = () => { const f = root.querySelector('#ct-form'); f.hidden = false; const a = root.querySelector('#ct-add'); if (a) a.hidden = true; f.scrollIntoView({ block: 'center', behavior: 'smooth' }); };
   const ad = root.querySelector('#ct-add'); if (ad) ad.onclick = () => { open(); $('ct-name').focus(); };
-  root.querySelectorAll('[data-ct-edit]').forEach(b => b.onclick = () => { open(); const c = (D.contacts || []).find(x => x.name === b.dataset.ctEdit); if (!c) return; $('ct-name').value = c.name; $('ct-tel').value = c.tel; $('ct-person').value = c.person; $('ct-addr').value = c.addr || ''; $('ct-bank').value = c.bank || ''; $('ct-branch').value = c.branch || ''; $('ct-type').value = c.type || ''; $('ct-number').value = c.number || ''; $('ct-holder').value = c.holder || ''; kindSel(c.kind); $('ct-del').hidden = false; $('ct-name').scrollIntoView({ block: 'center', behavior: 'smooth' }); });
-  $('ct-save').onclick = () => { const name = $('ct-name').value.trim(); if (!name) { $('ct-name').focus(); return; } setValueX({ field: 'contact', value: { name, kind: root.querySelector('#ct-kind [aria-pressed="true"]').dataset.v, tel: $('ct-tel').value.trim(), person: $('ct-person').value.trim(), addr: $('ct-addr').value.trim(), bank: $('ct-bank').value.trim(), branch: $('ct-branch').value.trim(), type: $('ct-type').value, number: $('ct-number').value.trim(), holder: $('ct-holder').value.trim() } }); };
+  root.querySelectorAll('[data-ct-edit]').forEach(b => b.onclick = () => { open(); const c = (D.contacts || []).find(x => x.name === b.dataset.ctEdit); if (!c) return; $('ct-name').value = c.name; $('ct-tel').value = c.tel; $('ct-person').value = c.person; $('ct-addr').value = c.addr || ''; ctset('ct-bank', c.bank || ''); ctset('ct-branch', c.branch || ''); ctset('ct-type', c.type || ''); ctset('ct-number', c.number || ''); ctset('ct-holder', c.holder || ''); kindSel(c.kind); $('ct-del').hidden = false; $('ct-name').scrollIntoView({ block: 'center', behavior: 'smooth' }); });
+  $('ct-save').onclick = () => { const name = $('ct-name').value.trim(); if (!name) { $('ct-name').focus(); return; } setValueX({ field: 'contact', value: { name, kind: root.querySelector('#ct-kind [aria-pressed="true"]').dataset.v, tel: $('ct-tel').value.trim(), person: $('ct-person').value.trim(), addr: $('ct-addr').value.trim(), bank: ctv('ct-bank'), branch: ctv('ct-branch'), type: ctv('ct-type'), number: ctv('ct-number'), holder: ctv('ct-holder') } }); };
   $('ct-del').onclick = () => { const name = $('ct-name').value.trim(); if (name && confirmOnce('ct' + name, 'もう一度押すと、この連絡先を消します')) setValueX({ field: 'contact', value: { name, del: true } }); };
 }
 // ---------- メンバー(店主だけ): 役割・お金を見せる/見せない・外す ----------
@@ -1105,15 +1106,34 @@ function renderSales() {
       ${unk.map((u, i) => `<div class="ask"><span style="min-width:7em">${esc(u)} <span class="k">${yen(o.unknown[u])}</span></span><select id="ra-${i}" style="font:inherit;font-size:14px;padding:5px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)"><option value="">選ぶ</option>${D.products.map(p => `<option>${esc(p.name)}</option>`).join('')}</select><button class="btn ghost" type="button" data-ra="${i}" data-reg="${esc(u)}">つなぐ</button></div>`).join('')}</div>` : ''}`;
   $('sales-box').querySelectorAll('[data-ra]').forEach(b => b.onclick = () => { const p = $('ra-' + b.dataset.ra).value; if (!p) return; setValueX({ field: 'regalias', reg: b.dataset.reg, product: p }); });
 }
-// ---------- 発信 ----------
-// ---------- 発信: SNSに上げる画像・店に置くもの(ポップ・値札・貼り紙) ----------
-// 絵は画面の中(canvas)で作る。AIは言葉だけ。写真を入れると写真の上に文字をのせる
-const THEMES = {
-  wa: { bg: '#f5ecdc', bg2: '#ead9bd', ink: '#2b1d12', accent: '#a8322a', soft: '#7a5a3a', font: '"Shippori Mincho B1","Hiragino Mincho ProN","Yu Mincho",serif', label: '和' },
-  white: { bg: '#ffffff', bg2: '#eef3f1', ink: '#1d2a28', accent: '#2f7d6d', soft: '#5d6b68', font: '"Zen Maru Gothic","Hiragino Maru Gothic ProN",sans-serif', label: 'しろ' },
-  pop: { bg: '#ffe9a8', bg2: '#ffd45e', ink: '#3a2306', accent: '#d9481c', soft: '#7a5214', font: '"Zen Maru Gothic","Hiragino Maru Gothic ProN",sans-serif', label: 'あかるい' }
+// ---------- 発信: SNSに上げる画像・店に置くもの(ポップ・値札・貼り紙)・投稿の予定表 ----------
+// 絵は画面の中(canvas)で作る。AIは言葉だけ(型の一言だけなら、AIを使わずに作れる)。
+// お店の型(ロゴ・色・書体)を登録すると、どの型にも入るので、ほかのお店と同じ見た目にならない
+const FONTS = {
+  mincho: { css: '"Shippori Mincho B1","Hiragino Mincho ProN","Yu Mincho",serif', label: '明朝(和の感じ)' },
+  maru: { css: '"Zen Maru Gothic","Hiragino Maru Gothic ProN",sans-serif', label: '丸ゴシック(やわらか)' },
+  gothic: { css: '"Noto Sans JP","Hiragino Sans","Yu Gothic",sans-serif', label: 'ゴシック(すっきり)' }
 };
-const PS = { theme: store.get('pTheme', 'wa'), size: 'sq', photo: null, d: null };
+// 型: 色・模様・書体と、そのまま使える一言
+const TPL = {
+  wa: { label: '和', bg: '#f5ecdc', bg2: '#ead9bd', ink: '#2b1d12', accent: '#a8322a', soft: '#7a5a3a', font: 'mincho', motif: 'circles', c: 'いつもの味を、どうぞ', s: 'ひとつひとつ手づくりしています' },
+  yo: { label: '洋', bg: '#1f2a44', bg2: '#2b3a5c', ink: '#fbf6ea', accent: '#c9a45c', soft: '#d9cfb6', font: 'mincho', motif: 'frame', c: '季節のお菓子', s: 'ショーケースでお待ちしています' },
+  pan: { label: 'パン', bg: '#efe0c8', bg2: '#d9bf96', ink: '#3b2614', accent: '#8a4b1c', soft: '#6e4d2c', font: 'maru', motif: 'dots', c: '焼きたてです', s: 'お昼ごはんに、おやつに' },
+  white: { label: 'しろ', bg: '#ffffff', bg2: '#eef3f1', ink: '#1d2a28', accent: '#2f7d6d', soft: '#5d6b68', font: 'maru', motif: 'circles', c: '本日のおすすめ', s: '数に限りがあります。お早めにどうぞ' },
+  pop: { label: 'あかるい', bg: '#ffe9a8', bg2: '#ffd45e', ink: '#3a2306', accent: '#d9481c', soft: '#7a5214', font: 'maru', motif: 'circles', c: 'できたて！', s: 'お店でお待ちしています' },
+  newyear: { label: '正月', bg: '#b4232a', bg2: '#d33a3f', ink: '#fff8e6', accent: '#e9c46a', soft: '#f6e3b4', font: 'mincho', motif: 'sun', c: '謹賀新年', s: '本年もどうぞよろしくお願いいたします' },
+  sakura: { label: '桜', bg: '#fdeef2', bg2: '#f8c9d6', ink: '#4a2230', accent: '#d6577a', soft: '#8a5566', font: 'mincho', motif: 'petals', c: '桜の季節になりました', s: '春のお菓子が並んでいます' },
+  shinryoku: { label: '新緑', bg: '#eef6e6', bg2: '#cfe6b8', ink: '#1f3318', accent: '#4f8a2e', soft: '#557048', font: 'maru', motif: 'leaves', c: '新茶の季節に', s: 'さわやかなお菓子をどうぞ' },
+  natsu: { label: '夏', bg: '#e6f5fb', bg2: '#bfe5f3', ink: '#123247', accent: '#1d7fb3', soft: '#46708a', font: 'maru', motif: 'waves', c: '冷たいお菓子はじめました', s: '暑い日のおやつに' },
+  aki: { label: '秋', bg: '#f7ead9', bg2: '#ebc79c', ink: '#3a2412', accent: '#b5541c', soft: '#7a5634', font: 'mincho', motif: 'leaves', c: '秋の味覚が並びました', s: '栗やお芋のお菓子をどうぞ' },
+  oseibo: { label: 'お歳暮', bg: '#18352d', bg2: '#24493e', ink: '#f7f1e3', accent: '#d8b45a', soft: '#d6cdb6', font: 'mincho', motif: 'frame', c: '冬のご挨拶に', s: 'お歳暮・手みやげのご予約を承ります' },
+  xmas: { label: 'クリスマス', bg: '#7a1d24', bg2: '#94262f', ink: '#fff8ee', accent: '#e8c46a', soft: '#f3dcc0', font: 'maru', motif: 'snow', c: 'クリスマスのご予約受付中', s: '数に限りがあります。お早めにどうぞ' }
+};
+const SIZES = { sq: [1080, 1080, '正方形(インスタ投稿)'], tall: [1080, 1350, '縦長(インスタ投稿)'], story: [1080, 1920, 'ストーリー'], wide: [1200, 628, '横長(LINE・お知らせ)'] };
+const PS = { tpl: store.get('pTpl', 'wa'), size: 'sq', photo: null, auto: true, zoom: 1, ox: 0, oy: 0, bright: 0, d: null, c: null, s: null, useName: true };
+const brand = () => { const si = D.shopInfo || {}; return { color: si.brandColor || '', font: si.brandFont || '', logo: si.brandLogo || '' }; };
+let LOGO = null, LOGO_SRC = '';
+function logoImg() { const b = brand(); if (!b.logo) { LOGO = null; LOGO_SRC = ''; return null; } if (LOGO_SRC !== b.logo) { LOGO_SRC = b.logo; LOGO = new Image(); LOGO.onload = () => snsDraw(); LOGO.src = b.logo; } return LOGO && LOGO.complete && LOGO.naturalWidth ? LOGO : null; }
 function wrapJa(ctx, text, maxW) {
   const out = []; let line = '';
   for (const ch of String(text || '')) {
@@ -1122,111 +1142,224 @@ function wrapJa(ctx, text, maxW) {
   }
   if (line) out.push(line); return out;
 }
-// 1枚の絵を描く。w,hはピクセル。kind: sns / pop / notice
+// 写真を整える: 小さく縮めて明るさと色かぶりを測り、商品のありそうな所(細かい模様が多い所)を中心にする
+function analyzePhoto(im) {
+  const n = 64, cv = document.createElement('canvas'); cv.width = n; cv.height = n; const c = cv.getContext('2d'); c.drawImage(im, 0, 0, n, n);
+  const px = c.getImageData(0, 0, n, n).data; let r = 0, g = 0, b = 0, sx = 0, sy = 0, sw = 0; const L = new Float32Array(n * n);
+  for (let i = 0; i < n * n; i++) { r += px[i * 4]; g += px[i * 4 + 1]; b += px[i * 4 + 2]; L[i] = .299 * px[i * 4] + .587 * px[i * 4 + 1] + .114 * px[i * 4 + 2]; }
+  for (let y = 1; y < n - 1; y++) for (let x = 1; x < n - 1; x++) { const i = y * n + x, e = Math.abs(L[i + 1] - L[i - 1]) + Math.abs(L[i + n] - L[i - n]); const w = e * e; sx += x * w; sy += y * w; sw += w; }
+  r /= n * n; g /= n * n; b /= n * n; const m = (r + g + b) / 3;
+  return { cx: sw ? sx / sw / n : .5, cy: sw ? sy / sw / n : .5, gain: Math.max(.9, Math.min(1.5, 128 / Math.max(m, 1))), wb: [m / Math.max(r, 1), m / Math.max(g, 1), m / Math.max(b, 1)] };
+}
+function photoFilter(o) {
+  const a = PS.photo && PS.photo.an; if (!a) return 'none';
+  const br = (o.auto ? a.gain : 1) * (1 + PS.bright / 100);
+  // 色かぶりは半分だけ戻す(やりすぎると料理の色が変わる)
+  const sat = o.auto ? 1.08 : 1; return `brightness(${br.toFixed(3)}) saturate(${sat}) contrast(${o.auto ? 1.05 : 1})`;
+}
+function motif(c, T, kind, w, h, u, acc) {
+  c.save(); c.globalAlpha = .5; c.fillStyle = T.bg2; c.strokeStyle = acc;
+  if (kind === 'circles') { c.beginPath(); c.arc(w * .92, h * .1, w * .32, 0, 7); c.fill(); c.beginPath(); c.arc(w * .05, h * .95, w * .26, 0, 7); c.fill(); }
+  if (kind === 'dots') { for (let y = 40 * u; y < h; y += 60 * u) for (let x = (y / (60 * u)) % 2 ? 40 * u : 70 * u; x < w; x += 60 * u) { c.beginPath(); c.arc(x, y, 6 * u, 0, 7); c.fill(); } }
+  if (kind === 'sun') { c.globalAlpha = .35; c.fillStyle = acc; c.beginPath(); c.arc(w * .82, h * .2, w * .2, 0, 7); c.fill(); }
+  if (kind === 'petals' || kind === 'leaves' || kind === 'snow') {
+    let s = 7; const rnd = () => (s = (s * 9301 + 49297) % 233280) / 233280;
+    for (let i = 0; i < 26; i++) { const x = rnd() * w, y = rnd() * h, r = (12 + rnd() * 22) * u; if (Math.abs(y - h / 2) < h * .22 && x > w * .15 && x < w * .85) continue;
+      c.save(); c.translate(x, y); c.rotate(rnd() * 6.3); c.fillStyle = kind === 'snow' ? '#ffffff' : kind === 'leaves' ? acc : '#f4a7bb'; c.globalAlpha = kind === 'snow' ? .7 : .45;
+      c.beginPath(); if (kind === 'snow') c.arc(0, 0, r * .35, 0, 7); else { c.ellipse(0, 0, r, r * .55, 0, 0, 7); } c.fill(); c.restore(); }
+  }
+  if (kind === 'waves') { c.lineWidth = 5 * u; c.globalAlpha = .35; for (let k = 0; k < 3; k++) { c.beginPath(); const y0 = h * (.82 + k * .05); for (let x = 0; x <= w; x += 10 * u) c.lineTo(x, y0 + Math.sin(x / (60 * u) + k) * 14 * u); c.stroke(); } }
+  c.restore();
+}
+// 1枚の絵を描く。kind: sns / pop / notice
 function drawCard(cv, o) {
-  const T = THEMES[o.theme] || THEMES.wa, w = cv.width, h = cv.height, c = cv.getContext('2d'), u = w / 1080;
-  c.clearRect(0, 0, w, h);
-  const photo = o.photo && o.kind !== 'notice';
+  const T = TPL[o.tpl] || TPL.wa, b = o.brand || {}, w = cv.width, h = cv.height, c = cv.getContext('2d'), u = Math.min(w, h * 1.25) / 1080;
+  const acc = b.color || T.accent, F = (FONTS[b.font] || FONTS[T.font]).css;
+  c.clearRect(0, 0, w, h); c.filter = 'none';
+  const photo = o.photo && o.kind === 'sns';
   if (photo) {
-    const im = o.photo, sc = Math.max(w / im.width, h / im.height), iw = im.width * sc, ih = im.height * sc;
-    c.drawImage(im, (w - iw) / 2, (h - ih) / 2, iw, ih);
+    const im = o.photo, a = im.an || { cx: .5, cy: .5 }, sc = Math.max(w / im.width, h / im.height) * o.zoom, iw = im.width * sc, ih = im.height * sc;
+    let x = w / 2 - (o.auto ? a.cx : .5) * iw + o.ox * w, y = h / 2 - (o.auto ? a.cy : .5) * ih + o.oy * h;
+    x = Math.min(0, Math.max(w - iw, x)); y = Math.min(0, Math.max(h - ih, y));
+    c.filter = o.filter || 'none'; c.drawImage(im, x, y, iw, ih); c.filter = 'none';
     const g = c.createLinearGradient(0, h * .38, 0, h); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,.72)'); c.fillStyle = g; c.fillRect(0, 0, w, h);
   } else {
-    c.fillStyle = T.bg; c.fillRect(0, 0, w, h);
-    c.fillStyle = T.bg2; c.globalAlpha = .55;
-    c.beginPath(); c.arc(w * .92, h * .1, w * .32, 0, 7); c.fill(); c.beginPath(); c.arc(w * .05, h * .95, w * .26, 0, 7); c.fill(); c.globalAlpha = 1;
-    c.strokeStyle = T.accent; c.lineWidth = 6 * u; c.strokeRect(36 * u, 36 * u, w - 72 * u, h - 72 * u);
+    c.fillStyle = T.bg; c.fillRect(0, 0, w, h); motif(c, T, T.motif, w, h, u, acc);
+    c.strokeStyle = acc; c.lineWidth = 6 * u; c.strokeRect(36 * u, 36 * u, w - 72 * u, h - 72 * u);
     c.lineWidth = 2 * u; c.strokeRect(50 * u, 50 * u, w - 100 * u, h - 100 * u);
   }
   const ink = photo ? '#fff' : T.ink, soft = photo ? 'rgba(255,255,255,.88)' : T.soft, pad = 110 * u, maxW = w - pad * 2;
   c.textAlign = 'center'; c.textBaseline = 'alphabetic';
-  // 店名(上)
-  c.fillStyle = photo ? 'rgba(255,255,255,.95)' : T.accent; c.font = `700 ${40 * u}px ${T.font}`;
-  if (!photo) c.fillText(o.shop || '', w / 2, 130 * u);
-  // 見出し・ひと言・商品名と値段
-  let fs = (o.kind === 'notice' ? 84 : 116) * u; c.font = `700 ${fs}px ${T.font}`;
+  // 上: ロゴと店名
+  const lg = o.logo; let topY = 130 * u;
+  if (!photo) {
+    if (lg) { const s = 110 * u, r = lg.width / lg.height, lw = r >= 1 ? s * Math.min(r, 2.4) : s * r; if (['yo', 'newyear', 'oseibo', 'xmas'].includes(o.tpl)) { c.fillStyle = 'rgba(255,255,255,.92)'; c.beginPath(); c.roundRect ? c.roundRect(w / 2 - lw / 2 - 18 * u, 68 * u, lw + 36 * u, s + 24 * u, 20 * u) : c.rect(w / 2 - lw / 2 - 18 * u, 68 * u, lw + 36 * u, s + 24 * u); c.fill(); } c.drawImage(lg, w / 2 - lw / 2, 80 * u, lw, s); topY = 80 * u + s + 46 * u; }
+    c.fillStyle = acc; c.font = `700 ${40 * u}px ${F}`; c.fillText(o.shop || '', w / 2, topY);
+  }
+  let fs = (o.kind === 'notice' ? 84 : 116) * u; c.font = `700 ${fs}px ${F}`;
   let lines = wrapJa(c, o.catch, maxW);
-  // はみ出す1〜2文字だけの行ができないように、少し小さくして収める
-  while ((lines.length > 3 || (lines.length > 1 && [...lines[lines.length - 1]].length <= 2)) && fs > 64 * u) { fs -= 4 * u; c.font = `700 ${fs}px ${T.font}`; lines = wrapJa(c, o.catch, maxW); }
-  const sfs = (o.kind === 'notice' ? 58 : 46) * u; c.font = `500 ${sfs}px ${T.font}`; const slines = wrapJa(c, o.sub, maxW).slice(0, o.kind === 'notice' ? 8 : 3);
+  while ((lines.length > 3 || (lines.length > 1 && [...lines[lines.length - 1]].length <= 2)) && fs > 64 * u) { fs -= 4 * u; c.font = `700 ${fs}px ${F}`; lines = wrapJa(c, o.catch, maxW); }
+  const sfs = (o.kind === 'notice' ? 58 : 46) * u; c.font = `500 ${sfs}px ${F}`; const slines = wrapJa(c, o.sub, maxW).slice(0, o.kind === 'notice' ? 8 : 3);
   const nm = o.name ? o.name + (o.price ? '  ' + Number(o.price).toLocaleString('ja-JP') + '円' : '') : '';
   const blockH = lines.length * fs * 1.25 + (slines.length ? 40 * u + slines.length * sfs * 1.5 : 0) + (nm ? 110 * u : 0);
-  let y = photo ? h - 120 * u - blockH + fs : Math.max(220 * u + fs, (h - blockH) / 2 + fs * .9);
-  if (photo) { c.textAlign = 'left'; }
+  let y = photo ? h - 120 * u - blockH + fs : Math.max(topY + 90 * u + fs * .5, (h - blockH) / 2 + fs * .9);
+  if (photo) c.textAlign = 'left';
   const x = photo ? pad * .7 : w / 2;
-  c.fillStyle = ink; c.font = `700 ${fs}px ${T.font}`;
+  c.fillStyle = ink; c.font = `700 ${fs}px ${F}`;
   if (photo) { c.shadowColor = 'rgba(0,0,0,.35)'; c.shadowBlur = 12 * u; }
   lines.forEach(l => { c.fillText(l, x, y); y += fs * 1.25; });
-  if (!photo && lines.length) { c.fillStyle = T.accent; c.fillRect(w / 2 - 60 * u, y - fs * .55, 120 * u, 6 * u); }
-  y += 40 * u - fs * .25 + sfs; c.fillStyle = soft; c.font = `500 ${sfs}px ${T.font}`;
+  if (!photo && lines.length) { c.fillStyle = acc; c.fillRect(w / 2 - 60 * u, y - fs * .55, 120 * u, 6 * u); }
+  y += 40 * u - fs * .25 + sfs; c.fillStyle = soft; c.font = `500 ${sfs}px ${F}`;
   slines.forEach(l => { c.fillText(l, x, y); y += sfs * 1.5; });
   if (nm) {
-    y += 40 * u; c.font = `700 ${52 * u}px ${T.font}`; const tw = Math.min(maxW, c.measureText(nm).width + 70 * u), bx = photo ? x - 10 * u : w / 2 - tw / 2;
-    c.shadowBlur = 0; c.fillStyle = photo ? 'rgba(255,255,255,.92)' : T.accent; c.beginPath(); c.roundRect ? c.roundRect(bx, y - 62 * u, tw, 88 * u, 44 * u) : c.rect(bx, y - 62 * u, tw, 88 * u); c.fill();
-    c.fillStyle = photo ? T.ink : '#fff'; c.textAlign = 'center'; c.fillText(nm, bx + tw / 2, y - 2 * u);
+    y += 40 * u; c.font = `700 ${52 * u}px ${F}`; const tw = Math.min(maxW, c.measureText(nm).width + 70 * u), bx = photo ? x - 10 * u : w / 2 - tw / 2;
+    c.shadowBlur = 0; c.fillStyle = photo ? 'rgba(255,255,255,.92)' : acc; c.beginPath(); c.roundRect ? c.roundRect(bx, y - 62 * u, tw, 88 * u, 44 * u) : c.rect(bx, y - 62 * u, tw, 88 * u); c.fill();
+    c.fillStyle = photo ? T.ink : (o.tpl === 'yo' || o.tpl === 'oseibo' ? T.bg : '#fff'); c.textAlign = 'center'; c.fillText(nm, bx + tw / 2, y - 2 * u);
   }
   c.shadowBlur = 0;
-  if (photo) { c.textAlign = 'right'; c.fillStyle = 'rgba(255,255,255,.9)'; c.font = `700 ${34 * u}px ${T.font}`; c.fillText(o.shop || '', w - 50 * u, 80 * u); }
+  if (photo) {
+    c.textAlign = 'right'; let ry = 80 * u;
+    if (lg) { const s = 90 * u, lw = s * Math.min(lg.width / lg.height, 2.4); c.fillStyle = 'rgba(255,255,255,.85)'; c.beginPath(); c.roundRect ? c.roundRect(w - 40 * u - lw - 20 * u, 30 * u, lw + 20 * u, s + 20 * u, 18 * u) : c.rect(w - 60 * u - lw, 30 * u, lw + 20 * u, s + 20 * u); c.fill(); c.drawImage(lg, w - 50 * u - lw, 40 * u, lw, s); ry = 40 * u + s + 50 * u; }
+    c.fillStyle = 'rgba(255,255,255,.95)'; c.font = `700 ${34 * u}px ${F}`; c.shadowColor = 'rgba(0,0,0,.4)'; c.shadowBlur = 8 * u; c.fillText(o.shop || '', w - 50 * u, ry); c.shadowBlur = 0;
+  }
 }
-async function fontsReady() { try { await Promise.all([document.fonts.load('700 40px "Shippori Mincho B1"'), document.fonts.load('700 40px "Zen Maru Gothic"')]); } catch (e) {} }
-function cardOpts(kind) { const d = PS.d || {}; return { kind, theme: PS.theme, photo: PS.photo, shop: D.shop, catch: ($('ps-catch') || {}).value ?? d.catch, sub: ($('ps-sub') || {}).value ?? d.sub, name: ($('ps-name') && $('ps-name').checked) ? d.name : '', price: d.price }; }
-function snsDraw() { const cv = $('ps-cv'); if (!cv) return; cv.width = 1080; cv.height = PS.size === 'tall' ? 1350 : 1080; drawCard(cv, cardOpts('sns')); }
-function canvasBlob(cv) { return new Promise(r => cv.toBlob(r, 'image/png')); }
+async function fontsReady() { try { await Promise.all(['"Shippori Mincho B1"', '"Zen Maru Gothic"', '"Noto Sans JP"'].map(f => document.fonts.load(`700 40px ${f}`))); } catch (e) {} }
+function cardOpts(kind) {
+  const T = TPL[PS.tpl] || TPL.wa, d = PS.d || {};
+  return { kind, tpl: PS.tpl, brand: brand(), logo: logoImg(), photo: PS.photo, auto: PS.auto, zoom: PS.zoom, ox: PS.ox, oy: PS.oy, filter: photoFilter(PS), shop: D.shop,
+    catch: PS.c != null ? PS.c : T.c, sub: PS.s != null ? PS.s : T.s, name: PS.useName && d.name ? d.name : '', price: d.price };
+}
+function snsDraw() { const cv = $('ps-cv'); if (!cv) return; const [w, h] = SIZES[PS.size]; cv.width = w; cv.height = h; drawCard(cv, cardOpts('sns')); }
+function canvasBlob(cv, type) { return new Promise(r => cv.toBlob(r, type || 'image/png', .92)); }
 function printImage(cv, size) {
   const url = cv.toDataURL('image/jpeg', .92);
   openPrint(`<style>@page{size:${size};margin:0}.pimg{max-width:100%;max-height:calc(100vh - 110px);box-shadow:0 2px 12px rgba(0,0,0,.15)}@media print{.pimg{max-height:none;width:100%;box-shadow:none;display:block}}</style><div style="text-align:center"><img class="pimg" src="${url}" alt=""></div>`, { bare: true });
 }
-// 値札カード(A4に8枚)。商品名・値段・アレルゲン
+// 値札カード(A4に8枚)。商品名・値段・アレルゲン。お店の色と書体が入る
 function priceCards(list) {
-  const T = THEMES[PS.theme] || THEMES.wa;
-  const cards = list.map(p => `<div class="pc" style="border-color:${T.accent};background:${T.bg};color:${T.ink};font-family:${esc(T.font)}"><div class="pc-shop" style="color:${T.accent}">${esc(D.shop)}</div><div class="pc-name">${esc(p.name)}</div><div class="pc-price">${p.price ? Number(p.price).toLocaleString('ja-JP') + '<small>円</small>' : '<span style="display:inline-block;width:32mm;border-bottom:.4mm solid currentColor">&nbsp;</span><small>円</small>'}</div>${p.label && p.label.allergens && p.label.allergens.length ? `<div class="pc-al">アレルゲン: ${esc(p.label.allergens.join('・'))}</div>` : ''}</div>`).join('');
+  const T = TPL[PS.tpl] || TPL.wa, b = brand(), acc = b.color || T.accent, F = (FONTS[b.font] || FONTS[T.font]).css, lg = b.logo ? `<img src="${b.logo}" alt="" style="height:9mm;max-width:30mm;object-fit:contain;display:block;margin:0 auto 1mm">` : '';
+  const cards = list.map(p => `<div class="pc" style="border-color:${acc};background:${T.bg};color:${T.ink};font-family:${esc(F)}">${lg}<div class="pc-shop" style="color:${acc}">${esc(D.shop)}</div><div class="pc-name">${esc(p.name)}</div><div class="pc-price">${p.price ? Number(p.price).toLocaleString('ja-JP') + '<small>円</small>' : '<span style="display:inline-block;width:32mm;border-bottom:.4mm solid currentColor">&nbsp;</span><small>円</small>'}</div>${p.label && p.label.allergens && p.label.allergens.length ? `<div class="pc-al">アレルゲン: ${esc(p.label.allergens.join('・'))}</div>` : ''}</div>`).join('');
   openPrint(`<style>@page{size:A4;margin:8mm}.pcs{display:grid;grid-template-columns:1fr 1fr;gap:4mm}.pc{border:1.2mm double;border-radius:3mm;height:62mm;padding:4mm 5mm;box-sizing:border-box;display:flex;flex-direction:column;justify-content:center;text-align:center;break-inside:avoid}.pc-shop{font-size:10pt;font-weight:700;letter-spacing:.1em}.pc-name{font-size:20pt;font-weight:700;line-height:1.3;margin:2mm 0}.pc-price{font-size:26pt;font-weight:700}.pc-price small{font-size:12pt;margin-left:1mm}.pc-al{font-size:8.5pt;margin-top:2mm;opacity:.85}</style><div class="pcs">${cards}</div>`, { bare: true });
 }
+// 投稿の予定表: 季節の行事と、お店の予定(休み・催事)から「今週はこれを出すとよい」
+function nthWeekday(y, m, n, wd) { const d = new Date(y, m, 1); const add = (wd - d.getDay() + 7) % 7 + (n - 1) * 7; return new Date(y, m, 1 + add); }
+function seasonEvents(y) {
+  const E = (m, d, t, tpl, theme) => ({ date: new Date(y, m - 1, d), t, tpl, theme });
+  return [E(1, 1, 'お正月', 'newyear', '新年のごあいさつと営業日のお知らせ'), E(1, 11, '鏡開き', 'wa', 'お汁粉・ぜんざいのお知らせ'), E(2, 3, '節分', 'wa', '節分のお菓子'), E(2, 14, 'バレンタイン', 'yo', 'バレンタインの贈りもの'),
+    E(3, 3, 'ひな祭り', 'sakura', 'ひな祭りのお菓子'), E(3, 14, 'ホワイトデー', 'yo', 'ホワイトデーのお返しに'), E(3, 20, '春のお彼岸', 'wa', 'おはぎ・お供えのお菓子'), E(4, 1, 'お花見', 'sakura', '桜のお菓子・お花見のおともに'),
+    { date: nthWeekday(y, 4, 2, 0), t: '母の日', tpl: 'sakura', theme: '母の日の贈りもの' }, E(5, 5, 'こどもの日', 'shinryoku', '柏餅・ちまき'), E(5, 10, '新茶', 'shinryoku', '新茶に合うお菓子'),
+    { date: nthWeekday(y, 5, 3, 0), t: '父の日', tpl: 'natsu', theme: '父の日の贈りもの' }, E(6, 16, '和菓子の日', 'wa', '和菓子の日のおすすめ'), E(7, 1, 'お中元', 'natsu', 'お中元・夏のご挨拶'), E(7, 7, '七夕', 'natsu', '七夕のお菓子'), E(7, 20, '夏休み', 'natsu', '冷たいお菓子'),
+    E(8, 13, 'お盆', 'wa', 'お盆のお供え・帰省の手みやげ'), { date: nthWeekday(y, 8, 3, 1), t: '敬老の日', tpl: 'aki', theme: '敬老の日の贈りもの' }, E(9, 20, '秋のお彼岸', 'aki', 'おはぎ・お供えのお菓子'), E(9, 25, '十五夜', 'aki', 'お月見団子'),
+    E(10, 1, '栗・お芋の季節', 'aki', '栗やお芋のお菓子'), E(10, 31, 'ハロウィン', 'pop', 'ハロウィンのお菓子'), E(11, 15, '七五三', 'wa', '七五三のお祝いに'), E(11, 20, 'お歳暮', 'oseibo', 'お歳暮・冬のご挨拶のご予約'),
+    E(12, 1, 'クリスマス予約', 'xmas', 'クリスマスのご予約'), E(12, 25, '年末年始', 'newyear', '年末年始の営業日のお知らせ')];
+}
+function postPlan() {
+  const now = new Date(), y = now.getFullYear(), lo = new Date(now.getFullYear(), now.getMonth(), now.getDate()), hi = new Date(lo.getTime() + 45 * 864e5);
+  const ev = seasonEvents(y).concat(seasonEvents(y + 1)).filter(e => e.date >= new Date(lo.getTime() - 3 * 864e5) && e.date <= hi);
+  (D.events || []).forEach(e => { const d = new Date(e.date); if (d >= lo && d <= hi && (e.kind === '休み' || e.kind === '催事')) ev.push({ date: d, t: e.kind === '休み' ? 'お休み: ' + e.text : '催事: ' + e.text, tpl: e.kind === '休み' ? 'white' : 'pop', theme: e.kind === '休み' ? 'お休みのお知らせ ' + e.date + ' ' + e.text : e.text + ' に出店のお知らせ(' + e.date + ')', own: true }); });
+  // 行事の1週間前に出すのがよい
+  return ev.map(e => Object.assign(e, { post: new Date(Math.max(lo.getTime(), e.date.getTime() - 7 * 864e5)) })).sort((a, b) => a.post - b.post).slice(0, 8);
+}
 function renderPost() {
+  const goods = D.products.filter(p => p.kind !== 'part'), b = brand();
+  // お店の型
+  const bb = $('post-brand');
+  if (bb && !(D.me && D.me.owner)) bb.innerHTML = `<div class="row"><b>お店の型</b></div><p class="k" style="margin:4px 0 0">ロゴ・お店の色・書体は、店主が決めます。${b.color || b.logo ? '登録済みの型が、画像と印刷物に入ります。' : ''}</p>`;
+  else if (bb) {
+    bb.innerHTML = `<div class="row"><b>お店の型</b><span class="k">${b.color || b.font || b.logo ? '登録済み' : 'まだ'}</span></div>
+      <p class="k" style="margin:4px 0 10px">ロゴ・お店の色・書体を一度入れると、画像・ポップ・値札・貼り紙のすべてに入ります。ほかのお店と同じ見た目になりません。</p>
+      <div class="brand-row"><div class="brand-logo">${b.logo ? `<img src="${b.logo}" alt="ロゴ">` : '<span class="k">ロゴなし</span>'}</div>
+        <div class="ps-ctl"><label class="btn ghost ps-photo">ロゴを入れる<input type="file" id="br-logo" accept="image/*" hidden></label>${b.logo ? '<button class="btn ghost" type="button" id="br-nologo">ロゴを外す</button>' : ''}
+        <span class="k">お店の色</span><div class="brand-colors">${['', '#a8322a', '#b5541c', '#8a4b1c', '#2f7d6d', '#1d7fb3', '#1f2a44', '#d6577a', '#5a4fcf'].map(c => `<button type="button" class="sw2" data-bc="${c}" aria-pressed="${(b.color || '') === c}" style="background:${c || 'conic-gradient(#a8322a,#2f7d6d,#1d7fb3,#d6577a,#a8322a)'}" title="${c ? c : '型の色のまま'}"></button>`).join('')}<input type="color" id="br-color" value="${b.color || '#a8322a'}" aria-label="ほかの色"></div>
+        <span class="k">書体</span><div class="seg" id="br-font">${[['', '型のまま']].concat(Object.keys(FONTS).map(k => [k, FONTS[k].label])).map(([k, l]) => `<button type="button" data-v="${k}" aria-pressed="${(b.font || '') === k}">${l}</button>`).join('')}</div></div></div>`;
+    const saveB = v => setValueX({ field: 'shop', value: v });
+    bb.querySelectorAll('[data-bc]').forEach(x => x.onclick = () => saveB({ brandColor: x.dataset.bc }));
+    $('br-color').onchange = e => saveB({ brandColor: e.target.value });
+    $('br-font').querySelectorAll('button').forEach(x => x.onclick = () => saveB({ brandFont: x.dataset.v }));
+    if ($('br-nologo')) $('br-nologo').onclick = () => saveB({ brandLogo: '' });
+    $('br-logo').onchange = e => { const f = e.target.files[0]; if (!f) return; const im = new Image(); im.onload = () => {
+      // 小さく縮めて保存(8KBくらいまで)
+      for (const [s, q] of [[200, .85], [160, .75], [120, .7], [96, .6]]) { const r = Math.min(1, s / Math.max(im.width, im.height)), cv = document.createElement('canvas'); cv.width = Math.round(im.width * r); cv.height = Math.round(im.height * r); cv.getContext('2d').drawImage(im, 0, 0, cv.width, cv.height); let u = cv.toDataURL('image/webp', q); if (!/^data:image\/webp/.test(u)) u = cv.toDataURL('image/png'); if (u.length < 8400) { saveB({ brandLogo: u }); return; } }
+      toast('ロゴが大きすぎます。小さめの画像にしてください', 'ng'); }; im.src = URL.createObjectURL(f); };
+  }
+  // 店に置くもの
   const box = $('post-shop');
   if (box) {
-    const goods = D.products.filter(p => p.kind !== 'part');
     box.innerHTML = `<div class="row"><b>店に置くもの</b></div>
-      <p class="k" style="margin:4px 0 10px">印刷して店頭に。色は下の「SNSに上げる画像」と同じ3種類から選べます。</p>
+      <p class="k" style="margin:4px 0 10px">印刷して店頭に。色と模様は下の「SNSに上げる画像」で選んだ型になります。</p>
       <div class="ps-acts"><button class="btn ghost" type="button" id="ps-cards">値札カード(全商品・A4に8枚)</button>${sellFace() ? '<button class="btn ghost" type="button" id="ps-al">アレルゲン表</button>' : ''}
-      <button class="btn ghost" type="button" id="ps-pop" ${PS.d ? '' : 'disabled'}>ポップ(A5)</button><button class="btn ghost" type="button" id="ps-notice" ${PS.d ? '' : 'disabled'}>お知らせの貼り紙(A4)</button></div>
-      ${PS.d ? '' : '<p class="k" style="margin:6px 0 0">ポップと貼り紙は、下で案を作るとできます。</p>'}`;
+      <button class="btn ghost" type="button" id="ps-pop">ポップ(A5)</button><button class="btn ghost" type="button" id="ps-notice">お知らせの貼り紙(A4)</button></div>`;
     $('ps-cards').onclick = () => { if (!goods.length) { chat('商品がまだありません'); return; } priceCards(goods); };
     if ($('ps-al')) $('ps-al').onclick = () => show('label');
     $('ps-pop').onclick = async () => { await fontsReady(); const cv = document.createElement('canvas'); cv.width = 1748; cv.height = 2480; drawCard(cv, Object.assign(cardOpts('pop'), { photo: null })); printImage(cv, 'A5 portrait'); };
-    $('ps-notice').onclick = async () => { await fontsReady(); const cv = document.createElement('canvas'); cv.width = 2480; cv.height = 3508; const o = cardOpts('notice'); drawCard(cv, Object.assign(o, { photo: null, catch: o.catch, sub: (PS.d && PS.d.notice) || o.sub, name: '' })); printImage(cv, 'A4 portrait'); };
+    $('ps-notice').onclick = async () => { await fontsReady(); const cv = document.createElement('canvas'); cv.width = 2480; cv.height = 3508; const o = cardOpts('notice'); drawCard(cv, Object.assign(o, { photo: null, sub: (PS.d && PS.d.notice) || o.sub, name: '' })); printImage(cv, 'A4 portrait'); };
   }
-  $('post-p').innerHTML = '<option value="">商品から選ぶ</option>' + D.products.filter(p => p.kind !== 'part').map(p => `<option>${esc(p.name)}</option>`).join('');
+  // 投稿の予定表
+  const pl = $('post-plan');
+  if (pl) {
+    const plan = postPlan(), md = d => `${d.getMonth() + 1}/${d.getDate()}`;
+    pl.innerHTML = `<div class="row"><b>投稿の予定表</b><span class="k">これから45日</span></div><p class="k" style="margin:4px 0 8px">行事の1週間前に出すと、お客さんが予定に入れやすくなります。お店の予定(休み・催事)も入ります。</p>
+      ${plan.length ? plan.map((e, i) => `<div class="plan-row"><span class="plan-d">${md(e.post)}<small>に出す</small></span><span><b>${esc(e.t)}</b>${e.own ? '' : `<span class="k">(${md(e.date)})</span>`}<br><span class="k">${esc(e.theme)}</span></span><button class="btn ghost sm" type="button" data-plan="${i}">これで作る</button></div>`).join('') : '<p class="k">近い行事はありません。</p>'}`;
+    pl.querySelectorAll('[data-plan]').forEach(x => x.onclick = () => { const e = plan[x.dataset.plan]; PS.tpl = e.tpl; store.set('pTpl', PS.tpl); PS.c = null; PS.s = null; $('post-free').value = e.theme; renderPost(); $('post-free').scrollIntoView({ block: 'center', behavior: 'smooth' }); chat('型を選びました。「案を作る」で言葉を作れます。型の一言のままでも使えます'); });
+  }
+  // SNSに上げる画像(AIを使わなくても、型の一言で作れる)
+  const sb = $('post-sns'), T = TPL[PS.tpl] || TPL.wa, d = PS.d || {};
+  if (sb) {
+    const segs = (id, list, v) => `<div class="seg segw" id="${id}">${list.map(([k, l]) => `<button type="button" data-v="${k}" aria-pressed="${k === v}">${l}</button>`).join('')}</div>`;
+    sb.innerHTML = `<div class="row"><b>SNSに上げる画像</b></div>
+      <p class="k" style="margin:4px 0 10px">型を選ぶと、その型の一言が入ります。商品の写真を入れると、写真の上に言葉がのります。保存してインスタやLINEにそのまま上げられます。</p>
+      <div class="ps-grid"><div><canvas id="ps-cv" class="ps-cv" width="1080" height="1080" aria-label="SNS用の画像"></canvas>${PS.photo ? '<p class="k" style="margin:6px 0 0;text-align:center">写真は指でずらせます</p>' : ''}</div>
+      <div class="ps-ctl"><span class="k">型</span>${segs('ps-tpl', Object.keys(TPL).map(k => [k, TPL[k].label]), PS.tpl)}
+        <span class="k">大きさ</span>${segs('ps-size', Object.keys(SIZES).map(k => [k, SIZES[k][2]]), PS.size)}
+        <label class="btn ghost ps-photo">📷 写真を入れる<input type="file" id="ps-file" accept="image/*" hidden></label>
+        ${PS.photo ? `<div class="ps-adj"><label class="k"><input type="checkbox" id="ps-auto" ${PS.auto ? 'checked' : ''}> 明るさ・位置をおまかせで整える</label>
+          <span class="k">明るさ</span><input type="range" id="ps-bright" min="-40" max="40" value="${PS.bright}"><span class="k">大きさ</span><input type="range" id="ps-zoom" min="100" max="250" value="${Math.round(PS.zoom * 100)}">
+          <button class="btn ghost sm" type="button" id="ps-nophoto">写真を外す</button></div>` : ''}
+        <span class="k">大きい言葉</span><input id="ps-catch" value="${esc(PS.c != null ? PS.c : T.c)}"><span class="k">小さい言葉</span><input id="ps-sub" value="${esc(PS.s != null ? PS.s : T.s)}">
+        <button class="btn ghost sm" type="button" id="ps-tplword" style="align-self:flex-start">型の一言に戻す</button>
+        ${d.name ? `<label class="k" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="ps-name" ${PS.useName ? 'checked' : ''}> 商品名と値段を入れる</label>` : ''}
+        <div class="ps-acts"><button class="btn" type="button" id="ps-save">画像を保存</button><button class="btn ghost" type="button" id="ps-all">4つの大きさをまとめて保存</button><button class="btn ghost" type="button" id="ps-share" hidden>共有(インスタ・LINEへ)</button></div></div></div>`;
+    const redraw = () => snsDraw();
+    $('ps-tpl').querySelectorAll('button').forEach(x => x.onclick = () => { const wasDefault = PS.c == null || PS.c === T.c; PS.tpl = x.dataset.v; store.set('pTpl', PS.tpl); if (wasDefault && !PS.d) { PS.c = null; PS.s = null; } renderPost(); });
+    $('ps-size').querySelectorAll('button').forEach(x => x.onclick = () => { PS.size = x.dataset.v; $('ps-size').querySelectorAll('button').forEach(y => y.setAttribute('aria-pressed', y === x)); redraw(); });
+    $('ps-catch').oninput = e => { PS.c = e.target.value; redraw(); }; $('ps-sub').oninput = e => { PS.s = e.target.value; redraw(); };
+    $('ps-tplword').onclick = () => { PS.c = null; PS.s = null; renderPost(); };
+    if ($('ps-name')) $('ps-name').onchange = e => { PS.useName = e.target.checked; redraw(); };
+    $('ps-file').onchange = e => { const f = e.target.files[0]; if (!f) return; const im = new Image(); im.onload = () => { im.an = analyzePhoto(im); PS.photo = im; PS.zoom = 1; PS.ox = 0; PS.oy = 0; PS.bright = 0; renderPost(); }; im.src = URL.createObjectURL(f); };
+    if (PS.photo) {
+      $('ps-auto').onchange = e => { PS.auto = e.target.checked; redraw(); };
+      $('ps-bright').oninput = e => { PS.bright = +e.target.value; redraw(); };
+      $('ps-zoom').oninput = e => { PS.zoom = +e.target.value / 100; redraw(); };
+      $('ps-nophoto').onclick = () => { PS.photo = null; renderPost(); };
+      // 指(マウス)で写真をずらす
+      const cv = $('ps-cv'); let drag = null;
+      cv.onpointerdown = e => { drag = { x: e.clientX, y: e.clientY, ox: PS.ox, oy: PS.oy }; cv.setPointerCapture(e.pointerId); };
+      cv.onpointermove = e => { if (!drag) return; const r = cv.getBoundingClientRect(); PS.ox = drag.ox + (e.clientX - drag.x) / r.width; PS.oy = drag.oy + (e.clientY - drag.y) / r.height; redraw(); };
+      cv.onpointerup = cv.onpointercancel = () => { drag = null; }; cv.style.touchAction = 'none'; cv.style.cursor = 'grab';
+    }
+    const fname = k => `${(d.name || D.shop || 'post').replace(/[\\/:*?"<>|\s]/g, '')}_${SIZES[k || PS.size][2].replace(/\(.*\)/, '')}.png`;
+    const dl = (bl, name) => { const a = document.createElement('a'); a.href = URL.createObjectURL(bl); a.download = name; document.body.appendChild(a); a.click(); a.remove(); };
+    $('ps-save').onclick = async () => { dl(await canvasBlob($('ps-cv')), fname()); chat('画像を保存しました。投稿文は「コピー」で写せます', 'clap'); };
+    const allBlobs = async () => { const out = []; for (const k of Object.keys(SIZES)) { const cv = document.createElement('canvas'); [cv.width, cv.height] = SIZES[k]; drawCard(cv, cardOpts('sns')); out.push([await canvasBlob(cv), fname(k)]); } return out; };
+    $('ps-all').onclick = async () => { for (const [bl, n] of await allBlobs()) { dl(bl, n); await new Promise(r => setTimeout(r, 300)); } chat('4つの大きさで保存しました', 'clap'); };
+    if (navigator.canShare && navigator.canShare({ files: [new File([''], 'a.png', { type: 'image/png' })] })) {
+      $('ps-share').hidden = false;
+      $('ps-share').onclick = async () => { try { try { await navigator.clipboard.writeText(d.insta || ''); } catch (e) {} const bl = await canvasBlob($('ps-cv')); await navigator.share({ files: [new File([bl], fname(), { type: 'image/png' })], text: d.insta || '' }); if (d.insta) chat('投稿文はコピーしてあります。貼り付けるだけです', 'heart'); } catch (e) {} };
+    }
+    fontsReady().then(redraw); redraw();
+  }
+  // 文の案(AI)
+  $('post-p').innerHTML = '<option value="">商品から選ぶ</option>' + goods.map(p => `<option${d.name === p.name ? ' selected' : ''}>${esc(p.name)}</option>`).join('');
+  $('post-out').innerHTML = PS.d ? [['インスタの投稿文', PS.d.insta, 'insta'], ['ポップの文', PS.d.pop, 'pop'], ['お知らせの文(LINEなど)', PS.d.notice, 'notice']].map(([l, t, k]) => `<div class="card"><div class="row"><b>${l}</b><button class="btn ghost" type="button" data-cp="${k}">コピー</button></div><p class="draft" id="dr-${k}">${esc(t || '')}</p></div>`).join('') : '';
+  $('post-out').querySelectorAll('[data-cp]').forEach(x => x.onclick = async () => { try { await navigator.clipboard.writeText($('dr-' + x.dataset.cp).textContent); chat('コピーしました', 'heart'); } catch (e) { chat('長押しで選んでコピーしてください'); } });
   $('post-go').onclick = async () => {
     const sub = $('post-free').value.trim() || $('post-p').value; if (!sub) { chat('商品を選ぶか、テーマを書いてください'); return; }
     $('post-out').innerHTML = '<div class="card"><p class="k" style="margin:0">考えています…(10秒ほど)</p></div>'; chat('考えています…', 'think');
     const out = await api({ kind: 'app_gen', subject: sub });
     if (!out.ok) { $('post-out').innerHTML = ''; chat(out.error || 'うまく作れませんでした'); return; }
-    const d = out.drafts; d.catch = d.catch || String(d.pop || '').split('\n')[0].slice(0, 14); d.sub = d.sub || ''; PS.d = d; PS.photo = null;
-    const segs = (id, list, v) => `<div class="seg" id="${id}">${list.map(([k, l]) => `<button type="button" data-v="${k}" aria-pressed="${k === v}">${l}</button>`).join('')}</div>`;
-    $('post-out').innerHTML = `<div class="card"><div class="row"><b>SNSに上げる画像</b></div>
-      <p class="k" style="margin:4px 0 10px">商品の写真を入れると、写真の上に言葉がのります。保存してインスタやLINEにそのまま上げられます。</p>
-      <div class="ps-grid"><div><canvas id="ps-cv" class="ps-cv" width="1080" height="1080" aria-label="SNS用の画像"></canvas></div>
-      <div class="ps-ctl">${segs('ps-theme', Object.keys(THEMES).map(k => [k, THEMES[k].label]), PS.theme)}${segs('ps-size', [['sq', '正方形'], ['tall', '縦長']], PS.size)}
-        <label class="btn ghost ps-photo">📷 写真を入れる<input type="file" id="ps-file" accept="image/*" hidden></label><button class="btn ghost" type="button" id="ps-nophoto" hidden>写真を外す</button>
-        <span class="k">大きい言葉</span><input id="ps-catch" value="${esc(d.catch)}"><span class="k">小さい言葉</span><input id="ps-sub" value="${esc(d.sub)}">
-        ${d.name ? `<label class="k" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="ps-name" checked> 商品名と値段を入れる</label>` : ''}
-        <div class="ps-acts"><button class="btn" type="button" id="ps-save">画像を保存</button><button class="btn ghost" type="button" id="ps-share" hidden>共有(インスタ・LINEへ)</button></div></div></div></div>
-      ${[['インスタの投稿文', d.insta, 'insta'], ['ポップの文', d.pop, 'pop'], ['お知らせの文(LINEなど)', d.notice, 'notice']].map(([l, t, k]) => `<div class="card"><div class="row"><b>${l}</b><button class="btn ghost" type="button" data-cp="${k}">コピー</button></div><p class="draft" id="dr-${k}">${esc(t || '')}</p></div>`).join('')}`;
-    const redraw = () => snsDraw();
-    $('post-out').querySelectorAll('[data-cp]').forEach(b => b.onclick = async () => { try { await navigator.clipboard.writeText($('dr-' + b.dataset.cp).textContent); chat('コピーしました', 'heart'); } catch (e) { chat('長押しで選んでコピーしてください'); } });
-    $('ps-theme').querySelectorAll('button').forEach(b => b.onclick = () => { PS.theme = b.dataset.v; store.set('pTheme', PS.theme); $('ps-theme').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b)); redraw(); });
-    $('ps-size').querySelectorAll('button').forEach(b => b.onclick = () => { PS.size = b.dataset.v; $('ps-size').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b)); redraw(); });
-    ['ps-catch', 'ps-sub'].forEach(id => $(id).oninput = redraw); if ($('ps-name')) $('ps-name').onchange = redraw;
-    $('ps-file').onchange = e => { const f = e.target.files[0]; if (!f) return; const im = new Image(); im.onload = () => { PS.photo = im; $('ps-nophoto').hidden = false; redraw(); }; im.src = URL.createObjectURL(f); };
-    $('ps-nophoto').onclick = () => { PS.photo = null; $('ps-nophoto').hidden = true; $('ps-file').value = ''; redraw(); };
-    const fname = () => `${(d.name || 'post').replace(/[\\/:*?"<>|\s]/g, '')}_${PS.size === 'tall' ? '縦' : '正方形'}.png`;
-    $('ps-save').onclick = async () => { const bl = await canvasBlob($('ps-cv')); const a = document.createElement('a'); a.href = URL.createObjectURL(bl); a.download = fname(); document.body.appendChild(a); a.click(); a.remove(); chat('画像を保存しました。投稿文は「コピー」で写せます', 'clap'); };
-    if (navigator.canShare && navigator.canShare({ files: [new File([''], 'a.png', { type: 'image/png' })] })) {
-      $('ps-share').hidden = false;
-      $('ps-share').onclick = async () => { try { try { await navigator.clipboard.writeText(d.insta || ''); } catch (e) {} const bl = await canvasBlob($('ps-cv')); await navigator.share({ files: [new File([bl], fname(), { type: 'image/png' })], text: d.insta || '' }); chat('投稿文はコピーしてあります。貼り付けるだけです', 'heart'); } catch (e) {} };
-    }
-    await fontsReady(); redraw(); renderPost();
+    const dd = out.drafts; dd.catch = dd.catch || String(dd.pop || '').split('\n')[0].slice(0, 14); dd.sub = dd.sub || '';
+    PS.d = dd; PS.c = dd.catch; PS.s = dd.sub; PS.useName = true;
+    await fontsReady(); renderPost(); $('post-sns').scrollIntoView({ block: 'start', behavior: 'smooth' });
     chat('案と画像ができました。書かれていないことは足していません。', 'clap');
   };
 }
@@ -1428,7 +1561,7 @@ async function renderAccount() {
 // ---------- はじまり ----------
 // パソコンの広い画面で左右2列に分けるための入れ物(ケイタイでは入れ物がないのと同じ)
 (() => {
-  const SPLIT = { book: 'h1.sub', hyg: 'h1.sub', sales: '#sales-add', ws: '#ws-chips', post: '#post-out', set: '#bank-h' };
+  const SPLIT = { book: 'h1.sub', hyg: 'h1.sub', sales: '#sales-add', ws: '#ws-chips', set: '#bank-h' };
   for (const [t, sel] of Object.entries(SPLIT)) {
     const sec = $('t-' + t), kids = [...sec.children], lead = sec.querySelector(':scope > .ph') || sec.querySelector(':scope > .lead'), cut = sec.querySelector(':scope > ' + sel);
     if (!cut) continue;
