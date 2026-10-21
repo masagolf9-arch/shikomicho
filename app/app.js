@@ -620,8 +620,8 @@ const lblDefName = p => /羊羹|ようかん/.test(p.name) ? '和生菓子(羊�
 function lblOf(p) {
   const s = p.lbl || {};
   return { name: s.name || lblDefName(p), dtype: s.dtype || '消費期限', days: s.days === 0 || s.days ? Number(s.days) : '', storage: s.storage || LBL_STORAGE,
-    content: s.content || `1${U}${p.nutr && p.nutr.weight ? `(${p.nutr.weight}g)` : ''}`, jan: s.jan || '', nut: !!s.nut && !!(p.nutr && p.nutr.per), saved: !!p.lbl,
-    packs: Array.isArray(s.packs) ? s.packs : [] };
+    content: s.content || `1${U}${p.nutr && p.nutr.weight ? `(${p.nutr.weight}g)` : ''}`, jan: s.jan || '', nut: !!s.nut && !!((p.nutr && p.nutr.per) || s.nutMan), saved: !!p.lbl,
+    packs: Array.isArray(s.packs) ? s.packs : [], pla: !!s.pla, nutMan: s.nutMan || null };
 }
 // 包装の種類の入力行(包装・内容量・JAN)
 const packRow = (k, i) => `<div class="pkrow" style="display:grid;grid-template-columns:1.2fr 1fr 1.6fr auto;gap:6px;margin-bottom:6px">
@@ -737,7 +737,10 @@ function lblPrintCard(p, L) {
         <span class="k">保存方法</span><input id="lb-st" value="${esc(L.storage)}">
         <span class="k">包装</span><div><div id="lb-packs">${(L.packs.length ? L.packs : [{ name: '', content: L.content, jan: L.jan }]).map(packRow).join('')}</div>
           <button class="btn ghost" type="button" id="lb-addpack">包装を足す</button><p class="k" style="margin:4px 0 0">袋・箱など包装ごとに、内容量とJANコード(卸の商品だけ)を入れます</p></div>
-        ${p.nutr && p.nutr.per ? `<span class="k">栄養成分</span><label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="lb-nut"${L.nut ? ' checked' : ''} style="width:auto">ラベルに載せる</label>` : ''}
+        <span class="k">栄養成分</span><div><label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="lb-nut"${L.nut ? ' checked' : ''} style="width:auto">ラベルに載せる</label>
+          <details${L.nutMan ? ' open' : ''}><summary class="k">前の表示や分析の値を使う(入れなければ計算した値)</summary><div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:6px"><select id="lb-nbase"><option${!L.nutMan || L.nutMan.base === '100g' ? ' selected' : ''}>100g</option><option${L.nutMan && L.nutMan.base === '1個' ? ' selected' : ''}>1個</option></select><span class="k">当たり</span>
+          ${['熱量kcal', 'たんぱく質g', '脂質g', '炭水化物g', '食塩相当量g'].map((l, i) => `<label class="k" style="display:flex;flex-direction:column">${l}<input class="lb-nv" inputmode="decimal" style="width:5.5em" value="${L.nutMan ? L.nutMan.v[i] : ''}"></label>`).join('')}</div></details></div>
+        <span class="k">プラマーク</span><label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="lb-pla"${L.pla ? ' checked' : ''} style="width:auto">ラベルに入れる(袋がプラスチックのとき)</label>
       </div><div class="ask"><button class="btn ghost" type="button" id="lb-save">設定を保存</button><span class="k" id="lb-msg"></span></div></details>
     <div class="fld" style="margin-top:8px">
       ${L.packs.length > 1 ? `<span class="k">包装</span><select id="lb-pack">${L.packs.map((k, i) => `<option value="${i}">${esc(k.name || k.content)}</option>`).join('')}</select>` : ''}
@@ -783,7 +786,9 @@ function bindLblPrint(p, L) {
     }
     const d = val('lb-days'); if (d !== '' && !(/^\d{1,3}$/.test(d))) { $('lb-msg').textContent = '日数は数字で'; return; }
     const first = packs[0] || {};
-    setValueX({ field: 'lbl', product: p.name, value: { name: val('lb-name'), dtype: val('lb-dtype'), days: d, storage: val('lb-st'), content: first.content || '', jan: first.jan || '', packs, nut: $('lb-nut') ? $('lb-nut').checked : false } });
+    const nv = [...document.querySelectorAll('.lb-nv')].map(x => x.value.trim()), nutMan = nv.every(x => x !== '') ? { base: val('lb-nbase') || '100g', v: nv } : null;
+    if (nv.some(x => x !== '') && !nutMan) { $('lb-msg').textContent = '栄養成分は5つとも入れてください(使わないなら全部空に)'; return; }
+    setValueX({ field: 'lbl', product: p.name, value: { name: val('lb-name'), dtype: val('lb-dtype'), days: d, storage: val('lb-st'), content: first.content || '', jan: first.jan || '', packs, nut: $('lb-nut') ? $('lb-nut').checked : false, pla: $('lb-pla') ? $('lb-pla').checked : false, nutMan } });
   };
   const n0 = (id, d) => { const v = parseFloat(val(id)); return isFinite(v) ? v : d; };
   const keep = () => {
@@ -824,18 +829,23 @@ function openLabelSheet(p, L, S, n, skip, day, test) {
   const sheet = S.mode !== 'roll', si = D.shopInfo || {}, lb = p.label, k = (S.scale || 100) / 100;
   let date = '';
   if (L.days !== '' && /^\d{4}-\d\d-\d\d$/.test(day)) { const d = new Date(day + 'T00:00:00'); d.setDate(d.getDate() + Number(L.days)); date = `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`; }
-  const j = janCheck(L.jan), nu = L.nut ? p.nutr.per : null;
-  const salt = nu ? (nu[4] > 0 && nu[4] < 0.1 ? (Math.round(nu[4] * 100) / 100).toFixed(2) : r1(nu[4])) : '';
+  const j = janCheck(L.jan);
+  // 栄養: 手で入れた値があればそれ(100g当たり/1個当たり)、なければ計算した1個当たり
+  const nm = L.nut ? (L.nutMan ? { v: L.nutMan.v.map(Number), base: L.nutMan.base === '1個' ? `1${U}当たり` : '100g当たり', est: true } : (p.nutr && p.nutr.per ? { v: p.nutr.per, base: `1${U}当たり`, est: true } : null)) : null;
+  const saltOf = x => x > 0 && x < 0.1 ? (Math.round(x * 100) / 100).toFixed(2) : r1(x);
   const inside = S.datePos === 'inside' && date;
-  const rowsH = [['名称', L.name], ['原材料名', lb.text + (lb.check.length ? '、' + lb.check.join('、') : '') + (lb.contains || '')], ['内容量', L.content], [L.dtype, inside ? date : '枠外下部に記載'], ['保存方法', L.storage], ['製造者', [si.name || D.shop, si.addr].filter(Boolean).join(' ')]];
-  if (nu) rowsH.push([`栄養成分表示<br>(1${esc(U)}当たり)`, `熱量${Math.round(nu[0])}kcal、たんぱく質${r1(nu[1])}g、脂質${r1(nu[2])}g、炭水化物${r1(nu[3])}g、食塩相当量${salt}g(推定値)`]);
+  const mk = esc(si.name || D.shop) + (si.rep ? `<span class="lrep">代表者 ${esc(si.rep)}</span>` : '') + (si.addr ? `<br>${esc(si.addr)}` : '') + (si.tel ? `<br>TEL ${esc(si.tel)}` : '');
+  const rowsH = [['名称', esc(L.name)], ['原材料名', esc(lb.text + (lb.check.length ? '、' + lb.check.join('、') : '') + (lb.contains || ''))], ['内容量', esc(L.content)], [esc(L.dtype), inside ? date : '枠外下部に記載'], ['保存方法', esc(L.storage)], ['製造者', mk]];
+  const nutBox = nm ? `<div class="lnut"><b>栄養成分表示</b><span>(${esc(nm.base)})</span><table><tr><td>熱量</td><td>${Math.round(nm.v[0])}kcal</td></tr><tr><td>たんぱく質</td><td>${r1(nm.v[1])}g</td></tr><tr><td>脂質</td><td>${r1(nm.v[2])}g</td></tr><tr><td>炭水化物</td><td>${r1(nm.v[3])}g</td></tr><tr><td>食塩相当量</td><td>${saltOf(nm.v[4])}g</td></tr></table><span>(推定値)</span></div>` : '';
+  const pla = L.pla ? `<svg class="lpla" viewBox="0 0 40 40" aria-label="プラ"><path d="M8 14a12 12 0 0 1 20-6M32 26a12 12 0 0 1-20 6" fill="none" stroke="#000" stroke-width="2.6"/><path d="M27 4l2 5-5 1M13 36l-2-5 5-1" fill="none" stroke="#000" stroke-width="2.6"/><text x="20" y="25" font-size="12" font-weight="700" text-anchor="middle" font-family="sans-serif">プラ</text></svg>` : '';
   // ラベル1枚の大きさ(回すときは中身を横長にする)
   let w, h, sh;
   if (sheet) { sh = sheetOf(S); w = sh[1]; h = sh[2]; } else { [w, h] = rollOf(S); }
   const cw = !sheet && S.rot ? h : w, chh = !sheet && S.rot ? w : h;
   const bcw = Math.min(37.29 * 0.8, cw * 0.4);
   const foot = S.datePos === 'foot' && date ? `${esc(L.dtype)} ${date}` : '';
-  const cell = test ? `<div class="ltest"><span>${cw}×${chh}</span></div>` : `<div class="lbody"><table>${rowsH.map(([a, b], i) => `<tr><th>${i === 6 ? a : esc(a)}</th><td>${esc(b)}</td></tr>`).join('')}</table>${j.ok && j.code ? janSvg(j.code, bcw) : ''}</div>
+  const side = nutBox || pla || (j.ok && j.code) ? `<div class="lside">${nutBox}<div class="lsrow">${pla}${j.ok && j.code ? janSvg(j.code, Math.min(20, cw * 0.24)) : ''}</div></div>` : '';
+  const cell = test ? `<div class="ltest"><span>${cw}×${chh}</span></div>` : `<div class="lbody"><table><tr class="lhrow"><th>品名</th><td><b>${esc(p.name)}</b></td></tr>${rowsH.map(([a, b]) => `<tr><th>${a}</th><td>${b}</td></tr>`).join('')}</table>${side}</div>
     <div class="lfoot">${foot}</div>`;
   const box = (x, y) => {
     const st = `width:${cw}mm;height:${chh}mm;font-size:${S.pt}pt`;
@@ -1039,7 +1049,7 @@ function renderSet() {
     <div class="set-row"><span>定休日<br><span class="k">衛生の念押しを休む</span></span><div class="seg" id="closed">${['月', '火', '水', '木', '金', '土', '日'].map(w => `<button type="button" data-w="${w}" aria-pressed="${((D.shopInfo || {}).closed || '').includes(w)}">${w}</button>`).join('')}</div></div>
     `) + grp('業者・卸先', 'book', '<p class="k" style="margin:0 0 8px">電話・担当・振込先の一覧は、メニューの「業者・卸先」にあります</p><button class="btn ghost" type="button" id="set-ct">業者・卸先の一覧を開く</button>') + grp('お店の情報', 'ws', `<p class="k" style="margin:0 0 6px">卸の請求書とラベルの製造者欄に入ります</p>
     <div class="set-row" style="display:block;padding-top:0">
-      <div class="fld" style="margin-top:8px">${[['name', '店名'], ['addr', '住所'], ['tel', '電話'], ['reg', '登録番号(T〜)'], ['bank', '振込先']].map(([k, l]) => `<span class="k">${l}</span><input data-shop="${k}" value="${esc((D.shopInfo || {})[k] || '')}">`).join('')}</div>
+      <div class="fld" style="margin-top:8px">${[['name', '店名'], ['rep', '代表者'], ['addr', '住所'], ['tel', '電話'], ['reg', '登録番号(T〜)'], ['bank', '振込先']].map(([k, l]) => `<span class="k">${l}</span><input data-shop="${k}" value="${esc((D.shopInfo || {})[k] || '')}">`).join('')}</div>
       <div class="ask"><button class="btn" type="button" id="shop-save">お店の情報を保存</button></div></div>`) + `
     <div class="set-row" style="padding:8px 4px"><span class="k">${esc(D.shop)} · ${new Date(D.at).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} 時点</span><span class="seg"><button type="button" id="reload">読み込み直す</button></span></div>`;
   $('set-box').querySelectorAll('.seg[data-key] button').forEach(b => b.onclick = () => {
