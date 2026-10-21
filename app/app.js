@@ -1483,13 +1483,13 @@ function faces() { const el = $('sface'); if (STILL) { el.style.backgroundImage 
 if (STILL) faces(); else (() => { const s = document.createElement('script'); s.src = 'emoji.js?v=18'; s.async = true; s.onload = faces; document.body.appendChild(s); })();
 function addMsg(html, me) { const d = document.createElement('div'); d.className = 'm' + (me ? ' me' : ''); d.innerHTML = html; msgs.appendChild(d); d.scrollIntoView({ block: 'end', behavior: 'smooth' }); return d; }
 function botSay(html, role) { const d = addMsg('…'); setTimeout(() => { d.innerHTML = html; d.scrollIntoView({ block: 'end', behavior: 'smooth' }); }, 120); if (role) chat(null, role); }
-function openAsk() { if (!D) return; sheet.hidden = false; if (!msgs.children.length) botSay('何でも聞いてください。'); renderChips(); setTimeout(() => qIn.focus(), 100); }
+function openAsk() { if (!D) return; sheet.hidden = false; if (!msgs.children.length) botSay('何でも聞いてください。使い方も、お店のことも答えます。'); renderChips(); setTimeout(() => qIn.focus(), 100); }
 $('sclose').onclick = () => sheet.hidden = true; sheet.onclick = e => { if (e.target === sheet) sheet.hidden = true; };
 ch.onclick = openAsk; ch.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openAsk(); } };
 $('cam').onclick = openCamera;
 function renderChips(quick) {
   const p0 = D.products[0] ? D.products[0].name : '栗万十';
-  const c = quick && quick.length ? quick : ['今月儲かってる?', `${p0}の原価は?`, '値上げしたほうがいい?', '今日の衛生でまだのは?', '払っていないのは?', 'そろそろ買うものは?', `${p0}の栄養成分は?`];
+  const c = quick && quick.length ? quick : (noMoney() ? ['今日の衛生でまだのは?', 'ラベルの印刷がずれる', '業者の電話はどこ?', 'インスタの画像を作りたい', '賞味期限と消費期限のちがいは?', `${p0}の栄養成分は?`] : ['今月儲かってる?', `${p0}の原価は?`, '値上げしたほうがいい?', 'ラベルの印刷がずれる', '業者の電話はどこ?', 'インスタの画像を作りたい', '払っていないのは?', '賞味期限と消費期限のちがいは?']);
   const box = $('qchips'); box.innerHTML = c.map(s => `<button type="button">${esc(s)}</button>`).join('');
   box.querySelectorAll('button').forEach(b => b.onclick = () => ask(b.textContent));
 }
@@ -1533,13 +1533,24 @@ async function ask(s) {
     const out = await api({ kind: 'app_chat', text: s, pack: PACK });
     if (!out.ok) throw new Error(out.error || 'ng');
     wait.remove();
-    (out.texts || []).forEach((t, i) => setTimeout(() => botSay(esc(t).replace(/\n/g, '<br>')), i * 200));
+    (out.texts || []).forEach((t, i) => setTimeout(() => botSay(openBtns(esc(t)).replace(/\n/g, '<br>')), i * 200));
     if (out.data) { D = out.data; renderAll(); }
     renderChips(out.quick);
   } catch (e) {
     wait.remove(); const [a, role] = await answer(s); botSay(a, role);
   } finally { asking = false; }
 }
+// 返事の [[open:〜]] を「〇〇を開く」ボタンにする
+const OPEN_TO = { today: ['ホーム'], cost: ['原価'], label: ['裏表示'], labelprint: ['ラベルを印刷', 'label', '.lpc'], mat: ['材料'], hyg: ['衛生'], book: ['帳簿'], ws: ['卸'], ct: ['業者・卸先'], post: ['発信'], brand: ['お店の型', 'post', '#post-brand'], cal: ['予定'], sales: ['売上'], set: ['設定'], members: ['メンバー', 'set', '#members-box'], a2hs: ['ホーム画面に置く案内'], guide: ['使い方ガイド'] };
+function openBtns(h) { return h.replace(/\n?\[\[open:([a-z0-9]+)\]\]/g, (m, k) => OPEN_TO[k] ? `<br><button class="btn ghost sm" type="button" data-open="${k}">「${OPEN_TO[k][0]}」を開く</button>` : ''); }
+function openTo(k) {
+  const o = OPEN_TO[k]; if (!o) return; sheet.hidden = true;
+  if (k === 'a2hs') { a2hsHelp(); return; }
+  if (k === 'guide') { location.href = CF ? '/guide/' : 'https://shikomicho.masagolf9.workers.dev/guide/'; return; }
+  show(o[1] || k);
+  if (o[2]) setTimeout(() => { const el = document.querySelector(o[2]); if (el) el.scrollIntoView({ block: 'start', behavior: 'smooth' }); }, 250);
+}
+msgs.addEventListener('click', e => { const b = e.target.closest('[data-open]'); if (b) openTo(b.dataset.open); });
 $('composer').onsubmit = e => { e.preventDefault(); ask(qIn.value); };
 
 // ---------- ホームページ(LINEの外)から写真を送る ----------
