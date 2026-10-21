@@ -63,7 +63,7 @@
     <button class="side" id="close">閉じる</button>
   </div>
   <div id="review"><button id="retake">撮り直す</button><button id="send">これで送る</button></div>
-  <div id="busy"><div class="spin"></div><div id="busyText">もなかが読んでいます…</div></div>
+  <div id="busy"><div class="spin"></div><div id="busyText">読んでいます…</div></div>
   <div id="fallback">
     <div>カメラが使えませんでした。<br>LINEの設定でカメラを許可するか、<br>写真を選んで送ってください。</div>
     <label for="pick">写真を選ぶ</label>
@@ -259,14 +259,14 @@ async function send() {
   $('busy').style.display = 'flex';
   try {
     const data = await new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result.split(',')[1]); fr.readAsDataURL(shotBlob); });
-    if (CF) {   // ホームページ: 答えはLINEではなく、お店の画面のもなかが返す
+    if (CF) {   // ホームページ: 答えはLINEではなく、お店の画面のキャラが返す
       const h = { 'Content-Type': 'application/json', 'X-Shikomi': '1' }; if (inLiff) h['X-Line-Token'] = liff.getIDToken();
       const out = await (await fetch('/api/upload', { method: 'POST', credentials: 'same-origin', headers: h,
         body: JSON.stringify({ kind: 'liff_upload', web: true, what: kind, image: data, type: 'image/jpeg' }) })).json();
       if (out.error === 'login') { location.href = '/login?next=' + encodeURIComponent(location.pathname + location.search); return; }
       if (!out.ok) throw new Error(out.error || '受け取れませんでした');
       try { sessionStorage.setItem('shikomi:shot', JSON.stringify({ msgs: out.msgs || [], quick: out.quick || null })); } catch (e) {}
-      $('busyText').textContent = '読めました! もなかが答えます';
+      $('busyText').textContent = '読めました! お店の画面で答えます';
       location.href = BACK; return;
     }
     if (!inLiff) throw new Error('LINEの中で開いたときだけ送れます(いまは試し表示です)');

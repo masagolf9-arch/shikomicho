@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+<defs><clipPath id="c"><circle cx="100" cy="100" r="98"/></clipPath><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e9f7f7"/><stop offset="1" stop-color="#cdeeee"/></linearGradient></defs>
+<g clip-path="url(#c)"><rect width="200" height="200" fill="url(#bg)"/>
+<line x1="100" y1="22" x2="100" y2="44" stroke="#7b8796" stroke-width="6" stroke-linecap="round"/><circle cx="100" cy="20" r="9" fill="#f2b632"/>
+<rect x="30" y="92" width="16" height="40" rx="8" fill="#9aa6b4"/><rect x="154" y="92" width="16" height="40" rx="8" fill="#9aa6b4"/>
+<rect x="40" y="44" width="120" height="116" rx="38" fill="#e4eaf1" stroke="#9aa6b4" stroke-width="4"/>
+<rect x="54" y="62" width="92" height="72" rx="22" fill="#1f3550"/>
+<g id="face"><path d="M68 98 Q80 84 92 98" stroke="#6fe3ff" stroke-width="6" fill="none" stroke-linecap="round"/><path d="M108 98 Q120 84 132 98" stroke="#6fe3ff" stroke-width="6" fill="none" stroke-linecap="round"/><path d="M80 112 Q100 132 120 112 Z" fill="#6fe3ff"/></g>
+<circle cx="64" cy="148" r="4" fill="#f26b5b"/><circle cx="78" cy="148" r="4" fill="#7bd389"/><rect x="112" y="144" width="30" height="8" rx="4" fill="#c4ced9"/>
+</g><circle cx="100" cy="100" r="97" fill="none" stroke="#ffffff" stroke-width="3"/></svg>

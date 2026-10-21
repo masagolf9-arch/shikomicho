@@ -14,7 +14,7 @@
 <style>
 /* 仕込帳 お店の画面 v16
    参考: Canva(大きな「何をしますか?」と色つきの丸いボタン)と STORES(白くすっきりした管理画面と数字の札)。
-   青1色を軸に、機能ごとに色を1つ持つ。角は大きめの丸。影はごく薄く。もなかは右下に座っていて、押すと会話が開く。 */
+   青1色を軸に、機能ごとに色を1つ持つ。角は大きめの丸。影はごく薄く。キャラは右下に座っていて、押すと会話が開く。 */
 :root{
   --bg:#f3f5f9; --card:#ffffff; --ink:#1a1d23; --ink-2:#5c6470; --line:#e3e7ee; --line-2:#eef1f5;
   --accent:#185fa5; --accent-ink:#fff; --soft:#e6f0fb; --ok:#1b7a4a; --ok-soft:#e3f3ea;
@@ -43,9 +43,13 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);font
 .top .shop img{width:28px;height:28px;display:block;filter:var(--logo-f,none)}
 .top .date{font-size:13px;color:var(--ink-2);font-variant-numeric:tabular-nums}
 
-/* 右下に座るもなか。吹き出しは左上に出る */
+/* 右下に座るキャラ。吹き出しは左上に出る */
 .chara{position:fixed;right:10px;bottom:calc(74px + env(safe-area-inset-bottom,0px));width:var(--cs,72px);height:var(--cs,72px);background-repeat:no-repeat;background-size:auto var(--cs,72px);cursor:pointer;z-index:12;-webkit-tap-highlight-color:transparent;filter:drop-shadow(0 2px 2px rgba(0,0,0,.14))}
 .chara:active{transform:scale(.96)}
+.chara.still{background-size:cover;border-radius:50%;filter:drop-shadow(0 3px 6px rgba(0,0,0,.18))}
+.chara.nod{animation:nod .8s ease}
+@keyframes nod{0%,100%{transform:translateY(0)}30%{transform:translateY(-6px) rotate(-3deg)}60%{transform:translateY(0) rotate(2deg)}}
+.sheet .bar2 .face.still{background-size:cover;border-radius:50%}
 .say{position:fixed;right:calc(var(--cs,72px) + 2px);bottom:calc(86px + env(safe-area-inset-bottom,0px));left:auto;max-width:min(72vw,380px);background:var(--card);border:1.5px solid var(--accent);border-radius:14px;padding:8px 13px;font-size:14px;line-height:1.55;z-index:12;transition:opacity .3s;pointer-events:none}
 .say::after{content:"";position:absolute;right:-8px;bottom:14px;width:12px;height:12px;background:var(--card);border-right:1.5px solid var(--accent);border-top:1.5px solid var(--accent);transform:rotate(45deg)}
 .say[hidden]{display:none}
@@ -169,7 +173,7 @@ details.card summary{cursor:pointer}
 .lfoot{margin-top:auto;padding-top:.6mm;font-weight:700}
 @media print{body>*:not(.inv){display:none!important}.inv{position:static;padding:0}.inv .bar3{display:none}.inv.lprint{background:#fff;padding:0}.inv.lprint .lnote{display:none}.inv.lprint .lsheet{margin:0;box-shadow:none}html,body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
 
-/* もなかに聞く */
+/* 相談の窓 */
 .sheet{position:fixed;inset:0;z-index:20;display:flex;flex-direction:column;justify-content:flex-end;background:rgba(20,22,20,.45)}
 .sheet[hidden]{display:none}
 .sheet .panel{max-width:560px;width:100%;margin:0 auto;height:min(80vh,660px);background:var(--bg);border-radius:20px 20px 0 0;display:flex;flex-direction:column;padding-bottom:env(safe-area-inset-bottom,0px)}
@@ -205,7 +209,7 @@ nav button[aria-current="page"]{color:var(--nav-on);font-weight:700}
 nav button[aria-current="page"] .ico{background:var(--soft)}
 nav .badge{position:absolute;top:0;left:calc(50% + 6px);min-width:18px;height:18px;border-radius:9px;background:var(--warn);color:#fff;font-size:11px;font-weight:700;line-height:18px;text-align:center;padding:0 5px;box-shadow:0 0 0 2px var(--nav)}
 
-/* ホーム: あいさつと、もなかに聞く欄(Canvaの「何を作りますか?」の形) */
+/* ホーム: あいさつと、話しかける欄(Canvaの「何を作りますか?」の形) */
 .greet{margin:18px 0 10px}
 .greet h1{margin:0;font-size:26px}
 .greet p{margin:2px 0 0;color:var(--ink-2);font-size:14px}
@@ -458,7 +462,7 @@ section.inR{animation:inR .12s ease-out}section.inL{animation:inL .12s ease-out}
 @media (prefers-reduced-motion:reduce){section.inR,section.inL{animation:none}.menu .ic{transition:none}}
 @media (min-width:900px){.wrap{max-width:760px}.sheet .panel{max-width:760px}nav .in{max-width:760px}#costs{display:grid;grid-template-columns:1fr 1fr;gap:10px}#costs .prod{align-self:start}.prods{display:grid;grid-template-columns:repeat(3,1fr);overflow:visible;margin:0;padding:0}.pc{flex:none}}
 
-/* パソコンの広い画面: 左に白いメニュー(STORESの形)、上に店名と聞く欄、右に画面。もなかは右下に座り、押すと小さな窓で話せる */
+/* パソコンの広い画面: 左に白いメニュー(STORESの形)、上に店名と聞く欄、右に画面。キャラは右下に座り、押すと小さな窓で話せる */
 #side{display:none}
 .appbar{display:none}
 @media (min-width:1100px){
@@ -525,7 +529,7 @@ section.inR{animation:inR .12s ease-out}section.inL{animation:inL .12s ease-out}
     <div class="shop"><img src="logo_mark.webp?v=1" alt="" onerror="this.remove()"><span id="shop">お店</span></div>
     <div class="date" id="date"></div>
   </div>
-  <div class="appbar"><div><span class="sname" id="shop2"></span><span class="date" id="date2"></span><form class="askbar" id="askbar-top" autocomplete="off"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6.5h16M4 12h16M4 17.5h10"/></svg><input id="ask-top" placeholder="もなかに話す" aria-label="もなかに聞く"><button class="btn" type="submit">送る</button></form></div></div>
+  <div class="appbar"><div><span class="sname" id="shop2"></span><span class="date" id="date2"></span><form class="askbar" id="askbar-top" autocomplete="off"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6.5h16M4 12h16M4 17.5h10"/></svg><input id="ask-top" placeholder="話しかける" aria-label="相談する"><button class="btn" type="submit">送る</button></form></div></div>
 
   <div class="bar" id="bar" hidden role="status"></div>
   <div class="crumb" id="crumb" hidden aria-label="今いる場所"></div>
@@ -534,7 +538,7 @@ section.inR{animation:inR .12s ease-out}section.inL{animation:inL .12s ease-out}
 
   <section id="t-today" hidden>
     <div class="greet"><h1 id="greet-h">こんにちは</h1><p id="greet-p">何をしますか?</p></div>
-    <form class="askbar" id="askbar-home" autocomplete="off"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6.5h16M4 12h16M4 17.5h10"/></svg><input id="ask-home" placeholder="もなかに話す" aria-label="もなかに聞く"><button class="btn" type="submit">送る</button></form>
+    <form class="askbar" id="askbar-home" autocomplete="off"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6.5h16M4 12h16M4 17.5h10"/></svg><input id="ask-home" placeholder="話しかける" aria-label="相談する"><button class="btn" type="submit">送る</button></form>
     <div class="menu" id="menu"></div>
     <div class="card" id="a2hs" hidden></div>
     <div class="card start" id="start" hidden></div>
@@ -566,7 +570,7 @@ section.inR{animation:inR .12s ease-out}section.inL{animation:inL .12s ease-out}
   </section>
 
   <section id="t-cal" hidden>
-    <div class="ph"><div><h1>予定</h1><p class="lead">納品・催事・休み。もなかに話しても入ります。</p></div><div class="acts"><button class="btn" type="button" id="ev-add-top">＋ 予定を足す</button></div></div>
+    <div class="ph"><div><h1>予定</h1><p class="lead">納品・催事・休み。話しかけても入ります。</p></div><div class="acts"><button class="btn" type="button" id="ev-add-top">＋ 予定を足す</button></div></div>
     <div class="card" id="ev-form" hidden></div>
     <div id="cal"></div>
   </section>
@@ -644,15 +648,15 @@ section.inR{animation:inR .12s ease-out}section.inL{animation:inL .12s ease-out}
       <textarea id="ct-text" rows="4" maxlength="2000" placeholder="例: 請求書の写真がうまく読めません" aria-label="問い合わせの内容"></textarea>
       <div class="ask"><button class="btn" type="button" id="ct-go">送る</button><span class="k" id="ct-via">LINEで「問い合わせ 〜」と送ってもOK</span></div>
     </div>
-    <h1 class="sub" id="words-h">もなかに話す</h1>
+    <h1 class="sub" id="words-h">話しかけられる言葉</h1>
     <div class="card"><p style="margin:0">決まった言い方はありません。ふだんの言葉で話しかけてください。</p><p class="k" style="margin:6px 0 0">作った数、払ったこと、冷蔵庫の温度、納品、予定、「今月どう?」のような相談まで、話しかけるだけで大丈夫です。</p><p class="k" style="margin:6px 0 0">記録の前には「〜として記録しますか?」と確かめます。「はい」で確定した言い方は覚えて、次からは同じ意味に取ります。分からないときは聞き返します。</p></div>
   </section>
   <p class="foot" id="foot">試作。キャラの絵はAtelier SAISPEのLINE絵文字。</p>
 </div>
 
-<div class="sheet" id="sheet" hidden role="dialog" aria-label="もなかに聞く">
+<div class="sheet" id="sheet" hidden role="dialog" aria-label="相談する">
   <div class="panel">
-    <div class="bar2"><span class="face" id="sface"></span><b id="sname">もなか</b><span class="k">に聞く</span><button class="x" id="sclose" type="button">閉じる</button></div>
+    <div class="bar2"><span class="face" id="sface"></span><b id="sname">相談する</b><button class="x" id="sclose" type="button">閉じる</button></div>
     <div class="msgs" id="msgs" aria-live="polite"></div>
     <div class="qchips" id="qchips"></div>
     <form class="composer" id="composer">
@@ -665,7 +669,7 @@ section.inR{animation:inR .12s ease-out}section.inL{animation:inL .12s ease-out}
 
 <div class="inv" id="inv" hidden></div>
 <div class="say" id="say" hidden></div>
-<div class="chara" id="chara" role="button" tabindex="0" aria-label="もなかに話しかける"></div>
+<div class="chara" id="chara" role="button" tabindex="0" aria-label="相談する"></div>
 <nav aria-label="画面の切り替え"><div class="in">
   <button type="button" data-t="today"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11.2 12 4l9 7.2"/><path d="M5.5 10v10h13V10"/><path d="M10 20v-6h4v6"/></svg></span><span>ホーム</span><span class="badge" id="badge" hidden></span></button>
   <button type="button" id="nav-cam"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 8.5h3.3l1.7-2.5h7l1.7 2.5h3.3v10.5h-17z"/><circle cx="12" cy="13.4" r="3.4"/></svg></span><span>撮る</span></button>
@@ -675,6 +679,6 @@ section.inR{animation:inR .12s ease-out}section.inL{animation:inL .12s ease-out}
 </div></nav>
 
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-<script src="app.js?v=65"></script>
+<script src="app.js?v=66"></script>
 </body>
 </html>

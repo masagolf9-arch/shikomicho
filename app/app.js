@@ -6,8 +6,8 @@ const CAMERA_URL = 'https://liff.line.me/' + LIFF_ID;
 // 公式ホームページ(Cloudflare)から開いたときは、そちらの蔵とやりとりする。LINEの外ならログインの鍵で入る
 const CF = location.hostname !== 'masagolf9-arch.github.io';
 const IN_LINE = /\bLine\//i.test(navigator.userAgent);
-// 画面の案内文: ホームページでは「撮る」「もなか」を案内する(LINEは、お知らせが届く場所)
-const CAMTXT = CF ? '「撮る」' : 'LINEの「📷 写真を撮る」', VIA = CF ? 'もなかに' : 'LINEで', SHOT = CF ? '「撮る」で' : 'LINEで';
+// 画面の案内文: ホームページでは「撮る」「話す」を案内する(LINEは、お知らせが届く場所)
+const CAMTXT = CF ? '「撮る」' : 'LINEの「📷 写真を撮る」', VIA = CF ? '話しかけて' : 'LINEで', SHOT = CF ? '「撮る」で' : 'LINEで';
 
 const $ = id => document.getElementById(id);
 const store = { get(k, d) { try { const v = localStorage.getItem('shikomi:' + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
@@ -62,7 +62,7 @@ async function setValue(product, field, value) {
 }
 function openCamera() {
   if (CF) {
-    // ケイタイ: 青い枠のカメラへ(撮ったら、この画面に戻ってもなかが答える)/ パソコン: 写真を選ぶ
+    // ケイタイ: 青い枠のカメラへ(撮ったら、この画面に戻ってキャラが答える)/ パソコン: 写真を選ぶ
     if (matchMedia('(pointer:coarse)').matches) { location.href = (IN_LINE ? '/l/' : '/camera/') + '?back=' + encodeURIComponent(location.pathname); return; }
     webPhoto(); return;
   }
@@ -107,7 +107,7 @@ function renderToday() {
   renderHero(q); renderMenu(q); renderGreet(); renderHomeProds();
   renderA2hs(); renderTodo(list); renderStart(); renderMemos(); renderHomeEvents(); renderBar(); renderCal(); renderReg();
   $('made').innerHTML = D.made.length ? `<ul class="tl">${D.made.map(m => `<li><span class="tt">${new Date(m.t).toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' })}</span><span>${esc(m.text)}</span></li>`).join('')}</ul>`
-    : '<p class="k" style="margin:0">まだありません。作った数をもなかに話すと、ここに出ます</p>';
+    : '<p class="k" style="margin:0">まだありません。作った数を話しかけると、ここに出ます</p>';
 }
 
 // ホーム画面にアイコンを置く案内(ケイタイだけ・1回だけ)。置けばLINEを通らず直接この画面が開く
@@ -253,7 +253,7 @@ function renderReg() {
     ${pend.map(row).join('')}${done.length ? `<details style="margin-top:8px"><summary class="k">最近レジに入れたもの(${done.length})</summary>${done.map(row).join('')}</details>` : ''}
     ${pend.length ? `<div class="ask"><button class="btn ghost sm" type="button" id="reg-print">レジ用の値段表を出す</button><span class="k">印刷するか、スマホで見ながらレジに入れます</span></div>` : ''}`;
   box.querySelectorAll('[data-regdone]').forEach(b => b.onclick = () => setValueX({ field: 'regdone', value: +b.dataset.regdone }));
-  const pr = $('reg-print'); if (pr) pr.onclick = () => openPrint(`<h2>レジに入れる値段</h2><p class="k">${new Date().toLocaleDateString('ja-JP')} 時点。仕込帳で売値を変えた商品。</p><table class="pt"><tr><th>レジでの名前</th><th>商品</th><th>前の売値</th><th>新しい売値</th><th>変えた日</th><th>レジに入れた✓</th></tr>${pend.map(x => `<tr><td><b>${esc(x.reg || x.name)}</b></td><td>${esc(x.name)}</td><td>${x.old ? x.old + '円' : '—'}</td><td><b style="font-size:18px">${x.now}円</b></td><td>${x.at ? new Date(x.at).toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' }) : ''}</td><td style="width:60px"></td></tr>`).join('')}</table><p class="k">精算レシートを撮ったとき、レジの値段と仕込帳の売値がちがえば、もなかが知らせます。</p>`);
+  const pr = $('reg-print'); if (pr) pr.onclick = () => openPrint(`<h2>レジに入れる値段</h2><p class="k">${new Date().toLocaleDateString('ja-JP')} 時点。仕込帳で売値を変えた商品。</p><table class="pt"><tr><th>レジでの名前</th><th>商品</th><th>前の売値</th><th>新しい売値</th><th>変えた日</th><th>レジに入れた✓</th></tr>${pend.map(x => `<tr><td><b>${esc(x.reg || x.name)}</b></td><td>${esc(x.name)}</td><td>${x.old ? x.old + '円' : '—'}</td><td><b style="font-size:18px">${x.now}円</b></td><td>${x.at ? new Date(x.at).toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' }) : ''}</td><td style="width:60px"></td></tr>`).join('')}</table><p class="k">精算レシートを撮ったとき、レジの値段と仕込帳の売値がちがえば、お知らせします。</p>`);
 }
 // 日本の祝日(計算で出す。春分・秋分は近い年の表)
 const EQX = { 2025: [20, 23], 2026: [20, 23], 2027: [21, 23], 2028: [20, 22], 2029: [20, 23], 2030: [20, 23] };
@@ -391,7 +391,7 @@ function renderHomeProds() {
   box.querySelectorAll('[data-p]').forEach(el => el.onclick = () => { open.add(el.dataset.p); show('cost'); setTimeout(() => { const c = document.querySelector(`.prod[data-name="${CSS.escape(el.dataset.p)}"]`); if (c) c.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 150); });
   box.querySelectorAll('[data-more]').forEach(el => el.onclick = () => show('cost'));
 }
-// ホームと上の帯の「もなかに聞く」欄: 入れた言葉を、もなかの窓に送る
+// ホームと上の帯の「話す」欄: 入れた言葉を、会話の窓に送る
 ['askbar-home', 'askbar-top'].forEach(id => { const f = $(id); if (!f) return; f.onsubmit = e => { e.preventDefault(); const inp = f.querySelector('input'), v = inp.value.trim(); inp.value = ''; openAsk(); if (v) ask(v); }; });
 
 // ---------- 小さなグラフ(SVGで描く。色は機能の色1つ、濃さで量) ----------
@@ -957,7 +957,7 @@ function renderSet() {
   const stand = matchMedia('(display-mode: standalone)').matches || navigator.standalone;
   const homeIcon = `<div class="card" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><b>${matchMedia('(pointer:coarse)').matches ? 'ホーム画面のアイコン' : 'パソコンのアイコン'}</b>${stand ? '<span class="pill">アイコンから開いています(置けています)</span>' : `<button class="btn sm" type="button" id="set-a2hs">${matchMedia('(pointer:coarse)').matches ? 'ホーム画面に置く' : 'パソコンに置く'}</button><span class="k">LINEやブラウザを通らず、アイコンから開けるようにします</span>`}</div>`;
   $('set-box').innerHTML = homeIcon + (CF ? `<div class="card" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><b>使い方ガイド</b><a class="btn ghost sm" href="/guide/start" target="_blank">はじめの設定(店主向け)</a><a class="btn ghost sm" href="/guide/daily" target="_blank">ふだんの使い方(みんな向け)</a></div>` : '') + grp('見え方', 'set', `
-    <div class="set-row"><span>キャラ</span>${seg('pack', [['shirokuma', 'もなか'], ['tanuki', 'ぽん']], PACK)}</div>
+    <div class="set-row"><span>キャラ</span>${seg('pack', [['tanuki', 'たぬき'], ['robot', 'ロボット'], ['op', 'オペレーター']], PACK)}</div>
     <div class="set-row"><span>キャラの大きさ</span>${seg('csize', [['s', '小'], ['m', '中'], ['l', '大']], store.get('csize', 'm'))}</div>
     <div class="set-row"><span>文字の大きさ</span>${seg('size', [['normal', 'ふつう'], ['big', '大きめ']], store.get('size', 'normal'))}</div>
     <div class="set-row"><span>画面の色</span>${seg('theme', [['auto', '自動'], ['light', '明るい'], ['dark', '暗い']], store.get('theme', 'auto'))}</div>`) + grp('お店の決まりごと', 'stock', `
@@ -1043,7 +1043,7 @@ function renderWs() {
   const ws = D.ws || {}, ms = Object.keys(ws).sort().reverse(), chips = $('ws-chips');
   const tos = [...new Set(ms.flatMap(m => Object.keys(ws[m])))];
   $('ws-add').innerHTML = `<p style="margin:0 0 6px"><b>納品を記録</b></p><div class="fld"><span class="k">卸先</span><input id="ws-to" list="ws-tos" placeholder="卸先"><datalist id="ws-tos">${tos.map(t => `<option value="${esc(t)}">`).join('')}</datalist>
-    <span class="k">商品と数</span><input id="ws-items" placeholder="商品と数"></div><div class="ask"><button class="btn" type="button" id="ws-go">記録</button><span class="k">もなかに話しても入ります</span></div>`;
+    <span class="k">商品と数</span><input id="ws-items" placeholder="商品と数"></div><div class="ask"><button class="btn" type="button" id="ws-go">記録</button><span class="k">話しかけても入ります</span></div>`;
   $('ws-go').onclick = () => { const to = $('ws-to').value.trim(), it = $('ws-items').value.trim(); if (!to || !it) { chat('卸先と、商品と数を入れてください'); return; } setValueX({ field: 'deliv', value: to + ' ' + it }); };
   if (!ms.length) { chips.innerHTML = ''; $('ws-list').innerHTML = emptyBox('ws', 'まだ納品の記録がありません', '上の欄に卸先と商品・数を入れると、ここに月ごとに並びます。'); return; }
   const sel = chips.dataset.m && ms.includes(chips.dataset.m) ? chips.dataset.m : ms[0];
@@ -1116,21 +1116,34 @@ function renderPost() {
 }
 
 // ---------- 右下に座るキャラ:ふだんはお茶を持って座り、ときどきしぐさ。押すと会話が開く ----------
-const PACK = store.get('pack', 'shirokuma');
+const PACK = (p => ['tanuki', 'robot', 'op'].includes(p) ? p : 'tanuki')(store.get('pack', 'tanuki'));
+// ロボットとオペレーターは丸い顔の絵(動きは小さくうなずくだけ)。たぬきはLINE絵文字のコマで動く
+const STILL = PACK !== 'tanuki', FACE = { robot: 'robot', op: 'operator' }[PACK];
 const ROLE = { greet: '1', heart: '3', clap: '7', point: '10', surprise: '12', think: '13', tea: '19', walk: '20', sleepy: '23', sleep: '24' };
 const ch = $('chara'), say = $('say'), CS = () => ch.offsetWidth || 72;
 let busy = false, talkT = null; const anim = { gen: 0, t: null };
+function faceUrl(smile) { return `url(${FACE}${smile ? '_smile' : ''}.svg?v=1)`; }
 function play(r, loop = true, speed = 1.3) {
+  if (STILL) {
+    const smile = ['greet', 'heart', 'clap'].includes(r); ch.style.backgroundImage = faceUrl(smile);
+    ch.classList.remove('nod'); void ch.offsetWidth; ch.classList.add('nod');
+    return new Promise(res => setTimeout(res, smile ? 1600 : 900));
+  }
   const e = window.EMOJI && EMOJI[PACK][ROLE[r]]; if (!e) return Promise.resolve();
   clearTimeout(anim.t); const g = ++anim.gen; let f = 0; ch.style.backgroundImage = `url(${e.src})`;
   return new Promise(res => { const st = () => { if (g !== anim.gen) return; ch.style.backgroundPosition = `-${f * CS()}px 0`; f++; if (f >= +e.frames) { if (loop) f = 0; else { res(); return; } } anim.t = setTimeout(st, e.delay * speed); }; st(); if (loop) res(); });
 }
-// 座った姿(お茶の最初のコマ)で止める
-function rest() { clearTimeout(anim.t); ++anim.gen; if (!window.EMOJI) return; const e = EMOJI[PACK][ROLE.tea]; ch.style.backgroundImage = `url(${e.src})`; ch.style.backgroundPosition = '0 0'; }
+// ふだんの姿で止める(たぬきはお茶の最初のコマ)
+function rest() {
+  clearTimeout(anim.t); ++anim.gen;
+  if (STILL) { ch.style.backgroundImage = faceUrl(false); ch.classList.remove('nod'); return; }
+  if (!window.EMOJI) return; const e = EMOJI[PACK][ROLE.tea]; ch.style.backgroundImage = `url(${e.src})`; ch.style.backgroundPosition = '0 0';
+}
 async function act(r, speed = 1.3) { if (busy) return; busy = true; try { await play(r, false, speed); } finally { busy = false; rest(); } }
-setInterval(() => { if (!busy && document.visibilityState === 'visible' && Math.random() < .4) { const acts = ['tea', 'tea', 'sleepy', 'think', 'greet']; act(acts[Math.floor(Math.random() * acts.length)], 1.7); } }, 10000);
+if (STILL) { ch.classList.add('still'); rest(); }
+setInterval(() => { if (!STILL && !busy && document.visibilityState === 'visible' && Math.random() < .4) { const acts = ['tea', 'tea', 'sleepy', 'think', 'greet']; act(acts[Math.floor(Math.random() * acts.length)], 1.7); } }, 10000);
 function place() {}
-// 画面の上に短く出る知らせ(記録しました、など)。もなかの吹き出しは会話用に残す
+// 画面の上に短く出る知らせ(記録しました、など)。キャラの吹き出しは会話用に残す
 let toastT = null;
 function toast(text, kind) {
   let t = $('toast'); if (!t) { t = document.createElement('div'); t.id = 'toast'; t.setAttribute('role', 'status'); document.body.appendChild(t); }
@@ -1142,7 +1155,6 @@ function chat(text, role) {
   if (!text) return;
   clearTimeout(talkT); say.textContent = text; say.hidden = false; talkT = setTimeout(() => say.hidden = true, 5200);
 }
-const CNAME = PACK === 'tanuki' ? 'ぽん' : 'もなか';
 function hello() {
   const q = notices().length, u = D.ups.length, h = new Date().getHours();
   const g = h < 10 ? 'おはようございます。' : h < 17 ? '' : 'おつかれさまです。';
@@ -1153,13 +1165,12 @@ addEventListener('resize', place);
 
 // ---------- 聞く ----------
 const sheet = $('sheet'), msgs = $('msgs'), qIn = $('q');
-$('sname').textContent = CNAME; ch.setAttribute('aria-label', CNAME + 'に話しかける');
-function faces() { if (!window.EMOJI) return; const el = $('sface'); el.style.backgroundImage = `url(${EMOJI[PACK]['1'].src})`; el.style.backgroundPosition = '0 0'; rest(); }
-// キャラの絵(大きい)は画面が出たあとで読む
-(() => { const s = document.createElement('script'); s.src = 'emoji.js?v=18'; s.async = true; s.onload = faces; document.body.appendChild(s); })();
+function faces() { const el = $('sface'); if (STILL) { el.style.backgroundImage = faceUrl(false); el.classList.add('still'); return; } if (!window.EMOJI) return; el.style.backgroundImage = `url(${EMOJI[PACK]['1'].src})`; el.style.backgroundPosition = '0 0'; rest(); }
+// たぬきの絵(大きい)は画面が出たあとで読む
+if (STILL) faces(); else (() => { const s = document.createElement('script'); s.src = 'emoji.js?v=18'; s.async = true; s.onload = faces; document.body.appendChild(s); })();
 function addMsg(html, me) { const d = document.createElement('div'); d.className = 'm' + (me ? ' me' : ''); d.innerHTML = html; msgs.appendChild(d); d.scrollIntoView({ block: 'end', behavior: 'smooth' }); return d; }
 function botSay(html, role) { const d = addMsg('…'); setTimeout(() => { d.innerHTML = html; d.scrollIntoView({ block: 'end', behavior: 'smooth' }); }, 120); if (role) chat(null, role); }
-function openAsk() { if (!D) return; sheet.hidden = false; if (!msgs.children.length) botSay(`${CNAME}です。何でも聞いてください。`); renderChips(); setTimeout(() => qIn.focus(), 100); }
+function openAsk() { if (!D) return; sheet.hidden = false; if (!msgs.children.length) botSay('何でも聞いてください。'); renderChips(); setTimeout(() => qIn.focus(), 100); }
 $('sclose').onclick = () => sheet.hidden = true; sheet.onclick = e => { if (e.target === sheet) sheet.hidden = true; };
 ch.onclick = openAsk; ch.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openAsk(); } };
 $('cam').onclick = openCamera;
@@ -1199,7 +1210,7 @@ async function answer(s) {
   if (/ありがと|助か/.test(s)) return ['どういたしまして。', 'heart'];
   return ['すみません、まだ答えられません。\n今聞けるのは:原価、裏表示、アレルゲン、値上がり、先月の仕入れ、材料の名前。\n「〇〇は1個40g」「〇〇は250円」と教えてもらうと覚えます。', 'think'];
 }
-// もなかとの会話は表の側(AI)で。つながらないときだけ、この画面の中の簡単な答えに切り替える
+// キャラとの会話は表の側(AI)で。つながらないときだけ、この画面の中の簡単な答えに切り替える
 let asking = false;
 async function ask(s) {
   if (!s.trim() || asking) return; asking = true;
@@ -1254,7 +1265,7 @@ if (CF) {
   addEventListener('dragover', e => { if (e.dataTransfer && [...e.dataTransfer.types].includes('Files')) e.preventDefault(); });
   addEventListener('drop', e => { const file = e.dataTransfer && e.dataTransfer.files[0]; if (!file) return; e.preventDefault(); sendWebFile(file); });
 }
-// 青い枠のカメラで撮って戻ってきたとき、もなかの答えを出す
+// 青い枠のカメラで撮って戻ってきたとき、キャラの答えを出す
 function showShot() {
   let out = null; try { out = JSON.parse(sessionStorage.getItem('shikomi:shot') || 'null'); sessionStorage.removeItem('shikomi:shot'); } catch (e) {}
   if (!out || !D) return;
@@ -1312,7 +1323,7 @@ async function renderAccount() {
     cols.append(L, R); sec.appendChild(cols);
   }
 })();
-if (CF) { $('words-h').textContent = 'もなかに話しかけられる言葉'; $('ct-via').textContent = 'もなかに「問い合わせ 〜」と話しかけてもOK'; }
+if (CF) { $('words-h').textContent = '話しかけられる言葉'; $('ct-via').textContent = '「問い合わせ 〜」と話しかけてもOK'; }
 rest();
 // 前に読んだ内容をすぐ出して、裏で新しいものを読み直す(電波が弱くても待たない)
 (() => { const c = store.get('data', null); if (c && c.products) { try { D = c; state(''); renderAll(); show(store.get('tab', 'today'), true); setTimeout(() => chat(hello(), 'greet'), 250); } catch (e) { D = null; } } })();
