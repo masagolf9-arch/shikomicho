@@ -1122,7 +1122,7 @@ const STILL = PACK !== 'tanuki', FACE = { robot: 'robot', op: 'operator' }[PACK]
 const ROLE = { greet: '1', heart: '3', clap: '7', point: '10', surprise: '12', think: '13', tea: '19', walk: '20', sleepy: '23', sleep: '24' };
 const ch = $('chara'), say = $('say'), CS = () => ch.offsetWidth || 72;
 let busy = false, talkT = null; const anim = { gen: 0, t: null };
-function faceUrl(smile) { return `url(${FACE}${smile ? '_smile' : ''}.svg?v=1)`; }
+function faceUrl(smile) { return PACK === 'op' ? 'url(operator.webp?v=1)' : `url(${FACE}${smile ? '_smile' : ''}.svg?v=1)`; }
 function play(r, loop = true, speed = 1.3) {
   if (STILL) {
     const smile = ['greet', 'heart', 'clap'].includes(r); ch.style.backgroundImage = faceUrl(smile);
