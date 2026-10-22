@@ -433,6 +433,9 @@ function bindContacts(root) {
 // ---------- メンバー(店主だけ): 役割・お金を見せる/見せない・外す ----------
 const MONEY_TABS = ['cost', 'book', 'sales'];
 const noMoney = () => !!(D && D.hideMoney);
+// 画面でエラーが起きたら「つまずき」として残す(店主に夕方まとめて届く)
+window.addEventListener('error', e => { try { if (!D) return; api({ kind: 'app_err', text: (cur || '') + ' ' + String(e.message || '').slice(0, 150) }); } catch (x) {} });
+window.addEventListener('unhandledrejection', e => { try { if (!D) return; api({ kind: 'app_err', text: (cur || '') + ' ' + String((e.reason && e.reason.message) || e.reason || '').slice(0, 150) }); } catch (x) {} });
 // 消すボタンは2回押し(LINEの中では確認の窓が出ないことがあるので、画面の中で確かめる)
 function twice(b, label, fn) {
   if (!b) return; const orig = b.textContent, st0 = b.getAttribute('style') || '';
