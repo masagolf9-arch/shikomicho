@@ -172,7 +172,10 @@ function renderA2hs() {
     if (a2hsEvt) { const ev = a2hsEvt; ev.prompt(); const r = await ev.userChoice.catch(() => null); a2hsEvt = null; if (r && r.outcome === 'accepted') { store.set('a2hsHide', 1); box.hidden = true; toast('ホーム画面に置きました', 'ok'); } return; }
     a2hsHelp();
   };
-  const ex = $('a2hs-ext'); if (ex && window.liff && liff.isInClient && liff.isInClient()) ex.onclick = e => { e.preventDefault(); liff.openWindow({ url: location.origin + location.pathname, external: true }); };
+  const ex = $('a2hs-ext'); if (ex) ex.onclick = async e => {   // LINEの中(LIFF)では、リンクではいつものブラウザに出られないので LIFF で開く(まだLIFFを始めていなければ始める)
+    e.preventDefault(); const url = location.origin + location.pathname.replace(/^\/l\//, '/');
+    if (!(await openOutside(url))) location.href = ex.href;
+  };
   $('a2hs-no').onclick = e => { e.preventDefault(); store.set('a2hsHide', 1); box.hidden = true; };
 }
 // 「ホーム画面に置く」を押したのに、ブラウザが自動で置いてくれないとき: 1つずつ、絵つきで案内する
@@ -292,7 +295,7 @@ function editPromise(p, el) {
   const f = document.getElementById('pr-edit'); if (f) f.remove();
   el.insertAdjacentHTML('afterend', `<div class="memo" id="pr-edit" style="display:block"><div class="prf"><label>中身<input id="pe-text" value="${esc(p.text)}"></label><label>種類<select id="pe-kind">${Object.keys(PRK).map(k => `<option${k === p.kind ? ' selected' : ''}>${k}</option>`).join('')}</select></label><label>相手<input id="pe-who" value="${esc(p.who)}"></label><label>電話<input id="pe-tel" inputmode="tel" value="${esc(p.tel)}"></label><label>期限<input id="pe-date" type="date" value="${esc(p.date)}"></label><label>時間<input id="pe-time" type="time" value="${esc(p.time)}"></label></div>${p.raw ? `<p class="k" style="margin:8px 0 0">受けたときの言葉: ${esc(p.raw)}</p>` : ''}<div class="ask"><button class="btn" type="button" id="pe-save">直す</button><button class="btn ghost" type="button" id="pe-del">消す</button></div></div>`);
   $('pe-save').onclick = () => setValueX({ field: 'promise', value: { row: p.row, text: $('pe-text').value, kind: $('pe-kind').value, who: $('pe-who').value, tel: $('pe-tel').value, date: $('pe-date').value, time: $('pe-time').value } });
-  $('pe-del').onclick = () => { if (confirm('この約束を消しますか?(済んだときは「済」を押してください)')) setValueX({ field: 'promise', value: { row: p.row, del: true } }); };
+  twice($('pe-del'), '本当に消す(もう一度押す)', () => setValueX({ field: 'promise', value: { row: p.row, del: true } }));
 }
 let prRec = null;
 $('pr-add').onclick = () => {
@@ -430,6 +433,15 @@ function bindContacts(root) {
 // ---------- メンバー(店主だけ): 役割・お金を見せる/見せない・外す ----------
 const MONEY_TABS = ['cost', 'book', 'sales'];
 const noMoney = () => !!(D && D.hideMoney);
+// 消すボタンは2回押し(LINEの中では確認の窓が出ないことがあるので、画面の中で確かめる)
+function twice(b, label, fn) {
+  if (!b) return; const orig = b.textContent, st0 = b.getAttribute('style') || '';
+  b.onclick = () => {
+    if (b.dataset.armed) { clearTimeout(b._t); fn(); return; }
+    b.dataset.armed = 1; b.textContent = label; b.setAttribute('style', st0 + ';background:var(--warn);color:#fff;border-color:var(--warn)');
+    b._t = setTimeout(() => { delete b.dataset.armed; b.textContent = orig; b.setAttribute('style', st0); }, 5000);
+  };
+}
 async function renderMembers() {
   const box = $('members-box'); if (!box) return;
   if (!D.me || !D.me.owner) { box.parentNode.hidden = true; return; }
@@ -615,9 +627,14 @@ function payBank() {
   for (const [, list] of BANKS) for (const [id, name, url] of list) if (id === si.payBank) return { id, name, url };
   return null;
 }
-function openBank(url) {
-  if (window.liff && liff.isInClient && liff.isInClient()) liff.openWindow({ url, external: true });
-  else window.open(url, '_blank', 'noopener');
+// LINEの中から、いつものブラウザで開く(LIFFを始めていなければ始めてから)
+async function openOutside(url) {
+  if (IN_LINE && window.liff) { try { if (!liff.id) await liff.init({ liffId: LIFF_ID }); if (liff.isInClient()) { liff.openWindow({ url, external: true }); return true; } } catch (e) {} }
+  return false;
+}
+async function openBank(url) {
+  if (await openOutside(url)) return;
+  window.open(url, '_blank', 'noopener');
 }
 async function goPay(p) {
   const b = payBank();
@@ -685,7 +702,7 @@ function renderCost() {
     return ph + `<div class="card prod" data-name="${esc(p.name)}"><div class="hd" role="button" tabindex="0" aria-expanded="${isOpen}" data-toggle>${avatar(p.name)}<span class="nm">${esc(p.name)} <span class="k">${esc(p.part)}</span></span><span class="k">${p.sure}% 確定</span></div>${head}<div class="meta">${meta.join('')}</div><div class="bar" aria-label="請求書で確かめた割合 ${p.sure}%" title="請求書で確かめた割合 ${p.sure}%"><i style="width:${p.sure}%"></i></div><div class="detail" ${isOpen ? '' : 'hidden'}>${det}</div></div>`;
   }).join('');
   bindUnk(box); bindCompose(box);
-  box.querySelectorAll('[data-delprod]').forEach(b => b.onclick = () => { const n = b.dataset.delprod; if (confirm(`「${n}」を消しますか?\n前のレシピや、納得のいかないレシピを消すときに使います。\n消したあとも、このページのいちばん下「消したレシピ」から戻せます。`)) setValueX({ field: 'delprod', product: n }); });
+  box.querySelectorAll('[data-delprod]').forEach(b => twice(b, '本当に消す(もう一度押す)', () => setValueX({ field: 'delprod', product: b.dataset.delprod })));
   const tr = D.trash || [];
   if (tr.length && !noMoney()) {
     box.insertAdjacentHTML('beforeend', `<div class="card" style="grid-column:1/-1;margin-top:12px"><p style="margin:0 0 6px"><b>消したレシピ</b> <span class="k">間違えて消したときは「戻す」</span></p>${tr.map(t => `<div class="ask" style="justify-content:space-between"><span>${esc(t.name)} <span class="k">${t.at ? new Date(t.at).toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' }) : ''}${t.by ? ' ' + esc(t.by) : ''}</span></span><button class="btn ghost sm" type="button" data-restore="${t.row}">戻す</button></div>`).join('')}</div>`);
@@ -1165,7 +1182,7 @@ function renderSet() {
   });
   $('reload').onclick = () => location.reload();
   if ($('set-a2hs')) $('set-a2hs').onclick = async () => {
-    if (IN_LINE) { const ext = location.origin + location.pathname.replace(/^\/l\//, '/') + '?openExternalBrowser=1'; if (window.liff && liff.isInClient && liff.isInClient()) liff.openWindow({ url: location.origin + location.pathname, external: true }); else location.href = ext; return; }
+    if (IN_LINE) { const base = location.origin + location.pathname.replace(/^\/l\//, '/'); if (!(await openOutside(base))) location.href = base + '?openExternalBrowser=1'; return; }
     if (a2hsEvt) { const ev = a2hsEvt; ev.prompt(); const r = await ev.userChoice.catch(() => null); a2hsEvt = null; if (r && r.outcome === 'accepted') toast('ホーム画面に置きました', 'ok'); return; }
     a2hsHelp();
   };
