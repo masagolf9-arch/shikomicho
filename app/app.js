@@ -79,12 +79,26 @@ function notices() {
     needPw.map((p, i) => `<div class="ask"><span style="min-width:6em">${esc(p.name)}</span><input id="pw-${i}" inputmode="decimal" placeholder="例 40" aria-label="${esc(p.name)}の1${U}の重さ"><span class="k">g</span><button class="btn" data-pw="${i}" type="button">決める</button></div>`).join('') });
   const unknown = new Set(); D.products.forEach(p => p.unknown.forEach(n => unknown.add(n)));
   const matNames = D.materials.filter(m => !m.packaging).map(m => m.name);
-  [...unknown].forEach((n, i) => list.push({ type: 'q', html: `<p><b>「${esc(n)}」って何の材料ですか?</b></p><p class="k">まだ材料の表にありません。表にある材料と同じなら選んで「同じ」を、新しい材料なら「新しく足す」を押してください</p>
-    <div class="ask"><select id="unk-${i}" style="font:inherit;font-size:15px;padding:6px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);max-width:12em"><option value="">表の材料から選ぶ…</option>${matNames.map(m => `<option>${esc(m)}</option>`).join('')}</select><button class="btn" type="button" data-unk-same="${i}" data-n="${esc(n)}">同じ</button><button class="btn ghost" type="button" data-unk-new="${esc(n)}">新しく足す</button></div>` }));
+  // 手書きの読みちがい(デトラップ/テトラップ)や、かっこ書き(薄力粉(ロマン))でも、似た材料を先に選んでおく
+  const loose = x => String(x || '').normalize('NFD').replace(/[\u3099\u309A]/g, '').normalize('NFC').replace(/[（(【\[][^）)】\]]*[）)】\]]/g, '').replace(/[\s・]/g, '').replace(/[ァ-ヶ]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60)).toLowerCase();
+  const guess = n => { const k = loose(n); if (!k) return ''; const m = D.materials.find(m => !m.packaging && [m.name].concat(m.aliases || []).some(a => loose(a) === k)); return m ? m.name : ''; };
+  [...unknown].forEach((n, i) => { const g = guess(n); list.push({ type: 'q', html: `<p><b>「${esc(n)}」って何の材料ですか?</b></p>${g ? `<p style="margin:4px 0"><b>もしかして「${esc(g)}」?</b> 同じなら、そのまま「同じ」を押してください</p>` : ''}<p class="k">まだ材料の表にありません。表にある材料と同じなら選んで「同じ」を、新しい材料なら、買った値段と量を入れるだけで原価に入ります</p>
+    <div class="ask"><select id="unk-${i}" style="font:inherit;font-size:15px;padding:6px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);max-width:12em"><option value="">表の材料から選ぶ…</option>${matNames.map(m => `<option${m === g ? ' selected' : ''}>${esc(m)}</option>`).join('')}</select><button class="btn" type="button" data-unk-same="${i}" data-n="${esc(n)}">同じ</button><button class="btn ghost" type="button" data-unk-new="${esc(n)}">くわしく足す</button></div>${unkForm(n)}` }); });
   const check = new Set(); D.products.forEach(p => p.label.check.forEach(n => { if (!unknown.has(n)) check.add(n); }));
   for (const n of check) list.push({ type: 'q', cam: true, html: `<p><b>「${esc(n)}」の袋の裏を写真で</b></p><p class="k">名称欄が分かれば、裏表示が確定します</p>` });
   if (!D.products.length) list.push({ type: 'q', cam: true, html: '<p><b>まずはレシピの写真を1枚</b></p><p class="k">' + CAMTXT + 'で手書きのレシピを撮ると、ここに原価と裏表示の案が出ます</p>' });
   return list;
+}
+// まだ表にない材料の値段を、その場で入れる(種類などは後で)。入れるとすぐ原価に入る
+const unkForm = n => `<div class="ask unkf" data-n="${esc(n)}"><span class="k" style="min-width:auto">値段が分かれば</span><input class="uq-yen" inputmode="numeric" placeholder="800" aria-label="「${esc(n)}」の値段" style="width:5.5em"><span class="k">円で</span><input class="uq-q" inputmode="decimal" placeholder="1" aria-label="買った量" style="width:4em"><select class="uq-u" aria-label="量の単位" style="font:inherit;font-size:15px;padding:6px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)"><option>kg</option><option>g</option></select><button class="btn" type="button" data-uq>入れる</button></div>`;
+function bindUnk(root) {
+  root.querySelectorAll('[data-uq]').forEach(b => b.onclick = () => {
+    const f = b.closest('.unkf'), y = parseFloat(f.querySelector('.uq-yen').value), q = parseFloat(f.querySelector('.uq-q').value), u = f.querySelector('.uq-u').value;
+    if (!(y > 0)) { f.querySelector('.uq-yen').focus(); return; }
+    if (!(q > 0)) { f.querySelector('.uq-q').focus(); return; }
+    const kg = u === 'kg' ? q : q / 1000;
+    setValueX({ field: 'mat', name: f.dataset.n, create: true, value: { ppkg: Math.round(y / kg) } });
+  });
 }
 function renderToday() {
   const list = notices();
@@ -97,6 +111,7 @@ function renderToday() {
     setValue(needPw[i].name, 'pw', v);
   });
   $('notices').querySelectorAll('[data-cam]').forEach(b => b.onclick = openCamera);
+  bindUnk($('notices'));
   $('notices').querySelectorAll('[data-go-mat]').forEach(b => b.onclick = () => { matF = b.dataset.goMat; show('mat'); });
   $('notices').querySelectorAll('[data-go-cost]').forEach(b => b.onclick = () => show('cost'));
   $('notices').querySelectorAll('[data-unk-same]').forEach(b => b.onclick = () => { const sel = $('unk-' + b.dataset.unkSame); if (!sel.value) { sel.focus(); chat('表の材料を選んでください'); return; } setValueX({ field: 'mat', name: sel.value, value: { alias: b.dataset.n } }); });
@@ -632,14 +647,15 @@ function renderCost() {
     const meta = [`<span class="pill gray">1仕込み ${yen(p.batch_cost)}</span>`];
     if (p.pieces) meta.push(`<span class="pill gray">約${p.pieces}個</span>`);
     if (p.price && p.per_piece != null) { const r = p.per_piece / p.price * 100; meta.push(`<span class="pill ${r > 40 ? 'warn' : r > 30 ? 'gray' : ''}">原価率 ${Math.round(r)}%</span>`); }
-    if (p.unknown.length) meta.push(`<span class="pill warn">不明な材料 ${p.unknown.length}</span>`);
-    const det = `<table>${p.rows.map(r => `<tr><td>${esc(r.name)} <span class="k">${r.grams.toLocaleString()}g</span>${r.src === 'est' ? ' <span class="pill warn">仮</span>' : r.src === 'unknown' ? ' <span class="pill warn">不明</span>' : r.src === 'part' ? ' <span class="pill gray">半製品</span>' : ''}${r.which && r.src !== 'part' ? `<br><span class="k">→ ${esc(r.which)}${r.cands ? '(同じ種類が' + r.cands.length + 'つ。どれか確かめてください)' : ''}</span>` : ''}</td><td class="n">${r.cost == null ? '-' : yen1(r.cost)}</td></tr>`).join('')}<tr><td><b>1仕込み</b></td><td class="n"><b>${yen(p.batch_cost)}</b></td></tr></table>
+    if (p.unknown.length) meta.push(`<span class="pill warn">値段のない材料 ${p.unknown.length}(原価に入っていません)</span>`);
+    const det = `<table>${p.rows.map(r => `<tr><td>${esc(r.name)} <span class="k">${r.grams.toLocaleString()}g</span>${r.src === 'est' ? ' <span class="pill warn">仮</span>' : r.src === 'unknown' ? ' <span class="pill warn">不明</span>' : r.src === 'part' ? ' <span class="pill gray">半製品</span>' : ''}${r.which && r.src !== 'part' ? `<br><span class="k">→ ${esc(r.which)}${r.cands ? '(同じ種類が' + r.cands.length + 'つ。どれか確かめてください)' : ''}</span>` : ''}</td><td class="n">${r.cost == null ? '-' : yen1(r.cost)}</td></tr>`).join('')}<tr><td><b>1仕込み</b></td><td class="n"><b>${yen(p.batch_cost)}</b></td></tr></table>${p.unknown.length ? `<div style="margin-top:8px"><p class="k" style="margin:0 0 4px">値段のない材料は、原価に入っていません。分かる分だけ入れてください(請求書を撮っても入ります)。</p>${p.unknown.map(n => `<p style="margin:6px 0 0"><b>${esc(n)}</b></p>${unkForm(n)}`).join('')}</div>` : ''}
       <div class="set"><span class="k">1${U}の重さ</span><input id="spw-${i}" inputmode="decimal" value="${p.pw || ''}" placeholder="例 40"><span class="k">g</span><button class="btn ghost" type="button" data-set="pw" data-i="${i}">決める</button></div>
       <div class="set"><span class="k">売価</span><input id="sprice-${i}" inputmode="decimal" value="${p.price || ''}" placeholder="例 250"><span class="k">円</span><button class="btn ghost" type="button" data-set="price" data-i="${i}">決める</button></div>`;
     const isOpen = open.has(p.name);
     const ph = p.kind === 'part' && !partHead ? (partHead = true, '<div style="grid-column:1/-1;margin-top:8px"><b>生地・餡などの半製品</b> <span class="k">商品ではなく、ほかのレシピの材料になるもの。「〇〇は商品」と話すと戻せます</span></div>') : '';
     return ph + `<div class="card prod" data-name="${esc(p.name)}"><div class="hd" role="button" tabindex="0" aria-expanded="${isOpen}" data-toggle>${avatar(p.name)}<span class="nm">${esc(p.name)} <span class="k">${esc(p.part)}</span></span><span class="k">${p.sure}% 確定</span></div>${head}<div class="meta">${meta.join('')}</div><div class="bar" aria-label="請求書で確かめた割合 ${p.sure}%" title="請求書で確かめた割合 ${p.sure}%"><i style="width:${p.sure}%"></i></div><div class="detail" ${isOpen ? '' : 'hidden'}>${det}</div></div>`;
   }).join('');
+  bindUnk(box);
   box.querySelectorAll('.prod').forEach(c => {
     const t = c.querySelector('[data-toggle]'), name = c.dataset.name;
     const tog = () => { const d = c.querySelector('.detail'); d.hidden = !d.hidden; t.setAttribute('aria-expanded', String(!d.hidden)); d.hidden ? open.delete(name) : open.add(name); };
