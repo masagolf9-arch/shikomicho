@@ -89,6 +89,33 @@ function notices() {
   if (!D.products.length) list.push({ type: 'q', cam: true, html: '<p><b>まずはレシピの写真を1枚</b></p><p class="k">' + CAMTXT + 'で手書きのレシピを撮ると、ここに原価と裏表示の案が出ます</p>' });
   return list;
 }
+// 組み合わせて1個にする(生ドラ = 生地 + 生クリーム + 餡)。撮った配合は「〇〇の生地」(半製品)になる
+function composeHtml(p) {
+  const fromMode = !p.composed, partName = p.name + 'の生地';
+  const rows = fromMode ? [[partName, ''], ['', ''], ['', '']] : p.rows.map(r => [r.name, r.grams]);
+  const row = (n, g, first, ph) => `<div class="ask cmp-row" style="flex-wrap:nowrap"><input class="cmp-n" list="cmp-list" value="${esc(n)}" placeholder="${ph || '例 生クリーム'}" aria-label="使うもの"${first && fromMode ? ' readonly' : ''} style="flex:1;min-width:0"><input class="cmp-g" inputmode="decimal" value="${g || ''}" placeholder="g" aria-label="1個に使う量" style="width:4.5em"><span class="k">g</span></div>`;
+  return `<div style="margin-top:12px"><button class="btn ghost" type="button" data-cmp-open="${esc(p.name)}">${fromMode ? '生地・クリーム・餡を組み合わせて1個にする' : '組み合わせを直す'}</button>
+    <div class="cmp card" data-cmp="${esc(p.name)}" data-from="${fromMode ? 1 : ''}" hidden style="margin-top:8px">
+    <p class="k" style="margin:0 0 8px">${fromMode ? `撮った配合を「生地」として使い、1個に使う量で「${esc(p.name)}」を作り直します。生地は焼く前の重さで(皮2枚なら2枚分)。` : '1個に使うものと量を直します。'}</p>
+    ${fromMode ? `<label class="k">撮った配合の新しい名前(半製品になります)<input class="cmp-part" value="${esc(partName)}" style="width:100%;box-sizing:border-box;font:inherit;font-size:16px;padding:10px 12px;border:1.5px solid var(--line);border-radius:12px;background:var(--bg);color:var(--ink);margin-top:4px"></label>` : ''}
+    <div class="cmp-rows">${rows.map((r, j) => row(r[0], r[1], j === 0, ['', '例 生クリーム', '例 粒あん'][j])).join('')}</div>
+    <div class="ask"><button class="btn ghost sm" type="button" data-cmp-add>＋ 行を足す</button><button class="btn" type="button" data-cmp-go>${fromMode ? 'この形で作る' : '直す'}</button></div>
+    <p class="k" style="margin:6px 0 0">餡やクリームも、配合の写真を撮れば半製品として選べます。値段のない材料は、あとで値段を入れれば原価に入ります。</p></div></div>`;
+}
+function bindCompose(root) {
+  if (!document.getElementById('cmp-list')) document.body.insertAdjacentHTML('beforeend', '<datalist id="cmp-list"></datalist>');
+  $('cmp-list').innerHTML = D.products.filter(p => p.kind === 'part').map(p => p.name).concat(D.materials.filter(m => !m.packaging).map(m => m.name)).map(n => `<option value="${esc(n)}">`).join('');
+  root.querySelectorAll('[data-cmp-open]').forEach(b => b.onclick = () => { const f = root.querySelector(`.cmp[data-cmp="${CSS.escape(b.dataset.cmpOpen)}"]`); f.hidden = !f.hidden; });
+  root.querySelectorAll('.cmp').forEach(f => {
+    const part = f.querySelector('.cmp-part'); if (part) part.oninput = () => { f.querySelector('.cmp-n').value = part.value; };
+    f.querySelector('[data-cmp-add]').onclick = () => { const r = f.querySelector('.cmp-row').cloneNode(true); r.querySelectorAll('input').forEach(i => { i.value = ''; i.readOnly = false; }); f.querySelector('.cmp-rows').appendChild(r); };
+    f.querySelector('[data-cmp-go]').onclick = () => {
+      const items = [...f.querySelectorAll('.cmp-row')].map(r => [r.querySelector('.cmp-n').value.trim(), parseFloat(r.querySelector('.cmp-g').value)]).filter(x => x[0] && x[1] > 0);
+      if (!items.length) { f.querySelector('.cmp-g').focus(); return; }
+      setValueX({ field: 'compose', value: { name: f.dataset.cmp, from: f.dataset.from ? f.dataset.cmp : '', partName: part ? part.value.trim() : '', items } });
+    };
+  });
+}
 // まだ表にない材料の値段を、その場で入れる(種類などは後で)。入れるとすぐ原価に入る
 const unkForm = n => `<div class="ask unkf" data-n="${esc(n)}"><span class="k" style="min-width:auto">値段が分かれば</span><input class="uq-yen" inputmode="numeric" placeholder="800" aria-label="「${esc(n)}」の値段" style="width:5.5em"><span class="k">円で</span><input class="uq-q" inputmode="decimal" placeholder="1" aria-label="買った量" style="width:4em"><select class="uq-u" aria-label="量の単位" style="font:inherit;font-size:15px;padding:6px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)"><option>kg</option><option>g</option></select><button class="btn" type="button" data-uq>入れる</button></div>`;
 function bindUnk(root) {
@@ -644,19 +671,20 @@ function renderCost() {
   let partHead = false;
   box.innerHTML = ordered.map(([p, i]) => {
     const head = p.per_piece != null ? `<div class="big">${yen1(p.per_piece)}<span class="k" style="font-weight:400"> / 1${U}</span></div>` : '<div class="big" style="font-size:18px;color:var(--ink-2)">1個の重さ待ち</div>';
-    const meta = [`<span class="pill gray">1仕込み ${yen(p.batch_cost)}</span>`];
-    if (p.pieces) meta.push(`<span class="pill gray">約${p.pieces}個</span>`);
+    const meta = [p.composed ? `<span class="pill gray">組み合わせ ${p.rows.length}つ</span>` : `<span class="pill gray">1仕込み ${yen(p.batch_cost)}</span>`];
+    if (p.pieces && !p.composed) meta.push(`<span class="pill gray">約${p.pieces}個</span>`);
     if (p.price && p.per_piece != null) { const r = p.per_piece / p.price * 100; meta.push(`<span class="pill ${r > 40 ? 'warn' : r > 30 ? 'gray' : ''}">原価率 ${Math.round(r)}%</span>`); }
     if (p.unknown.length) meta.push(`<span class="pill warn">値段のない材料 ${p.unknown.length}(原価に入っていません)</span>`);
     const det = `<table>${p.rows.map(r => `<tr><td>${esc(r.name)} <span class="k">${r.grams.toLocaleString()}g</span>${r.src === 'est' ? ' <span class="pill warn">仮</span>' : r.src === 'unknown' ? ' <span class="pill warn">不明</span>' : r.src === 'part' ? ' <span class="pill gray">半製品</span>' : ''}${r.which && r.src !== 'part' ? `<br><span class="k">→ ${esc(r.which)}${r.cands ? '(同じ種類が' + r.cands.length + 'つ。どれか確かめてください)' : ''}</span>` : ''}</td><td class="n">${r.cost == null ? '-' : yen1(r.cost)}</td></tr>`).join('')}<tr><td><b>1仕込み</b></td><td class="n"><b>${yen(p.batch_cost)}</b></td></tr></table>${p.unknown.length ? `<div style="margin-top:8px"><p class="k" style="margin:0 0 4px">値段のない材料は、原価に入っていません。分かる分だけ入れてください(請求書を撮っても入ります)。</p>${p.unknown.map(n => `<p style="margin:6px 0 0"><b>${esc(n)}</b></p>${unkForm(n)}`).join('')}</div>` : ''}
       <div class="set"><span class="k">1${U}の重さ</span><input id="spw-${i}" inputmode="decimal" value="${p.pw || ''}" placeholder="例 40"><span class="k">g</span><button class="btn ghost" type="button" data-set="pw" data-i="${i}">決める</button></div>
       <div class="set"><span class="k">売価</span><input id="sprice-${i}" inputmode="decimal" value="${p.price || ''}" placeholder="例 250"><span class="k">円</span><button class="btn ghost" type="button" data-set="price" data-i="${i}">決める</button></div>
+      ${noMoney() || p.kind === 'part' ? '' : composeHtml(p)}
       ${noMoney() ? '' : `<div style="margin-top:14px;text-align:right"><button class="btn ghost sm" type="button" data-delprod="${esc(p.name)}" style="color:var(--warn);border-color:var(--warn)">この商品を消す</button></div>`}`;
     const isOpen = open.has(p.name);
     const ph = p.kind === 'part' && !partHead ? (partHead = true, '<div style="grid-column:1/-1;margin-top:8px"><b>生地・餡などの半製品</b> <span class="k">商品ではなく、ほかのレシピの材料になるもの。「〇〇は商品」と話すと戻せます</span></div>') : '';
     return ph + `<div class="card prod" data-name="${esc(p.name)}"><div class="hd" role="button" tabindex="0" aria-expanded="${isOpen}" data-toggle>${avatar(p.name)}<span class="nm">${esc(p.name)} <span class="k">${esc(p.part)}</span></span><span class="k">${p.sure}% 確定</span></div>${head}<div class="meta">${meta.join('')}</div><div class="bar" aria-label="請求書で確かめた割合 ${p.sure}%" title="請求書で確かめた割合 ${p.sure}%"><i style="width:${p.sure}%"></i></div><div class="detail" ${isOpen ? '' : 'hidden'}>${det}</div></div>`;
   }).join('');
-  bindUnk(box);
+  bindUnk(box); bindCompose(box);
   box.querySelectorAll('[data-delprod]').forEach(b => b.onclick = () => { const n = b.dataset.delprod; if (confirm(`「${n}」を消しますか?\n前のレシピや、納得のいかないレシピを消すときに使います。\n消したあとも、このページのいちばん下「消したレシピ」から戻せます。`)) setValueX({ field: 'delprod', product: n }); });
   const tr = D.trash || [];
   if (tr.length && !noMoney()) {
