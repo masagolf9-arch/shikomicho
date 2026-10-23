@@ -1106,6 +1106,17 @@ async function setValueX(extra) {
   if (!out.ok) { toast(out.error || 'うまく記録できませんでした', 'ng'); return; }
   D = out.data; renderAll(); if (out.msg) { chat(out.msg); return; } toast(extra.field === 'check' ? '確かめました。' : extra.field === 'restoreprod' ? 'レシピを戻しました。' : extra.field === 'hyg' ? '記録しました。' : extra.field === 'deliv' ? '納品を記録しました。' : extra.field === 'shop' ? 'お店の情報を保存しました。' : extra.field === 'lbl' ? 'ラベルの設定を保存しました。' : extra.field === 'paybank' ? `振込は「${esc((payBank() || {}).name || '')}」を開くようにしました。` : ['biz', 'sell', 'closed', 'wsprice', 'regalias'].includes(extra.field) ? '変えました。' : extra.field === 'mat' ? (extra.value && extra.value.alias ? `「${esc(extra.value.alias)}」を「${esc(extra.name)}」の別名にしました。原価に反映しました。` : '材料を保存しました。') : extra.field === 'hygnotice' ? (extra.value === 'off' ? '衛生記録のお知らせは送らないようにしました。' : `衛生記録のお知らせは${extra.value}時に送ります。`) : extra.field === 'sales' ? '売上を記録しました。' : extra.field === 'cycle' ? `棚卸は「${extra.value}」にしました。その前にLINEでお知らせします。` : '覚えました。在庫を計算しなおしました。', 'ok'); act('heart', 1.3);
 }
+// 税理士さんに渡す一式(印刷用)
+function taxHtml(r) {
+  const yen0 = n => Math.round(n).toLocaleString('ja-JP');
+  const sk = Object.keys(r.sums).sort((a, b) => r.sums[b] - r.sums[a]), st = sk.reduce((a, k) => a + r.sums[k], 0), bt = r.buys.reduce((a, b) => a + b[6], 0), sl = r.sales.reduce((a, x) => a + x[1], 0);
+  return `<h2>${esc(r.month.replace('-', '年'))}月分 税理士さんへ</h2>
+    <h3>科目ごとの合計(仕入れ・案)</h3><table class="ptab">${sk.map(k => `<tr><td>${esc(k)}</td><td class="n">${yen0(r.sums[k])}円</td></tr>`).join('')}<tr><td><b>合計</b></td><td class="n"><b>${yen0(st)}円</b></td></tr></table>
+    <h3>売上(レジの精算・税込)</h3>${r.sales.length ? `<table class="ptab"><tr><th>日付</th><th class="n">売上</th><th class="n">客数</th></tr>${r.sales.map(x => `<tr><td>${esc(x[0])}</td><td class="n">${yen0(x[1])}円</td><td class="n">${x[2] || ''}</td></tr>`).join('')}<tr><td><b>合計</b></td><td class="n"><b>${yen0(sl)}円</b></td><td></td></tr></table>` : '<p>この月の売上の記録はありません。</p>'}
+    <h3>支払い</h3>${r.pays.length ? `<table class="ptab"><tr><th>業者</th><th class="n">金額</th><th>期限</th><th>状態</th><th>支払日</th></tr>${r.pays.map(x => `<tr><td>${esc(x[0])}</td><td class="n">${yen0(x[2])}円</td><td>${esc(x[3])}</td><td>${esc(x[4])}</td><td>${esc(x[5])}</td></tr>`).join('')}</table>` : '<p>この月の支払いの記録はありません。</p>'}
+    <h3>仕入れの明細</h3>${r.buys.length ? `<table class="ptab"><tr><th>日付</th><th>業者</th><th>品名</th><th class="n">金額</th><th>科目(案)</th><th>税率</th></tr>${r.buys.map(b => `<tr><td>${esc(b[0])}</td><td>${esc(b[1])}</td><td>${esc(b[2])}${b[3] ? ' ' + esc(b[3]) : ''}</td><td class="n">${yen0(b[6])}</td><td>${esc(b[7])}</td><td>${esc(b[8])}</td></tr>`).join('')}<tr><td colspan="3"><b>合計</b></td><td class="n"><b>${yen0(bt)}</b></td><td colspan="2"></td></tr></table>` : '<p>この月の仕入れの記録はありません。</p>'}
+    <p class="k">科目はピタット原価の案です。請求書の原本と合わせてご確認ください。</p>`;
+}
 function renderJournal() {
   const box = $('journal');
   const ms = Object.keys(D.journal || {}).sort().reverse();
@@ -1114,8 +1125,24 @@ function renderJournal() {
   const sums = D.journal[sel], keys = Object.keys(sums).sort((a, b) => sums[b] - sums[a]), tot = keys.reduce((a, k) => a + sums[k], 0);
   box.innerHTML = `<h1 style="font-size:18px;margin-top:22px">科目ごとの合計(仕訳の案)</h1><div class="chips">${ms.map(m => `<button class="chip" type="button" data-m="${esc(m)}" aria-pressed="${m === sel}">${esc(m.replace('-', '年'))}月</button>`).join('')}</div>
     <div class="card"><table>${keys.map(k => `<tr><td>${k === '要確認' ? '<mark>要確認</mark>' : esc(k)}</td><td class="n">${yen(sums[k])}</td></tr>`).join('')}<tr><td><b>合計</b></td><td class="n"><b>${yen(tot)}</b></td></tr></table>
-    <p class="k" style="margin:6px 0 0">科目は案です。表の「仕入れ」で直すか、「科目」シートに決まりを足すと次から自動で分けます</p></div>`;
+    <p class="k" style="margin:6px 0 0">科目は案です。表の「仕入れ」で直すか、「科目」シートに決まりを足すと次から自動で分けます</p></div>
+    <div class="card" style="margin-top:10px"><p style="margin:0 0 4px"><b>税理士さんに渡す(${esc(sel.replace('-', '年'))}月分)</b></p><p class="k" style="margin:0 0 8px">仕入れの明細・支払い・売上・科目ごとの合計を1つにまとめます。印刷して渡すか、CSV(表計算ソフトや会計ソフトで開ける形)で送ってください。</p>
+    <div class="ask"><button class="btn" type="button" id="tx-print">印刷・PDFにする</button><button class="btn ghost" type="button" id="tx-csv">CSVで保存</button></div></div>`;
   box.querySelectorAll('[data-m]').forEach(b => b.onclick = () => { box.dataset.m = b.dataset.m; renderJournal(); });
+  const getX = async () => { const r = await api({ kind: 'app_export', month: sel }); if (!r.ok) { toast(r.error || '出せませんでした', 'ng'); return null; } return r; };
+  $('tx-print').onclick = async () => { const r = await getX(); if (r) openPrint(taxHtml(r)); };
+  $('tx-csv').onclick = async () => {
+    const r = await getX(); if (!r) return;
+    if (IN_LINE) { chat('LINEの中からはファイルを保存できません。パソコンかスマホのブラウザで開いて「CSVで保存」を押すか、「印刷・PDFにする」を使ってください。', 'point'); return; }
+    const q = v => { const t = String(v == null ? '' : v); return /[",\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t; };
+    const rows = [['区分', '日付', '取引先', '品名', '規格', '数量', '単位', '金額(円)', '科目(案)', '税率', 'メモ']];
+    r.buys.forEach(b => rows.push(['仕入れ', b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7], b[8], '']));
+    r.sales.forEach(x => rows.push(['売上', x[0], '', 'レジの売上(税込)', '', '', '', x[1], '売上高', '', x[2] ? '客数 ' + x[2] : '']));
+    r.pays.forEach(x => rows.push(['支払い', x[5] || x[3], x[0], x[1] + '分の請求', '', '', '', x[2], '', '', x[4] + (x[3] ? ' 期限 ' + x[3] : '')]));
+    const csv = '\ufeff' + rows.map(rw => rw.map(q).join(',')).join('\r\n');
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); a.download = `${r.shop || 'お店'}_${r.month}_税理士さんへ.csv`; document.body.appendChild(a); a.click(); a.remove();
+    toast('CSVを保存しました', 'ok');
+  };
 }
 function renderAll() {
   U = (D.words || {}).unit || '個';
