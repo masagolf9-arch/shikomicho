@@ -79,6 +79,7 @@ function notices() {
     needPw.map((p, i) => `<div class="ask"><span style="min-width:6em">${esc(p.name)}</span><input id="pw-${i}" inputmode="decimal" placeholder="例 40" aria-label="${esc(p.name)}の1${U}の重さ"><span class="k">g</span><button class="btn" data-pw="${i}" type="button">決める</button></div>`).join('') });
   const unknown = new Set(); D.products.forEach(p => p.unknown.forEach(n => unknown.add(n)));
   const matNames = D.materials.filter(m => !m.packaging).map(m => m.name);
+  (D.checks || []).forEach(c => list.push({ type: 'q', html: `<p><b>これで合っていますか?</b> <span class="k">${esc(c.what)}</span></p><p style="margin:4px 0">${esc(c.text)}</p><div class="ask"><button class="btn" type="button" data-chk-ok="${c.row}">合っている</button><button class="btn ghost" type="button" data-chk-re="${c.row}">撮り直す</button></div>` }));
   // 手書きの読みちがい(デトラップ/テトラップ)や、かっこ書き(薄力粉(ロマン))でも、似た材料を先に選んでおく
   const loose = x => String(x || '').normalize('NFD').replace(/[\u3099\u309A]/g, '').normalize('NFC').replace(/[（(【\[][^）)】\]]*[）)】\]]/g, '').replace(/[\s・]/g, '').replace(/[ァ-ヶ]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60)).toLowerCase();
   const guess = n => { const k = loose(n); if (!k) return ''; const m = D.materials.find(m => !m.packaging && [m.name].concat(m.aliases || []).some(a => loose(a) === k)); return m ? m.name : ''; };
@@ -139,6 +140,8 @@ function renderToday() {
   });
   $('notices').querySelectorAll('[data-cam]').forEach(b => b.onclick = openCamera);
   bindUnk($('notices'));
+  $('notices').querySelectorAll('[data-chk-ok]').forEach(b => b.onclick = () => setValueX({ field: 'check', value: { row: +b.dataset.chkOk, ok: true } }));
+  $('notices').querySelectorAll('[data-chk-re]').forEach(b => b.onclick = async () => { await setValueX({ field: 'check', value: { row: +b.dataset.chkRe, ok: false } }); openCamera(); });
   $('notices').querySelectorAll('[data-go-mat]').forEach(b => b.onclick = () => { matF = b.dataset.goMat; show('mat'); });
   $('notices').querySelectorAll('[data-go-cost]').forEach(b => b.onclick = () => show('cost'));
   $('notices').querySelectorAll('[data-unk-same]').forEach(b => b.onclick = () => { const sel = $('unk-' + b.dataset.unkSame); if (!sel.value) { sel.focus(); chat('表の材料を選んでください'); return; } setValueX({ field: 'mat', name: sel.value, value: { alias: b.dataset.n } }); });
@@ -232,7 +235,7 @@ function todoItems(q) {
   (D.events || []).filter(e => { const dd = dayDiff(e.date); return dd >= 0 && dd <= 1; }).forEach(e => t.push({ c: EVK[e.kind] || 'set', ic: 'cal', b: `${e.kind === '納品' ? '納品: ' : ''}${e.text}${e.who ? '(' + e.who + ')' : ''}`, k: e.kind, d: dayDiff(e.date) === 0 ? '今日' : '明日', star: 2, go: () => show('cal') }));
   if (q) t.push({ c: 'cam', ic: 'cam', b: `確認待ちに答える ${q}件`, k: '答えると原価と裏表示が確定します', d: '', star: 1, go: () => $('notices').scrollIntoView({ behavior: 'smooth', block: 'start' }) });
   (D.ups || []).slice(-2).forEach(u => t.push({ c: 'mat', ic: 'mat', b: `${u.item}が値上がり(+${u.pct}%)`, k: `${u.supplier} ${u.old.toLocaleString()}円→${u.now.toLocaleString()}円。原価を見直す`, d: '', star: 1, go: () => { matF = 'up'; show('mat'); } }));
-  const low = ((D.stock || {}).items || []).filter(x => x.low); if (low.length) t.push({ c: 'stock', ic: 'stock', b: `そろそろ買うもの ${low.length}品`, k: low.slice(0, 4).map(x => x.key).join('・'), d: '', star: 1, go: () => { matF = 'low'; show('mat'); } });
+  const low = SH('stock') ? [] : ((D.stock || {}).items || []).filter(x => x.low); if (low.length) t.push({ c: 'stock', ic: 'stock', b: `そろそろ買うもの ${low.length}品`, k: low.slice(0, 4).map(x => x.key).join('・'), d: '', star: 1, go: () => { matF = 'low'; show('mat'); } });
   return t.sort((a, b) => b.star - a.star);
 }
 function renderTodo(list) {
@@ -268,6 +271,7 @@ function renderStart() {
 // 伝言: お店のみんなに残すメモ。「見た」で名前が残り、「済」で消える
 function renderMemos() {
   const box = $('memos'), ms = D.memos || [], me = profileName || '';
+  box.hidden = SH('memo'); $('memo-add').closest('h1').hidden = SH('memo'); if (SH('memo')) return;
   box.innerHTML = ms.length ? `<div class="card" style="padding:0">${ms.map(m => `<div class="memo"><div class="mb"><p>${esc(m.text)}</p><span class="k">${esc(m.by)} · ${m.t ? new Date(m.t).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}${m.seen.length ? ' · 見た: ' + m.seen.map(esc).join('、') : ''}</span></div><span class="acts">${m.seen.includes(me) ? '' : `<button class="btn sm" type="button" data-seen="${m.row}">見た</button>`}<button class="btn ghost sm" type="button" data-done="${m.row}">済</button></span></div>`).join('')}</div>`
     : `<div class="card"><p class="k" style="margin:0">伝言はありません。「＋ 書く」で、お店のみんなのホームに出ます。</p></div>`;
   box.querySelectorAll('[data-seen]').forEach(b => b.onclick = () => setValueX({ field: 'memo', value: { row: +b.dataset.seen } }));
@@ -433,6 +437,7 @@ function bindContacts(root) {
 // ---------- メンバー(店主だけ): 役割・お金を見せる/見せない・外す ----------
 const MONEY_TABS = ['cost', 'book', 'sales'];
 const noMoney = () => !!(D && D.hideMoney);
+const SH = k => !!(D && (D.shelved || []).includes(k));   // しまった機能(伝言・在庫・インスタ)
 // 画面でエラーが起きたら「つまずき」として残す(店主に夕方まとめて届く)
 window.addEventListener('error', e => { try { if (!D) return; api({ kind: 'app_err', text: (cur || '') + ' ' + String(e.message || '').slice(0, 150) }); } catch (x) {} });
 window.addEventListener('unhandledrejection', e => { try { if (!D) return; api({ kind: 'app_err', text: (cur || '') + ' ' + String((e.reason && e.reason.message) || e.reason || '').slice(0, 150) }); } catch (x) {} });
@@ -577,7 +582,7 @@ function renderMenu(q) {
   const low = ((D.stock || {}).items || []).filter(x => x.low).length, up = unpaid().length;
   const items = [
     ['cam', '撮る', openCamera, 0, 'p'], ['cost', '原価', () => show('cost')], ['label', sellFace() ? 'アレルゲン' : '裏表示', () => show('label')], ['mat', '材料', () => { matF = 'all'; show('mat'); }],
-    ['stock', '在庫', () => { matF = 'low'; show('mat'); }, low], ['hyg', '衛生', () => show('hyg'), hygMissing().length, hygMissing().length], ['book', '帳簿', () => show('book'), up], ['ws', '卸', () => show('ws')], ['ct', '業者・卸先', () => show('ct')], ['post', '発信', () => show('post')], ['sales', '売上', () => show('sales')], ['cal', '予定', () => show('cal'), (D.events || []).filter(e => dayDiff(e.date) === 0).length]];
+    ...(SH('stock') ? [] : [['stock', '在庫', () => { matF = 'low'; show('mat'); }, low]]), ['hyg', '衛生', () => show('hyg'), hygMissing().length, hygMissing().length], ['book', '帳簿', () => show('book'), up], ['ws', '卸', () => show('ws')], ['ct', '業者・卸先', () => show('ct')], ['post', '発信', () => show('post')], ['sales', '売上', () => show('sales')], ['cal', '予定', () => show('cal'), (D.events || []).filter(e => dayDiff(e.date) === 0).length]];
   const m = $('menu');
   m.innerHTML = items.map(([k, l, , b, w], i) => w === 'p' || (noMoney() && MONEY_TABS.includes(k)) ? '' : `<button type="button" data-i="${i}" style="--c:var(--c-${k})"><span class="ic${w === 'p' ? ' p' : ''}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[k]}</svg></span>${l}${b ? `<span class="badge">${b}</span>` : ''}</button>`).join('');
   m.querySelectorAll('button').forEach(b => b.onclick = () => items[b.dataset.i][2]());
@@ -1086,6 +1091,7 @@ function matEdit(name, preset) {
 }
 function renderCount() {
   let box = $('countbox');
+  if (SH('stock')) { if (box) box.remove(); return; }
   if (!box) { box = document.createElement('div'); box.id = 'countbox'; $('mat-sum').after(box); }
   const names = D.materials.filter(m => !m.packaging).map(m => m.name);
   box.innerHTML = `<div class="card" style="margin-top:12px"><p style="margin:0 0 6px"><b>棚卸(数えた量を入れる)</b> <span class="k">棚卸は${esc((D.stock || {}).cycle || '年1回')}</span></p>
@@ -1098,7 +1104,7 @@ function renderCount() {
 async function setValueX(extra) {
   const out = await api(Object.assign({ kind: 'app_set' }, extra));
   if (!out.ok) { toast(out.error || 'うまく記録できませんでした', 'ng'); return; }
-  D = out.data; renderAll(); if (out.msg) { chat(out.msg); return; } toast(extra.field === 'restoreprod' ? 'レシピを戻しました。' : extra.field === 'hyg' ? '記録しました。' : extra.field === 'deliv' ? '納品を記録しました。' : extra.field === 'shop' ? 'お店の情報を保存しました。' : extra.field === 'lbl' ? 'ラベルの設定を保存しました。' : extra.field === 'paybank' ? `振込は「${esc((payBank() || {}).name || '')}」を開くようにしました。` : ['biz', 'sell', 'closed', 'wsprice', 'regalias'].includes(extra.field) ? '変えました。' : extra.field === 'mat' ? (extra.value && extra.value.alias ? `「${esc(extra.value.alias)}」を「${esc(extra.name)}」の別名にしました。原価に反映しました。` : '材料を保存しました。') : extra.field === 'hygnotice' ? (extra.value === 'off' ? '衛生記録のお知らせは送らないようにしました。' : `衛生記録のお知らせは${extra.value}時に送ります。`) : extra.field === 'sales' ? '売上を記録しました。' : extra.field === 'cycle' ? `棚卸は「${extra.value}」にしました。その前にLINEでお知らせします。` : '覚えました。在庫を計算しなおしました。', 'ok'); act('heart', 1.3);
+  D = out.data; renderAll(); if (out.msg) { chat(out.msg); return; } toast(extra.field === 'check' ? '確かめました。' : extra.field === 'restoreprod' ? 'レシピを戻しました。' : extra.field === 'hyg' ? '記録しました。' : extra.field === 'deliv' ? '納品を記録しました。' : extra.field === 'shop' ? 'お店の情報を保存しました。' : extra.field === 'lbl' ? 'ラベルの設定を保存しました。' : extra.field === 'paybank' ? `振込は「${esc((payBank() || {}).name || '')}」を開くようにしました。` : ['biz', 'sell', 'closed', 'wsprice', 'regalias'].includes(extra.field) ? '変えました。' : extra.field === 'mat' ? (extra.value && extra.value.alias ? `「${esc(extra.value.alias)}」を「${esc(extra.name)}」の別名にしました。原価に反映しました。` : '材料を保存しました。') : extra.field === 'hygnotice' ? (extra.value === 'off' ? '衛生記録のお知らせは送らないようにしました。' : `衛生記録のお知らせは${extra.value}時に送ります。`) : extra.field === 'sales' ? '売上を記録しました。' : extra.field === 'cycle' ? `棚卸は「${extra.value}」にしました。その前にLINEでお知らせします。` : '覚えました。在庫を計算しなおしました。', 'ok'); act('heart', 1.3);
 }
 function renderJournal() {
   const box = $('journal');
@@ -1160,11 +1166,10 @@ function renderSet() {
   const stand = matchMedia('(display-mode: standalone)').matches || navigator.standalone;
   const homeIcon = `<div class="card" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><b>${matchMedia('(pointer:coarse)').matches ? 'ホーム画面のアイコン' : 'パソコンのアイコン'}</b>${stand ? '<span class="pill">アイコンから開いています(置けています)</span>' : `<button class="btn sm" type="button" id="set-a2hs">${matchMedia('(pointer:coarse)').matches ? 'ホーム画面に置く' : 'パソコンに置く'}</button><span class="k">LINEやブラウザを通らず、アイコンから開けるようにします</span>`}</div>`;
   $('set-box').innerHTML = homeIcon + (CF ? `<div class="card" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><b>使い方ガイド</b><a class="btn ghost sm" href="/guide/start" target="_blank">はじめの設定(店主向け)</a><a class="btn ghost sm" href="/guide/daily" target="_blank">ふだんの使い方(みんな向け)</a></div>` : '') + grp('見え方', 'set', `
-    <div class="set-row"><span>キャラ</span>${seg('pack', [['tanuki', 'たぬき'], ['robot', 'ロボット'], ['op', 'オペレーター']], PACK)}</div>
     <div class="set-row"><span>キャラの大きさ</span>${seg('csize', [['s', '小'], ['m', '中'], ['l', '大']], store.get('csize', 'm'))}</div>
     <div class="set-row"><span>文字の大きさ</span>${seg('size', [['normal', 'ふつう'], ['big', '大きめ']], store.get('size', 'normal'))}</div>
     <div class="set-row"><span>画面の色</span>${seg('theme', [['auto', '自動'], ['light', '明るい'], ['dark', '暗い']], store.get('theme', 'auto'))}</div>`) + grp('お店の決まりごと', 'stock', `
-    <div class="set-row"><span>棚卸<br><span class="k">お店みんな共通</span></span>${seg('cycle', [['毎月', '毎月'], ['年1回', '年1回']], cyc)}</div>
+    ${SH('stock') ? '' : `<div class="set-row"><span>棚卸<br><span class="k">お店みんな共通</span></span>${seg('cycle', [['毎月', '毎月'], ['年1回', '年1回']], cyc)}</div>`}
     <div class="set-row"><span>売り方<br><span class="k">対面だけなら裏表示は要らず、店頭のアレルゲン表が主役になります</span></span>${seg('sell', [['pack', '包装して売る'], ['face', '対面だけ']], (D.shopInfo || {}).sell || 'pack')}</div>
     <div class="set-row"><span>業種<br><span class="k">お店みんな共通</span></span>${seg('biz', ((D.words || {}).list || []).map(b => [b, b]), (D.words || {}).biz)}</div>
     `) + grp('お知らせ', 'hyg', `
@@ -1459,6 +1464,9 @@ function postPlan() {
 }
 function renderPost() {
   const goods = D.products.filter(p => p.kind !== 'part'), b = brand();
+  // インスタの普段の投稿(画像・予定表)はしまって、値上げのお知らせ文とPOP・値札・貼り紙にしぼる(2026-10-23)
+  if ($('post-plan')) $('post-plan').hidden = SH('insta'); if ($('post-sns')) $('post-sns').hidden = SH('insta');
+  if (SH('insta')) { const ld = document.querySelector('#t-post .lead'); if (ld) ld.textContent = '値上げのお知らせ文と、店に置くポップ・値札・貼り紙を作ります。'; if ($('post-free')) $('post-free').placeholder = '例: 11月1日からの値上げのお知らせ'; }
   // お店の型
   const bb = $('post-brand');
   if (bb && !(D.me && D.me.owner)) bb.innerHTML = `<div class="row"><b>お店の型</b></div><p class="k" style="margin:4px 0 0">ロゴ・お店の色・書体は、店主が決めます。${b.color || b.logo ? '登録済みの型が、画像と印刷物に入ります。' : ''}</p>`;
@@ -1483,7 +1491,7 @@ function renderPost() {
   const box = $('post-shop');
   if (box) {
     box.innerHTML = `<div class="row"><b>店に置くもの</b></div>
-      <p class="k" style="margin:4px 0 10px">印刷して店頭に。色と模様は下の「SNSに上げる画像」で選んだ型になります。</p>
+      <p class="k" style="margin:4px 0 10px">印刷して店頭に。${SH('insta') ? '色と書体は下の「お店の型」で決めたものになります。' : '色と模様は下の「SNSに上げる画像」で選んだ型になります。'}</p>
       <div class="ps-acts"><button class="btn ghost" type="button" id="ps-cards">値札カード(全商品・A4に8枚)</button>${sellFace() ? '<button class="btn ghost" type="button" id="ps-al">アレルゲン表</button>' : ''}
       <button class="btn ghost" type="button" id="ps-pop">ポップ(A5)</button><button class="btn ghost" type="button" id="ps-notice">お知らせの貼り紙(A4)</button></div>`;
     $('ps-cards').onclick = () => { if (!goods.length) { chat('商品がまだありません'); return; } priceCards(goods); };
@@ -1562,7 +1570,7 @@ function renderPost() {
 }
 
 // ---------- 右下に座るキャラ:ふだんはお茶を持って座り、ときどきしぐさ。押すと会話が開く ----------
-const PACK = (p => ['tanuki', 'robot', 'op'].includes(p) ? p : 'tanuki')(store.get('pack', 'tanuki'));
+const PACK = 'robot';   // キャラはロボット1つ(2026-10-23。たぬき・オペレーターはしまった)
 // ロボットとオペレーターは丸い顔の絵(動きは小さくうなずくだけ)。たぬきはLINE絵文字のコマで動く
 const STILL = PACK !== 'tanuki', FACE = { robot: 'robot', op: 'operator' }[PACK];
 const ROLE = { greet: '1', heart: '3', clap: '7', point: '10', surprise: '12', think: '13', tea: '19', walk: '20', sleepy: '23', sleep: '24' };
