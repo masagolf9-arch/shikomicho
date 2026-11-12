@@ -656,7 +656,7 @@ function renderHowto() {
     if (!(n > 0)) { out.innerHTML = '<p class="k" style="margin:4px 0 0">作る数を入れてください。</p>'; return; }
     if (!p.pieces) { out.innerHTML = `<p class="k" style="margin:4px 0 0">1${U}の重さがまだ入っていないため、分量を出せません。${noMoney() ? '店主に声をかけてください。' : '「原価」のカードで入れられます。'}</p>`; return; }
     const f = n / p.pieces, fq = v => v >= 1000 ? (Math.round(v / 10) / 100) + 'kg' : (v >= 20 ? Math.round(v) : Math.round(v * 10) / 10) + 'g';
-    out.innerHTML = `<table style="margin:4px 0 0">${p.rows.map(r => `<tr><td>${esc(r.name)}</td><td class="n">${fq(r.grams * f)}</td></tr>`).join('')}${canCost ? `<tr><td><b>材料費</b></td><td class="n"><b>${yen(p.batch_cost * f)}</b></td></tr>` : ''}</table>`;
+    out.innerHTML = `<table style="margin:4px 0 0">${p.rows.map(r => `<tr><td>${esc(r.name)}</td><td class="n">${r.grams == null ? (Math.round(r.qty * f * 10) / 10) + esc(r.unit) : fq(r.grams * f)}</td></tr>`).join('')}${canCost ? `<tr><td><b>材料費</b></td><td class="n"><b>${yen(p.batch_cost * f)}</b></td></tr>` : ''}</table>`;
   };
   bindStepImgs(box);
 }
@@ -779,11 +779,13 @@ function renderCost() {
     if (p.pieces && !p.composed) meta.push(`<span class="pill gray">約${p.pieces}個</span>`);
     if (p.price && p.per_piece != null) { const r = p.per_piece / p.price * 100; meta.push(`<span class="pill ${r > 40 ? 'warn' : r > 30 ? 'gray' : ''}">原価率 ${Math.round(r)}%</span>`); }
     if (p.unknown.length) meta.push(`<span class="pill warn">値段のない材料 ${p.unknown.length}(原価に入っていません)</span>`);
-    const det = `<table>${p.rows.map(r => `<tr><td>${esc(r.name)} <span class="k">${r.grams.toLocaleString()}g</span>${r.src === 'est' ? ' <span class="pill warn">仮</span>' : r.src === 'unknown' ? ' <span class="pill warn">不明</span>' : r.src === 'part' ? ' <span class="pill gray">半製品</span>' : ''}${r.which && r.src !== 'part' ? `<br><span class="k">→ ${esc(r.which)}${r.cands ? '(同じ種類が' + r.cands.length + 'つ。どれか確かめてください)' : ''}</span>` : ''}</td><td class="n">${r.cost == null ? '-' : yen1(r.cost)}</td></tr>`).join('')}<tr><td><b>1仕込み</b></td><td class="n"><b>${yen(p.batch_cost)}</b></td></tr></table>${p.unknown.length ? `<div style="margin-top:8px"><p class="k" style="margin:0 0 4px">値段のない材料は、原価に入っていません。分かる分だけ入れてください(請求書を撮っても入ります)。</p>${p.unknown.map(n => `<p style="margin:6px 0 0"><b>${esc(n)}</b></p>${unkForm(n)}`).join('')}</div>` : ''}
+    if ((p.noWeight || []).length) meta.push(`<span class="pill warn">1つの重さがない材料 ${p.noWeight.length}(原価に入っていません)</span>`);
+    const det = `<table>${p.rows.map(r => `<tr><td>${esc(r.name)} <span class="k">${r.grams == null ? (r.qty + esc(r.unit)) : r.grams.toLocaleString() + 'g'}</span>${r.src === 'est' ? ' <span class="pill warn">仮</span>' : r.src === 'unknown' ? ' <span class="pill warn">不明</span>' : r.src === 'noweight' ? ' <span class="pill warn">1つの重さなし</span>' : r.src === 'part' ? ' <span class="pill gray">半製品</span>' : ''}${r.which && r.src !== 'part' ? `<br><span class="k">→ ${esc(r.which)}${r.cands ? '(同じ種類が' + r.cands.length + 'つ。どれか確かめてください)' : ''}</span>` : ''}</td><td class="n">${r.cost == null ? '-' : yen1(r.cost)}</td></tr>`).join('')}<tr><td><b>1仕込み</b></td><td class="n"><b>${yen(p.batch_cost)}</b></td></tr></table>${p.unknown.length ? `<div style="margin-top:8px"><p class="k" style="margin:0 0 4px">値段のない材料は、原価に入っていません。分かる分だけ入れてください(請求書を撮っても入ります)。</p>${p.unknown.map(n => `<p style="margin:6px 0 0"><b>${esc(n)}</b></p>${unkForm(n)}`).join('')}</div>` : ''}${(p.noWeight || []).length ? `<div style="margin-top:8px"><p class="k" style="margin:0 0 4px">数で書かれた材料は、1つの重さが分かると原価に入ります。</p>${p.rows.filter(r => r.src === 'noweight').map(r => `<div class="set"><span class="k">${esc(r.name)} 1${esc(r.unit)}</span><input data-pgn="${esc(r.which || r.name)}" inputmode="decimal" placeholder="例 200" style="width:6em"><span class="k">g</span><button class="btn ghost" type="button" data-pgo="${esc(r.which || r.name)}">決める</button></div>`).join('')}</div>` : ''}
       <div class="set"><span class="k">仕込みの量</span><input id="sqty-${i}" inputmode="numeric" placeholder="例 60"><span class="k">${U}分</span><button class="btn ghost" type="button" data-scale="${i}">分量を出す</button></div><div id="sqout-${i}"></div>
       <div style="margin-top:12px"><b>作り方</b>${(p.steps || []).length ? `<ol class="steps">${p.steps.map((s, si) => `<li>${esc(s)}${(p.simgs || [])[si] ? `<div><img class="stimg" data-img="${esc(p.simgs[si])}" alt="手順${si + 1}の写真"><div><button class="btn ghost sm" type="button" data-imgdel="${i}:${si}">写真を消す</button></div></div>` : ` <button class="btn ghost sm" type="button" data-imgadd="${i}:${si}">写真を付ける</button>`}</li>`).join('')}</ol>` : ' <span class="k">まだ入っていません</span>'}
       <details><summary class="k" style="cursor:pointer">作り方を書く・直す(1行に1手順)</summary><textarea id="stp-${i}" rows="6" style="width:100%;margin-top:6px;font:inherit;font-size:16px;padding:8px 10px;border:1.5px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)" placeholder="例&#10;粉と砂糖を合わせる&#10;卵を混ぜて生地にする&#10;30gずつ包んで焼く">${esc((p.steps || []).join('\n'))}</textarea><div class="ask" style="margin-top:6px"><button class="btn ghost sm" type="button" data-steps="${i}">作り方を保存</button></div></details></div>
       <div class="set"><span class="k">1${U}の重さ</span><input id="spw-${i}" inputmode="decimal" value="${p.pw || ''}" placeholder="例 40"><span class="k">g</span><button class="btn ghost" type="button" data-set="pw" data-i="${i}">決める</button></div>
+      ${p.composed ? '' : `<div class="set"><span class="k">または 1仕込みで</span><input id="spn-${i}" inputmode="numeric" value="${p.piecesN || ''}" placeholder="例 8"><span class="k">${U}取れる</span><button class="btn ghost" type="button" data-set="pieces" data-i="${i}">決める</button></div><p class="k" style="margin:0 0 6px">ホールケーキ1台を8切れ、1鍋で20${U === '個' ? '個' : U}のように、数で決めることもできます。${p.piecesN ? '今は数で決めています(空にして決めると重さに戻ります)。' : ''}</p>`}
       <div class="set"><span class="k">売価(税込)</span><input id="sprice-${i}" inputmode="decimal" value="${p.price || ''}" placeholder="例 250"><span class="k">円</span><button class="btn ghost" type="button" data-set="price" data-i="${i}">決める</button></div>
       ${noMoney() || p.kind === 'part' ? '' : `<div class="set"><span class="k">出し方</span><span class="seg" data-serve="${i}">${[['takeout', '持ち帰り'], ['eatin', '店内'], ['both', '両方']].map(([v, l]) => `<button type="button" data-v="${v}" aria-pressed="${(p.serve || 'takeout') === v}">${l}</button>`).join('')}</span></div>${taxHtml2(p)}`}
       ${noMoney() || p.kind === 'part' ? '' : composeHtml(p)}
@@ -798,7 +800,7 @@ function renderCost() {
     if (!(n > 0)) { out.innerHTML = '<p class="k" style="margin:4px 0 8px">作る数を入れてください。</p>'; return; }
     if (!p.pieces) { out.innerHTML = `<p class="k" style="margin:4px 0 8px">先に「1${U}の重さ」を入れると、分量を出せます。</p>`; return; }
     const f = n / p.pieces, fq = v => v >= 1000 ? (Math.round(v / 10) / 100) + 'kg' : (v >= 20 ? Math.round(v) : Math.round(v * 10) / 10) + 'g';
-    out.innerHTML = `<table style="margin:4px 0 8px">${p.rows.map(r => `<tr><td>${esc(r.name)}</td><td class="n">${fq(r.grams * f)}</td></tr>`).join('')}<tr><td><b>材料費</b></td><td class="n"><b>${yen(p.batch_cost * f)}</b></td></tr></table><p class="k" style="margin:0 0 8px">${p.composed ? `1${U}の配合 × ${n}` : `ふだんの1仕込み 約${p.pieces}${U} × ${Math.round(f * 100) / 100}`}。印刷はこの画面のまま、ブラウザの印刷でできます。</p>`;
+    out.innerHTML = `<table style="margin:4px 0 8px">${p.rows.map(r => `<tr><td>${esc(r.name)}</td><td class="n">${r.grams == null ? (Math.round(r.qty * f * 10) / 10) + esc(r.unit) : fq(r.grams * f)}</td></tr>`).join('')}<tr><td><b>材料費</b></td><td class="n"><b>${yen(p.batch_cost * f)}</b></td></tr></table><p class="k" style="margin:0 0 8px">${p.composed ? `1${U}の配合 × ${n}` : `ふだんの1仕込み 約${p.pieces}${U} × ${Math.round(f * 100) / 100}`}。印刷はこの画面のまま、ブラウザの印刷でできます。</p>`;
   });
   // 手順の写真: 出す・付ける・消す
   bindStepImgs(box);
@@ -822,6 +824,13 @@ function renderCost() {
     const r = await api({ kind: 'app_img', product: D.products[i].name, idx: si });
     if (r.ok) { D = r.data; renderAll(); toast(r.msg || '写真を消しました。', 'ok'); } else toast(r.error || '消せませんでした');
   }));
+  box.querySelectorAll('[data-pgo]').forEach(b => b.onclick = () => {
+    const inp = box.querySelector(`[data-pgn="${CSS.escape(b.dataset.pgo)}"]`), g = parseFloat(inp.value);
+    if (!(g > 0)) { inp.focus(); return; }
+    const m = D.materials.find(x => x.name === b.dataset.pgo || (x.aliases || []).includes(b.dataset.pgo));
+    if (!m) { chat(`「${esc(b.dataset.pgo)}」は材料の表にまだありません。先に材料の値段を入れてください`); return; }
+    setValueX({ field: 'mat', name: m.name, value: { pieceG: g } });
+  });
   box.querySelectorAll('[data-serve]').forEach(sg => sg.querySelectorAll('button').forEach(b => b.onclick = () => setValueX({ field: 'serve', product: D.products[+sg.dataset.serve].name, value: b.dataset.v })));
   box.querySelectorAll('[data-steps]').forEach(b => b.onclick = () => {
     const i = +b.dataset.steps, p = D.products[i];
@@ -843,8 +852,8 @@ function renderCost() {
     t.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); tog(); } };
   });
   box.querySelectorAll('[data-set]').forEach(b => b.onclick = () => {
-    const i = b.dataset.i, f = b.dataset.set, inp = $((f === 'pw' ? 'spw-' : 'sprice-') + i), v = parseFloat(inp.value);
-    if (!(v > 0)) { inp.focus(); return; }
+    const i = b.dataset.i, f = b.dataset.set, inp = $((f === 'pw' ? 'spw-' : f === 'pieces' ? 'spn-' : 'sprice-') + i), v = f === 'pieces' && !inp.value.trim() ? 0 : parseFloat(inp.value);
+    if (!(v > 0) && !(f === 'pieces' && v === 0)) { inp.focus(); return; }
     setValue(D.products[i].name, f, v);
   });
 }
@@ -1161,7 +1170,7 @@ function renderMat() {
   if (matF === 'up') rows = rows.filter(m => upNames.has(m.name));
   const stk = {}; ((D.stock || {}).items || []).forEach(x => stk[x.key] = x);
   if (matF === 'low') rows = rows.filter(m => stk[m.name] && stk[m.name].known);
-  const row = m => `<tr data-m="${esc(m.name)}" style="cursor:pointer"><td><b>${esc(m.name)}</b>${upNames.has(m.name) ? ' <span class="up">↑</span>' : ''}${m.spec || m.supplier ? ` <span class="k">${esc([m.spec, m.supplier].filter(Boolean).join(' · '))}</span>` : ''}<br><span class="k">${esc(m.display)}${m.allergens.length ? ' · ' + m.allergens.map(esc).join('・') : ''}${m.attrs ? ' · ' + esc(m.attrs) : ''}</span>${m.fromKind ? ' <span class="pill warn">種類の値で仮</span>' : ''}${m.yield && m.yield < 100 ? ` <span class="pill gray">使える${m.yield}%</span>` : ''}${stk[m.name] && stk[m.name].known ? `<br><span class="pill ${stk[m.name].low ? 'warn' : 'gray'}">残り ${amt(stk[m.name].left, stk[m.name].unit)}${stk[m.name].days != null ? ' · 約' + stk[m.name].days + '日' : ''}</span>` : ''}</td><td class="n">${noMoney() ? '' : m.ppg ? Math.round(m.ppg * 1000).toLocaleString() + '円/kg' : '-'}<br>${m.ok ? '<span class="pill">請求書</span>' : '<span class="pill warn">仮</span>'}</td></tr>`;
+  const row = m => `<tr data-m="${esc(m.name)}" style="cursor:pointer"><td><b>${esc(m.name)}</b>${upNames.has(m.name) ? ' <span class="up">↑</span>' : ''}${m.spec || m.supplier ? ` <span class="k">${esc([m.spec, m.supplier].filter(Boolean).join(' · '))}</span>` : ''}<br><span class="k">${esc(m.display)}${m.allergens.length ? ' · ' + m.allergens.map(esc).join('・') : ''}${m.attrs ? ' · ' + esc(m.attrs) : ''}</span>${m.fromKind ? ' <span class="pill warn">種類の値で仮</span>' : ''}${m.yield && m.yield < 100 ? ` <span class="pill gray">使える${m.yield}%</span>` : ''}${m.pieceG ? ` <span class="pill gray">1つ${m.pieceG}g</span>` : ''}${stk[m.name] && stk[m.name].known ? `<br><span class="pill ${stk[m.name].low ? 'warn' : 'gray'}">残り ${amt(stk[m.name].left, stk[m.name].unit)}${stk[m.name].days != null ? ' · 約' + stk[m.name].days + '日' : ''}</span>` : ''}</td><td class="n">${noMoney() ? '' : m.ppg ? Math.round(m.ppg * 1000).toLocaleString() + '円/kg' : '-'}<br>${m.ok ? '<span class="pill">請求書</span>' : '<span class="pill warn">仮</span>'}</td></tr>`;
   const groups = {}; rows.forEach(m => (groups[m.kind || ''] = groups[m.kind || ''] || []).push(m));
   const gk = Object.keys(groups).sort((a, b) => (a === '') - (b === '') || a.localeCompare(b, 'ja'));
   $('mats').innerHTML = (gk.length > 1 || gk[0] ? gk.map(k => `<tr><td colspan="2" style="padding-top:10px"><b class="k">${k ? '種類: ' + esc(k) : '種類をまだ決めていない材料'}</b>${k && groups[k].length > 1 ? ' <span class="k">(' + groups[k].length + '商品)</span>' : ''}</td></tr>` + groups[k].map(row).join('')).join('') : rows.map(row).join('')) || '<tr><td class="k">ありません</td></tr>';
@@ -1187,6 +1196,12 @@ function matAddBtn() {
   b.querySelector('button').onclick = () => matEdit(null);
   $('mats').closest('.card').after(b);
 }
+// 規格から1袋のgを出す(25kg・500g・1L・500g×20 は 1つ500g)
+function parseSpecG(spec) {
+  const t = String(spec || '').replace(/[Ａ-Ｚａ-ｚ０-９．]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0));
+  const m = t.match(/([\d.]+)\s*(kg|KG|Kg|キロ|g|グラム|L|l|ℓ|リットル|ml|mL|cc)/); if (!m) return 0;
+  return Number(m[1]) * (/^(kg|KG|Kg|キロ|L|l|ℓ|リットル)$/.test(m[2]) ? 1000 : 1);
+}
 function matEdit(name, preset) {
   const m = name ? D.materials.find(x => x.name === name) : (preset || {});
   setCrumb([name || '材料を足す']);
@@ -1197,6 +1212,7 @@ function matEdit(name, preset) {
     <label>規格${inp('me-spec', m.spec, '例 25kg・500g×20')}</label>
     <label>業者${inp('me-sup', m.supplier, '業者名')}</label>
     <label>中身${inp('me-attrs', m.attrs, '例 乳脂肪分47%・発酵・無塩・植物性')}</label>
+    ${m.packaging ? '' : `<label>1つの重さ${inp('me-pg', m.pieceG || '', '例 200', '6em')} g<br><span class="k">1個・1玉・1尾・1杯・1本など、数で使うときの重さ。入れると、レシピに数で書けます。</span>${m.pieceG && m.spec && parseSpecG(m.spec) ? `<br><span class="k">規格 ${esc(m.spec)} なら、1袋から約${Math.floor(parseSpecG(m.spec) / m.pieceG)}つ取れます。</span>` : ''}</label>`}
     ${m.packaging ? '' : `<label>使える割合(歩留まり)${inp('me-yield', m.yield && m.yield < 100 ? m.yield : '', '例 90', '6em')} %<br><span class="k">皮・骨・ヘタなどを捨てたあと、何%使えるか。空なら100%。原価は使える分で計算します(レシピの量は、むいた後の使う量で書きます)。</span>${!noMoney() && m.ppg && m.yield && m.yield < 100 ? `<br><span class="k">使える分 1kg ${Math.round(m.ppg * 100 / m.yield * 1000).toLocaleString()}円(買った値段 1kg ${Math.round(m.ppg * 1000).toLocaleString()}円)</span>` : ''}</label>`}
     ${name ? `<label>別名を足す(レシピや請求書での書き方)${inp('me-alias', '', '商品名')}</label>${m.aliases && m.aliases.length ? `<span class="k">いまの別名: ${m.aliases.map(esc).join('、')}</span>` : ''}` : `<label>値段(1kgあたり・分かれば)${inp('me-ppkg', '', '例 600', '8em')}</label>`}
     </div><p class="k" style="margin:8px 0">原材料・アレルゲン・栄養は、袋の裏を撮ると本物に置きかわります。それまでは同じ種類の値で仮に出して「要確認」にします。</p>
@@ -1205,6 +1221,7 @@ function matEdit(name, preset) {
   $('me-kind').setAttribute('list', 'kinds');
   $('me-go').onclick = () => {
     const v = { kind: $('me-kind').value, spec: $('me-spec').value, supplier: $('me-sup').value, attrs: $('me-attrs').value };
+    if ($('me-pg')) { const pg = $('me-pg').value.trim(); if (pg && !(+pg > 0)) { $('me-pg').focus(); chat('1つの重さはgの数字で入れてください'); return; } v.pieceG = pg ? +pg : 0; }
     if ($('me-yield')) { const y = $('me-yield').value.trim(); if (y && !(+y > 0 && +y <= 100)) { $('me-yield').focus(); chat('使える割合は1〜100(%)で入れてください'); return; } v.yield = y ? +y : 100; }
     if (name) { const al = $('me-alias').value.trim(); if (al) v.alias = al; setValueX({ field: 'mat', name, value: v }); }
     else { const nm = $('me-name').value.trim(); if (!nm) { $('me-name').focus(); return; } v.ppkg = parseFloat($('me-ppkg').value) || ''; setValueX({ field: 'mat', name: nm, create: true, value: v }); }
