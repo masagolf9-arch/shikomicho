@@ -599,7 +599,7 @@ const IC = {
 function renderMenu(q) {
   const low = ((D.stock || {}).items || []).filter(x => x.low).length, up = unpaid().length;
   const items = [
-    ['cam', '撮る', openCamera, 0, 'p'], ['cost', '原価', () => show('cost')], ['label', sellFace() ? 'アレルゲン' : '裏表示', () => show('label')], ['howto', '作り方', () => show('howto')], ['mat', '材料', () => { matF = 'all'; show('mat'); }],
+    ['cam', '撮る', openCamera, 0, 'p'], ['cost', '原価', () => show('cost')], ['label', sellFace() || dishBiz() ? 'アレルゲン' : '裏表示', () => show('label')], ['howto', '作り方', () => show('howto')], ['mat', '材料', () => { matF = 'all'; show('mat'); }],
     ...(SH('stock') ? [] : [['stock', '在庫', () => { matF = 'low'; show('mat'); }, low]]), ['hyg', '衛生', () => show('hyg'), hygMissing().length, hygMissing().length], ['book', '帳簿', () => show('book'), up], ['ws', '卸', () => show('ws')], ['ct', '業者・卸先', () => show('ct')], ['post', '発信', () => show('post')], ['sales', '売上', () => show('sales')], ['cal', '予定', () => show('cal'), (D.events || []).filter(e => dayDiff(e.date) === 0).length]];
   const m = $('menu');
   m.innerHTML = items.map(([k, l, , b, w], i) => w === 'p' || (noMoney() && MONEY_TABS.includes(k)) ? '' : `<button type="button" data-i="${i}" style="--c:var(--c-${k})"><span class="ic${w === 'p' ? ' p' : ''}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[k]}</svg></span>${l}${b ? `<span class="badge">${b}</span>` : ''}</button>`).join('');
@@ -850,6 +850,7 @@ function janCheck(d) {
   return (10 - t % 10) % 10 === +d[12] ? { ok: true, code: d } : { ok: false, msg: '最後の数字が合いません。番号を見直してください' };
 }
 const sellFace = () => (D.shopInfo || {}).sell === 'face';
+const dishBiz = () => /カフェ|飲食/.test((D.words || {}).biz || '');   // 飲食店・カフェは、店内のメニューに裏表示が要らない
 // 店頭に置くもの: アレルゲン一覧表(全商品 × 特定原材料)とプライスカード。対面販売のお店はこちらが主役
 const ALG_MUST = () => (D.allergenRules || {})['義務'] || ['えび', 'かに', 'くるみ', '小麦', 'そば', '卵', '乳', '落花生', 'カシューナッツ'];
 const ALG_REC = () => (D.allergenRules || {})['推奨'] || [];
@@ -882,9 +883,9 @@ function bindStore() {
   if ($('pc-print-all')) $('pc-print-all').onclick = () => openPrint(cards(D.products.filter(p => p.kind !== 'part')));
 }
 function renderLabel() {
-  const chips = $('label-chips'), box = $('label-box'), face = sellFace();
-  $('label-h').textContent = face ? 'アレルゲン・店頭' : '裏表示';
-  $('label-lead').innerHTML = face ? '対面販売では裏表示は要りません。店頭に置くアレルゲン一覧表とプライスカードを出します。卸す商品だけ、下でラベルを作れます。' : '一括表示の原案とラベル印刷。<mark>色つき</mark>は要確認。最終確認と表示の責任はお店にあります。';
+  const chips = $('label-chips'), box = $('label-box'), face = sellFace() || dishBiz();
+  $('label-h').textContent = dishBiz() ? 'アレルゲン・メニュー' : face ? 'アレルゲン・店頭' : '裏表示';
+  $('label-lead').innerHTML = dishBiz() ? 'お店の中で出すメニューに裏表示は要りません。お客さまに聞かれたら見せるアレルゲン一覧表と、値段のカードを出せます。持ち帰り用に包装する商品だけ、下でラベルを作れます。' : face ? '対面販売では裏表示は要りません。店頭に置くアレルゲン一覧表とプライスカードを出します。卸す商品だけ、下でラベルを作れます。' : '一括表示の原案とラベル印刷。<mark>色つき</mark>は要確認。最終確認と表示の責任はお店にあります。';
   if (!D.products.length) { chips.innerHTML = ''; box.innerHTML = emptyBox('label', 'まだレシピがありません', 'レシピを撮ると、ここに' + (face ? 'アレルゲン一覧表' : '裏表示の案') + 'が出ます。', ['レシピを撮る', 'cam']); return; }
   if (!D.products.find(p => p.name === labelName)) labelName = D.products[0].name;
   const goods = D.products.filter(p => p.kind !== 'part');
@@ -893,7 +894,7 @@ function renderLabel() {
   chips.querySelectorAll('.chip').forEach((b, i) => b.onclick = () => { labelName = goods[i].name; renderLabel(); });
   if (cur === 'label' && labelName) setCrumb([labelName]);
   const p = D.products.find(x => x.name === labelName), lb = p.label, L = lblOf(p), si = D.shopInfo || {};
-  box.innerHTML = (face ? storeBox() + `<details class="card" style="margin-top:14px" id="face-lbl"><summary><b>包装して卸す商品のラベル</b> <span class="k">道の駅・スーパーに出す分だけ</span></summary><div style="margin-top:10px">` : '') + `<div class="label">
+  box.innerHTML = (face ? storeBox() + `<details class="card" style="margin-top:14px" id="face-lbl"><summary><b>包装して売る・卸す商品のラベル</b> <span class="k">持ち帰り・道の駅・スーパーに出す分だけ</span></summary><div style="margin-top:10px">` : '') + `<div class="label">
     <div class="r"><div class="h">名称</div><div class="v">${esc(L.name)}</div></div>
     <div class="r"><div class="h">原材料名</div><div class="v"><span id="ing">${esc(lb.text) || '(まだ出せません)'}</span>${lb.check.length ? `、<mark>${lb.check.map(esc).join('、')}(要確認)</mark>` : ''}${esc(lb.contains)}</div></div>
     <div class="r"><div class="h">内容量</div><div class="v">${esc(L.content)}</div></div>
@@ -1618,7 +1619,7 @@ function renderPost() {
   if (box) {
     box.innerHTML = `<div class="row"><b>店に置くもの</b></div>
       <p class="k" style="margin:4px 0 10px">印刷して店頭に。${SH('insta') ? '色と書体は下の「お店の型」で決めたものになります。' : '色と模様は下の「SNSに上げる画像」で選んだ型になります。'}</p>
-      <div class="ps-acts"><button class="btn ghost" type="button" id="ps-cards">値札カード(全商品・A4に8枚)</button>${sellFace() ? '<button class="btn ghost" type="button" id="ps-al">アレルゲン表</button>' : ''}
+      <div class="ps-acts"><button class="btn ghost" type="button" id="ps-cards">値札カード(全商品・A4に8枚)</button>${sellFace() || dishBiz() ? '<button class="btn ghost" type="button" id="ps-al">アレルゲン表</button>' : ''}
       <button class="btn ghost" type="button" id="ps-pop">ポップ(A5)</button><button class="btn ghost" type="button" id="ps-notice">お知らせの貼り紙(A4)</button></div>`;
     $('ps-cards').onclick = () => { if (!goods.length) { chat('商品がまだありません'); return; } priceCards(goods); };
     if ($('ps-al')) $('ps-al').onclick = () => show('label');
