@@ -441,6 +441,23 @@ const SH = k => !!(D && (D.shelved || []).includes(k));   // しまった機能(
 // 画面でエラーが起きたら「つまずき」として残す(店主に夕方まとめて届く)
 window.addEventListener('error', e => { try { if (!D) return; api({ kind: 'app_err', text: (cur || '') + ' ' + String(e.message || '').slice(0, 150) }); } catch (x) {} });
 window.addEventListener('unhandledrejection', e => { try { if (!D) return; api({ kind: 'app_err', text: (cur || '') + ' ' + String((e.reason && e.reason.message) || e.reason || '').slice(0, 150) }); } catch (x) {} });
+// 消すボタンを押したら「あとで戻せる/完全に消す」を選んでもらう(LINEの中では確認の窓が出ないので、画面の中で選ぶ)
+function delChoice(b, onTrash, onPurge) {
+  if (!b) return;
+  b.onclick = () => {
+    if (b.dataset.open) return;
+    b.dataset.open = 1; b.hidden = true;
+    const wrap = document.createElement('span');
+    wrap.style.cssText = 'display:inline-flex;gap:8px;flex-wrap:wrap;justify-content:flex-end';
+    wrap.innerHTML = '<button class="btn ghost sm" type="button" data-c="t">消す(あとで戻せる)</button><button class="btn sm" type="button" data-c="p" style="background:var(--warn);border-color:var(--warn);color:#fff">完全に消す(戻せません)</button><button class="btn ghost sm" type="button" data-c="x">やめる</button>';
+    b.after(wrap);
+    const close = () => { clearTimeout(tm); wrap.remove(); b.hidden = false; delete b.dataset.open; };
+    const tm = setTimeout(close, 10000);
+    wrap.querySelector('[data-c="t"]').onclick = () => { close(); onTrash(); };
+    wrap.querySelector('[data-c="p"]').onclick = () => { close(); onPurge(); };
+    wrap.querySelector('[data-c="x"]').onclick = close;
+  };
+}
 // 消すボタンは2回押し(LINEの中では確認の窓が出ないことがあるので、画面の中で確かめる)
 function twice(b, label, fn) {
   if (!b) return; const orig = b.textContent, st0 = b.getAttribute('style') || '';
@@ -710,11 +727,14 @@ function renderCost() {
     return ph + `<div class="card prod" data-name="${esc(p.name)}"><div class="hd" role="button" tabindex="0" aria-expanded="${isOpen}" data-toggle>${avatar(p.name)}<span class="nm">${esc(p.name)} <span class="k">${esc(p.part)}</span></span><span class="k">${p.sure}% 確定</span></div>${head}<div class="meta">${meta.join('')}</div><div class="bar" aria-label="請求書で確かめた割合 ${p.sure}%" title="請求書で確かめた割合 ${p.sure}%"><i style="width:${p.sure}%"></i></div><div class="detail" ${isOpen ? '' : 'hidden'}>${det}</div></div>`;
   }).join('');
   bindUnk(box); bindCompose(box);
-  box.querySelectorAll('[data-delprod]').forEach(b => twice(b, '本当に消す(もう一度押す)', () => setValueX({ field: 'delprod', product: b.dataset.delprod })));
+  box.querySelectorAll('[data-delprod]').forEach(b => delChoice(b,
+    () => setValueX({ field: 'delprod', product: b.dataset.delprod }),
+    () => setValueX({ field: 'delprod', product: b.dataset.delprod, value: { purge: true } })));
   const tr = D.trash || [];
   if (tr.length && !noMoney()) {
-    box.insertAdjacentHTML('beforeend', `<div class="card" style="grid-column:1/-1;margin-top:12px"><p style="margin:0 0 6px"><b>消したレシピ</b> <span class="k">間違えて消したときは「戻す」</span></p>${tr.map(t => `<div class="ask" style="justify-content:space-between"><span>${esc(t.name)} <span class="k">${t.at ? new Date(t.at).toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' }) : ''}${t.by ? ' ' + esc(t.by) : ''}</span></span><button class="btn ghost sm" type="button" data-restore="${t.row}">戻す</button></div>`).join('')}</div>`);
+    box.insertAdjacentHTML('beforeend', `<div class="card" style="grid-column:1/-1;margin-top:12px"><p style="margin:0 0 6px"><b>消したレシピ</b> <span class="k">間違えて消したときは「戻す」。「完全に消す」はもう戻せません</span></p>${tr.map(t => `<div class="ask" style="justify-content:space-between;flex-wrap:wrap"><span>${esc(t.name)} <span class="k">${t.at ? new Date(t.at).toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' }) : ''}${t.by ? ' ' + esc(t.by) : ''}</span></span><span style="display:flex;gap:8px"><button class="btn ghost sm" type="button" data-restore="${t.row}">戻す</button><button class="btn ghost sm" type="button" data-purge="${t.row}" style="color:var(--warn);border-color:var(--warn)">完全に消す</button></span></div>`).join('')}</div>`);
     box.querySelectorAll('[data-restore]').forEach(b => b.onclick = () => setValueX({ field: 'restoreprod', value: +b.dataset.restore }));
+    box.querySelectorAll('[data-purge]').forEach(b => twice(b, '完全に消す(もう戻せません)', () => setValueX({ field: 'purgetrash', value: +b.dataset.purge })));
   }
   box.querySelectorAll('.prod').forEach(c => {
     const t = c.querySelector('[data-toggle]'), name = c.dataset.name;
