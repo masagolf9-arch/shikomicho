@@ -719,7 +719,7 @@ function renderCost() {
     if (p.unknown.length) meta.push(`<span class="pill warn">値段のない材料 ${p.unknown.length}(原価に入っていません)</span>`);
     const det = `<table>${p.rows.map(r => `<tr><td>${esc(r.name)} <span class="k">${r.grams.toLocaleString()}g</span>${r.src === 'est' ? ' <span class="pill warn">仮</span>' : r.src === 'unknown' ? ' <span class="pill warn">不明</span>' : r.src === 'part' ? ' <span class="pill gray">半製品</span>' : ''}${r.which && r.src !== 'part' ? `<br><span class="k">→ ${esc(r.which)}${r.cands ? '(同じ種類が' + r.cands.length + 'つ。どれか確かめてください)' : ''}</span>` : ''}</td><td class="n">${r.cost == null ? '-' : yen1(r.cost)}</td></tr>`).join('')}<tr><td><b>1仕込み</b></td><td class="n"><b>${yen(p.batch_cost)}</b></td></tr></table>${p.unknown.length ? `<div style="margin-top:8px"><p class="k" style="margin:0 0 4px">値段のない材料は、原価に入っていません。分かる分だけ入れてください(請求書を撮っても入ります)。</p>${p.unknown.map(n => `<p style="margin:6px 0 0"><b>${esc(n)}</b></p>${unkForm(n)}`).join('')}</div>` : ''}
       <div class="set"><span class="k">仕込みの量</span><input id="sqty-${i}" inputmode="numeric" placeholder="例 60"><span class="k">${U}分</span><button class="btn ghost" type="button" data-scale="${i}">分量を出す</button></div><div id="sqout-${i}"></div>
-      <div style="margin-top:12px"><b>作り方</b>${(p.steps || []).length ? `<ol class="steps">${p.steps.map(s => `<li>${esc(s)}</li>`).join('')}</ol>` : ' <span class="k">まだ入っていません</span>'}
+      <div style="margin-top:12px"><b>作り方</b>${(p.steps || []).length ? `<ol class="steps">${p.steps.map((s, si) => `<li>${esc(s)}${(p.simgs || [])[si] ? `<div><img class="stimg" data-img="${esc(p.simgs[si])}" alt="手順${si + 1}の写真"><div><button class="btn ghost sm" type="button" data-imgdel="${i}:${si}">写真を消す</button></div></div>` : ` <button class="btn ghost sm" type="button" data-imgadd="${i}:${si}">写真を付ける</button>`}</li>`).join('')}</ol>` : ' <span class="k">まだ入っていません</span>'}
       <details><summary class="k" style="cursor:pointer">作り方を書く・直す(1行に1手順)</summary><textarea id="stp-${i}" rows="6" style="width:100%;margin-top:6px;font:inherit;font-size:16px;padding:8px 10px;border:1.5px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)" placeholder="例&#10;粉と砂糖を合わせる&#10;卵を混ぜて生地にする&#10;30gずつ包んで焼く">${esc((p.steps || []).join('\n'))}</textarea><div class="ask" style="margin-top:6px"><button class="btn ghost sm" type="button" data-steps="${i}">作り方を保存</button></div></details></div>
       <div class="set"><span class="k">1${U}の重さ</span><input id="spw-${i}" inputmode="decimal" value="${p.pw || ''}" placeholder="例 40"><span class="k">g</span><button class="btn ghost" type="button" data-set="pw" data-i="${i}">決める</button></div>
       <div class="set"><span class="k">売価</span><input id="sprice-${i}" inputmode="decimal" value="${p.price || ''}" placeholder="例 250"><span class="k">円</span><button class="btn ghost" type="button" data-set="price" data-i="${i}">決める</button></div>
@@ -737,6 +737,33 @@ function renderCost() {
     const f = n / p.pieces, fq = v => v >= 1000 ? (Math.round(v / 10) / 100) + 'kg' : (v >= 20 ? Math.round(v) : Math.round(v * 10) / 10) + 'g';
     out.innerHTML = `<table style="margin:4px 0 8px">${p.rows.map(r => `<tr><td>${esc(r.name)}</td><td class="n">${fq(r.grams * f)}</td></tr>`).join('')}<tr><td><b>材料費</b></td><td class="n"><b>${yen(p.batch_cost * f)}</b></td></tr></table><p class="k" style="margin:0 0 8px">${p.composed ? `1${U}の配合 × ${n}` : `ふだんの1仕込み 約${p.pieces}${U} × ${Math.round(f * 100) / 100}`}。印刷はこの画面のまま、ブラウザの印刷でできます。</p>`;
   });
+  // 手順の写真: 出す(一度出した写真は覚えておく)・付ける・消す
+  box.querySelectorAll('img.stimg[data-img]').forEach(async im => {
+    const id = im.dataset.img;
+    if (IMG_CACHE[id]) { im.src = IMG_CACHE[id]; return; }
+    const r = await api({ kind: 'app_img_get', id });
+    if (r.ok) { IMG_CACHE[id] = `data:${r.type};base64,${r.data}`; im.src = IMG_CACHE[id]; } else im.alt = '写真を出せませんでした';
+  });
+  box.querySelectorAll('[data-imgadd]').forEach(b => b.onclick = () => {
+    const [i, si] = b.dataset.imgadd.split(':').map(Number);
+    const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*';
+    inp.onchange = async () => {
+      const f = inp.files[0]; if (!f) return;
+      b.textContent = '送っています…'; b.disabled = true;
+      try {
+        const img64 = await shrinkStep(f);
+        const r = await api({ kind: 'app_img', product: D.products[i].name, idx: si, image: img64, type: 'image/jpeg' });
+        if (!r.ok) throw new Error(r.error || '送れませんでした');
+        D = r.data; renderAll(); toast(r.msg || '写真を付けました。', 'ok');
+      } catch (e) { toast(e.message || '写真を送れませんでした'); b.textContent = '写真を付ける'; b.disabled = false; }
+    };
+    inp.click();
+  });
+  box.querySelectorAll('[data-imgdel]').forEach(b => twice(b, '写真を消す(もう一度押す)', async () => {
+    const [i, si] = b.dataset.imgdel.split(':').map(Number);
+    const r = await api({ kind: 'app_img', product: D.products[i].name, idx: si });
+    if (r.ok) { D = r.data; renderAll(); toast(r.msg || '写真を消しました。', 'ok'); } else toast(r.error || '消せませんでした');
+  }));
   box.querySelectorAll('[data-steps]').forEach(b => b.onclick = () => {
     const i = +b.dataset.steps, p = D.products[i];
     setValueX({ field: 'steps', product: p.name, value: $('stp-' + i).value.split('\n').map(x => x.trim()).filter(Boolean) });
@@ -1761,6 +1788,20 @@ function openTo(k) {
 msgs.addEventListener('click', e => { const b = e.target.closest('[data-open]'); if (b) openTo(b.dataset.open); });
 $('composer').onsubmit = e => { e.preventDefault(); ask(qIn.value); };
 
+// 作り方の手順の写真: 置き場に収まる大きさに縮める(長い辺1000px→収まらなければ800px)
+const IMG_CACHE = {};
+async function shrinkStep(file) {
+  if (!/^image\//.test(file.type)) throw new Error('写真を選んでください');
+  const img = await createImageBitmap(file);
+  for (const [px, q] of [[1000, 0.8], [800, 0.7], [640, 0.6]]) {
+    const k = Math.min(1, px / Math.max(img.width, img.height));
+    const c = document.createElement('canvas'); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    const b64 = c.toDataURL('image/jpeg', q).split(',')[1];
+    if (b64.length <= 650000) return b64;
+  }
+  throw new Error('写真が大きすぎます。撮り直してください');
+}
 // ---------- ホームページ(LINEの外)から写真を送る ----------
 async function shrink(file) {
   const img = await createImageBitmap(file);
