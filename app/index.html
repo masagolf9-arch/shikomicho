@@ -138,6 +138,7 @@ details.card summary{cursor:pointer}
 .set-row{flex-wrap:wrap}.set-row>span:first-child{flex:1 1 9em;min-width:0}.set-row>span:first-child>.k{display:block;white-space:normal}
 html,body{overflow-x:clip}
 ol.steps{margin:6px 0 4px;padding-left:1.5em;line-height:1.9}
+.mq{display:grid;grid-template-columns:1fr 1fr;gap:10px}.mq>div{border:1.5px solid var(--line);border-radius:14px;padding:10px 12px;background:var(--card);min-width:0}.mq b{display:block}.mq .k{display:block;margin:2px 0 6px}.mq ul{margin:0;padding-left:1.1em;line-height:1.7}.mq .star{border-color:#2f9a4e}.mq .plow{border-color:#d98a12}.mq .puzzle{border-color:#1d7fb3}.mq .dog{border-color:#b0b0b0}@media(max-width:420px){.mq{grid-template-columns:1fr}}
 .insp-row{display:flex;gap:10px;align-items:flex-start;padding:10px 4px;border-bottom:1px solid var(--line);cursor:pointer}.insp-row:last-child{border-bottom:0}.insp-row .dot{flex:0 0 10px;height:10px;border-radius:50%;margin-top:6px;background:var(--line)}.insp-row.warn .dot{background:var(--warn)}.insp-row b{display:block;font-size:15px}.insp-row .k{display:block;margin-top:2px}
 ol.steps li{margin:2px 0}
 .stimg{display:block;max-width:min(100%,320px);border-radius:10px;margin:6px 0 2px;border:1px solid var(--line);min-height:40px;background:var(--bg)}
@@ -605,8 +606,8 @@ section.inR{animation:inR .12s ease-out}section.inL{animation:inL .12s ease-out}
         <div class="dots" id="hero-dots"></div>
         <h1 class="sub" id="prods-h">商品</h1>
         <div class="prods" id="home-prods"></div>
-        <h1 class="sub">これからの予定 <button class="btn ghost sm" type="button" id="ev-more">ぜんぶ見る</button></h1>
-        <div class="card" id="home-events"></div>
+        <div id="home-ev-wrap"><h1 class="sub">これからの予定 <button class="btn ghost sm" type="button" id="ev-more">ぜんぶ見る</button></h1>
+        <div class="card" id="home-events"></div></div>
         <h1 class="sub">最近の記録</h1>
         <div class="card" id="made"></div>
       </div>
@@ -673,6 +674,9 @@ section.inR{animation:inR .12s ease-out}section.inL{animation:inL .12s ease-out}
     <div class="ph"><div><h1>売上ともうけ</h1><p class="lead">レジの精算レシートを撮ると、売上を記録して、原価が分かる商品はもうけを出します。</p></div></div>
     <div class="chips" id="sales-chips"></div>
     <div class="stack" id="sales-box"></div>
+    <h1 class="sub" style="margin-top:22px">メニューの分析</h1>
+    <p class="lead">売れた数と1個のもうけで、商品を4つに分けます。品目別の精算レシートと卸の納品から出します。</p>
+    <div id="menu-box"></div>
     <div class="card" id="sales-add" style="margin-top:12px"></div>
   </section>
   <section id="t-ws" hidden>
@@ -738,6 +742,6 @@ section.inR{animation:inR .12s ease-out}section.inL{animation:inL .12s ease-out}
 </div></nav>
 
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-<script src="app.js?v=105"></script>
+<script src="app.js?v=106"></script>
 </body>
 </html>

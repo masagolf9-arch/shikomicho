@@ -327,6 +327,8 @@ $('pr-add').onclick = () => {
 // 予定: ホームにはこれからの5件、予定の画面には月の表と一覧
 const evRow = (e, del) => `<li style="--c:var(--c-${EVK[e.kind] || 'set'})"${e.src === 'gcal' ? ' title="Googleカレンダーの予定"' : ''}><span class="ed"><b>${+e.date.slice(8)}</b><small>${+e.date.slice(5, 7)}月 ${['日', '月', '火', '水', '木', '金', '土'][new Date(e.date.slice(0, 4), +e.date.slice(5, 7) - 1, +e.date.slice(8)).getDay()]}</small></span><span class="ek">${esc(e.kind)}</span><span class="et">${esc(e.text)}${e.who ? `<span class="k">${esc(e.who)}</span>` : ''}${e.src === 'gcal' ? '<span class="k">Googleカレンダーから</span>' : e.by ? `<span class="k">${avatar(e.by, true)} ${esc(e.by)}</span>` : ''}${(e.notes || []).length ? `<ul class="notes">${e.notes.map(n => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}${del && e.src !== 'gcal' ? `<span class="ask" style="margin-top:6px"><input class="note-in" data-row="${e.row}" placeholder="ひと言" style="flex:1;min-width:0;font-size:13px;padding:5px 8px"><button class="btn ghost sm" type="button" data-note="${e.row}">足す</button></span>` : ''}</span>${del && e.src !== 'gcal' ? `<button class="x" type="button" data-del="${e.row}" aria-label="消す">✕</button>` : ''}</li>`;
 function renderHomeEvents() {
+  if ($('home-ev-wrap')) $('home-ev-wrap').hidden = SH('cal');
+  if (SH('cal')) return;
   const box = $('home-events'), t = todayS(), evs = (D.events || []).filter(e => e.date >= t).slice(0, 5);
   box.innerHTML = evs.length ? `<ul class="evl">${evs.map(e => evRow(e)).join('')}</ul>` : `<p class="k" style="margin:0">これからの予定はありません。予定の画面で足せます。</p>`;
   box.style.padding = evs.length ? '0' : '';
@@ -631,7 +633,7 @@ function renderMenu(q) {
   const low = ((D.stock || {}).items || []).filter(x => x.low).length, up = unpaid().length;
   const items = [
     ['cam', '撮る', openCamera, 0, 'p'], ['cost', '原価', () => show('cost')], ['label', sellFace() ? 'アレルゲン' : '裏表示', () => show('label')], ['howto', '作り方', () => show('howto')], ['mat', '材料', () => { matF = 'all'; show('mat'); }],
-    ...(SH('stock') ? [] : [['stock', '在庫', () => { matF = 'low'; show('mat'); }, low]]), ['hyg', '衛生', () => show('hyg'), hygMissing().length, hygMissing().length], ['book', '帳簿', () => show('book'), up], ['ws', '卸', () => show('ws')], ['ct', '業者・卸先', () => show('ct')], ...(SH('post') ? [] : [['post', '発信', () => show('post')]]), ['sales', '売上', () => show('sales')], ['cal', '予定', () => show('cal'), (D.events || []).filter(e => dayDiff(e.date) === 0).length]];
+    ...(SH('stock') ? [] : [['stock', '在庫', () => { matF = 'low'; show('mat'); }, low]]), ['hyg', '衛生', () => show('hyg'), hygMissing().length, hygMissing().length], ['book', '帳簿', () => show('book'), up], ['ws', '卸', () => show('ws')], ['ct', '業者・卸先', () => show('ct')], ...(SH('post') ? [] : [['post', '発信', () => show('post')]]), ['sales', '売上', () => show('sales')], ...(SH('cal') ? [] : [['cal', '予定', () => show('cal'), (D.events || []).filter(e => dayDiff(e.date) === 0).length]])];
   const m = $('menu');
   m.innerHTML = items.map(([k, l, , b, w], i) => w === 'p' || (noMoney() && MONEY_TABS.includes(k)) ? '' : `<button type="button" data-i="${i}" style="--c:var(--c-${k})"><span class="ic${w === 'p' ? ' p' : ''}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[k]}</svg></span>${l}${b ? `<span class="badge">${b}</span>` : ''}</button>`).join('');
   m.querySelectorAll('button').forEach(b => b.onclick = () => items[b.dataset.i][2]());
@@ -1332,7 +1334,7 @@ let cur = 'today';
 function show(t, quiet, keep) {
   if (!D) return;
   if (noMoney() && MONEY_TABS.includes(t)) { toast('お金の画面は、店主が「見せる」にした人だけが見られます'); t = 'today'; }
-  if (SH('post') && t === 'post') t = 'today';
+  if ((SH('post') && t === 'post') || (SH('cal') && t === 'cal')) t = 'today';
   const dir = tabs.indexOf(t) - tabs.indexOf(cur); cur = t;
   if (t === 'mat') renderMat();
   tabs.forEach(x => { const el = $('t-' + x); el.hidden = x !== t; el.classList.remove('inR', 'inL'); });
@@ -1355,7 +1357,7 @@ document.querySelectorAll('nav button[data-t]').forEach(b => b.onclick = () => s
     if (x0 == null) return;
     const dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0; x0 = null;
     if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.6 || Date.now() - t0 > 700) return;
-    const vis = tabs.filter(x => !(x === 'post' && SH('post'))), i = vis.indexOf(cur) + (dx < 0 ? 1 : -1);
+    const vis = tabs.filter(x => !(x === 'post' && SH('post')) && !(x === 'cal' && SH('cal'))), i = vis.indexOf(cur) + (dx < 0 ? 1 : -1);
     if (i >= 0 && i < vis.length) show(vis[i], true);
   }, { passive: true });
 })();
@@ -1503,7 +1505,24 @@ function openInvoice(mo, to) {
     ${si.bank ? `<p>お振込先: ${esc(si.bank)}</p>` : ''}${rows.some(r => r.unit == null) ? '<p style="color:#a4512a">単価が未定の品があります。「卸」の画面で卸値を入れてください。</p>' : ''}`);
 }
 // ---------- 売上ともうけ ----------
+// メニューの分析(看板・見直し・売り方の工夫・やめる候補)
+let menuMo = null;
+function renderMenuA() {
+  const box = $('menu-box'); if (!box) return;
+  const mm = D.menu || {}, ms = Object.keys(mm).sort().reverse().filter(k => (mm[k].items || []).length || (mm[k].missing || []).length);
+  if (noMoney()) { box.innerHTML = ''; return; }
+  if (!ms.length) { box.innerHTML = `<div class="card"><p style="margin:0"><b>品目別の売上がまだありません</b></p><p class="k" style="margin:6px 0 0">品目ごとに数が印字されるレジの精算レシートを撮るか、卸の納品を記録すると、ここに出ます。部門の合計(和菓子 いくら)だけのレシートでは分けられません。</p></div>`; return; }
+  const sel = ms.includes(menuMo) ? menuMo : ms[0], o = mm[sel], Q = { star: ['看板', 'よく売れて、もうかる', '今のまま。切らさないように'], plow: ['見直し', 'よく売れるが、もうけが薄い', '値上げか、原価を下げる'], puzzle: ['売り方の工夫', 'もうかるが、あまり売れない', '置き場所・おすすめ・試食で売る'], dog: ['やめる候補', '売れず、もうけも薄い', '入れかえや、作る数を減らす'] };
+  const by = k => (o.items || []).filter(i => i.quad === k);
+  box.innerHTML = `${ms.length > 1 ? `<div class="chips" style="margin-bottom:8px">${ms.map(m => `<button class="chip" type="button" data-mm="${m}" aria-pressed="${m === sel}">${m.replace('-', '年')}月</button>`).join('')}</div>` : ''}
+    ${(o.items || []).length ? `<div class="mq">${['star', 'plow', 'puzzle', 'dog'].map(k => `<div class="${k}"><b>${Q[k][0]}</b><span class="k">${Q[k][1]} → ${Q[k][2]}</span>${by(k).length ? `<ul>${by(k).map(i => `<li>${esc(i.name)} <span class="k" style="display:inline">${i.qty}${U} · 1${U} ${i.unitMargin.toLocaleString('ja-JP')}円</span></li>`).join('')}</ul>` : '<span class="k">なし</span>'}</div>`).join('')}</div>
+    <div class="card" style="margin-top:10px"><div class="scroll"><table><tr><th style="text-align:left">商品</th><th>売れた数</th><th>売上(税抜)</th><th>1${U}のもうけ</th><th>もうけ計</th></tr>${o.items.map(i => `<tr><td style="text-align:left">${esc(i.name)}</td><td class="n">${i.qty}</td><td class="n">${yen(i.salesEx)}</td><td class="n">${i.unitMargin.toLocaleString('ja-JP')}円</td><td class="n"><b>${yen(i.profit)}</b></td></tr>`).join('')}</table></div>
+    <p class="k" style="margin:8px 0 0">もうけは、税抜の売上から材料費だけを引いた額です(人件費・光熱費は入っていません)。線引き: 売れた数 ${o.popLine}${U}以上が「よく売れる」、1${U}のもうけ ${o.marginLine}円以上が「もうかる」(この月の平均から)。</p></div>` : ''}
+    ${(o.missing || []).length ? `<p class="k" style="margin:8px 0 0">原価が出ていないため分けられない商品: ${o.missing.map(esc).join('、')}(1個の重さか、1仕込みで何個取れるかを入れると入ります)</p>` : ''}`;
+  box.querySelectorAll('[data-mm]').forEach(b => b.onclick = () => { menuMo = b.dataset.mm; renderMenuA(); });
+}
 function renderSales() {
+  renderMenuA();
   const sa = D.sales || {}, ms = Object.keys(sa).sort().reverse(), chips = $('sales-chips');
   $('sales-add').innerHTML = `<p style="margin:0 0 6px"><b>写真がないときは数字で</b></p><div class="fld"><span class="k">日付</span><input id="sl-date" type="date" value="${new Date().toLocaleDateString('sv-SE')}"><span class="k">売上(税込)</span><input id="sl-total" inputmode="numeric" placeholder="52300"><span class="k">客数</span><input id="sl-cust" inputmode="numeric" placeholder="48(なくても可)"></div><div class="ask"><button class="btn" type="button" id="sl-go">記録</button><span class="k">${SHOT}精算レシートを撮るのが一番かんたんです</span></div>`;
   $('sl-go').onclick = () => { const t = $('sl-total').value.trim(); if (!t) { chat('売上の金額を入れてください'); return; } setValueX({ field: 'sales', value: { date: $('sl-date').value, total: t, customers: $('sl-cust').value.trim() } }); };
