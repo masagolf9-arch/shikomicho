@@ -750,6 +750,16 @@ function emptyBox(ic, title, text, btn) {
 }
 document.addEventListener('click', e => { const b = e.target.closest('[data-empty]'); if (!b) return; if (b.dataset.empty === 'cam') openCamera(); else if (b.dataset.empty === 'ws') $('ws-to').focus(); });
 // ---------- 原価 ----------
+// 原価率は税抜で見る(税の表があればその値、なければ税込の売価から)
+function exRatio(p) { const t = p.tax && (p.serve === 'eatin' ? p.tax.eatin : p.tax.takeout); return t && t.ratio != null ? t.ratio : p.per_piece / p.price * 100; }
+// 目標の原価率から出した売値の目安
+function guideHtml(p, i) {
+  const g = p.guide; if (!g) return '';
+  const head = `<div class="set"><span class="k">目標の原価率</span><input id="sptg-${i}" inputmode="decimal" style="width:4.5em" value="${g.own ? g.target : ''}" placeholder="${g.target}"><span class="k">%</span><button class="btn ghost" type="button" data-ptg="${i}">決める</button></div>`;
+  if (!g.inc) return head + `<p class="k" style="margin:0 0 6px">1${U}の原価が出ると、売値の目安が出ます。</p>`;
+  const now = p.price ? (p.price >= g.inc ? `いまの売価${p.price}円は目安以上です。` : `いまの売価${p.price}円は目安より${g.inc - p.price}円低めです。`) : '';
+  return head + `<p style="margin:0 0 6px"><b>売値の目安 税込${g.inc.toLocaleString('ja-JP')}円</b> <span class="k">(目標${g.target}%${g.own ? '・この商品だけ' : '・お店の目標'}、税抜${g.ex.toLocaleString('ja-JP')}円、${g.rate}%込み、10円単位で切り上げ)</span><br><span class="k">${now}</span></p>`;
+}
 // 税込の売価から、出し方ごとの税抜と原価率(税抜)を出す
 function taxHtml2(p) {
   const t = p.tax; if (!t) return p.price ? '' : '<p class="k" style="margin:2px 0 6px">売価を入れると、税抜の売値と原価率が出ます。</p>';
@@ -767,7 +777,7 @@ const open = new Set();
 function renderCost() {
   const box = $('costs');
   if (!D.products.length) { box.innerHTML = emptyBox('cam', 'まだレシピがありません', '手書きのレシピを1枚撮ると、1個の原価がここに出ます。', ['レシピを撮る', 'cam']); return; }
-  const rate = p => p.price && p.per_piece != null ? p.per_piece / p.price : -1;
+  const rate = p => p.price && p.per_piece != null ? exRatio(p) / 100 : -1;
   const SORT = { name: (a, b) => a.name.localeCompare(b.name, 'ja'), rate: (a, b) => rate(b) - rate(a), new: (a, b) => (b.updated || 0) - (a.updated || 0), est: (a, b) => a.sure - b.sure };
   const cs = $('cost-sort'); if (cs && !cs.dataset.bound) { cs.dataset.bound = 1; cs.onchange = () => { store.set('costSort', cs.value); renderCost(); }; }
   const sortKey = store.get('costSort', 'rate'); if (cs) cs.value = sortKey;
@@ -777,7 +787,7 @@ function renderCost() {
     const head = p.per_piece != null ? `<div class="big">${yen1(p.per_piece)}<span class="k" style="font-weight:400"> / 1${U}</span></div>` : '<div class="big" style="font-size:18px;color:var(--ink-2)">1個の重さ待ち</div>';
     const meta = [p.composed ? `<span class="pill gray">組み合わせ ${p.rows.length}つ</span>` : `<span class="pill gray">1仕込み ${yen(p.batch_cost)}</span>`];
     if (p.pieces && !p.composed) meta.push(`<span class="pill gray">約${p.pieces}個</span>`);
-    if (p.price && p.per_piece != null) { const r = p.per_piece / p.price * 100; meta.push(`<span class="pill ${r > 40 ? 'warn' : r > 30 ? 'gray' : ''}">原価率 ${Math.round(r)}%</span>`); }
+    if (p.price && p.per_piece != null) { const r = exRatio(p), tg = (p.guide || {}).target || 30; meta.push(`<span class="pill ${r > tg ? 'warn' : ''}">原価率(税抜) ${Math.round(r)}%${r > tg ? ' · 目標' + tg + '%超え' : ''}</span>`); }
     if (p.unknown.length) meta.push(`<span class="pill warn">値段のない材料 ${p.unknown.length}(原価に入っていません)</span>`);
     if ((p.noWeight || []).length) meta.push(`<span class="pill warn">1つの重さがない材料 ${p.noWeight.length}(原価に入っていません)</span>`);
     const det = `<table>${p.rows.map(r => `<tr><td>${esc(r.name)} <span class="k">${r.grams == null ? (r.qty + esc(r.unit)) : r.grams.toLocaleString() + 'g'}</span>${r.src === 'est' ? ' <span class="pill warn">仮</span>' : r.src === 'unknown' ? ' <span class="pill warn">不明</span>' : r.src === 'noweight' ? ' <span class="pill warn">1つの重さなし</span>' : r.src === 'part' ? ' <span class="pill gray">半製品</span>' : ''}${r.which && r.src !== 'part' ? `<br><span class="k">→ ${esc(r.which)}${r.cands ? '(同じ種類が' + r.cands.length + 'つ。どれか確かめてください)' : ''}</span>` : ''}</td><td class="n">${r.cost == null ? '-' : yen1(r.cost)}</td></tr>`).join('')}<tr><td><b>1仕込み</b></td><td class="n"><b>${yen(p.batch_cost)}</b></td></tr></table>${p.unknown.length ? `<div style="margin-top:8px"><p class="k" style="margin:0 0 4px">値段のない材料は、原価に入っていません。分かる分だけ入れてください(請求書を撮っても入ります)。</p>${p.unknown.map(n => `<p style="margin:6px 0 0"><b>${esc(n)}</b></p>${unkForm(n)}`).join('')}</div>` : ''}${(p.noWeight || []).length ? `<div style="margin-top:8px"><p class="k" style="margin:0 0 4px">数で書かれた材料は、1つの重さが分かると原価に入ります。</p>${p.rows.filter(r => r.src === 'noweight').map(r => `<div class="set"><span class="k">${esc(r.name)} 1${esc(r.unit)}</span><input data-pgn="${esc(r.which || r.name)}" inputmode="decimal" placeholder="例 200" style="width:6em"><span class="k">g</span><button class="btn ghost" type="button" data-pgo="${esc(r.which || r.name)}">決める</button></div>`).join('')}</div>` : ''}
@@ -787,7 +797,7 @@ function renderCost() {
       <div class="set"><span class="k">1${U}の重さ</span><input id="spw-${i}" inputmode="decimal" value="${p.pw || ''}" placeholder="例 40"><span class="k">g</span><button class="btn ghost" type="button" data-set="pw" data-i="${i}">決める</button></div>
       ${p.composed ? '' : `<div class="set"><span class="k">または 1仕込みで</span><input id="spn-${i}" inputmode="numeric" value="${p.piecesN || ''}" placeholder="例 8"><span class="k">${U}取れる</span><button class="btn ghost" type="button" data-set="pieces" data-i="${i}">決める</button></div><p class="k" style="margin:0 0 6px">ホールケーキ1台を8切れ、1鍋で20${U === '個' ? '個' : U}のように、数で決めることもできます。${p.piecesN ? '今は数で決めています(空にして決めると重さに戻ります)。' : ''}</p>`}
       <div class="set"><span class="k">売価(税込)</span><input id="sprice-${i}" inputmode="decimal" value="${p.price || ''}" placeholder="例 250"><span class="k">円</span><button class="btn ghost" type="button" data-set="price" data-i="${i}">決める</button></div>
-      ${noMoney() || p.kind === 'part' ? '' : `<div class="set"><span class="k">出し方</span><span class="seg" data-serve="${i}">${[['takeout', '持ち帰り'], ['eatin', '店内'], ['both', '両方']].map(([v, l]) => `<button type="button" data-v="${v}" aria-pressed="${(p.serve || 'takeout') === v}">${l}</button>`).join('')}</span></div>${taxHtml2(p)}`}
+      ${noMoney() || p.kind === 'part' ? '' : `<div class="set"><span class="k">出し方</span><span class="seg" data-serve="${i}">${[['takeout', '持ち帰り'], ['eatin', '店内'], ['both', '両方']].map(([v, l]) => `<button type="button" data-v="${v}" aria-pressed="${(p.serve || 'takeout') === v}">${l}</button>`).join('')}</span></div>${taxHtml2(p)}${guideHtml(p, i)}`}
       ${noMoney() || p.kind === 'part' ? '' : composeHtml(p)}
       ${noMoney() ? '' : `<div style="margin-top:14px;text-align:right"><button class="btn ghost sm" type="button" data-delprod="${esc(p.name)}" style="color:var(--warn);border-color:var(--warn)">この商品を消す</button></div>`}`;
     const isOpen = open.has(p.name);
@@ -824,6 +834,11 @@ function renderCost() {
     const r = await api({ kind: 'app_img', product: D.products[i].name, idx: si });
     if (r.ok) { D = r.data; renderAll(); toast(r.msg || '写真を消しました。', 'ok'); } else toast(r.error || '消せませんでした');
   }));
+  box.querySelectorAll('[data-ptg]').forEach(b => b.onclick = () => {
+    const i = +b.dataset.ptg, inp = $('sptg-' + i), v = inp.value.trim() === '' ? 0 : parseFloat(inp.value);
+    if (v !== 0 && !(v >= 5 && v <= 90)) { inp.focus(); chat('目標の原価率は5〜90(%)で入れてください。空にするとお店の目標に戻ります'); return; }
+    setValueX({ field: 'ptarget', product: D.products[i].name, value: v });
+  });
   box.querySelectorAll('[data-pgo]').forEach(b => b.onclick = () => {
     const inp = box.querySelector(`[data-pgn="${CSS.escape(b.dataset.pgo)}"]`), g = parseFloat(inp.value);
     if (!(g > 0)) { inp.focus(); return; }
@@ -1243,7 +1258,7 @@ function renderCount() {
 async function setValueX(extra) {
   const out = await api(Object.assign({ kind: 'app_set' }, extra));
   if (!out.ok) { toast(out.error || 'うまく記録できませんでした', 'ng'); return; }
-  D = out.data; renderAll(); if (out.msg) { chat(out.msg); return; } toast(extra.field === 'check' ? '確かめました。' : extra.field === 'restoreprod' ? 'レシピを戻しました。' : extra.field === 'hyg' ? '記録しました。' : extra.field === 'deliv' ? '納品を記録しました。' : extra.field === 'shop' ? 'お店の情報を保存しました。' : extra.field === 'lbl' ? 'ラベルの設定を保存しました。' : extra.field === 'paybank' ? `振込は「${esc((payBank() || {}).name || '')}」を開くようにしました。` : ['biz', 'sell', 'unitword', 'serve', 'closed', 'wsprice', 'regalias'].includes(extra.field) ? '変えました。' : extra.field === 'tax' ? '税率を保存しました。' : extra.field === 'mat' ? (extra.value && extra.value.alias ? `「${esc(extra.value.alias)}」を「${esc(extra.name)}」の別名にしました。原価に反映しました。` : '材料を保存しました。') : extra.field === 'hygnotice' ? (extra.value === 'off' ? '衛生記録のお知らせは送らないようにしました。' : `衛生記録のお知らせは${extra.value}時に送ります。`) : extra.field === 'sales' ? '売上を記録しました。' : extra.field === 'cycle' ? `棚卸は「${extra.value}」にしました。その前にLINEでお知らせします。` : '記録しました。在庫を計算しなおしました。', 'ok'); act('heart', 1.3);
+  D = out.data; renderAll(); if (out.msg) { chat(out.msg); return; } toast(extra.field === 'check' ? '確かめました。' : extra.field === 'restoreprod' ? 'レシピを戻しました。' : extra.field === 'hyg' ? '記録しました。' : extra.field === 'deliv' ? '納品を記録しました。' : extra.field === 'shop' ? 'お店の情報を保存しました。' : extra.field === 'lbl' ? 'ラベルの設定を保存しました。' : extra.field === 'paybank' ? `振込は「${esc((payBank() || {}).name || '')}」を開くようにしました。` : ['biz', 'sell', 'unitword', 'serve', 'closed', 'wsprice', 'regalias'].includes(extra.field) ? '変えました。' : extra.field === 'tax' ? '税率を保存しました。' : extra.field === 'target' || extra.field === 'ptarget' ? '目標の原価率を保存しました。' : extra.field === 'mat' ? (extra.value && extra.value.alias ? `「${esc(extra.value.alias)}」を「${esc(extra.name)}」の別名にしました。原価に反映しました。` : '材料を保存しました。') : extra.field === 'hygnotice' ? (extra.value === 'off' ? '衛生記録のお知らせは送らないようにしました。' : `衛生記録のお知らせは${extra.value}時に送ります。`) : extra.field === 'sales' ? '売上を記録しました。' : extra.field === 'cycle' ? `棚卸は「${extra.value}」にしました。その前にLINEでお知らせします。` : '記録しました。在庫を計算しなおしました。', 'ok'); act('heart', 1.3);
 }
 // 税理士さんに渡す一式(印刷用)
 function taxHtml(r) {
@@ -1338,6 +1353,7 @@ function renderSet() {
     <div class="set-row"><span>画面の色</span>${seg('theme', [['auto', '自動'], ['light', '明るい'], ['dark', '暗い']], store.get('theme', 'auto'))}</div>`) + grp('お店の決まりごと', 'stock', `
     ${SH('stock') ? '' : `<div class="set-row"><span>棚卸<br><span class="k">お店みんな共通</span></span>${seg('cycle', [['毎月', '毎月'], ['年1回', '年1回']], cyc)}</div>`}
     <div class="set-row"><span>売り方<br><span class="k">対面・店内で出すお店は、裏表示よりアレルゲン表が主役になります</span></span>${seg('sell', [['pack', '包装して売る'], ['face', '対面・店内で出す']], (D.shopInfo || {}).sell || 'pack')}</div>
+    ${noMoney() ? '' : `<div class="set-row"><span>目標の原価率<br><span class="k">税抜で見ます。売値の目安はここから出します</span></span><span style="display:flex;gap:6px;align-items:center"><input id="tg-v" inputmode="decimal" style="width:4.5em" value="${(D.shopInfo || {}).targetRate || 30}"><span class="k">%</span><button class="btn ghost sm" type="button" id="tg-save">保存</button></span></div>`}
     ${D.me && D.me.owner ? `<div class="set-row" style="display:block"><span>税率<br><span class="k">売価は税込で入れます。原価率は税抜で見ます</span></span>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:6px"><span class="k">持ち帰り</span><input id="tx-to" inputmode="decimal" style="width:4.5em" value="${((D.shopInfo || {}).tax || {}).takeout ?? 8}"><span class="k">%</span><span class="k" style="margin-left:6px">店内</span><input id="tx-ei" inputmode="decimal" style="width:4.5em" value="${((D.shopInfo || {}).tax || {}).eatin ?? 10}"><span class="k">%</span></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:6px"><span class="k">持ち帰りが変わる日</span><input id="tx-from" type="date" style="width:auto" value="${(((D.shopInfo || {}).tax || {}).next || {}).from || ''}"><span class="k">から</span><input id="tx-next" inputmode="decimal" style="width:4.5em" placeholder="例 1" value="${(((D.shopInfo || {}).tax || {}).next || {}).rate ?? ''}"><span class="k">%</span></div>
@@ -1378,6 +1394,7 @@ function renderSet() {
   const nb = document.querySelector('nav button[data-t="book"]'); if (nb) nb.style.display = noMoney() ? 'none' : '';
   $('hygnotice').querySelectorAll('button').forEach(b => b.onclick = () => setValueX({ field: 'hygnotice', value: b.dataset.v }));
   $('closed').querySelectorAll('button').forEach(b => b.onclick = () => { b.setAttribute('aria-pressed', b.getAttribute('aria-pressed') !== 'true'); const v = [...$('closed').querySelectorAll('[aria-pressed="true"]')].map(x => x.dataset.w).join(''); setValueX({ field: 'closed', value: v }); });
+  if ($('tg-save')) $('tg-save').onclick = () => { const v = parseFloat($('tg-v').value); if (!(v >= 5 && v <= 90)) { $('tg-v').focus(); chat('目標の原価率は5〜90(%)で入れてください'); return; } setValueX({ field: 'target', value: v }); };
   if ($('tx-save')) $('tx-save').onclick = () => setValueX({ field: 'tax', value: { takeout: $('tx-to').value.trim(), eatin: $('tx-ei').value.trim(), next: $('tx-next').value.trim(), from: $('tx-from').value } });
   $('shop-save').onclick = () => { const v = {}; $('set-box').querySelectorAll('[data-shop]').forEach(i => v[i.dataset.shop] = i.value.trim()); setValueX({ field: 'shop', value: v }); };
   renderBanks();
