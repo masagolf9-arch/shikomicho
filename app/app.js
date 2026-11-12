@@ -579,6 +579,7 @@ function renderHero(q) {
 }
 // ---------- きょう: アイコンの並び ----------
 const IC = {
+  howto: '<path d="M9 6.5h11M9 12h11M9 17.5h7"/><circle cx="4.5" cy="6.5" r="1.6"/><circle cx="4.5" cy="12" r="1.6"/><circle cx="4.5" cy="17.5" r="1.6"/>',
   cam: '<path d="M3.5 8.5h3.3l1.7-2.5h7l1.7 2.5h3.3v10.5h-17z"/><circle cx="12" cy="13.4" r="3.4"/>',
   cost: '<circle cx="12" cy="12" r="8.5"/><path d="M9 7.5l3 4.2 3-4.2M12 11.7V17M9.3 13.3h5.4M9.3 15.5h5.4"/>',
   label: '<path d="M6 3.5h12v17H6z"/><path d="M9.5 9h5M9.5 12.5h5M9.5 16h3"/>',
@@ -598,18 +599,54 @@ const IC = {
 function renderMenu(q) {
   const low = ((D.stock || {}).items || []).filter(x => x.low).length, up = unpaid().length;
   const items = [
-    ['cam', '撮る', openCamera, 0, 'p'], ['cost', '原価', () => show('cost')], ['label', sellFace() ? 'アレルゲン' : '裏表示', () => show('label')], ['mat', '材料', () => { matF = 'all'; show('mat'); }],
+    ['cam', '撮る', openCamera, 0, 'p'], ['cost', '原価', () => show('cost')], ['label', sellFace() ? 'アレルゲン' : '裏表示', () => show('label')], ['howto', '作り方', () => show('howto')], ['mat', '材料', () => { matF = 'all'; show('mat'); }],
     ...(SH('stock') ? [] : [['stock', '在庫', () => { matF = 'low'; show('mat'); }, low]]), ['hyg', '衛生', () => show('hyg'), hygMissing().length, hygMissing().length], ['book', '帳簿', () => show('book'), up], ['ws', '卸', () => show('ws')], ['ct', '業者・卸先', () => show('ct')], ['post', '発信', () => show('post')], ['sales', '売上', () => show('sales')], ['cal', '予定', () => show('cal'), (D.events || []).filter(e => dayDiff(e.date) === 0).length]];
   const m = $('menu');
   m.innerHTML = items.map(([k, l, , b, w], i) => w === 'p' || (noMoney() && MONEY_TABS.includes(k)) ? '' : `<button type="button" data-i="${i}" style="--c:var(--c-${k})"><span class="ic${w === 'p' ? ' p' : ''}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[k]}</svg></span>${l}${b ? `<span class="badge">${b}</span>` : ''}</button>`).join('');
   m.querySelectorAll('button').forEach(b => b.onclick = () => items[b.dataset.i][2]());
   // パソコンの広い画面では、同じメニューを左に縦に並べる
-  const TAB = { cost: 'cost', label: 'label', mat: 'mat', hyg: 'hyg', book: 'book', ws: 'ws', ct: 'ct', post: 'post', sales: 'sales', cal: 'cal' };
+  const TAB = { cost: 'cost', howto: 'howto', label: 'label', mat: 'mat', hyg: 'hyg', book: 'book', ws: 'ws', ct: 'ct', post: 'post', sales: 'sales', cal: 'cal' };
   const all = [['home', 'ホーム', () => show('today'), 0, 0, 'today']].concat(items.map(x => [x[0], x[1], x[2], x[3] || 0, x[4] || 0, TAB[x[0]] || '']), [['set', '設定', () => show('set'), 0, 0, 'set']]);
   const side = $('side');
   side.innerHTML = `<div class="sname"><i></i>${esc(D.shop)}<small>${esc($('date').textContent)}</small></div>` + all.map(([k, l, , b, w, t], i) => noMoney() && MONEY_TABS.includes(k) ? '' : `<button type="button" data-i="${i}" data-tab="${t}" class="${w === 'p' ? 'p' : ''}" style="--c:var(--c-${k})"${t && t === cur ? ' aria-current="page"' : ''}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[k]}</svg>${l}${b ? `<span class="badge">${b}</span>` : ''}</button>`).join('');
   side.insertAdjacentHTML('beforeend', `<div class="gap"></div><div class="who">${esc(profileName || '')}${profileName ? ' · ' : ''}${esc(D.shop)}</div>`);
   side.querySelectorAll('button').forEach(b => b.onclick = () => all[b.dataset.i][2]());
+}
+// ---------- 作り方(スタッフも見られる。書く・直すのは原価のカード) ----------
+function bindStepImgs(box) {
+  box.querySelectorAll('img.stimg[data-img]').forEach(async im => {
+    const id = im.dataset.img;
+    if (IMG_CACHE[id]) { im.src = IMG_CACHE[id]; return; }
+    const r = await api({ kind: 'app_img_get', id });
+    if (r.ok) { IMG_CACHE[id] = `data:${r.type};base64,${r.data}`; im.src = IMG_CACHE[id]; } else im.alt = '写真を出せませんでした';
+  });
+}
+let howtoSel = null;
+function renderHowto() {
+  const box = $('howto-box'); if (!box) return;
+  const ps = D.products.filter(p => p.kind !== 'part');
+  if (!ps.length) { box.innerHTML = emptyBox('cam', 'まだレシピがありません', 'レシピを撮ると、ここに作り方が並びます。', ['レシピを撮る', 'cam']); return; }
+  const sel = ps.find(p => p.name === howtoSel);
+  if (!sel) {
+    box.innerHTML = ps.map(p => `<div class="card prod" role="button" tabindex="0" data-howto="${esc(p.name)}"><div class="hd">${avatar(p.name)}<span class="nm">${esc(p.name)}</span><span class="k">${(p.steps || []).length ? p.steps.length + '手順' + ((p.simgs || []).filter(Boolean).length ? '・写真' + p.simgs.filter(Boolean).length : '') : '手順はまだ'}</span></div></div>`).join('');
+    box.querySelectorAll('[data-howto]').forEach(c => { const go = () => { howtoSel = c.dataset.howto; renderHowto(); window.scrollTo(0, 0); }; c.onclick = go; c.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } }; });
+    return;
+  }
+  const p = sel, canCost = !noMoney() && p.batch_cost != null;
+  box.innerHTML = `<div class="card" style="grid-column:1/-1">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><button class="btn ghost sm" type="button" id="howto-back">← 一覧へ</button><b style="font-size:18px">${esc(p.name)}</b></div>
+    <div class="set" style="margin-top:10px"><span class="k">仕込みの量</span><input id="hq" inputmode="numeric" placeholder="例 60"><span class="k">${U}分</span><button class="btn ghost" type="button" id="hq-go">分量を出す</button></div><div id="hq-out"></div>
+    ${(p.steps || []).length ? `<ol class="steps" style="margin-top:10px">${p.steps.map((st, si) => `<li>${esc(st)}${(p.simgs || [])[si] ? `<div><img class="stimg" data-img="${esc(p.simgs[si])}" alt="手順${si + 1}の写真"></div>` : ''}</li>`).join('')}</ol>` : '<p class="k" style="margin-top:10px">手順はまだ入っていません。' + (noMoney() ? '店主に声をかけてください。' : '「原価」のカードで書けます。') + '</p>'}
+  </div>`;
+  $('howto-back').onclick = () => { howtoSel = null; renderHowto(); };
+  $('hq-go').onclick = () => {
+    const n = +($('hq').value || 0), out = $('hq-out');
+    if (!(n > 0)) { out.innerHTML = '<p class="k" style="margin:4px 0 0">作る数を入れてください。</p>'; return; }
+    if (!p.pieces) { out.innerHTML = `<p class="k" style="margin:4px 0 0">1${U}の重さがまだ入っていないため、分量を出せません。${noMoney() ? '店主に声をかけてください。' : '「原価」のカードで入れられます。'}</p>`; return; }
+    const f = n / p.pieces, fq = v => v >= 1000 ? (Math.round(v / 10) / 100) + 'kg' : (v >= 20 ? Math.round(v) : Math.round(v * 10) / 10) + 'g';
+    out.innerHTML = `<table style="margin:4px 0 0">${p.rows.map(r => `<tr><td>${esc(r.name)}</td><td class="n">${fq(r.grams * f)}</td></tr>`).join('')}${canCost ? `<tr><td><b>材料費</b></td><td class="n"><b>${yen(p.batch_cost * f)}</b></td></tr>` : ''}</table>`;
+  };
+  bindStepImgs(box);
 }
 function renderBook() { renderPays(); renderSort(); renderJournal(); }
 const PILL = { '未払い': 'warn', '済': '', '現金済': '', '請求待ち': 'gray' };
@@ -737,13 +774,8 @@ function renderCost() {
     const f = n / p.pieces, fq = v => v >= 1000 ? (Math.round(v / 10) / 100) + 'kg' : (v >= 20 ? Math.round(v) : Math.round(v * 10) / 10) + 'g';
     out.innerHTML = `<table style="margin:4px 0 8px">${p.rows.map(r => `<tr><td>${esc(r.name)}</td><td class="n">${fq(r.grams * f)}</td></tr>`).join('')}<tr><td><b>材料費</b></td><td class="n"><b>${yen(p.batch_cost * f)}</b></td></tr></table><p class="k" style="margin:0 0 8px">${p.composed ? `1${U}の配合 × ${n}` : `ふだんの1仕込み 約${p.pieces}${U} × ${Math.round(f * 100) / 100}`}。印刷はこの画面のまま、ブラウザの印刷でできます。</p>`;
   });
-  // 手順の写真: 出す(一度出した写真は覚えておく)・付ける・消す
-  box.querySelectorAll('img.stimg[data-img]').forEach(async im => {
-    const id = im.dataset.img;
-    if (IMG_CACHE[id]) { im.src = IMG_CACHE[id]; return; }
-    const r = await api({ kind: 'app_img_get', id });
-    if (r.ok) { IMG_CACHE[id] = `data:${r.type};base64,${r.data}`; im.src = IMG_CACHE[id]; } else im.alt = '写真を出せませんでした';
-  });
+  // 手順の写真: 出す・付ける・消す
+  bindStepImgs(box);
   box.querySelectorAll('[data-imgadd]').forEach(b => b.onclick = () => {
     const [i, si] = b.dataset.imgadd.split(':').map(Number);
     const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*';
@@ -1207,13 +1239,13 @@ function renderJournal() {
 }
 function renderAll() {
   U = (D.words || {}).unit || '個';
-  renderToday(); renderCost(); renderLabel(); renderMat(); renderBook(); renderHyg(); renderSales(); renderWs(); renderPost(); renderSet();
+  renderToday(); renderCost(); renderHowto(); renderLabel(); renderMat(); renderBook(); renderHyg(); renderSales(); renderWs(); renderPost(); renderSet();
   $('shop').textContent = D.shop; if ($('shop2')) { $('shop2').textContent = D.shop; $('date2').textContent = $('date').textContent; }
   $('foot').textContent = `${new Date(D.at).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} 時点。開き直すと新しくなります。キャラの絵はAtelier SAISPEのLINE絵文字。`;
 }
 
 // ---------- タブ ----------
-const tabs = ['today', 'hyg', 'sales', 'cost', 'label', 'mat', 'book', 'ws', 'ct', 'post', 'cal', 'set'];
+const tabs = ['today', 'hyg', 'sales', 'cost', 'howto', 'label', 'mat', 'book', 'ws', 'ct', 'post', 'cal', 'set'];
 let cur = 'today';
 function show(t, quiet, keep) {
   if (!D) return;
@@ -1226,7 +1258,7 @@ function show(t, quiet, keep) {
   document.querySelectorAll('#side button[data-tab]').forEach(b => b.dataset.tab === t ? b.setAttribute('aria-current', 'page') : b.removeAttribute('aria-current'));
   store.set('tab', t); if (!keep) window.scrollTo(0, 0);
   setCrumb(null); renderBar();
-  if (!quiet) chat({ today: null, cost: '原価です。カードを押すと中身と入力欄が出ます。', label: '裏表示の案です。色のついたところだけ確かめてください。', mat: '材料の値段です。「仮」は請求書が来たら置き換えます。', set: '設定です。キャラや文字の大きさを変えられます。', hyg: hygMissing().length ? `今日まだの記録が${hygMissing().length}つあります。` : '今日の衛生記録はそろっています。', ws: '卸の納品と請求書です。', sales: '売上ともうけです。精算レシートを撮ると増えていきます。', post: 'ポップやインスタの文、いっしょに考えます。', cal: '予定です。納品・催事・休みを入れておくと、当日の「今日やること」に出ます。', book: unpaid().length ? `払っていないものが${unpaid().length}件あります。払ったら「払った」を押してください。` : '帳簿です。請求書は月ごとに仕分けてあります。' }[t], t === 'cost' ? 'clap' : t === 'label' ? 'point' : null);
+  if (!quiet) chat({ today: null, cost: '原価です。カードを押すと中身と入力欄が出ます。', label: '裏表示の案です。色のついたところだけ確かめてください。', howto: '作り方です。商品を押すと、手順と写真が出ます。', mat: '材料の値段です。「仮」は請求書が来たら置き換えます。', set: '設定です。キャラや文字の大きさを変えられます。', hyg: hygMissing().length ? `今日まだの記録が${hygMissing().length}つあります。` : '今日の衛生記録はそろっています。', ws: '卸の納品と請求書です。', sales: '売上ともうけです。精算レシートを撮ると増えていきます。', post: 'ポップやインスタの文、いっしょに考えます。', cal: '予定です。納品・催事・休みを入れておくと、当日の「今日やること」に出ます。', book: unpaid().length ? `払っていないものが${unpaid().length}件あります。払ったら「払った」を押してください。` : '帳簿です。請求書は月ごとに仕分けてあります。' }[t], t === 'cost' ? 'clap' : t === 'label' ? 'point' : null);
 }
 document.querySelectorAll('nav button[data-t]').forEach(b => b.onclick = () => show(b.dataset.t));
 // 左右スワイプで隣の画面へ(横に動く部品の上では反応しない)
@@ -1776,7 +1808,7 @@ async function ask(s) {
   } finally { asking = false; }
 }
 // 返事の [[open:〜]] を「〇〇を開く」ボタンにする
-const OPEN_TO = { today: ['ホーム'], cost: ['原価'], label: ['裏表示'], labelprint: ['ラベルを印刷', 'label', '.lpc'], mat: ['材料'], hyg: ['衛生'], book: ['帳簿'], ws: ['卸'], ct: ['業者・卸先'], post: ['発信'], brand: ['お店の型', 'post', '#post-brand'], cal: ['予定'], sales: ['売上'], set: ['設定'], members: ['メンバー', 'set', '#members-box'], a2hs: ['ホーム画面に置く案内'], guide: ['使い方ガイド'] };
+const OPEN_TO = { today: ['ホーム'], cost: ['原価'], howto: ['作り方', '手順'], label: ['裏表示'], labelprint: ['ラベルを印刷', 'label', '.lpc'], mat: ['材料'], hyg: ['衛生'], book: ['帳簿'], ws: ['卸'], ct: ['業者・卸先'], post: ['発信'], brand: ['お店の型', 'post', '#post-brand'], cal: ['予定'], sales: ['売上'], set: ['設定'], members: ['メンバー', 'set', '#members-box'], a2hs: ['ホーム画面に置く案内'], guide: ['使い方ガイド'] };
 function openBtns(h) { return h.replace(/\n?\[\[open:([a-z0-9]+)\]\]/g, (m, k) => OPEN_TO[k] ? `<br><button class="btn ghost sm" type="button" data-open="${k}">「${OPEN_TO[k][0]}」を開く</button>` : ''); }
 function openTo(k) {
   const o = OPEN_TO[k]; if (!o) return; sheet.hidden = true;

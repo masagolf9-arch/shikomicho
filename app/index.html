@@ -20,7 +20,7 @@
   --accent:#185fa5; --accent-ink:#fff; --soft:#e6f0fb; --ok:#1b7a4a; --ok-soft:#e3f3ea;
   --warn:#c43a2e; --warn-soft:#fdecea; --sun:#f2b632; --sun-ink:#3d2a00; --sun-soft:#fff3d6;
   --nav:#ffffff; --nav-ink:#6b7280; --nav-on:#185fa5;
-  --c-cam:#185fa5; --c-cost:#d98a12; --c-label:#0f8c85; --c-mat:#2f9a4e; --c-stock:#e26a1a; --c-hyg:#1a9ad6; --c-book:#5a4fcf; --c-ws:#8a5a2b; --c-ct:#2f7d6d; --c-post:#d63f78; --c-sales:#8a3fc2; --c-set:#6b7280; --c-home:#185fa5;
+  --c-cam:#185fa5; --c-cost:#d98a12; --c-label:#0f8c85; --c-mat:#2f9a4e; --c-stock:#e26a1a; --c-hyg:#1a9ad6; --c-book:#5a4fcf; --c-ws:#8a5a2b; --c-ct:#2f7d6d; --c-post:#d63f78; --c-sales:#8a3fc2; --c-set:#6b7280; --c-home:#185fa5; --c-howto:#b5541c;
   --mix:#ffffff; --shadow:0 1px 2px rgba(20,40,70,.05),0 8px 24px rgba(20,40,70,.06);
   --font:"Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic UI","Yu Gothic","Meiryo","Noto Sans JP",sans-serif;
   --round:"Zen Maru Gothic",var(--font);
@@ -626,6 +626,11 @@ section.inR{animation:inR .12s ease-out}section.inL{animation:inL .12s ease-out}
     <div class="stack" id="costs"></div>
   </section>
 
+  <section id="t-howto" hidden>
+    <div class="ph"><div><h1>作り方</h1><p class="lead">商品を押すと、手順と写真が出ます。手順を書く・直すのは「原価」のカードです。</p></div></div>
+    <div class="stack" id="howto-box"></div>
+  </section>
+
   <section id="t-label" hidden>
     <div class="ph"><div><h1 id="label-h">裏表示</h1><p class="lead" id="label-lead">一括表示の原案とラベル印刷。<mark>色つき</mark>は要確認。最終確認と表示の責任はお店にあります。</p></div><div class="acts"><button class="btn ghost" type="button" id="label-print-top">ラベルを印刷</button></div></div>
     <div class="chips" id="label-chips"></div>
@@ -729,6 +734,6 @@ section.inR{animation:inR .12s ease-out}section.inL{animation:inL .12s ease-out}
 </div></nav>
 
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-<script src="app.js?v=95"></script>
+<script src="app.js?v=96"></script>
 </body>
 </html>
