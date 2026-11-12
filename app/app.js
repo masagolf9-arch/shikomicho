@@ -2018,13 +2018,22 @@ async function renderAccount() {
     <p class="k" style="margin:0 0 10px">メール: ${a.email ? esc(a.email) : 'まだ'} ・ LINE: ${a.line ? 'つながっています' : 'まだ'}</p>
     ${a.email ? '' : '<div class="ask" style="margin-top:0"><input id="ac-mail" type="email" placeholder="メールアドレス" style="flex:1" aria-label="メールアドレス"><button class="btn ghost" type="button" id="ac-mail-go">メールでも入れるように</button></div><p class="k" id="ac-mail-msg" style="margin:4px 0 0"></p>'}
     ${a.line || IN_LINE || !a.lineLogin ? '' : '<div class="ask"><a class="btn ghost" href="/auth/line?link=1&next=/app/">LINEとつなぐ</a></div>'}
+    ${(a.shops || []).length > 1 ? `<div class="ask"><select id="ac-shop" aria-label="お店を切り替える" style="flex:1">${a.shops.map(x => `<option value="${esc(x.id)}"${a.shop && a.shop.id === x.id ? ' selected' : ''}>${esc(x.name || x.id)}</option>`).join('')}</select><button class="btn ghost" type="button" id="ac-shop-go">切り替える</button></div>` : ''}
     <div class="ask"><button class="btn ghost" type="button" id="ac-inv">スタッフを招待するリンク</button></div><p class="k" id="ac-inv-out" style="margin:4px 0 0;word-break:break-all"></p>
+    ${a.operator ? '<div class="ask"><button class="btn ghost" type="button" id="ac-start">新しいお店のはじめるリンク(運営)</button></div><p class="k" id="ac-start-out" style="margin:4px 0 0;word-break:break-all"></p>' : ''}
     ${IN_LINE ? '' : '<div class="ask"><a class="btn ghost" href="/password">パスワードを決めなおす</a></div>'}
     ${IN_LINE ? '' : '<form method="post" action="/auth/logout" class="ask"><button class="btn ghost" type="submit">ログアウト</button></form>'}`;
   if ($('ac-mail-go')) $('ac-mail-go').onclick = async () => {
     const m = $('ac-mail').value.trim(); if (!m) { $('ac-mail').focus(); return; }
     const r = await api({ kind: 'app_link_email', email: m });
     $('ac-mail-msg').innerHTML = r.ok ? `${esc(m)} に確認のリンクを送りました。開くと、メールでもログインできるようになります。${r.devLink ? `<br><a href="${esc(r.devLink)}">(試験中)ここから開く</a>` : ''}` : esc(r.error || '送れませんでした');
+  };
+  if ($('ac-shop-go')) $('ac-shop-go').onclick = () => { location.href = '/switch?shop=' + encodeURIComponent($('ac-shop').value); };
+  if ($('ac-start')) $('ac-start').onclick = async () => {
+    const r = await api({ kind: 'app_start_link' });
+    if (!r.ok) { $('ac-start-out').textContent = r.error || '作れませんでした'; return; }
+    $('ac-start-out').innerHTML = `${esc(r.link)}<br>新しく使い始めるお店に送るリンクです(1回だけ・7日間有効)。開いた人が店主になり、空のお店から始まります。`;
+    try { await navigator.clipboard.writeText(r.link); chat('リンクをコピーしました', 'heart'); } catch (e) {}
   };
   $('ac-inv').onclick = async () => {
     const r = await api({ kind: 'app_new_invite' });
