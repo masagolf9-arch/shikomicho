@@ -718,6 +718,7 @@ function renderCost() {
     if (p.price && p.per_piece != null) { const r = p.per_piece / p.price * 100; meta.push(`<span class="pill ${r > 40 ? 'warn' : r > 30 ? 'gray' : ''}">原価率 ${Math.round(r)}%</span>`); }
     if (p.unknown.length) meta.push(`<span class="pill warn">値段のない材料 ${p.unknown.length}(原価に入っていません)</span>`);
     const det = `<table>${p.rows.map(r => `<tr><td>${esc(r.name)} <span class="k">${r.grams.toLocaleString()}g</span>${r.src === 'est' ? ' <span class="pill warn">仮</span>' : r.src === 'unknown' ? ' <span class="pill warn">不明</span>' : r.src === 'part' ? ' <span class="pill gray">半製品</span>' : ''}${r.which && r.src !== 'part' ? `<br><span class="k">→ ${esc(r.which)}${r.cands ? '(同じ種類が' + r.cands.length + 'つ。どれか確かめてください)' : ''}</span>` : ''}</td><td class="n">${r.cost == null ? '-' : yen1(r.cost)}</td></tr>`).join('')}<tr><td><b>1仕込み</b></td><td class="n"><b>${yen(p.batch_cost)}</b></td></tr></table>${p.unknown.length ? `<div style="margin-top:8px"><p class="k" style="margin:0 0 4px">値段のない材料は、原価に入っていません。分かる分だけ入れてください(請求書を撮っても入ります)。</p>${p.unknown.map(n => `<p style="margin:6px 0 0"><b>${esc(n)}</b></p>${unkForm(n)}`).join('')}</div>` : ''}
+      <div class="set"><span class="k">仕込みの量</span><input id="sqty-${i}" inputmode="numeric" placeholder="例 60"><span class="k">${U}分</span><button class="btn ghost" type="button" data-scale="${i}">分量を出す</button></div><div id="sqout-${i}"></div>
       <div class="set"><span class="k">1${U}の重さ</span><input id="spw-${i}" inputmode="decimal" value="${p.pw || ''}" placeholder="例 40"><span class="k">g</span><button class="btn ghost" type="button" data-set="pw" data-i="${i}">決める</button></div>
       <div class="set"><span class="k">売価</span><input id="sprice-${i}" inputmode="decimal" value="${p.price || ''}" placeholder="例 250"><span class="k">円</span><button class="btn ghost" type="button" data-set="price" data-i="${i}">決める</button></div>
       ${noMoney() || p.kind === 'part' ? '' : composeHtml(p)}
@@ -727,6 +728,13 @@ function renderCost() {
     return ph + `<div class="card prod" data-name="${esc(p.name)}"><div class="hd" role="button" tabindex="0" aria-expanded="${isOpen}" data-toggle>${avatar(p.name)}<span class="nm">${esc(p.name)} <span class="k">${esc(p.part)}</span></span><span class="k">${p.sure}% 確定</span></div>${head}<div class="meta">${meta.join('')}</div><div class="bar" aria-label="請求書で確かめた割合 ${p.sure}%" title="請求書で確かめた割合 ${p.sure}%"><i style="width:${p.sure}%"></i></div><div class="detail" ${isOpen ? '' : 'hidden'}>${det}</div></div>`;
   }).join('');
   bindUnk(box); bindCompose(box);
+  box.querySelectorAll('[data-scale]').forEach(b => b.onclick = () => {
+    const i = +b.dataset.i, p = D.products[i], out = $('sqout-' + i), n = +($('sqty-' + i).value || 0);
+    if (!(n > 0)) { out.innerHTML = '<p class="k" style="margin:4px 0 8px">作る数を入れてください。</p>'; return; }
+    if (!p.pieces) { out.innerHTML = `<p class="k" style="margin:4px 0 8px">先に「1${U}の重さ」を入れると、分量を出せます。</p>`; return; }
+    const f = n / p.pieces, fq = v => v >= 1000 ? (Math.round(v / 10) / 100) + 'kg' : (v >= 20 ? Math.round(v) : Math.round(v * 10) / 10) + 'g';
+    out.innerHTML = `<table style="margin:4px 0 8px">${p.rows.map(r => `<tr><td>${esc(r.name)}</td><td class="n">${fq(r.grams * f)}</td></tr>`).join('')}<tr><td><b>材料費</b></td><td class="n"><b>${yen(p.batch_cost * f)}</b></td></tr></table><p class="k" style="margin:0 0 8px">${p.composed ? `1${U}の配合 × ${n}` : `ふだんの1仕込み 約${p.pieces}${U} × ${Math.round(f * 100) / 100}`}。印刷はこの画面のまま、ブラウザの印刷でできます。</p>`;
+  });
   box.querySelectorAll('[data-delprod]').forEach(b => delChoice(b,
     () => setValueX({ field: 'delprod', product: b.dataset.delprod }),
     () => setValueX({ field: 'delprod', product: b.dataset.delprod, value: { purge: true } })));
