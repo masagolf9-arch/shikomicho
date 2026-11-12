@@ -731,7 +731,7 @@ function renderCost() {
   }).join('');
   bindUnk(box); bindCompose(box);
   box.querySelectorAll('[data-scale]').forEach(b => b.onclick = () => {
-    const i = +b.dataset.i, p = D.products[i], out = $('sqout-' + i), n = +($('sqty-' + i).value || 0);
+    const i = +b.dataset.scale, p = D.products[i], out = $('sqout-' + i), n = +($('sqty-' + i).value || 0);
     if (!(n > 0)) { out.innerHTML = '<p class="k" style="margin:4px 0 8px">作る数を入れてください。</p>'; return; }
     if (!p.pieces) { out.innerHTML = `<p class="k" style="margin:4px 0 8px">先に「1${U}の重さ」を入れると、分量を出せます。</p>`; return; }
     const f = n / p.pieces, fq = v => v >= 1000 ? (Math.round(v / 10) / 100) + 'kg' : (v >= 20 ? Math.round(v) : Math.round(v * 10) / 10) + 'g';
