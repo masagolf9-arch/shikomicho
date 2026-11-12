@@ -341,7 +341,19 @@ function renderReg() {
   const row = x => `<div class="regrow${x.done ? ' done' : ''}"><div class="rb"><b>${esc(x.name)}</b>${x.reg && x.reg !== x.name ? ` <span class="k">レジでは「${esc(x.reg)}」</span>` : ''}<span class="k">${x.old ? `${x.old}円 → ` : '新しく '}<b style="color:var(--ink)">${x.now}円</b> · ${x.at ? new Date(x.at).toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' }) : ''}${x.done ? ` · レジ済 ${md(x.done)}${x.by ? ' ' + esc(x.by) : ''}` : ''}</span></div>${x.done ? '' : `<button class="btn sm" type="button" data-regdone="${x.row}">レジに入れた</button>`}</div>`;
   box.innerHTML = `<p class="k" style="margin:0 0 6px">${pend.length ? `ピタット原価で売値を変えた${pend.length}品。レジの値段を直したら「レジに入れた」を押してください。押すまでここに残ります。` : 'レジに入れていない変更はありません。'}</p>
     ${pend.map(row).join('')}${done.length ? `<details style="margin-top:8px"><summary class="k">最近レジに入れたもの(${done.length})</summary>${done.map(row).join('')}</details>` : ''}
-    ${pend.length ? `<div class="ask"><button class="btn ghost sm" type="button" id="reg-print">レジ用の値段表を出す</button><span class="k">印刷するか、スマホで見ながらレジに入れます</span></div>` : ''}`;
+    ${pend.length ? `<div class="ask"><button class="btn ghost sm" type="button" id="reg-print">レジ用の値段表を出す</button><span class="k">印刷するか、スマホで見ながらレジに入れます</span></div>` : ''}
+    ${pend.some(x => x.old && x.now > x.old) ? `<div class="ask"><button class="btn ghost sm" type="button" id="reg-notice">値上げのお知らせ文を作る</button><span class="k">店頭やLINEでお客さまに伝える文の案</span></div>` : ''}`;
+  const rn = $('reg-notice'); if (rn) rn.onclick = async () => {
+    const ups = pend.filter(x => x.old && x.now > x.old);
+    const sub = '値上げのお知らせ: ' + ups.map(x => `${x.name} ${x.old}円→${x.now}円`).join('、') + '。材料の値上がりのため。日付と理由の書き足しはお店が行う。';
+    openAsk(); const wait = addMsg('<span class="k">お知らせ文を考えています…(10秒ほど)</span>');
+    const out = await api({ kind: 'app_gen', subject: sub }); wait.remove();
+    if (!out.ok) { botSay(esc(out.error || 'うまく作れませんでした')); return; }
+    const d = out.drafts || {};
+    botSay('<b>お知らせ文の案</b><br>' + esc(d.notice || '').replace(/\n/g, '<br>'));
+    if (d.pop) botSay('<b>店頭の貼り紙の案</b><br>' + esc(d.pop).replace(/\n/g, '<br>'));
+    botSay('<span class="k">書かれていないことは足していません。始める日を書き足してお使いください。</span>');
+  };
   box.querySelectorAll('[data-regdone]').forEach(b => b.onclick = () => setValueX({ field: 'regdone', value: +b.dataset.regdone }));
   const pr = $('reg-print'); if (pr) pr.onclick = () => openPrint(`<h2>レジに入れる値段</h2><p class="k">${new Date().toLocaleDateString('ja-JP')} 時点。ピタット原価で売値を変えた商品。</p><table class="pt"><tr><th>レジでの名前</th><th>商品</th><th>前の売値</th><th>新しい売値</th><th>変えた日</th><th>レジに入れた✓</th></tr>${pend.map(x => `<tr><td><b>${esc(x.reg || x.name)}</b></td><td>${esc(x.name)}</td><td>${x.old ? x.old + '円' : '—'}</td><td><b style="font-size:18px">${x.now}円</b></td><td>${x.at ? new Date(x.at).toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' }) : ''}</td><td style="width:60px"></td></tr>`).join('')}</table><p class="k">精算レシートを撮ったとき、レジの値段とピタット原価の売値がちがえば、お知らせします。</p>`);
 }
@@ -600,7 +612,7 @@ function renderMenu(q) {
   const low = ((D.stock || {}).items || []).filter(x => x.low).length, up = unpaid().length;
   const items = [
     ['cam', '撮る', openCamera, 0, 'p'], ['cost', '原価', () => show('cost')], ['label', sellFace() ? 'アレルゲン' : '裏表示', () => show('label')], ['howto', '作り方', () => show('howto')], ['mat', '材料', () => { matF = 'all'; show('mat'); }],
-    ...(SH('stock') ? [] : [['stock', '在庫', () => { matF = 'low'; show('mat'); }, low]]), ['hyg', '衛生', () => show('hyg'), hygMissing().length, hygMissing().length], ['book', '帳簿', () => show('book'), up], ['ws', '卸', () => show('ws')], ['ct', '業者・卸先', () => show('ct')], ['post', '発信', () => show('post')], ['sales', '売上', () => show('sales')], ['cal', '予定', () => show('cal'), (D.events || []).filter(e => dayDiff(e.date) === 0).length]];
+    ...(SH('stock') ? [] : [['stock', '在庫', () => { matF = 'low'; show('mat'); }, low]]), ['hyg', '衛生', () => show('hyg'), hygMissing().length, hygMissing().length], ['book', '帳簿', () => show('book'), up], ['ws', '卸', () => show('ws')], ['ct', '業者・卸先', () => show('ct')], ...(SH('post') ? [] : [['post', '発信', () => show('post')]]), ['sales', '売上', () => show('sales')], ['cal', '予定', () => show('cal'), (D.events || []).filter(e => dayDiff(e.date) === 0).length]];
   const m = $('menu');
   m.innerHTML = items.map(([k, l, , b, w], i) => w === 'p' || (noMoney() && MONEY_TABS.includes(k)) ? '' : `<button type="button" data-i="${i}" style="--c:var(--c-${k})"><span class="ic${w === 'p' ? ' p' : ''}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[k]}</svg></span>${l}${b ? `<span class="badge">${b}</span>` : ''}</button>`).join('');
   m.querySelectorAll('button').forEach(b => b.onclick = () => items[b.dataset.i][2]());
@@ -1267,6 +1279,7 @@ let cur = 'today';
 function show(t, quiet, keep) {
   if (!D) return;
   if (noMoney() && MONEY_TABS.includes(t)) { toast('お金の画面は、店主が「見せる」にした人だけが見られます'); t = 'today'; }
+  if (SH('post') && t === 'post') t = 'today';
   const dir = tabs.indexOf(t) - tabs.indexOf(cur); cur = t;
   if (t === 'mat') renderMat();
   tabs.forEach(x => { const el = $('t-' + x); el.hidden = x !== t; el.classList.remove('inR', 'inL'); });
@@ -1289,8 +1302,8 @@ document.querySelectorAll('nav button[data-t]').forEach(b => b.onclick = () => s
     if (x0 == null) return;
     const dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0; x0 = null;
     if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.6 || Date.now() - t0 > 700) return;
-    const i = tabs.indexOf(cur) + (dx < 0 ? 1 : -1);
-    if (i >= 0 && i < tabs.length) show(tabs[i], true);
+    const vis = tabs.filter(x => !(x === 'post' && SH('post'))), i = vis.indexOf(cur) + (dx < 0 ? 1 : -1);
+    if (i >= 0 && i < vis.length) show(vis[i], true);
   }, { passive: true });
 })();
 $('go-cam').onclick = openCamera;
