@@ -678,6 +678,11 @@ section.inR{animation:inR .12s ease-out}section.inL{animation:inL .12s ease-out}
     <p class="lead">売れた数と1個のもうけで、商品を4つに分けます。品目別の精算レシートと卸の納品から出します。</p>
     <div id="menu-box"></div>
     <div class="card" id="sales-add" style="margin-top:12px"></div>
+    <details class="card" id="sales-bulk" style="margin-top:12px"><summary><b>売上のお知らせメールをまとめて取り込む</b> <span class="k">道の駅・直売所などのメール。何日分でも</span></summary>
+      <p class="k" style="margin:8px 0 6px">メールの本文を、何通分でも続けて貼り付けてください。「読み取る」で中身を確かめてから「取り込む」を押します。記録済みの日は二重にしません。</p>
+      <textarea id="sb-text" rows="8" style="width:100%;font:inherit;font-size:15px;padding:8px 10px;border:1.5px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)" placeholder="2026年11月12日 19時45分 現在&#10;チーズ万十４個 6点 4200円&#10;【合計】 9点 8400円"></textarea>
+      <div class="ask"><button class="btn ghost" type="button" id="sb-check">読み取る</button><button class="btn" type="button" id="sb-go" hidden>取り込む</button></div>
+      <div id="sb-out"></div></details>
   </section>
   <section id="t-ws" hidden>
     <div class="ph"><div><h1>卸</h1><p class="lead">納品を記録すると、月末に卸先ごとの請求書になります。</p></div><div class="acts"><button class="btn" type="button" id="ws-add-top">＋ 納品を記録</button></div></div>
@@ -742,6 +747,6 @@ section.inR{animation:inR .12s ease-out}section.inL{animation:inL .12s ease-out}
 </div></nav>
 
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-<script src="app.js?v=106"></script>
+<script src="app.js?v=107"></script>
 </body>
 </html>

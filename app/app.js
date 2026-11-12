@@ -1505,6 +1505,25 @@ function openInvoice(mo, to) {
     ${si.bank ? `<p>お振込先: ${esc(si.bank)}</p>` : ''}${rows.some(r => r.unit == null) ? '<p style="color:#a4512a">単価が未定の品があります。「卸」の画面で卸値を入れてください。</p>' : ''}`);
 }
 // ---------- 売上ともうけ ----------
+// 売上のお知らせメールをまとめて取り込む(読み取る → 中身を見せる → 取り込む)
+if ($('sb-check')) {
+  $('sb-check').onclick = async () => {
+    const text = $('sb-text').value; if (!text.trim()) { $('sb-text').focus(); return; }
+    $('sb-out').innerHTML = '<p class="k">読み取っています…</p>'; $('sb-go').hidden = true;
+    const r = await api({ kind: 'app_set', field: 'salesbulk', value: { text, dry: true } });
+    if (!r.ok) { $('sb-out').innerHTML = `<p class="k">${esc(r.error || '読み取れませんでした')}</p>`; return; }
+    const p = r.preview, its = Object.entries(p.items).sort((a, b) => b[1] - a[1]);
+    $('sb-out').innerHTML = `<p style="margin:8px 0 4px"><b>${p.days}日分・合計 ${yen(p.total)}</b> <span class="k">${esc(p.from)} 〜 ${esc(p.to)}</span></p><div class="scroll"><table>${its.map(([n, q]) => `<tr><td>${esc(n)}</td><td class="n">${q}点</td></tr>`).join('')}</table></div><p class="k" style="margin:6px 0 0">よければ「取り込む」を押してください。</p>`;
+    $('sb-go').hidden = false;
+  };
+  $('sb-go').onclick = async () => {
+    $('sb-go').disabled = true;
+    const r = await api({ kind: 'app_set', field: 'salesbulk', value: { text: $('sb-text').value } });
+    $('sb-go').disabled = false;
+    if (!r.ok) { toast(r.error || '取り込めませんでした'); return; }
+    D = r.data; renderAll(); $('sb-text').value = ''; $('sb-go').hidden = true; $('sb-out').innerHTML = `<p style="margin:8px 0 0">${esc(r.msg)}</p>`; toast('売上を取り込みました。', 'ok');
+  };
+}
 // メニューの分析(看板・見直し・売り方の工夫・やめる候補)
 let menuMo = null;
 function renderMenuA() {
@@ -1523,6 +1542,7 @@ function renderMenuA() {
 }
 function renderSales() {
   renderMenuA();
+  if ($('sales-bulk')) $('sales-bulk').hidden = noMoney();
   const sa = D.sales || {}, ms = Object.keys(sa).sort().reverse(), chips = $('sales-chips');
   $('sales-add').innerHTML = `<p style="margin:0 0 6px"><b>写真がないときは数字で</b></p><div class="fld"><span class="k">日付</span><input id="sl-date" type="date" value="${new Date().toLocaleDateString('sv-SE')}"><span class="k">売上(税込)</span><input id="sl-total" inputmode="numeric" placeholder="52300"><span class="k">客数</span><input id="sl-cust" inputmode="numeric" placeholder="48(なくても可)"></div><div class="ask"><button class="btn" type="button" id="sl-go">記録</button><span class="k">${SHOT}精算レシートを撮るのが一番かんたんです</span></div>`;
   $('sl-go').onclick = () => { const t = $('sl-total').value.trim(); if (!t) { chat('売上の金額を入れてください'); return; } setValueX({ field: 'sales', value: { date: $('sl-date').value, total: t, customers: $('sl-cust').value.trim() } }); };
