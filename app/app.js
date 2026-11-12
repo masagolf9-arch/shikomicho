@@ -150,7 +150,7 @@ function renderToday() {
   const up0 = unpaid(), bb = $('badge-book'); bb.textContent = up0.length; bb.hidden = !up0.length;
   const hm0 = hygMissing().length, bh = $('badge-hyg'); bh.textContent = hm0; bh.hidden = !hm0;
   renderHero(q); renderMenu(q); renderGreet(); renderHomeProds();
-  renderA2hs(); renderTodo(list); renderStart(); renderMemos(); renderPromises(); renderHomeEvents(); renderBar(); renderCal(); renderReg(); renderCt();
+  renderA2hs(); renderTodo(list); renderStart(); renderMemos(); renderPromises(); renderInspect(); renderHomeEvents(); renderBar(); renderCal(); renderReg(); renderCt();
   $('made').innerHTML = D.made.length ? `<ul class="tl">${D.made.map(m => `<li><span class="tt">${new Date(m.t).toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' })}</span><span>${esc(m.text)}</span></li>`).join('')}</ul>`
     : '<p class="k" style="margin:0">まだありません。作った数を話しかけると、ここに出ます</p>';
 }
@@ -333,6 +333,25 @@ function renderHomeEvents() {
 }
 $('ev-more').onclick = () => show('cal');
 // レジに入れる値段(ピタット原価で売値を変えた → レジを直して「済」)。値段表の印刷も
+// 点検: 見回りで見つけた所。押すと直す場所へ
+let inspAll = false;
+function renderInspect() {
+  const w = $('insp-wrap'), box = $('insp'); if (!w || !box) return;
+  const xs = D.inspect || []; w.hidden = !xs.length; if (!xs.length) return;
+  const warn = xs.filter(x => x.lv === 'warn').length;
+  $('insp-n').textContent = `${xs.length}件${warn ? '(うち要注意 ' + warn + ')' : ''}`;
+  const shown = inspAll ? xs : xs.slice(0, 5);
+  box.innerHTML = shown.map((x, i) => `<div class="insp-row ${x.lv}" role="button" tabindex="0" data-insp="${i}"><span class="dot"></span><span><b>${esc(x.title)}</b><span class="k">${esc(x.why)}</span></span></div>`).join('') +
+    (xs.length > 5 ? `<div class="ask"><button class="btn ghost sm" type="button" id="insp-more">${inspAll ? '少なく表示' : 'ぜんぶ見る(' + xs.length + '件)'}</button></div>` : '');
+  box.querySelectorAll('[data-insp]').forEach(r => { const go = () => inspGo(shown[+r.dataset.insp].go || {}); r.onclick = go; r.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } }; });
+  if ($('insp-more')) $('insp-more').onclick = () => { inspAll = !inspAll; renderInspect(); };
+}
+function inspGo(g) {
+  if (g.tab === 'cost' && g.product) { open.add(g.product); show('cost'); setTimeout(() => { const c = document.querySelector(`#t-cost .prod[data-name="${CSS.escape(g.product)}"]`); if (c) { const d = c.querySelector('.detail'); if (d && d.hidden) c.querySelector('[data-toggle]').click(); c.scrollIntoView({ block: 'start', behavior: 'smooth' }); } }, 250); return; }
+  if (g.tab === 'label' && g.product) { labelName = g.product; show('label'); return; }
+  if (g.tab === 'mat' && g.material) { matF = 'all'; show('mat'); setTimeout(() => matEdit(g.material), 250); return; }
+  show(g.tab || 'today');
+}
 function renderReg() {
   const box = $('reg-box'); if (!box) return;
   const all = noMoney() ? [] : (D.priceChanges || []), pend = all.filter(x => !x.done), done = all.filter(x => x.done).slice(-5).reverse();

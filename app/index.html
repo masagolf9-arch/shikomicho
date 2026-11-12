@@ -138,6 +138,7 @@ details.card summary{cursor:pointer}
 .set-row{flex-wrap:wrap}.set-row>span:first-child{flex:1 1 9em;min-width:0}.set-row>span:first-child>.k{display:block;white-space:normal}
 html,body{overflow-x:clip}
 ol.steps{margin:6px 0 4px;padding-left:1.5em;line-height:1.9}
+.insp-row{display:flex;gap:10px;align-items:flex-start;padding:10px 4px;border-bottom:1px solid var(--line);cursor:pointer}.insp-row:last-child{border-bottom:0}.insp-row .dot{flex:0 0 10px;height:10px;border-radius:50%;margin-top:6px;background:var(--line)}.insp-row.warn .dot{background:var(--warn)}.insp-row b{display:block;font-size:15px}.insp-row .k{display:block;margin-top:2px}
 ol.steps li{margin:2px 0}
 .stimg{display:block;max-width:min(100%,320px);border-radius:10px;margin:6px 0 2px;border:1px solid var(--line);min-height:40px;background:var(--bg)}
 .set-row+.set-row{border-top:1px solid var(--line-2)}
@@ -591,6 +592,9 @@ section.inR{animation:inR .12s ease-out}section.inL{animation:inL .12s ease-out}
         <div id="promises"></div>
         <h1 class="sub">伝言 <button class="btn ghost sm" type="button" id="memo-add">＋ 書く</button></h1>
         <div id="memos"></div>
+        <div id="insp-wrap" hidden><h1 class="sub">点検 <span class="k" id="insp-n" style="font-size:13px;font-weight:400"></span></h1>
+        <p class="lead">ピタット原価がデータを見回って、おかしいかもしれない所を出しています。押すと直す場所が開きます。</p>
+        <div class="card" id="insp"></div></div>
         <h1 class="sub">確認待ち・お知らせ</h1>
         <p class="lead">答えるとすぐ原価に反映されます。</p>
         <div class="stack" id="notices"></div>
@@ -734,6 +738,6 @@ section.inR{animation:inR .12s ease-out}section.inL{animation:inL .12s ease-out}
 </div></nav>
 
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-<script src="app.js?v=104"></script>
+<script src="app.js?v=105"></script>
 </body>
 </html>
