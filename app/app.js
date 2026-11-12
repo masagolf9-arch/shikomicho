@@ -858,10 +858,10 @@ function lblPrintCard(p, L) {
           <input id="lb-st" value="${esc(L.storage)}" style="margin-top:6px${STORAGES.includes(L.storage) ? ';display:none' : ''}" placeholder="保存方法を書く"></div>
         <span class="k">包装</span><div><div id="lb-packs">${(L.packs.length ? L.packs : [{ name: '', content: L.content, jan: L.jan }]).map(packRow).join('')}</div>
           <button class="btn ghost" type="button" id="lb-addpack">包装を足す</button><p class="k" style="margin:4px 0 0">袋・箱など包装ごとに、内容量とJANコード(卸の商品だけ)を入れます</p></div>
-        <span class="k">栄養成分</span><div><label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="lb-nut"${L.nut ? ' checked' : ''} style="width:auto">ラベルに載せる</label>
+        <span class="k">栄養成分</span><div><label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="lb-nut"${L.nut ? ' checked' : ''}>ラベルに載せる</label>
           <details${L.nutMan ? ' open' : ''}><summary class="k">前の表示や分析の値を使う(入れなければ計算した値)</summary><div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:6px"><select id="lb-nbase"><option${!L.nutMan || L.nutMan.base === '100g' ? ' selected' : ''}>100g</option><option${L.nutMan && L.nutMan.base === '1個' ? ' selected' : ''}>1個</option></select><span class="k">当たり</span>
           ${['熱量kcal', 'たんぱく質g', '脂質g', '炭水化物g', '食塩相当量g'].map((l, i) => `<label class="k" style="display:flex;flex-direction:column">${l}<input class="lb-nv" inputmode="decimal" style="width:5.5em" value="${L.nutMan ? L.nutMan.v[i] : ''}"></label>`).join('')}</div></details></div>
-        <span class="k">プラマーク</span><label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="lb-pla"${L.pla ? ' checked' : ''} style="width:auto">ラベルに入れる(袋がプラスチックのとき)</label>
+        <span class="k">プラマーク</span><label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="lb-pla"${L.pla ? ' checked' : ''}>ラベルに入れる(袋がプラスチックのとき)</label>
       </div><div class="ask"><button class="btn ghost" type="button" id="lb-save">設定を保存</button><span class="k" id="lb-msg"></span></div></details>
     <div class="fld" style="margin-top:8px">
       ${L.packs.length > 1 ? `<span class="k">包装</span><select id="lb-pack">${L.packs.map((k, i) => `<option value="${i}">${esc(k.name || k.content)}</option>`).join('')}</select>` : ''}
