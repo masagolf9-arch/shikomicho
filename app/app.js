@@ -738,6 +738,19 @@ function emptyBox(ic, title, text, btn) {
 }
 document.addEventListener('click', e => { const b = e.target.closest('[data-empty]'); if (!b) return; if (b.dataset.empty === 'cam') openCamera(); else if (b.dataset.empty === 'ws') $('ws-to').focus(); });
 // ---------- 原価 ----------
+// 税込の売価から、出し方ごとの税抜と原価率(税抜)を出す
+function taxHtml2(p) {
+  const t = p.tax; if (!t) return p.price ? '' : '<p class="k" style="margin:2px 0 6px">売価を入れると、税抜の売値と原価率が出ます。</p>';
+  const row = (l, o) => `<tr><td>${l} <span class="k">${o.rate}%</span></td><td class="n">税抜 ${o.ex.toLocaleString('ja-JP')}円</td><td class="n">${o.ratio != null ? '原価率 ' + o.ratio + '%' : '-'}</td></tr>`;
+  let h = '<table style="margin:2px 0 6px">';
+  if (t.takeout) h += row('持ち帰り', t.takeout);
+  if (t.takeoutNext) h += row(`持ち帰り(${esc(t.takeoutNext.from.slice(0, 7).replace('-', '年'))}月〜)`, t.takeoutNext);
+  if (t.eatin) h += row('店内', t.eatin);
+  h += '</table>';
+  if (t.takeout && t.eatin) h += `<p class="k" style="margin:0 0 6px">税込が同じ${p.price}円だと、店内は税抜で${(Math.round((t.takeout.ex - t.eatin.ex) * 10) / 10).toLocaleString('ja-JP')}円少なくなります。</p>`;
+  if (t.takeoutNext) h += `<p class="k" style="margin:0 0 6px">税込${p.price}円のままなら、${esc(t.takeoutNext.from.slice(5).replace('-', '/'))}から持ち帰りの税抜が${(Math.round((t.takeoutNext.ex - t.takeout.ex) * 10) / 10).toLocaleString('ja-JP')}円増えます。</p>`;
+  return h;
+}
 const open = new Set();
 function renderCost() {
   const box = $('costs');
@@ -759,7 +772,8 @@ function renderCost() {
       <div style="margin-top:12px"><b>作り方</b>${(p.steps || []).length ? `<ol class="steps">${p.steps.map((s, si) => `<li>${esc(s)}${(p.simgs || [])[si] ? `<div><img class="stimg" data-img="${esc(p.simgs[si])}" alt="手順${si + 1}の写真"><div><button class="btn ghost sm" type="button" data-imgdel="${i}:${si}">写真を消す</button></div></div>` : ` <button class="btn ghost sm" type="button" data-imgadd="${i}:${si}">写真を付ける</button>`}</li>`).join('')}</ol>` : ' <span class="k">まだ入っていません</span>'}
       <details><summary class="k" style="cursor:pointer">作り方を書く・直す(1行に1手順)</summary><textarea id="stp-${i}" rows="6" style="width:100%;margin-top:6px;font:inherit;font-size:16px;padding:8px 10px;border:1.5px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)" placeholder="例&#10;粉と砂糖を合わせる&#10;卵を混ぜて生地にする&#10;30gずつ包んで焼く">${esc((p.steps || []).join('\n'))}</textarea><div class="ask" style="margin-top:6px"><button class="btn ghost sm" type="button" data-steps="${i}">作り方を保存</button></div></details></div>
       <div class="set"><span class="k">1${U}の重さ</span><input id="spw-${i}" inputmode="decimal" value="${p.pw || ''}" placeholder="例 40"><span class="k">g</span><button class="btn ghost" type="button" data-set="pw" data-i="${i}">決める</button></div>
-      <div class="set"><span class="k">売価</span><input id="sprice-${i}" inputmode="decimal" value="${p.price || ''}" placeholder="例 250"><span class="k">円</span><button class="btn ghost" type="button" data-set="price" data-i="${i}">決める</button></div>
+      <div class="set"><span class="k">売価(税込)</span><input id="sprice-${i}" inputmode="decimal" value="${p.price || ''}" placeholder="例 250"><span class="k">円</span><button class="btn ghost" type="button" data-set="price" data-i="${i}">決める</button></div>
+      ${noMoney() || p.kind === 'part' ? '' : `<div class="set"><span class="k">出し方</span><span class="seg" data-serve="${i}">${[['takeout', '持ち帰り'], ['eatin', '店内'], ['both', '両方']].map(([v, l]) => `<button type="button" data-v="${v}" aria-pressed="${(p.serve || 'takeout') === v}">${l}</button>`).join('')}</span></div>${taxHtml2(p)}`}
       ${noMoney() || p.kind === 'part' ? '' : composeHtml(p)}
       ${noMoney() ? '' : `<div style="margin-top:14px;text-align:right"><button class="btn ghost sm" type="button" data-delprod="${esc(p.name)}" style="color:var(--warn);border-color:var(--warn)">この商品を消す</button></div>`}`;
     const isOpen = open.has(p.name);
@@ -796,6 +810,7 @@ function renderCost() {
     const r = await api({ kind: 'app_img', product: D.products[i].name, idx: si });
     if (r.ok) { D = r.data; renderAll(); toast(r.msg || '写真を消しました。', 'ok'); } else toast(r.error || '消せませんでした');
   }));
+  box.querySelectorAll('[data-serve]').forEach(sg => sg.querySelectorAll('button').forEach(b => b.onclick = () => setValueX({ field: 'serve', product: D.products[+sg.dataset.serve].name, value: b.dataset.v })));
   box.querySelectorAll('[data-steps]').forEach(b => b.onclick = () => {
     const i = +b.dataset.steps, p = D.products[i];
     setValueX({ field: 'steps', product: p.name, value: $('stp-' + i).value.split('\n').map(x => x.trim()).filter(Boolean) });
@@ -1197,7 +1212,7 @@ function renderCount() {
 async function setValueX(extra) {
   const out = await api(Object.assign({ kind: 'app_set' }, extra));
   if (!out.ok) { toast(out.error || 'うまく記録できませんでした', 'ng'); return; }
-  D = out.data; renderAll(); if (out.msg) { chat(out.msg); return; } toast(extra.field === 'check' ? '確かめました。' : extra.field === 'restoreprod' ? 'レシピを戻しました。' : extra.field === 'hyg' ? '記録しました。' : extra.field === 'deliv' ? '納品を記録しました。' : extra.field === 'shop' ? 'お店の情報を保存しました。' : extra.field === 'lbl' ? 'ラベルの設定を保存しました。' : extra.field === 'paybank' ? `振込は「${esc((payBank() || {}).name || '')}」を開くようにしました。` : ['biz', 'sell', 'unitword', 'closed', 'wsprice', 'regalias'].includes(extra.field) ? '変えました。' : extra.field === 'mat' ? (extra.value && extra.value.alias ? `「${esc(extra.value.alias)}」を「${esc(extra.name)}」の別名にしました。原価に反映しました。` : '材料を保存しました。') : extra.field === 'hygnotice' ? (extra.value === 'off' ? '衛生記録のお知らせは送らないようにしました。' : `衛生記録のお知らせは${extra.value}時に送ります。`) : extra.field === 'sales' ? '売上を記録しました。' : extra.field === 'cycle' ? `棚卸は「${extra.value}」にしました。その前にLINEでお知らせします。` : '記録しました。在庫を計算しなおしました。', 'ok'); act('heart', 1.3);
+  D = out.data; renderAll(); if (out.msg) { chat(out.msg); return; } toast(extra.field === 'check' ? '確かめました。' : extra.field === 'restoreprod' ? 'レシピを戻しました。' : extra.field === 'hyg' ? '記録しました。' : extra.field === 'deliv' ? '納品を記録しました。' : extra.field === 'shop' ? 'お店の情報を保存しました。' : extra.field === 'lbl' ? 'ラベルの設定を保存しました。' : extra.field === 'paybank' ? `振込は「${esc((payBank() || {}).name || '')}」を開くようにしました。` : ['biz', 'sell', 'unitword', 'serve', 'closed', 'wsprice', 'regalias'].includes(extra.field) ? '変えました。' : extra.field === 'tax' ? '税率を保存しました。' : extra.field === 'mat' ? (extra.value && extra.value.alias ? `「${esc(extra.value.alias)}」を「${esc(extra.name)}」の別名にしました。原価に反映しました。` : '材料を保存しました。') : extra.field === 'hygnotice' ? (extra.value === 'off' ? '衛生記録のお知らせは送らないようにしました。' : `衛生記録のお知らせは${extra.value}時に送ります。`) : extra.field === 'sales' ? '売上を記録しました。' : extra.field === 'cycle' ? `棚卸は「${extra.value}」にしました。その前にLINEでお知らせします。` : '記録しました。在庫を計算しなおしました。', 'ok'); act('heart', 1.3);
 }
 // 税理士さんに渡す一式(印刷用)
 function taxHtml(r) {
@@ -1291,6 +1306,11 @@ function renderSet() {
     <div class="set-row"><span>画面の色</span>${seg('theme', [['auto', '自動'], ['light', '明るい'], ['dark', '暗い']], store.get('theme', 'auto'))}</div>`) + grp('お店の決まりごと', 'stock', `
     ${SH('stock') ? '' : `<div class="set-row"><span>棚卸<br><span class="k">お店みんな共通</span></span>${seg('cycle', [['毎月', '毎月'], ['年1回', '年1回']], cyc)}</div>`}
     <div class="set-row"><span>売り方<br><span class="k">対面・店内で出すお店は、裏表示よりアレルゲン表が主役になります</span></span>${seg('sell', [['pack', '包装して売る'], ['face', '対面・店内で出す']], (D.shopInfo || {}).sell || 'pack')}</div>
+    ${D.me && D.me.owner ? `<div class="set-row" style="display:block"><span>税率<br><span class="k">売価は税込で入れます。原価率は税抜で見ます</span></span>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:6px"><span class="k">持ち帰り</span><input id="tx-to" inputmode="decimal" style="width:4.5em" value="${((D.shopInfo || {}).tax || {}).takeout ?? 8}"><span class="k">%</span><span class="k" style="margin-left:6px">店内</span><input id="tx-ei" inputmode="decimal" style="width:4.5em" value="${((D.shopInfo || {}).tax || {}).eatin ?? 10}"><span class="k">%</span></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:6px"><span class="k">持ち帰りが変わる日</span><input id="tx-from" type="date" style="width:auto" value="${(((D.shopInfo || {}).tax || {}).next || {}).from || ''}"><span class="k">から</span><input id="tx-next" inputmode="decimal" style="width:4.5em" placeholder="例 1" value="${(((D.shopInfo || {}).tax || {}).next || {}).rate ?? ''}"><span class="k">%</span></div>
+      <p class="k" style="margin:6px 0 0">税率が変わることが法律で決まったら、変わる日と税率を入れてください。その日から自動で切りかわります。</p>
+      <div class="ask"><button class="btn ghost sm" type="button" id="tx-save">税率を保存</button></div></div>` : ''}
     <div class="set-row"><span>数え方<br><span class="k">原価や分量の「1個あたり」の言葉</span></span>${seg('unitword', [['個', '個'], ['人前', '人前'], ['杯', '杯'], ['食', '食']], (D.words || {}).unit || '個')}</div>
     <div class="set-row"><span>業種<br><span class="k">AIに伝えるためのメモ。画面や機能は変わりません</span></span>${seg('biz', ((D.words || {}).list || []).map(b => [b, b]), (D.words || {}).biz)}</div>
     `) + grp('お知らせ', 'hyg', `
@@ -1326,6 +1346,7 @@ function renderSet() {
   const nb = document.querySelector('nav button[data-t="book"]'); if (nb) nb.style.display = noMoney() ? 'none' : '';
   $('hygnotice').querySelectorAll('button').forEach(b => b.onclick = () => setValueX({ field: 'hygnotice', value: b.dataset.v }));
   $('closed').querySelectorAll('button').forEach(b => b.onclick = () => { b.setAttribute('aria-pressed', b.getAttribute('aria-pressed') !== 'true'); const v = [...$('closed').querySelectorAll('[aria-pressed="true"]')].map(x => x.dataset.w).join(''); setValueX({ field: 'closed', value: v }); });
+  if ($('tx-save')) $('tx-save').onclick = () => setValueX({ field: 'tax', value: { takeout: $('tx-to').value.trim(), eatin: $('tx-ei').value.trim(), next: $('tx-next').value.trim(), from: $('tx-from').value } });
   $('shop-save').onclick = () => { const v = {}; $('set-box').querySelectorAll('[data-shop]').forEach(i => v[i.dataset.shop] = i.value.trim()); setValueX({ field: 'shop', value: v }); };
   renderBanks();
 }
