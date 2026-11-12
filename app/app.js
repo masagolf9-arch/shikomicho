@@ -1149,7 +1149,7 @@ function renderMat() {
   if (matF === 'up') rows = rows.filter(m => upNames.has(m.name));
   const stk = {}; ((D.stock || {}).items || []).forEach(x => stk[x.key] = x);
   if (matF === 'low') rows = rows.filter(m => stk[m.name] && stk[m.name].known);
-  const row = m => `<tr data-m="${esc(m.name)}" style="cursor:pointer"><td><b>${esc(m.name)}</b>${upNames.has(m.name) ? ' <span class="up">↑</span>' : ''}${m.spec || m.supplier ? ` <span class="k">${esc([m.spec, m.supplier].filter(Boolean).join(' · '))}</span>` : ''}<br><span class="k">${esc(m.display)}${m.allergens.length ? ' · ' + m.allergens.map(esc).join('・') : ''}${m.attrs ? ' · ' + esc(m.attrs) : ''}</span>${m.fromKind ? ' <span class="pill warn">種類の値で仮</span>' : ''}${stk[m.name] && stk[m.name].known ? `<br><span class="pill ${stk[m.name].low ? 'warn' : 'gray'}">残り ${amt(stk[m.name].left, stk[m.name].unit)}${stk[m.name].days != null ? ' · 約' + stk[m.name].days + '日' : ''}</span>` : ''}</td><td class="n">${noMoney() ? '' : m.ppg ? Math.round(m.ppg * 1000).toLocaleString() + '円/kg' : '-'}<br>${m.ok ? '<span class="pill">請求書</span>' : '<span class="pill warn">仮</span>'}</td></tr>`;
+  const row = m => `<tr data-m="${esc(m.name)}" style="cursor:pointer"><td><b>${esc(m.name)}</b>${upNames.has(m.name) ? ' <span class="up">↑</span>' : ''}${m.spec || m.supplier ? ` <span class="k">${esc([m.spec, m.supplier].filter(Boolean).join(' · '))}</span>` : ''}<br><span class="k">${esc(m.display)}${m.allergens.length ? ' · ' + m.allergens.map(esc).join('・') : ''}${m.attrs ? ' · ' + esc(m.attrs) : ''}</span>${m.fromKind ? ' <span class="pill warn">種類の値で仮</span>' : ''}${m.yield && m.yield < 100 ? ` <span class="pill gray">使える${m.yield}%</span>` : ''}${stk[m.name] && stk[m.name].known ? `<br><span class="pill ${stk[m.name].low ? 'warn' : 'gray'}">残り ${amt(stk[m.name].left, stk[m.name].unit)}${stk[m.name].days != null ? ' · 約' + stk[m.name].days + '日' : ''}</span>` : ''}</td><td class="n">${noMoney() ? '' : m.ppg ? Math.round(m.ppg * 1000).toLocaleString() + '円/kg' : '-'}<br>${m.ok ? '<span class="pill">請求書</span>' : '<span class="pill warn">仮</span>'}</td></tr>`;
   const groups = {}; rows.forEach(m => (groups[m.kind || ''] = groups[m.kind || ''] || []).push(m));
   const gk = Object.keys(groups).sort((a, b) => (a === '') - (b === '') || a.localeCompare(b, 'ja'));
   $('mats').innerHTML = (gk.length > 1 || gk[0] ? gk.map(k => `<tr><td colspan="2" style="padding-top:10px"><b class="k">${k ? '種類: ' + esc(k) : '種類をまだ決めていない材料'}</b>${k && groups[k].length > 1 ? ' <span class="k">(' + groups[k].length + '商品)</span>' : ''}</td></tr>` + groups[k].map(row).join('')).join('') : rows.map(row).join('')) || '<tr><td class="k">ありません</td></tr>';
@@ -1185,6 +1185,7 @@ function matEdit(name, preset) {
     <label>規格${inp('me-spec', m.spec, '例 25kg・500g×20')}</label>
     <label>業者${inp('me-sup', m.supplier, '業者名')}</label>
     <label>中身${inp('me-attrs', m.attrs, '例 乳脂肪分47%・発酵・無塩・植物性')}</label>
+    ${m.packaging ? '' : `<label>使える割合(歩留まり)${inp('me-yield', m.yield && m.yield < 100 ? m.yield : '', '例 90', '6em')} %<br><span class="k">皮・骨・ヘタなどを捨てたあと、何%使えるか。空なら100%。原価は使える分で計算します(レシピの量は、むいた後の使う量で書きます)。</span>${!noMoney() && m.ppg && m.yield && m.yield < 100 ? `<br><span class="k">使える分 1kg ${Math.round(m.ppg * 100 / m.yield * 1000).toLocaleString()}円(買った値段 1kg ${Math.round(m.ppg * 1000).toLocaleString()}円)</span>` : ''}</label>`}
     ${name ? `<label>別名を足す(レシピや請求書での書き方)${inp('me-alias', '', '商品名')}</label>${m.aliases && m.aliases.length ? `<span class="k">いまの別名: ${m.aliases.map(esc).join('、')}</span>` : ''}` : `<label>値段(1kgあたり・分かれば)${inp('me-ppkg', '', '例 600', '8em')}</label>`}
     </div><p class="k" style="margin:8px 0">原材料・アレルゲン・栄養は、袋の裏を撮ると本物に置きかわります。それまでは同じ種類の値で仮に出して「要確認」にします。</p>
     <button class="btn" type="button" id="me-go">保存</button> <button class="btn ghost" type="button" id="me-x">やめる</button>`);
@@ -1192,6 +1193,7 @@ function matEdit(name, preset) {
   $('me-kind').setAttribute('list', 'kinds');
   $('me-go').onclick = () => {
     const v = { kind: $('me-kind').value, spec: $('me-spec').value, supplier: $('me-sup').value, attrs: $('me-attrs').value };
+    if ($('me-yield')) { const y = $('me-yield').value.trim(); if (y && !(+y > 0 && +y <= 100)) { $('me-yield').focus(); chat('使える割合は1〜100(%)で入れてください'); return; } v.yield = y ? +y : 100; }
     if (name) { const al = $('me-alias').value.trim(); if (al) v.alias = al; setValueX({ field: 'mat', name, value: v }); }
     else { const nm = $('me-name').value.trim(); if (!nm) { $('me-name').focus(); return; } v.ppkg = parseFloat($('me-ppkg').value) || ''; setValueX({ field: 'mat', name: nm, create: true, value: v }); }
     matBoxClose();
