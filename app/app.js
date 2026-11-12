@@ -1205,7 +1205,13 @@ function renderSet() {
     `) + grp('業者・卸先', 'book', '<p class="k" style="margin:0 0 8px">電話・担当・振込先の一覧は、メニューの「業者・卸先」にあります</p><button class="btn ghost" type="button" id="set-ct">業者・卸先の一覧を開く</button>') + grp('お店の情報', 'ws', `<p class="k" style="margin:0 0 6px">卸の請求書とラベルの製造者欄に入ります</p>
     <div class="set-row" style="display:block;padding-top:0">
       <div class="fld" style="margin-top:8px">${[['name', '店名'], ['rep', '代表者'], ['addr', '住所'], ['tel', '電話'], ['reg', '登録番号(T〜)'], ['bank', '振込先']].map(([k, l]) => `<span class="k">${l}</span><input data-shop="${k}" value="${esc((D.shopInfo || {})[k] || '')}">`).join('')}</div>
-      <div class="ask"><button class="btn" type="button" id="shop-save">お店の情報を保存</button></div></div>`) + `
+      <div class="ask"><button class="btn" type="button" id="shop-save">お店の情報を保存</button></div></div>`) + grp('データの約束', 'label', `
+    <ul class="k" style="margin:0;padding-left:1.2em;line-height:1.9">
+      <li>撮った写真や記録は、お店の帳面を作るためだけに使います。</li>
+      <li>読み取りに使うAI(Anthropic社)の商用サービスには、お客さまの内容をAIの学習に使わない決まりがあります。</li>
+      <li>データはお店ごとに分けて預かり、見られるのは招待した人だけです。</li>
+      <li>やめるときは、記録をまとめて書き出してお渡しし、残るデータは消します。</li>
+    </ul>`) + `
     <div class="set-row" style="padding:8px 4px"><span class="k">${esc(D.shop)} · ${new Date(D.at).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} 時点</span><span class="seg"><button type="button" id="reload">読み込み直す</button></span></div>`;
   $('set-box').querySelectorAll('.seg[data-key] button').forEach(b => b.onclick = () => {
     const key = b.parentNode.dataset.key, v = b.dataset.v;
