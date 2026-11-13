@@ -1444,27 +1444,75 @@ $('ct-go').onclick = async () => {
 const hygMissing = () => (D && D.hyg && !D.closedToday) ? D.hyg.today.missing : [];
 function renderHyg() {
   if (!D.hyg) { $('hyg-today').innerHTML = '<p class="k" style="margin:0">読み込めませんでした</p>'; return; }
-  const t = D.hyg.today;
-  $('hyg-today').innerHTML = `<p style="margin:0 0 8px"><b>今日 ${md(t.date)}</b> <span class="k">${D.closedToday ? '定休日' : t.missing.length ? 'あと' + t.missing.length + 'つ' : 'ぜんぶ記録済み'}</span></p>
-    <div class="hyg-in">${t.items.map((it, i) => `<span>${esc(it.name)}${it.kind === 'temp' ? `<br><span class="k">目安 ${it.lo ?? ''}〜${it.hi ?? ''}℃</span>` : ''}${it.rec ? `<br><span class="pill ${it.rec.j === 'OK' ? '' : 'warn'}">${esc(String(it.rec.v))}${it.kind === 'temp' ? '℃' : ''} · ${esc(it.rec.who || '')}</span>` : ''}</span>
-      ${it.kind === 'temp' ? `<span><input id="hy-${i}" inputmode="decimal" placeholder="℃" aria-label="${esc(it.name)}の温度"></span>` : `<span class="seg" data-hy="${i}"><button type="button" data-v="OK" aria-pressed="false">OK</button><button type="button" data-v="NG" aria-pressed="false">NG</button></span>`}`).join('')}</div>
+  const t = D.hyg.today, own = !!(D.me && D.me.owner), me = (D.me && D.me.name) || '';
+  const range = it => it.kind === 'temp' ? `目安 ${it.lo ?? ''}〜${it.hi ?? ''}℃` : '点検';
+  const recPill = r => r ? `<span class="pill ${r.j === 'OK' ? '' : 'warn'}">${esc(String(r.v))}${typeof r.v === 'number' ? '℃' : ''}</span>` : '';
+  // 今日の温度と点検
+  $('hyg-today').innerHTML = `<div class="row"><h2 class="ch">今日 ${md(t.date)}</h2><span class="pill ${t.missing.length && !D.closedToday ? 'gray' : ''}">${D.closedToday ? '定休日' : t.missing.length ? 'あと' + t.missing.length + 'つ' : 'すべて記録済み'}</span></div>
+    <div class="hy-list">${t.items.map((it, i) => `<div class="hy-row"><div class="hy-nm"><b>${esc(it.name)}</b><span class="k">${range(it)}${it.times === 2 ? '・1日2回' : ''}</span></div>
+      <div class="hy-vals">${it.slots.map((x, j) => `<div class="hy-slot">${x.s ? `<span class="k">${x.s}</span>` : ''}${it.kind === 'temp' ? `<input id="hy-${i}-${j}" inputmode="decimal" placeholder="${x.rec ? esc(String(x.rec.v)) : '℃'}" aria-label="${esc(it.name)}${x.s}の温度">` : `<span class="seg" data-hy="${i}-${j}"><button type="button" data-v="OK" aria-pressed="false">OK</button><button type="button" data-v="NG" aria-pressed="false">NG</button></span>`}${recPill(x.rec)}</div>`).join('')}</div></div>`).join('')}</div>
     <div class="ask"><button class="btn" type="button" id="hyg-go">記録する</button><span class="k">${VIA}「冷蔵 3 冷凍 -18 清掃OK」でも入ります</span></div>`;
   $('hyg-today').querySelectorAll('[data-hy] button').forEach(b => b.onclick = () => { b.parentNode.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b)); });
-  $('hyg-go').onclick = () => { const v = {}; t.items.forEach((it, i) => { if (it.kind === 'temp') { const x = $('hy-' + i).value.trim(); if (x) v[it.name] = x; } else { const p = $('hyg-today').querySelector(`[data-hy="${i}"] [aria-pressed="true"]`); if (p) v[it.name] = p.dataset.v; } }); if (!Object.keys(v).length) { chat('入れる値がまだありません'); return; } setValueX({ field: 'hyg', value: v }); };
+  $('hyg-go').onclick = () => { const v = {}; t.items.forEach((it, i) => it.slots.forEach((x, j) => { const key = it.name + (x.s ? '|' + x.s : '');
+      if (it.kind === 'temp') { const val = $(`hy-${i}-${j}`).value.trim(); if (val) v[key] = val; } else { const p = $('hyg-today').querySelector(`[data-hy="${i}-${j}"] [aria-pressed="true"]`); if (p) v[key] = p.dataset.v; } }));
+    if (!Object.keys(v).length) { chat('温度か点検を入れてから押してください'); return; } setValueX({ field: 'hyg', value: v }); };
+  // 目安を外れたときの対応
+  const fx = $('hyg-fix');
+  fx.hidden = !t.fixes.length;
+  fx.innerHTML = t.fixes.length ? `<h2 class="ch">対応を残す <span class="pill warn">${t.fixes.length}件</span></h2><p class="k" style="margin:0 0 8px">目安を外れた記録には、何をしたかを残します。保健所の確認でも見られるところです。</p>
+    ${t.fixes.map((f, i) => `<div style="margin-top:10px"><b>${esc(f.label)}</b><div class="ask" style="margin-top:4px"><input id="fx-${i}" placeholder="例: 扉を閉め直し、30分後に4℃を確認" style="flex:1;min-width:0;width:auto"><button class="btn ghost" type="button" data-fx="${i}">残す</button></div></div>`).join('')}` : '';
+  fx.querySelectorAll('[data-fx]').forEach(b => b.onclick = () => { const f = t.fixes[b.dataset.fx], text = $('fx-' + b.dataset.fx).value.trim(); if (!text) { $('fx-' + b.dataset.fx).focus(); return; } setValueX({ field: 'hygfix', value: { sheet: f.sheet, row: f.row, text } }); });
+  // 体調チェック表(1人ずつ)
+  const H = t.health || { cols: [], people: [] }, ppl = H.people.slice();
+  if (me && !ppl.some(p => p.name === me)) ppl.unshift({ name: me, rec: null });
+  const mark = v => v === '×' ? '<b class="ng">×</b>' : v === '○' ? '○' : '';
+  $('hyg-health').innerHTML = `<h2 class="ch">体調チェック表</h2><p class="k" style="margin:0 0 8px">作業の前に1人ずつつけます。×が1つでもあると店主に知らせます。LINEで「体調OK」でも入ります。</p>
+    <div class="scroll"><table class="hgrid hh"><tr><th>人</th>${H.cols.map(c => `<th>${esc(c)}</th>`).join('')}<th></th></tr>
+    ${ppl.map((p, i) => { const r = p.rec, mine = p.name === me, can = mine || own;
+      if (r) return `<tr><td>${esc(p.name)}</td>${r.j === '休み' ? `<td colspan="${H.cols.length}" class="k">休み</td>` : r.v.map(v => `<td>${mark(v)}</td>`).join('')}<td><span class="pill ${r.j === '要注意' ? 'warn' : r.j === '休み' ? 'gray' : ''}">${r.j === 'OK' ? '済' : esc(r.j)}</span></td></tr>`;
+      return `<tr><td>${esc(p.name)}</td>${H.cols.map((c, j) => `<td>${can ? `<button type="button" class="tg" data-hp="${i}" data-j="${j}" aria-pressed="true" aria-label="${esc(c)}">○</button>` : ''}</td>`).join('')}<td>${can ? `<button class="btn sm" type="button" data-hgo="${i}">つける</button>${own && !mine ? `<button class="btn ghost sm" type="button" data-hoff="${i}">休み</button>` : ''}` : '<span class="k">まだ</span>'}</td></tr>`; }).join('')}</table></div>
+    <p class="k" style="margin:8px 0 0">○は「問題なし」。押すと×に変わります(発熱・せき、下痢・おう吐、手の傷はあれば×、手洗い・服装はできていなければ×)。</p>`;
+  $('hyg-health').querySelectorAll('.tg').forEach(b => b.onclick = () => { const on = b.getAttribute('aria-pressed') !== 'true'; b.setAttribute('aria-pressed', on); b.textContent = on ? '○' : '×'; b.classList.toggle('ng', !on); });
+  $('hyg-health').querySelectorAll('[data-hgo]').forEach(b => b.onclick = () => { const i = b.dataset.hgo, marks = [...$('hyg-health').querySelectorAll(`.tg[data-hp="${i}"]`)].map(x => x.getAttribute('aria-pressed') === 'true'); setValueX({ field: 'health', value: { person: ppl[i].name, marks } }); });
+  $('hyg-health').querySelectorAll('[data-hoff]').forEach(b => b.onclick = () => setValueX({ field: 'health', value: { person: ppl[b.dataset.hoff].name, off: true } }));
+  // 機器と点検の項目(店主)
+  const ib = $('hyg-items'); ib.hidden = !own;
+  if (own) {
+    ib.innerHTML = `<h2 class="ch">冷蔵庫・冷凍庫と点検の項目</h2><p class="k" style="margin:0 0 8px">冷蔵庫が何台あっても、1台ずつ名前をつけて足せます。ショーケースや温蔵庫、清掃の点検も足せます。</p>
+      <div class="hy-list">${t.items.map((it, i) => `<div class="hy-row"><div class="hy-nm"><b>${esc(it.name)}</b><span class="k">${range(it)}・1日${it.times}回</span></div>
+        <div class="hy-vals">${it.kind === 'temp' ? `<input id="hi-lo-${i}" inputmode="decimal" value="${it.lo ?? ''}" aria-label="${esc(it.name)}の下限" style="width:64px"><span class="k">〜</span><input id="hi-hi-${i}" inputmode="decimal" value="${it.hi ?? ''}" aria-label="${esc(it.name)}の上限" style="width:64px"><span class="k">℃</span>` : ''}
+        <select id="hi-t-${i}" aria-label="${esc(it.name)}の回数"><option value="1"${it.times === 1 ? ' selected' : ''}>1日1回</option><option value="2"${it.times === 2 ? ' selected' : ''}>1日2回</option></select>
+        <button class="btn ghost sm" type="button" data-hie="${i}">保存</button><button class="btn ghost sm" type="button" data-hio="${i}">止める</button></div></div>`).join('')}</div>
+      <div class="hy-add"><input id="hi-name" placeholder="名前(例: 冷蔵庫2、ショーケース)" maxlength="20"><select id="hi-type" aria-label="種類"><option value="冷蔵">冷蔵(0〜10℃)</option><option value="冷凍">冷凍(-30〜-15℃)</option><option value="温蔵">温蔵(65℃以上)</option><option value="中心温度">加熱の中心温度(75℃以上)</option><option value="チェック">点検(OK/NG)</option></select><select id="hi-times" aria-label="回数"><option value="1">1日1回</option><option value="2">1日2回(朝・夕)</option></select><button class="btn" type="button" id="hi-add">足す</button></div>`;
+    $('hi-add').onclick = () => { const name = $('hi-name').value.trim(); if (!name) { $('hi-name').focus(); return; } setValueX({ field: 'hygitem', value: { action: 'add', name, type: $('hi-type').value, times: +$('hi-times').value } }); };
+    ib.querySelectorAll('[data-hie]').forEach(b => b.onclick = () => { const i = b.dataset.hie, it = t.items[i]; setValueX({ field: 'hygitem', value: { action: 'edit', name: it.name, lo: it.kind === 'temp' ? $('hi-lo-' + i).value : '', hi: it.kind === 'temp' ? $('hi-hi-' + i).value : '', times: +$('hi-t-' + i).value } }); });
+    ib.querySelectorAll('[data-hio]').forEach(b => b.onclick = () => { const it = t.items[b.dataset.hio]; if (confirm(`「${it.name}」の記録を止めますか? これまでの記録は残ります。`)) setValueX({ field: 'hygitem', value: { action: 'off', name: it.name } }); });
+  }
+  // 月の記録表
   const ms = Object.keys(D.hyg.months || {}).sort().reverse(), chips = $('hyg-chips');
   if (!ms.length) { chips.innerHTML = ''; $('hyg-month').innerHTML = '<p class="k" style="margin:0">記録がたまると、ここに月の表ができます</p>'; return; }
-  const sel = chips.dataset.m && ms.includes(chips.dataset.m) ? chips.dataset.m : ms[0];
+  const sel = chips.dataset.m && ms.includes(chips.dataset.m) ? chips.dataset.m : ms[0], M = D.hyg.months[sel];
   chips.innerHTML = ms.map(m => `<button class="chip" type="button" data-m="${m}" aria-pressed="${m === sel}">${+m.slice(5)}月</button>`).join('');
   chips.querySelectorAll('[data-m]').forEach(b => b.onclick = () => { chips.dataset.m = b.dataset.m; renderHyg(); });
-  $('hyg-month').innerHTML = hygTable(sel);
-  $('hyg-print').onclick = () => openPrint(`<h2>衛生管理記録</h2><p>${esc(D.shop)} ・ ${sel.replace('-', '年')}月</p>${hygTable(sel)}<p style="font-size:12px">目安: ${t.items.filter(i => i.kind === 'temp').map(i => `${esc(i.name)} ${i.lo ?? ''}〜${i.hi ?? ''}℃`).join(' / ')}</p><p style="margin-top:24px">確認者: ＿＿＿＿＿＿＿＿</p>`);
+  $('hyg-month').innerHTML = `<div class="row" style="margin-bottom:8px"><span>${M.ok ? `<span class="pill">確認済み</span> <span class="k">${esc(M.ok)}</span>` : '<span class="pill gray">店主の確認まだ</span>'}</span>${own && !M.ok ? '<button class="btn ghost sm" type="button" id="hyg-ok">この月を確認しました</button>' : ''}</div>` + hygTable(sel);
+  if ($('hyg-ok')) $('hyg-ok').onclick = () => setValueX({ field: 'hygok', value: sel });
+  $('hyg-print').onclick = () => openPrint(`<h2>衛生管理記録</h2><p>${esc(D.shop)} ・ ${sel.replace('-', '年')}月${M.ok ? ' ・ 確認: ' + esc(M.ok) : ' ・ 確認者:　　　　　'}</p>${hygTable(sel)}<p style="font-size:12px">目安: ${t.items.filter(i => i.kind === 'temp').map(i => `${esc(i.name)} ${i.lo ?? ''}〜${i.hi ?? ''}℃`).join(' / ')}</p>`);
 }
 function hygTable(mo) {
-  const days = D.hyg.months[mo] || {}, names = D.hyg.today.items.map(i => i.name), [y, m] = mo.split('-').map(Number), n = new Date(y, m, 0).getDate();
-  let h = `<table class="hgrid"><tr><th>日</th>${names.map(x => `<th>${esc(x)}</th>`).join('')}<th>記録した人</th></tr>`;
-  for (let d = 1; d <= n; d++) { const k = `${mo}-${String(d).padStart(2, '0')}`, r = days[k] || {}; const who = [...new Set(Object.values(r).map(x => x.who))].join('・');
-    h += `<tr><td>${d}(${'日月火水木金土'[new Date(y, m - 1, d).getDay()]})</td>${names.map(x => r[x] ? `<td class="${r[x].j === 'OK' ? '' : 'bad'}">${esc(String(r[x].v))}</td>` : '<td></td>').join('')}<td>${esc(who)}</td></tr>`; }
-  return h + '</table>';
+  const M = D.hyg.months[mo], days = M.days || {}, names = M.cols || [], [y, m] = mo.split('-').map(Number), n = new Date(y, m, 0).getDate();
+  const wd = d => '日月火水木金土'[new Date(y, m - 1, d).getDay()], key = d => `${mo}-${String(d).padStart(2, '0')}`;
+  let h = `<h3 class="ht">温度と点検</h3><table class="hgrid"><tr><th>日</th>${names.map(x => `<th>${esc(x)}</th>`).join('')}<th>記録した人</th></tr>`;
+  for (let d = 1; d <= n; d++) { const r = days[key(d)] || {}; const who = [...new Set(Object.values(r).map(x => x.who))].join('・');
+    h += `<tr><td>${d}(${wd(d)})</td>${names.map(x => r[x] ? `<td class="${r[x].j === 'OK' ? '' : 'bad'}">${esc(String(r[x].v))}</td>` : '<td></td>').join('')}<td>${esc(who)}</td></tr>`; }
+  h += '</table>';
+  const hp = M.health || {}, people = [...new Set(Object.values(hp).flatMap(x => Object.keys(x)))];
+  if (people.length) {
+    h += `<h3 class="ht">体調チェック表</h3><table class="hgrid"><tr><th>日</th>${people.map(p => `<th>${esc(p)}</th>`).join('')}</tr>`;
+    for (let d = 1; d <= n; d++) { const r = hp[key(d)] || {}; h += `<tr><td>${d}(${wd(d)})</td>${people.map(p => { const x = r[p]; return !x ? '<td></td>' : x.j === '休み' ? '<td>休</td>' : `<td class="${x.j === 'OK' ? '' : 'bad'}">${x.j === 'OK' ? '○' : '×'}</td>`; }).join('')}</tr>`; }
+    h += '</table>';
+  }
+  if ((M.fixes || []).length) h += `<h3 class="ht">目安を外れたときの対応</h3><table class="hgrid fx"><tr><th>日</th><th>記録</th><th>対応</th></tr>${M.fixes.map(f => `<tr><td>${+f.d.slice(8)}日</td><td>${esc(f.what)}</td><td>${esc(f.fix)}</td></tr>`).join('')}</table>`;
+  return h;
 }
 function openPrint(html, opt) {
   if (opt && opt.bare) {} else if (!/<h2/.test(html.slice(0, 200))) html = `<div class="ph-print"><b>${esc(D.shop)}</b><span>${new Date().toLocaleDateString('ja-JP')}</span></div>` + html; else html = html.replace(/<\/h2>/, `</h2><div class="ph-print"><b>${esc(D.shop)}</b><span>${new Date().toLocaleDateString('ja-JP')}</span></div>`);

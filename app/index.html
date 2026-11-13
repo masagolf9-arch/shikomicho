@@ -585,6 +585,28 @@ h1.sub{font-size:18px;margin:32px 0 10px}
 .lead{font-size:14px;max-width:40em}
 .k{line-height:1.6}
 .say{font-size:14px;box-shadow:var(--shadow)}
+
+/* 衛生 */
+.ch{font-size:16px;font-weight:700;margin:0 0 6px;font-family:var(--font)}
+.hy-list{display:flex;flex-direction:column}
+.hy-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line-2);flex-wrap:wrap}
+.hy-row:first-child{border-top:0}
+.hy-nm{display:flex;flex-direction:column;min-width:0}
+.hy-nm .k{font-size:12px}
+.hy-vals{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+.hy-slot{display:flex;gap:6px;align-items:center}
+.hy-vals input,.hy-add input,.hy-vals select,.hy-add select{font:inherit;font-size:16px;min-height:44px;padding:0 10px;border:1.5px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);width:84px}
+.hy-vals select,.hy-add select{width:auto}
+.hy-add{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1px solid var(--line-2)}
+.hy-add input{flex:1 1 180px;width:auto}
+.hgrid.hh td,.hgrid.hh th{padding:6px}
+.tg{font:inherit;font-size:16px;width:36px;height:36px;border-radius:10px;border:1.5px solid var(--line);background:var(--card);color:var(--ok);cursor:pointer}
+.tg.ng{color:var(--warn);border-color:var(--warn);background:var(--warn-soft);font-weight:700}
+b.ng{color:var(--warn)}
+.ht{font-size:14px;margin:14px 0 6px}
+.ht:first-child{margin-top:0}
+.hgrid.fx td{white-space:normal;text-align:left}
+#t-hyg .card+.card{margin-top:12px}
 </style>
 </head>
 <body>
@@ -682,6 +704,9 @@ h1.sub{font-size:18px;margin:32px 0 10px}
   <section id="t-hyg" hidden>
     <div class="ph"><div><h1>衛生記録</h1><p class="lead">毎日の温度と点検。目安を外れたら、お店のみんなにLINEで知らせます。</p></div><div class="acts"><button class="btn ghost" type="button" id="hyg-print-top">記録表を印刷</button></div></div>
     <div class="card" id="hyg-today"></div>
+    <div class="card" id="hyg-fix" hidden></div>
+    <div class="card" id="hyg-health"></div>
+    <div class="card" id="hyg-items" hidden></div>
     <h1 class="sub">月の記録表(HACCP)</h1>
     <div class="chips" id="hyg-chips"></div>
     <div class="card scroll" id="hyg-month"></div>
@@ -770,6 +795,6 @@ h1.sub{font-size:18px;margin:32px 0 10px}
 </div></nav>
 
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-<script src="app.js?v=112"></script>
+<script src="app.js?v=113"></script>
 </body>
 </html>
