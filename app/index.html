@@ -789,8 +789,9 @@ section.locked>:not(.ph):not(.lockcard):not(h1){display:none!important}
     <p class="lead">売れた数と1個のもうけで、商品を4つに分けます。品目別の精算レシートと卸の納品から出します。</p>
     <div id="menu-box"></div>
     <div class="card" id="sales-add" style="margin-top:12px"></div>
-    <details class="card" id="sales-bulk" style="margin-top:12px"><summary><b>売上のお知らせメールをまとめて取り込む</b> <span class="k">道の駅・直売所などのメール。何日分でも</span></summary>
-      <p class="k" style="margin:8px 0 6px">メールの本文を、何通分でも続けて貼り付けてください。「読み取る」で中身を確かめてから「取り込む」を押します。記録済みの日は二重にしません。</p>
+    <details class="card" id="sales-bulk" style="margin-top:12px"><summary><b>売上をまとめて取り込む</b> <span class="k">道の駅・直売所のメール、レジやPOSの日報(CSV・PDF)。何日分でも</span></summary>
+      <p class="k" style="margin:8px 0 6px">メールの本文を何通分でも続けて貼り付けるか、レジ・POSのソフトから書き出したファイル(CSV・PDF・画像)を選んでください。「読み取る」で中身を確かめてから「取り込む」を押します。記録済みの日は二重にしません。</p>
+      <div class="ask" style="margin:0 0 8px"><label class="btn ghost sm" style="cursor:pointer">ファイルを選ぶ<input type="file" id="sb-file" accept=".csv,.txt,.tsv,.pdf,image/*,text/csv,text/plain,application/pdf" hidden></label><span class="k" id="sb-fname">決まった形でないものは、AIが読み取ります(写真の読み取りと同じ回数で数えます)</span></div>
       <textarea id="sb-text" rows="8" style="width:100%;font:inherit;font-size:15px;padding:8px 10px;border:1.5px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)" placeholder="2026年11月12日 19時45分 現在&#10;チーズ万十４個 6点 4200円&#10;【合計】 9点 8400円"></textarea>
       <div class="ask"><button class="btn ghost" type="button" id="sb-check">読み取る</button><button class="btn" type="button" id="sb-go" hidden>取り込む</button></div>
       <div id="sb-out"></div></details>
@@ -860,6 +861,6 @@ section.locked>:not(.ph):not(.lockcard):not(h1){display:none!important}
 </div></nav>
 
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-<script src="app.js?v=124"></script>
+<script src="app.js?v=125"></script>
 </body>
 </html>

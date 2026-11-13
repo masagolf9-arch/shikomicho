@@ -1633,22 +1633,37 @@ function openInvoice(mo, to) {
 }
 // ---------- 売上ともうけ ----------
 // 売上のお知らせメールをまとめて取り込む(読み取る → 中身を見せる → 取り込む)
+let sbFile = null, sbReports = null;
+if ($('sb-file')) $('sb-file').onchange = () => {
+  const f = $('sb-file').files[0]; if (!f) return; sbFile = null; sbReports = null; $('sb-go').hidden = true; $('sb-out').innerHTML = '';
+  if (f.size > 5 * 1024 * 1024) { chat('ファイルが大きすぎます(5MBまで)。期間を分けて書き出してください'); return; }
+  const rd = new FileReader();
+  if (/^text\/|\.(csv|tsv|txt)$/i.test(f.type + ' ' + f.name) && !/pdf|image/.test(f.type)) {   // CSV・テキストは、そのまま欄に入れる(Shift_JISのCSVにも対応)
+    rd.onload = () => { const buf = new Uint8Array(rd.result); let t = new TextDecoder('utf-8').decode(buf); if (/�/.test(t)) { try { t = new TextDecoder('shift_jis').decode(buf); } catch (e) {} } $('sb-text').value = t; $('sb-fname').textContent = f.name + ' を入れました'; };
+    rd.readAsArrayBuffer(f);
+  } else {
+    rd.onload = () => { sbFile = { data: String(rd.result).split(',')[1], type: f.type || 'application/pdf' }; $('sb-fname').textContent = f.name + '(「読み取る」でAIが読み取ります)'; };
+    rd.readAsDataURL(f);
+  }
+};
+if ($('sb-text')) $('sb-text').addEventListener('input', () => { sbReports = null; sbFile = null; $('sb-go').hidden = true; });
 if ($('sb-check')) {
   $('sb-check').onclick = async () => {
-    const text = $('sb-text').value; if (!text.trim()) { $('sb-text').focus(); return; }
-    $('sb-out').innerHTML = '<p class="k">読み取っています…</p>'; $('sb-go').hidden = true;
-    const r = await api({ kind: 'app_set', field: 'salesbulk', value: { text, dry: true } });
+    const text = $('sb-text').value; if (!text.trim() && !sbFile) { $('sb-text').focus(); return; }
+    $('sb-out').innerHTML = '<p class="k">読み取っています…(AIが読むときは少しかかります)</p>'; $('sb-go').hidden = true; $('sb-check').disabled = true;
+    let r; try { r = await api({ kind: 'app_set', field: 'salesbulk', value: { text, dry: true, file: sbFile || undefined } }); } finally { $('sb-check').disabled = false; }
     if (!r.ok) { $('sb-out').innerHTML = `<p class="k">${esc(r.error || '読み取れませんでした')}</p>`; return; }
+    sbReports = r.reports || null;
     const p = r.preview, its = Object.entries(p.items).sort((a, b) => b[1] - a[1]);
-    $('sb-out').innerHTML = `<p style="margin:8px 0 4px"><b>${p.days}日分・合計 ${yen(p.total)}</b> <span class="k">${esc(p.from)} 〜 ${esc(p.to)}</span></p><div class="scroll"><table>${its.map(([n, q]) => `<tr><td>${esc(n)}</td><td class="n">${q}点</td></tr>`).join('')}</table></div><p class="k" style="margin:6px 0 0">よければ「取り込む」を押してください。</p>`;
+    $('sb-out').innerHTML = `<p style="margin:8px 0 4px"><b>${p.days}日分・合計 ${yen(p.total)}</b> <span class="k">${esc(p.from)} 〜 ${esc(p.to)}${p.byAI ? '・AIが読み取りました。数字を確かめてください' : ''}</span></p><div class="scroll"><table>${its.map(([n, q]) => `<tr><td>${esc(n)}</td><td class="n">${q}点</td></tr>`).join('')}</table></div>`;
     $('sb-go').hidden = false;
   };
   $('sb-go').onclick = async () => {
     $('sb-go').disabled = true;
-    const r = await api({ kind: 'app_set', field: 'salesbulk', value: { text: $('sb-text').value } });
+    const r = await api({ kind: 'app_set', field: 'salesbulk', value: sbReports ? { text: '', reports: sbReports } : { text: $('sb-text').value } });
     $('sb-go').disabled = false;
     if (!r.ok) { toast(r.error || '取り込めませんでした'); return; }
-    D = r.data; renderAll(); $('sb-text').value = ''; $('sb-go').hidden = true; $('sb-out').innerHTML = `<p style="margin:8px 0 0">${esc(r.msg)}</p>`; toast('売上を取り込みました。', 'ok');
+    D = r.data; renderAll(); $('sb-text').value = ''; sbFile = null; sbReports = null; $('sb-fname').textContent = ''; $('sb-go').hidden = true; $('sb-out').innerHTML = `<p style="margin:8px 0 0">${esc(r.msg)}</p>`; toast('売上を取り込みました。', 'ok');
   };
 }
 // メニューの分析(看板・見直し・売り方の工夫・やめる候補)
