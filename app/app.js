@@ -73,6 +73,7 @@ function openCamera() {
 // ---------- きょう ----------
 function notices() {
   const list = [];
+  if (D.opsNotice) list.push({ type: 'q', html: `<p><b>お支払いについて</b></p><p class="k">${esc(D.opsNotice)}</p>` });   // 運営からのお知らせ(店主だけ)
   for (const u of D.ups) list.push({ type: 'up', html: `<p><b>${esc(u.item)}が値上がり</b></p><p class="k">${esc(u.supplier)} ${esc(u.spec)} ${u.old.toLocaleString()}円 → ${u.now.toLocaleString()}円(+${u.pct}%)</p><div class="ask"><button class="btn ghost" type="button" data-go-mat="up">材料の値段を見る</button><button class="btn ghost" type="button" data-go-cost>原価を見る</button></div>` });
   const needPw = D.products.filter(p => !p.pw);
   if (needPw.length) list.push({ type: 'q', html: `<p><b>1${U}は何g?(${needPw.length}品)</b></p><p class="k">数えなくても、重さから個数と1個の原価を出します。分かるものだけで大丈夫</p>` +
