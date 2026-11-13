@@ -929,7 +929,9 @@ const LBL_STORAGE = '直射日光、高温多湿を避けて保存してくだ�
 // 保存方法のよく使う言い方(選ぶか、自分で書く)
 const STORAGES = ['直射日光や高温多湿を避けて保存してください。', '直射日光や高温多湿を避けて冷暗所で保存してください。', '直射日光や高温多湿を避け冷暗所又は冷蔵庫で保存してください。', '高温・多湿を避けて保存してください。',
   '要冷蔵(10℃以下で保存してください)', '要冷蔵(4℃以下で保存してください)', '要冷凍(-18℃以下で保存してください)', '開封後は冷蔵庫に入れ、お早めにお召し上がりください。'];
-const lblDefName = p => /羊羹|ようかん/.test(p.name) ? '和生菓子(羊羹)' : /餅|もち/.test(p.name) ? '和生菓子' : '和菓子';
+// 名称の初めの案: 菓子のお店(または菓子とわかる商品名)は和菓子の名称、それ以外は商品名(業種で分けない。最終確認はお店)
+const WAGASHI_RE = /羊羹|ようかん|餅|もち|大福|団子|だんご|饅頭|万十|まんじゅう|どら焼|最中|もなか|わらび|きんつば|おはぎ|ぼたもち/;
+const lblDefName = p => { const biz = (D && D.words && D.words.biz) || ''; if (!(/菓子/.test(biz) || (!biz && WAGASHI_RE.test(p.name)))) return p.name; return /羊羹|ようかん/.test(p.name) ? '和生菓子(羊羹)' : /餅|もち/.test(p.name) ? '和生菓子' : '和菓子'; };
 // 商品ごとのラベル設定(未設定のところは案で埋める)
 function lblOf(p) {
   const s = p.lbl || {};
@@ -2066,7 +2068,7 @@ $('sclose').onclick = () => sheet.hidden = true; sheet.onclick = e => { if (e.ta
 ch.onclick = openAsk; ch.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openAsk(); } };
 $('cam').onclick = openCamera;
 function renderChips(quick) {
-  const p0 = D.products[0] ? D.products[0].name : '栗万十';
+  const p0 = D.products[0] ? D.products[0].name : '看板商品';
   const c = quick && quick.length ? quick : (noMoney() ? ['今日の衛生でまだのは?', 'ラベルの印刷がずれる', '業者の電話はどこ?', 'インスタの画像を作りたい', '賞味期限と消費期限のちがいは?', `${p0}の栄養成分は?`] : ['今月儲かってる?', `${p0}の原価は?`, '値上げしたほうがいい?', 'ラベルの印刷がずれる', '業者の電話はどこ?', 'インスタの画像を作りたい', '払っていないのは?', '賞味期限と消費期限のちがいは?']);
   const box = $('qchips'); box.innerHTML = c.map(s => `<button type="button">${esc(s)}</button>`).join('');
   box.querySelectorAll('button').forEach(b => b.onclick = () => ask(b.textContent));
