@@ -618,6 +618,14 @@ b.ng{color:var(--warn)}
 .hy-ed{display:flex;gap:8px;align-items:center;flex-wrap:wrap;width:100%;padding-top:4px}
 .hy-ed input{font:inherit;font-size:16px;min-height:44px;width:72px;padding:0 10px;border:1.5px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)}
 .hy-ed select{font:inherit;font-size:16px;min-height:44px;padding:0 10px;border:1.5px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)}
+
+/* プラン */
+section.locked>:not(.ph):not(.lockcard):not(h1){display:none!important}
+.lockcard{border-style:dashed}
+.ubox{display:flex;flex-direction:column;gap:10px;margin-top:10px}
+.urow{display:grid;grid-template-columns:1fr auto;gap:4px 10px;align-items:baseline}
+.ubar{grid-column:1/-1;height:6px;border-radius:4px;background:var(--line-2);overflow:hidden}
+.ubar i{display:block;height:100%;background:var(--accent)}
 </style>
 </head>
 <body>
@@ -807,6 +815,6 @@ b.ng{color:var(--warn)}
 </div></nav>
 
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-<script src="app.js?v=117"></script>
+<script src="app.js?v=118"></script>
 </body>
 </html>

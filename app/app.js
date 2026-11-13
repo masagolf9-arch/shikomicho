@@ -471,7 +471,29 @@ function bindContacts(root) {
 // ---------- メンバー(店主だけ): 役割・お金を見せる/見せない・外す ----------
 const MONEY_TABS = ['cost', 'book', 'sales'];
 const noMoney = () => !!(D && D.hideMoney);
-const SH = k => !!(D && (D.shelved || []).includes(k));   // しまった機能(伝言・在庫・インスタ)
+const SH = k => !!(D && (D.shelved || []).includes(k));
+// プランで使える機能(全プラン共通のものは常に true)
+const PL = f => !D || !D.plan || (D.plan.feats || []).includes(f);
+const PLAN_NEED = { analysis: 'スタンダード', sales: 'スタンダード', shelf: 'スタンダード', post: 'スタンダード', ws: 'スタンダード', target: 'プロ', brand: 'プロ' };
+// 使える量(設定に出す)
+function planUse() {
+  const u = D.plan, bar = (n, m) => m ? `<span class="ubar"><i style="width:${Math.min(100, Math.round(n / m * 100))}%"></i></span>` : '';
+  const row = (l, n, m, note) => `<div class="urow"><span>${l}</span><span class="k">${n}${m ? ' / ' + m : ''}${note || ''}</span>${bar(n, m)}</div>`;
+  return `<div class="ubox">${row('AIへの相談(今日)', u.chat.n, u.chat.max, u.chat.normal ? `(ふつうの速さ${u.chat.normal}回まで・毎朝4時に戻ります)` : '(上限なし)')}
+    ${row('写真の読み取り(今月)', u.photo.used, u.photo.limit, u.photo.pack ? `(パック残り${u.photo.pack})` : '')}${row('文案づくり(今月)', u.text.used, u.text.limit, u.text.pack ? `(パック残り${u.text.pack})` : '')}
+    ${u.items ? row('品数', u.itemCount, u.items) : ''}</div>`;
+}
+// プランにない機能の画面: 中身をしまって、何ができるかとプランを出す
+function applyPlanLocks() {
+  [['sales', 'sales', '売上と経費を集めて、月の入ったお金・出たお金・残りが分かります。商品分析(稼ぎ頭と見直す商品)もここです。'], ['ws', 'ws', '卸先ごとの納品と、月ごとの請求書をつくります。']].forEach(([tab, f, what]) => {
+    const sec = $('t-' + tab); if (!sec) return;
+    const lock = !PL(f); sec.classList.toggle('locked', lock);
+    let c = sec.querySelector(':scope > .lockcard');
+    if (lock && !c) { c = document.createElement('div'); c.className = 'card lockcard'; const ph = sec.querySelector(':scope > .ph'); ph ? ph.after(c) : sec.prepend(c); }
+    if (c) { c.hidden = !lock; if (lock) c.innerHTML = `<p style="margin:0 0 6px"><b>${PLAN_NEED[f]}プランから使えます</b></p><p class="k" style="margin:0 0 10px">${what}</p><button class="btn ghost" type="button" data-plan-ask>運営に相談する</button>`; }
+    if (c) c.querySelectorAll('[data-plan-ask]').forEach(b => b.onclick = () => { show('set'); setTimeout(() => { const x = $('ct-text'); if (x) { x.scrollIntoView({ block: 'center' }); x.value = x.value || (PLAN_NEED[f] + 'プランについて知りたいです'); } }, 200); });
+  });
+}   // しまった機能(伝言・在庫・インスタ)
 // 画面でエラーが起きたら「つまずき」として残す(店主に夕方まとめて届く)
 window.addEventListener('error', e => { try { if (!D) return; api({ kind: 'app_err', text: (cur || '') + ' ' + String(e.message || '').slice(0, 150) }); } catch (x) {} });
 window.addEventListener('unhandledrejection', e => { try { if (!D) return; api({ kind: 'app_err', text: (cur || '') + ' ' + String((e.reason && e.reason.message) || e.reason || '').slice(0, 150) }); } catch (x) {} });
@@ -1325,7 +1347,7 @@ function renderJournal() {
 }
 function renderAll() {
   U = (D.words || {}).unit || '個';
-  renderToday(); renderCost(); renderHowto(); renderLabel(); renderMat(); renderBook(); renderHyg(); renderSales(); renderWs(); renderPost(); renderSet();
+  renderToday(); renderCost(); renderHowto(); renderLabel(); renderMat(); renderBook(); renderHyg(); renderSales(); renderWs(); renderPost(); renderSet(); applyPlanLocks();
   $('shop').textContent = D.shop; if ($('shop2')) { $('shop2').textContent = D.shop; $('date2').textContent = $('date').textContent; }
   $('foot').textContent = `${new Date(D.at).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} 時点。開き直すと新しくなります。キャラの絵はAtelier SAISPEのLINE絵文字。`;
 }
@@ -1380,8 +1402,8 @@ function renderSet() {
     <div class="set-row"><span>画面の色</span>${seg('theme', [['auto', '自動'], ['light', '明るい'], ['dark', '暗い']], store.get('theme', 'auto'))}</div>`) + grp('お店の決まりごと', 'stock', `
     ${SH('stock') ? '' : `<div class="set-row"><span>棚卸<br><span class="k">お店みんな共通</span></span>${seg('cycle', [['毎月', '毎月'], ['年1回', '年1回']], cyc)}</div>`}
     <div class="set-row"><span>売り方<br><span class="k">対面・店内で出すお店は、裏表示よりアレルゲン表が主役になります</span></span>${seg('sell', [['pack', '包装して売る'], ['face', '対面・店内で出す']], (D.shopInfo || {}).sell || 'pack')}</div>
-    ${noMoney() ? '' : `<div class="set-row"><span>目標の原価率<br><span class="k">税抜で見ます。売値の目安はここから出します</span></span><span style="display:flex;gap:6px;align-items:center"><input id="tg-v" inputmode="decimal" style="width:4.5em" value="${(D.shopInfo || {}).targetRate || 30}"><span class="k">%</span><button class="btn ghost sm" type="button" id="tg-save">保存</button></span></div>`}
-    ${D.me && D.me.owner ? `<div class="set-row"><span>AI代の上限(月)<br><span class="k">今月 ${(D.shopInfo || {}).aiUsed != null ? D.shopInfo.aiUsed.toLocaleString('ja-JP') + '円' : '-'}。8割でLINEに知らせ、超えると返事が少しゆっくりになります(中身と写真の読み取りはそのまま)</span></span><span style="display:flex;gap:6px;align-items:center"><input id="ai-cap" inputmode="numeric" style="width:6em" value="${(D.shopInfo || {}).aiCap || 1000}"><span class="k">円</span><button class="btn ghost sm" type="button" id="ai-cap-save">保存</button></span></div>` : ''}
+    ${noMoney() || !PL('target') ? '' : `<div class="set-row"><span>目標の原価率<br><span class="k">税抜で見ます。売値の目安はここから出します</span></span><span style="display:flex;gap:6px;align-items:center"><input id="tg-v" inputmode="decimal" style="width:4.5em" value="${(D.shopInfo || {}).targetRate || 30}"><span class="k">%</span><button class="btn ghost sm" type="button" id="tg-save">保存</button></span></div>`}
+    ${D.plan ? `<div class="set-row" style="display:block"><span>プランと使える量<br><span class="k">${esc(D.plan.planName)}プラン。プランの変更は運営にご相談ください</span></span>${planUse()}</div>` : ''}
     ${D.me && D.me.owner ? `<div class="set-row" style="display:block"><span>税率<br><span class="k">売価は税込で入れます。原価率は税抜で見ます</span></span>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:6px"><span class="k">持ち帰り</span><input id="tx-to" inputmode="decimal" style="width:4.5em" value="${((D.shopInfo || {}).tax || {}).takeout ?? 8}"><span class="k">%</span><span class="k" style="margin-left:6px">店内</span><input id="tx-ei" inputmode="decimal" style="width:4.5em" value="${((D.shopInfo || {}).tax || {}).eatin ?? 10}"><span class="k">%</span></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:6px"><span class="k">持ち帰りが変わる日</span><input id="tx-from" type="date" style="width:auto" value="${(((D.shopInfo || {}).tax || {}).next || {}).from || ''}"><span class="k">から</span><input id="tx-next" inputmode="decimal" style="width:4.5em" placeholder="例 1" value="${(((D.shopInfo || {}).tax || {}).next || {}).rate ?? ''}"><span class="k">%</span></div>
@@ -1422,7 +1444,7 @@ function renderSet() {
   const nb = document.querySelector('nav button[data-t="book"]'); if (nb) nb.style.display = noMoney() ? 'none' : '';
   $('hygnotice').querySelectorAll('button').forEach(b => b.onclick = () => setValueX({ field: 'hygnotice', value: b.dataset.v }));
   $('closed').querySelectorAll('button').forEach(b => b.onclick = () => { b.setAttribute('aria-pressed', b.getAttribute('aria-pressed') !== 'true'); const v = [...$('closed').querySelectorAll('[aria-pressed="true"]')].map(x => x.dataset.w).join(''); setValueX({ field: 'closed', value: v }); });
-  if ($('ai-cap-save')) $('ai-cap-save').onclick = () => { const v = parseFloat($('ai-cap').value); if (!(v >= 100 && v <= 30000)) { $('ai-cap').focus(); chat('上限は100〜30,000円で入れてください'); return; } setValueX({ field: 'aicap', value: v }); };
+  if (false && $('ai-cap-save')) $('ai-cap-save').onclick = () => { const v = parseFloat($('ai-cap').value); if (!(v >= 100 && v <= 30000)) { $('ai-cap').focus(); chat('上限は100〜30,000円で入れてください'); return; } setValueX({ field: 'aicap', value: v }); };
   if ($('tg-save')) $('tg-save').onclick = () => { const v = parseFloat($('tg-v').value); if (!(v >= 5 && v <= 90)) { $('tg-v').focus(); chat('目標の原価率は5〜90(%)で入れてください'); return; } setValueX({ field: 'target', value: v }); };
   if ($('tx-save')) $('tx-save').onclick = () => setValueX({ field: 'tax', value: { takeout: $('tx-to').value.trim(), eatin: $('tx-ei').value.trim(), next: $('tx-next').value.trim(), from: $('tx-from').value } });
   $('shop-save').onclick = () => { const v = {}; $('set-box').querySelectorAll('[data-shop]').forEach(i => v[i.dataset.shop] = i.value.trim()); setValueX({ field: 'shop', value: v }); };
@@ -1992,9 +2014,11 @@ let asking = false;
 async function ask(s) {
   if (!s.trim() || asking) return; asking = true;
   addMsg(esc(s), true); qIn.value = '';
-  const wait = addMsg('<span class="k">考えています…</span>'); chat(null, 'think');
+  const pc = D && D.plan && D.plan.chat, slow = pc && pc.normal && pc.n >= pc.normal && pc.n < pc.max;
+  const wait = addMsg(slow ? '<span class="k">今日はゆっくりモードです(明日の朝4時に戻ります)。お返事まで30秒〜1分ほどお待ちください…</span>' : '<span class="k">考えています…</span>'); chat(null, 'think');
   try {
     const out = await api({ kind: 'app_chat', text: s, pack: PACK });
+    if (pc) pc.n++;
     if (!out.ok) throw new Error(out.error || 'ng');
     wait.remove();
     (out.texts || []).forEach((t, i) => setTimeout(() => botSay(openBtns(esc(t)).replace(/\n/g, '<br>')), i * 200));
