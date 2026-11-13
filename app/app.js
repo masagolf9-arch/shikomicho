@@ -1742,7 +1742,7 @@ const TPL = {
 };
 const SIZES = { sq: [1080, 1080, '正方形(インスタ投稿)'], tall: [1080, 1350, '縦長(インスタ投稿)'], story: [1080, 1920, 'ストーリー'], wide: [1200, 628, '横長(LINE・お知らせ)'] };
 const PS = { tpl: store.get('pTpl', 'wa'), size: 'sq', photo: null, auto: true, zoom: 1, ox: 0, oy: 0, bright: 0, d: null, c: null, s: null, useName: true };
-const brand = () => { const si = D.shopInfo || {}; return { color: si.brandColor || '', font: si.brandFont || '', logo: si.brandLogo || '' }; };
+const brand = () => { const si = (D && D.shopInfo) || {}; return { color: si.brandColor || '', font: si.brandFont || '', logo: si.brandLogo || '' }; };
 let LOGO = null, LOGO_SRC = '';
 function logoImg() { const b = brand(); if (!b.logo) { LOGO = null; LOGO_SRC = ''; return null; } if (LOGO_SRC !== b.logo) { LOGO_SRC = b.logo; LOGO = new Image(); LOGO.onload = () => snsDraw(); LOGO.src = b.logo; } return LOGO && LOGO.complete && LOGO.naturalWidth ? LOGO : null; }
 function wrapJa(ctx, text, maxW) {
