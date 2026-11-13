@@ -73,6 +73,9 @@ function openCamera() {
 // ---------- きょう ----------
 function notices() {
   const list = [];
+  // 運営からのお知らせ(「読みました」を押すまで出す。読んだものはこの端末に覚える)
+  let annDone = []; try { annDone = JSON.parse(localStorage.getItem('annDone') || '[]'); } catch (e) {}
+  (D.anns || []).filter(a => !annDone.includes(a.id)).forEach(a => list.push({ type: a.important ? 'up' : 'q', html: `<p><b>${esc(a.kind)}: ${esc(a.title)}</b> <span class="k">${new Date(a.at).getMonth() + 1}/${new Date(a.at).getDate()} 運営より</span></p><p style="margin:4px 0;white-space:pre-wrap">${esc(a.body)}</p><div class="ask"><button class="btn ghost sm" type="button" data-ann-ok="${esc(a.id)}">読みました</button></div>` }));
   if (D.opsNotice) list.push({ type: 'q', html: `<p><b>お支払いについて</b></p><p class="k">${esc(D.opsNotice)}</p>` });   // 運営からのお知らせ(店主だけ)
   for (const u of D.ups) list.push({ type: 'up', html: `<p><b>${esc(u.item)}が値上がり</b></p><p class="k">${esc(u.supplier)} ${esc(u.spec)} ${u.old.toLocaleString()}円 → ${u.now.toLocaleString()}円(+${u.pct}%)</p><div class="ask"><button class="btn ghost" type="button" data-go-mat="up">材料の値段を見る</button><button class="btn ghost" type="button" data-go-cost>原価を見る</button></div>` });
   const needPw = D.products.filter(p => !p.pw);
@@ -140,6 +143,7 @@ function renderToday() {
     setValue(needPw[i].name, 'pw', v);
   });
   $('notices').querySelectorAll('[data-cam]').forEach(b => b.onclick = openCamera);
+  $('notices').querySelectorAll('[data-ann-ok]').forEach(b => b.onclick = () => { let d = []; try { d = JSON.parse(localStorage.getItem('annDone') || '[]'); } catch (e) {} d.push(b.dataset.annOk); try { localStorage.setItem('annDone', JSON.stringify(d.slice(-100))); } catch (e) {} api({ kind: 'app_ann_seen', id: b.dataset.annOk }).catch(() => {}); renderToday(); });
   bindUnk($('notices'));
   $('notices').querySelectorAll('[data-chk-ok]').forEach(b => b.onclick = () => setValueX({ field: 'check', value: { row: +b.dataset.chkOk, ok: true } }));
   $('notices').querySelectorAll('[data-chk-re]').forEach(b => b.onclick = async () => { await setValueX({ field: 'check', value: { row: +b.dataset.chkRe, ok: false } }); openCamera(); });
