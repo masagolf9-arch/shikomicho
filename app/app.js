@@ -2029,17 +2029,26 @@ async function renderAccount() {
     $('ac-mail-msg').innerHTML = r.ok ? `${esc(m)} に確認のリンクを送りました。開くと、メールでもログインできるようになります。${r.devLink ? `<br><a href="${esc(r.devLink)}">(試験中)ここから開く</a>` : ''}` : esc(r.error || '送れませんでした');
   };
   if ($('ac-shop-go')) $('ac-shop-go').onclick = () => { location.href = '/switch?shop=' + encodeURIComponent($('ac-shop').value); };
+  // 作ったリンクを、選べる欄・コピー・開くの3つで出す(コピーが使えない画面でも、欄を長押しで写せる)
+  const linkOut = (box, url, note) => {
+    box.innerHTML = `<div class="ask" style="margin-top:4px"><input type="text" readonly value="${esc(url)}" aria-label="リンク" style="flex:1;min-width:0;font-size:14px"><button class="btn ghost" type="button" data-cp>コピー</button><a class="btn ghost" href="${esc(url)}" target="_blank" rel="noopener">開く</a></div><p class="k" style="margin:4px 0 0">${note}</p>`;
+    const inp = box.querySelector('input'); inp.onfocus = () => inp.select();
+    box.querySelector('[data-cp]').onclick = async () => {
+      let done = false;
+      try { await navigator.clipboard.writeText(url); done = true; } catch (e) {}
+      if (!done) { try { inp.focus(); inp.select(); done = document.execCommand('copy'); } catch (e) {} }
+      chat(done ? 'リンクをコピーしました' : 'コピーできませんでした。欄を長押しして写してください', done ? 'heart' : undefined);
+    };
+  };
   if ($('ac-start')) $('ac-start').onclick = async () => {
     const r = await api({ kind: 'app_start_link' });
     if (!r.ok) { $('ac-start-out').textContent = r.error || '作れませんでした'; return; }
-    $('ac-start-out').innerHTML = `${esc(r.link)}<br>新しく使い始めるお店に送るリンクです(1回だけ・7日間有効)。開いた人が店主になり、空のお店から始まります。`;
-    try { await navigator.clipboard.writeText(r.link); chat('リンクをコピーしました', 'heart'); } catch (e) {}
+    linkOut($('ac-start-out'), r.link, '新しく使い始めるお店に送るリンクです(1回だけ・7日間有効)。開いた人が店主になり、空のお店から始まります。');
   };
   $('ac-inv').onclick = async () => {
     const r = await api({ kind: 'app_new_invite' });
     if (!r.ok) { $('ac-inv-out').textContent = r.error || '作れませんでした'; return; }
-    $('ac-inv-out').innerHTML = `${esc(r.invite)}<br>このリンクをスタッフに送ってください。開いて登録すると、すぐにお店の画面が見られます。スタッフ以外には送らないでください。`;
-    try { await navigator.clipboard.writeText(r.invite); chat('リンクをコピーしました', 'heart'); } catch (e) {}
+    linkOut($('ac-inv-out'), r.invite, 'このリンクをスタッフに送ってください。開いて登録すると、すぐにお店の画面が見られます。スタッフ以外には送らないでください。');
   };
 }
 
