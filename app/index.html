@@ -638,6 +638,34 @@ section.locked>:not(.ph):not(.lockcard):not(h1){display:none!important}
 .sup-m{margin-top:8px;padding:10px 12px;border-radius:10px;background:var(--bg);white-space:pre-wrap;line-height:1.7;font-size:14px}
 .sup-m.ops{background:var(--soft)}
 .sup-m .who{display:block;font-size:12px;color:var(--ink-2);margin-bottom:2px}
+
+/* 商品分析の見立て */
+.ma-notes ul{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px}
+.ma-notes li{position:relative;padding-left:18px;line-height:1.6;font-size:15px}
+.ma-notes li::before{content:"";position:absolute;left:2px;top:.6em;width:8px;height:8px;border-radius:50%;background:var(--accent)}
+.ma-notes li.down::before,.ma-notes li.rate::before,.ma-notes li.loss::before{background:var(--warn)}
+.ma-notes li.up::before{background:var(--ok)}
+.upx{color:var(--ok)}.dnx{color:var(--warn)}
+
+/* お金の出入り */
+.mn-sum{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:8px 0 4px}
+.mn-sum div{background:var(--bg);border-radius:10px;padding:10px;text-align:center}
+.mn-sum b{display:block;font-size:20px;font-variant-numeric:tabular-nums}
+.mn-sum span{font-size:12px;color:var(--ink-2)}
+.mn-sum .neg b{color:var(--warn)}
+.mn-bars{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+.mn-bar{display:grid;grid-template-columns:3.2em 1fr auto;gap:8px;align-items:center;font-size:13px}
+.mn-bar .t{display:flex;flex-direction:column;gap:2px}
+.mn-bar .t i{display:block;height:7px;border-radius:4px;background:var(--accent)}
+.mn-bar .t i.o{background:var(--warn);opacity:.7}
+.mn-bar .v{font-variant-numeric:tabular-nums;text-align:right;min-width:6.5em}
+.mn-out{margin-top:10px}
+.mn-out .rw{display:flex;justify-content:space-between;padding:6px 0;border-top:1px solid var(--line-2);font-size:14px}
+.mn-out .rw:first-child{border-top:0}
+.mn-add{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1px solid var(--line-2)}
+.mn-add input,.mn-add select{font:inherit;font-size:16px;min-height:44px;padding:0 10px;border:1.5px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)}
+.mn-add #ex-item{flex:1 1 140px;min-width:0}
+.mn-add #ex-amt{width:120px}
 </style>
 </head>
 <body>
@@ -752,6 +780,7 @@ section.locked>:not(.ph):not(.lockcard):not(h1){display:none!important}
   </section>
   <section id="t-sales" hidden>
     <div class="ph"><div><h1>売上ともうけ</h1><p class="lead">レジの精算レシートを撮ると、売上を記録して、原価が分かる商品はもうけを出します。</p></div></div>
+    <div id="money-box"></div>
     <div class="chips" id="sales-chips"></div>
     <div class="stack" id="sales-box"></div>
     <h1 class="sub" style="margin-top:22px">メニューの分析</h1>
@@ -829,6 +858,6 @@ section.locked>:not(.ph):not(.lockcard):not(h1){display:none!important}
 </div></nav>
 
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-<script src="app.js?v=119"></script>
+<script src="app.js?v=121"></script>
 </body>
 </html>

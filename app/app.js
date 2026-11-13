@@ -1661,13 +1661,38 @@ function renderMenuA() {
   const sel = ms.includes(menuMo) ? menuMo : ms[0], o = mm[sel], Q = { star: ['看板', 'よく売れて、もうかる', '今のまま。切らさないように'], plow: ['見直し', 'よく売れるが、もうけが薄い', '値上げか、原価を下げる'], puzzle: ['売り方の工夫', 'もうかるが、あまり売れない', '置き場所・おすすめ・試食で売る'], dog: ['やめる候補', '売れず、もうけも薄い', '入れかえや、作る数を減らす'] };
   const by = k => (o.items || []).filter(i => i.quad === k);
   box.innerHTML = `${ms.length > 1 ? `<div class="chips" style="margin-bottom:8px">${ms.map(m => `<button class="chip" type="button" data-mm="${m}" aria-pressed="${m === sel}">${m.replace('-', '年')}月</button>`).join('')}</div>` : ''}
+    ${(o.notes || []).length ? `<div class="card ma-notes"><h2 class="ch">${+sel.slice(5)}月の見立て</h2><ul>${o.notes.map(n => `<li class="${n.k}">${esc(n.t)}</li>`).join('')}</ul>${o.prev ? `<p class="k" style="margin:6px 0 0">くらべた月: ${+o.prev.slice(5)}月</p>` : ''}</div>` : ''}
     ${(o.items || []).length ? `<div class="mq">${['star', 'plow', 'puzzle', 'dog'].map(k => `<div class="${k}"><b>${Q[k][0]}</b><span class="k">${Q[k][1]} → ${Q[k][2]}</span>${by(k).length ? `<ul>${by(k).map(i => `<li>${esc(i.name)} <span class="k" style="display:inline">${i.qty}${U} · 1${U} ${i.unitMargin.toLocaleString('ja-JP')}円</span></li>`).join('')}</ul>` : '<span class="k">なし</span>'}</div>`).join('')}</div>
-    <div class="card" style="margin-top:10px"><div class="scroll"><table><tr><th style="text-align:left">商品</th><th>売れた数</th><th>売上(税抜)</th><th>1${U}のもうけ</th><th>もうけ計</th></tr>${o.items.map(i => `<tr><td style="text-align:left">${esc(i.name)}</td><td class="n">${i.qty}</td><td class="n">${yen(i.salesEx)}</td><td class="n">${i.unitMargin.toLocaleString('ja-JP')}円</td><td class="n"><b>${yen(i.profit)}</b></td></tr>`).join('')}</table></div>
+    <div class="card" style="margin-top:10px"><div class="scroll"><table><tr><th style="text-align:left">商品</th><th>売れた数</th><th>売上(税抜)</th><th>1${U}のもうけ</th><th>原価率</th><th>もうけ計</th><th>前の月</th></tr>${o.items.map(i => `<tr><td style="text-align:left">${esc(i.name)}</td><td class="n">${i.qty}</td><td class="n">${yen(i.salesEx)}</td><td class="n">${i.unitMargin.toLocaleString('ja-JP')}円</td><td class="n">${i.rate != null ? i.rate + '%' : '-'}</td><td class="n"><b>${yen(i.profit)}</b></td><td class="n">${i.prevQty != null ? (i.qty >= i.prevQty ? '<span class="upx">+' : '<span class="dnx">') + (i.qty - i.prevQty) + U + '</span>' : '<span class="k">-</span>'}</td></tr>`).join('')}</table></div>
     <p class="k" style="margin:8px 0 0">もうけは、税抜の売上から材料費だけを引いた額です(人件費・光熱費は入っていません)。線引き: 売れた数 ${o.popLine}${U}以上が「よく売れる」、1${U}のもうけ ${o.marginLine}円以上が「もうかる」(この月の平均から)。</p></div>` : ''}
     ${(o.missing || []).length ? `<p class="k" style="margin:8px 0 0">原価が出ていないため分けられない商品: ${o.missing.map(esc).join('、')}(1個の重さか、1仕込みで何個取れるかを入れると入ります)</p>` : ''}`;
   box.querySelectorAll('[data-mm]').forEach(b => b.onclick = () => { menuMo = b.dataset.mm; renderMenuA(); });
 }
+// お金の出入り(月): 入ったお金(売上+卸)・出たお金(帳簿の科目ごと)・残り
+let moneyMo = null;
+function renderMoney() {
+  const box = $('money-box'); if (!box) return;
+  const mm = D.money || {}, ms = Object.keys(mm).sort();
+  if (noMoney() || !ms.length) { box.innerHTML = noMoney() ? '' : `<div class="card"><h2 class="ch">お金の出入り</h2><p class="k" style="margin:0">売上(レジの精算レシート)と、仕入れの請求書やお店で買ったもののレシートを撮ると、月の「入ったお金・出たお金・残り」がここに出ます。</p>${expForm()}</div>`; bindExp(); return; }
+  const sel = ms.includes(moneyMo) ? moneyMo : ms[ms.length - 1], o = mm[sel], mx = Math.max(1, ...ms.map(k => Math.max(mm[k].in, mm[k].out)));
+  box.innerHTML = `<div class="card"><div class="row"><h2 class="ch">お金の出入り</h2>${ms.length > 1 ? `<select id="mn-mo" aria-label="月">${ms.slice().reverse().map(k => `<option value="${k}"${k === sel ? ' selected' : ''}>${k.replace('-', '年')}月</option>`).join('')}</select>` : `<span class="k">${sel.replace('-', '年')}月</span>`}</div>
+    <div class="mn-sum"><div><b>${yen(o.in)}</b><span>入ったお金</span></div><div><b>${yen(o.out)}</b><span>出たお金</span></div><div class="${o.left < 0 ? 'neg' : ''}"><b>${yen(o.left)}</b><span>残り</span></div></div>
+    <p class="k" style="margin:0">入ったお金: 売上 ${yen(o.sales)}(税込)${o.ws ? `・卸 ${yen(o.ws)}` : ''}。出たお金は、帳簿に入った請求書・レシート・手で入れた経費です(人件費は入っていません)。</p>
+    ${o.outs.length ? `<div class="mn-out">${o.outs.map(x => `<div class="rw"><span>${esc(x.acct)}</span><span class="n">${yen(x.amount)}</span></div>`).join('')}</div>` : ''}
+    ${ms.length > 1 ? `<div class="mn-bars" aria-label="月ごとの入ったお金と出たお金">${ms.map(k => `<div class="mn-bar"><span class="k">${+k.slice(5)}月</span><span class="t"><i style="width:${Math.round(mm[k].in / mx * 100)}%"></i><i class="o" style="width:${Math.round(mm[k].out / mx * 100)}%"></i></span><span class="v ${mm[k].left < 0 ? 'dnx' : ''}">${yen(mm[k].left)}</span></div>`).join('')}<p class="k" style="margin:2px 0 0">青が入ったお金、赤が出たお金。右は残り。</p></div>` : ''}
+    ${expForm()}</div>`;
+  if ($('mn-mo')) $('mn-mo').onchange = () => { moneyMo = $('mn-mo').value; renderMoney(); };
+  bindExp();
+}
+function expForm() {
+  return `<details style="margin-top:12px"><summary class="k" style="cursor:pointer">レシートのない経費を入れる(家賃・電気代など)</summary><div class="mn-add"><input id="ex-date" type="date" value="${new Date().toLocaleDateString('sv-SE')}" aria-label="日付"><input id="ex-item" placeholder="内容(例: 電気代)" maxlength="40"><input id="ex-amt" inputmode="numeric" placeholder="金額(円)"><select id="ex-acct" aria-label="科目"><option value="">科目はおまかせ</option>${(D.expAccts || []).map(a => `<option>${esc(a)}</option>`).join('')}</select><button class="btn" type="button" id="ex-go">入れる</button></div><p class="k" style="margin:6px 0 0">${VIA}「経費 電気代 8000」でも入ります。</p></details>`;
+}
+function bindExp() {
+  if (!$('ex-go')) return;
+  $('ex-go').onclick = () => { const item = $('ex-item').value.trim(), amount = $('ex-amt').value.trim(); if (!item) { $('ex-item').focus(); return; } if (!amount) { $('ex-amt').focus(); return; } setValueX({ field: 'expense', value: { date: $('ex-date').value, item, amount, acct: $('ex-acct').value } }); };
+}
 function renderSales() {
+  renderMoney();
   renderMenuA();
   if ($('sales-bulk')) $('sales-bulk').hidden = noMoney();
   const sa = D.sales || {}, ms = Object.keys(sa).sort().reverse(), chips = $('sales-chips');
