@@ -2084,7 +2084,7 @@ async function renderAccount() {
     ${a.line || IN_LINE || !a.lineLogin ? '' : '<div class="ask"><a class="btn ghost" href="/auth/line?link=1&next=/app/">LINEとつなぐ</a></div>'}
     ${(a.shops || []).length > 1 ? `<div class="ask"><select id="ac-shop" aria-label="お店を切り替える" style="flex:1">${a.shops.map(x => `<option value="${esc(x.id)}"${a.shop && a.shop.id === x.id ? ' selected' : ''}>${esc(x.name || x.id)}</option>`).join('')}</select><button class="btn ghost" type="button" id="ac-shop-go">切り替える</button></div>` : ''}
     <div class="ask"><button class="btn ghost" type="button" id="ac-inv">スタッフを招待するリンク</button></div><p class="k" id="ac-inv-out" style="margin:4px 0 0;word-break:break-all"></p>
-    ${a.operator ? '<div class="ask"><button class="btn ghost" type="button" id="ac-start">新しいお店のはじめるリンク(運営)</button></div><p class="k" id="ac-start-out" style="margin:4px 0 0;word-break:break-all"></p>' : ''}
+
     ${IN_LINE ? '' : '<div class="ask"><a class="btn ghost" href="/password">パスワードを決めなおす</a></div>'}
     ${IN_LINE ? '' : '<form method="post" action="/auth/logout" class="ask"><button class="btn ghost" type="submit">ログアウト</button></form>'}`;
   if ($('ac-mail-go')) $('ac-mail-go').onclick = async () => {
