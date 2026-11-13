@@ -626,6 +626,18 @@ section.locked>:not(.ph):not(.lockcard):not(h1){display:none!important}
 .urow{display:grid;grid-template-columns:1fr auto;gap:4px 10px;align-items:baseline}
 .ubar{grid-column:1/-1;height:6px;border-radius:4px;background:var(--line-2);overflow:hidden}
 .ubar i{display:block;height:100%;background:var(--accent)}
+
+/* 問い合わせ */
+.sup-ans{margin-top:12px;padding:12px;border-radius:10px;background:var(--bg);border:1px solid var(--line-2)}
+.sup-ans .who{font-size:12px;color:var(--ink-2);margin-bottom:4px}
+.sup-ans p{margin:0;white-space:pre-wrap;line-height:1.7}
+.sup-t{border-top:1px solid var(--line-2);padding:10px 0}
+.sup-t:first-of-type{border-top:0}
+.sup-t summary{cursor:pointer;list-style:none;display:flex;justify-content:space-between;gap:8px;align-items:center}
+.sup-t summary::-webkit-details-marker{display:none}
+.sup-m{margin-top:8px;padding:10px 12px;border-radius:10px;background:var(--bg);white-space:pre-wrap;line-height:1.7;font-size:14px}
+.sup-m.ops{background:var(--soft)}
+.sup-m .who{display:block;font-size:12px;color:var(--ink-2);margin-bottom:2px}
 </style>
 </head>
 <body>
@@ -779,11 +791,13 @@ section.locked>:not(.ph):not(.lockcard):not(h1){display:none!important}
     <div class="card" id="bank-box"></div>
     <h1 class="sub">問い合わせ</h1>
     <div class="card contact">
-      <p class="k" style="margin:0 0 8px">使い方が分からない、うまく動かない、こうしてほしい。ピタット原価の担当に届きます。お返事はLINEかメールで。</p>
-      <div class="seg" id="ct-cat" style="flex-wrap:wrap;justify-content:flex-start"><button type="button" data-v="使い方" aria-pressed="true">使い方</button><button type="button" data-v="うまく動かない" aria-pressed="false">うまく動かない</button><button type="button" data-v="こうしてほしい" aria-pressed="false">こうしてほしい</button><button type="button" data-v="その他" aria-pressed="false">その他</button></div>
+      <p class="k" style="margin:0 0 8px">分からないこと・うまく動かないことを書いてください。まずAIがすぐにお答えし、解決しなければ、そのまま担当におつなぎします。</p>
+      <div class="seg" id="ct-cat" style="flex-wrap:wrap;justify-content:flex-start"><button type="button" data-v="使い方" aria-pressed="true">使い方</button><button type="button" data-v="うまく動かない" aria-pressed="false">うまく動かない</button><button type="button" data-v="プラン・お支払い" aria-pressed="false">プラン・お支払い</button><button type="button" data-v="こうしてほしい" aria-pressed="false">こうしてほしい</button><button type="button" data-v="その他" aria-pressed="false">その他</button></div>
       <textarea id="ct-text" rows="4" maxlength="2000" placeholder="例: 請求書の写真がうまく読めません" aria-label="問い合わせの内容"></textarea>
-      <div class="ask"><button class="btn" type="button" id="ct-go">送る</button><span class="k" id="ct-via">LINEで「問い合わせ 〜」と送ってもOK</span></div>
+      <div class="ask"><button class="btn" type="button" id="ct-go">聞く</button><span class="k" id="ct-via">お店の名前・プラン・最近のエラーは自動で添えます</span></div>
+      <div id="ct-ans" hidden></div>
     </div>
+    <div class="card" id="ct-hist" hidden></div>
     <h1 class="sub" id="words-h">話しかけられる言葉</h1>
     <div class="card"><p style="margin:0">決まった言い方はありません。ふだんの言葉で話しかけてください。</p><p class="k" style="margin:6px 0 0">作った数、払ったこと、冷蔵庫の温度、納品、予定、「今月どう?」のような相談まで、話しかけるだけで大丈夫です。</p><p class="k" style="margin:6px 0 0">記録の前には「〜として記録しますか?」と確かめます。「はい」で確定した言い方は覚えて、次からは同じ意味に取ります。分からないときは聞き返します。</p></div>
   </section>
@@ -811,10 +825,10 @@ section.locked>:not(.ph):not(.lockcard):not(h1){display:none!important}
   <button type="button" id="nav-cam"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 8.5h3.3l1.7-2.5h7l1.7 2.5h3.3v10.5h-17z"/><circle cx="12" cy="13.4" r="3.4"/></svg></span><span>撮る</span></button>
   <button type="button" data-t="book"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4.5" y="3.5" width="15" height="17" rx="2"/><path d="M8.5 8h7M8.5 12h7M8.5 16h4"/></svg></span><span>帳簿</span><span class="badge" id="badge-book" hidden></span></button>
   <button type="button" data-t="hyg"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 4.5a2 2 0 0 1 4 0v9.2a4 4 0 1 1-4 0z"/><path d="M12 10v7"/><path d="M17 6h2.5M17 9.5h2.5"/></svg></span><span>衛生</span><span class="badge" id="badge-hyg" hidden></span></button>
-  <button type="button" data-t="set"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8"/></svg></span><span>設定</span></button>
+  <button type="button" data-t="set"><span class="badge" id="badge-set" hidden>!</span><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8"/></svg></span><span>設定</span></button>
 </div></nav>
 
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-<script src="app.js?v=118"></script>
+<script src="app.js?v=119"></script>
 </body>
 </html>

@@ -48,6 +48,7 @@ async function load() {
     }
     const first = !D; D = out.data; store.set('data', D); state(''); renderAll(); if (first) show(store.get('tab', 'today'), true); else show(cur, true, true);
     if (first) setTimeout(() => chat(hello(), 'greet'), 250);
+    if (first) setTimeout(loadSup, 1500);   // 担当からのお返事があれば、設定に印
     if (CF && !window.__acct) { window.__acct = 1; renderAccount(); }
     if (CF) showShot();
   } catch (e) {
@@ -1364,7 +1365,7 @@ function show(t, quiet, keep) {
   if (!D) return;
   if (noMoney() && MONEY_TABS.includes(t)) { toast('お金の画面は、店主が「見せる」にした人だけが見られます'); t = 'today'; }
   if ((SH('post') && t === 'post') || (SH('cal') && t === 'cal')) t = 'today';
-  const dir = tabs.indexOf(t) - tabs.indexOf(cur); cur = t;
+  const dir = tabs.indexOf(t) - tabs.indexOf(cur); if (t === 'set' && cur !== 'set') { supPrev = cur; loadSup(); } cur = t;
   if (t === 'mat') renderMat();
   tabs.forEach(x => { const el = $('t-' + x); el.hidden = x !== t; el.classList.remove('inR', 'inL'); });
   if (dir) { const el = $('t-' + t); void el.offsetWidth; el.classList.add(dir > 0 ? 'inR' : 'inL'); }
@@ -1455,19 +1456,52 @@ function renderSet() {
   $('shop-save').onclick = () => { const v = {}; $('set-box').querySelectorAll('[data-shop]').forEach(i => v[i.dataset.shop] = i.value.trim()); setValueX({ field: 'shop', value: v }); };
   renderBanks();
 }
-// ---------- 問い合わせ ----------
+// ---------- 問い合わせ(まずAIが答え、解決しなければ担当へ) ----------
 $('ct-cat').querySelectorAll('button').forEach(b => b.onclick = () => $('ct-cat').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b)));
+const APPV = ((document.querySelector('script[src*="app.js"]') || {}).src || '').split('v=')[1] || '';
+var supPrev = 'today';
 $('ct-go').onclick = async () => {
   const text = $('ct-text').value.trim(), cat = ($('ct-cat').querySelector('[aria-pressed="true"]') || {}).dataset?.v || 'その他';
-  if (!text) { chat('問い合わせの内容を書いてください'); $('ct-text').focus(); return; }
-  const go = $('ct-go'); go.disabled = true; chat('送っています…');
+  if (!text) { chat('内容を書いてください'); $('ct-text').focus(); return; }
+  if (!CF) {   // 前の形(Google版)は、そのまま送る
+    const out = await api({ kind: 'app_contact', cat, text }); chat(out.ok ? '問い合わせを送りました' : (out.error || '送れませんでした'), out.ok ? 'heart' : undefined); if (out.ok) $('ct-text').value = ''; return;
+  }
+  const go = $('ct-go'), box = $('ct-ans'); go.disabled = true; box.hidden = false;
+  box.innerHTML = '<div class="sup-ans"><p class="k">お調べしています…</p></div>';
   try {
-    const out = await api({ kind: 'app_contact', cat, text });
+    const out = await api({ kind: 'sup_ask', cat, text, screen: supPrev, ver: APPV });
     if (!out.ok) throw new Error(out.error);
-    $('ct-text').value = ''; chat('問い合わせを送りました。お返事はLINEかメールでお届けします。', 'heart');
-  } catch (e) { chat((e && e.message) || '送れませんでした。電波のよいところでもう一度どうぞ'); }
+    $('ct-text').value = '';
+    if (out.sent) { box.innerHTML = '<div class="sup-ans"><p>担当にお送りしました。お返事はここと、LINEにお届けします。</p></div>'; loadSup(); return; }
+    box.innerHTML = `<div class="sup-ans"><div class="who">AIのお答え</div><p>${esc(out.answer)}</p></div>
+      <p class="k" style="margin:10px 0 6px">${out.needHuman ? 'この内容は担当の確認が必要かもしれません。' : '解決しましたか?'}</p>
+      <div class="ask" style="margin:0"><button class="btn ${out.needHuman ? '' : 'ghost'}" type="button" id="sup-h">担当に聞く</button><button class="btn ${out.needHuman ? 'ghost' : ''}" type="button" id="sup-ok">解決しました</button></div>
+      <div id="sup-note" hidden style="margin-top:8px"><textarea id="sup-note-t" rows="3" maxlength="2000" placeholder="担当に伝えたいことがあれば(なくても大丈夫です)" aria-label="担当へのひとこと"></textarea><div class="ask"><button class="btn" type="button" id="sup-send">担当に送る</button></div></div>`;
+    $('sup-ok').onclick = async () => { await api({ kind: 'sup_solved', id: out.id }); box.innerHTML = '<div class="sup-ans"><p>よかったです。ほかにもあれば、いつでもどうぞ。</p></div>'; chat('解決してよかったです', 'heart'); };
+    $('sup-h').onclick = () => { $('sup-note').hidden = false; $('sup-note-t').focus(); };
+    $('sup-send').onclick = async () => {
+      const r = await api({ kind: 'sup_human', id: out.id, text: $('sup-note-t').value.trim() });
+      if (!r.ok) { chat(r.error || '送れませんでした'); return; }
+      box.innerHTML = '<div class="sup-ans"><p>担当にお送りしました。お返事はここと、LINEにお届けします。</p></div>'; chat('担当にお送りしました', 'heart'); loadSup();
+    };
+  } catch (e) { box.innerHTML = `<div class="sup-ans"><p>${esc((e && e.message) || '送れませんでした。電波のよいところでもう一度どうぞ')}</p></div>`; }
   finally { go.disabled = false; }
 };
+// これまでの問い合わせ(担当からのお返事があれば、設定に印)
+const SUP_ST = { new: ['担当が確認中', 'gray'], open: ['担当が対応中', 'gray'], wait: ['お返事があります', 'warn'], done: ['完了', ''] };
+async function loadSup() {
+  if (!CF) return;
+  let r; try { r = await api({ kind: 'sup_list' }); } catch (e) { return; }
+  if (!r || !r.ok) return;
+  const ts = r.tickets || [], unread = ts.filter(t => t.status === 'wait').length, bs = $('badge-set');
+  if (bs) bs.hidden = !unread;
+  const box = $('ct-hist'); box.hidden = !ts.length; if (!ts.length) return;
+  box.innerHTML = `<h2 class="ch">これまでの問い合わせ</h2>` + ts.map(t => { const st = SUP_ST[t.status] || ['', ''];
+    return `<details class="sup-t"${t.status === 'wait' ? ' open' : ''}><summary><span><b>${esc(t.title)}</b><span class="k" style="display:block">${esc(t.cat)}・${new Date(t.created).toLocaleDateString('ja-JP')}</span></span><span class="pill ${st[1]}">${st[0]}</span></summary>
+      ${t.msgs.map(m => `<div class="sup-m ${m.sender === 'ops' ? 'ops' : ''}"><span class="who">${m.sender === 'ops' ? '担当' : m.sender === 'ai' ? 'AI' : 'あなた'}・${new Date(m.at).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>${esc(m.text)}</div>`).join('')}
+      <div class="ask" style="margin-top:8px"><input id="sup-r-${t.id}" placeholder="${t.status === 'done' ? '続けて聞く' : '返事を書く'}" style="flex:1;min-width:0;width:auto" aria-label="続きを書く"><button class="btn ghost sm" type="button" data-sup="${t.id}">送る</button></div></details>`; }).join('');
+  box.querySelectorAll('[data-sup]').forEach(b => b.onclick = async () => { const i = $('sup-r-' + b.dataset.sup), text = i.value.trim(); if (!text) { i.focus(); return; } b.disabled = true; const x = await api({ kind: 'sup_msg', id: b.dataset.sup, text }); b.disabled = false; if (!x.ok) { chat(x.error || '送れませんでした'); return; } chat('担当にお送りしました', 'heart'); loadSup(); });
+}
 // ---------- 衛生記録 ----------
 const hygMissing = () => (D && D.hyg && !D.closedToday) ? D.hyg.today.missing : [];
 function renderHyg() {
