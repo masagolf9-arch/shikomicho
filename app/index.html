@@ -668,6 +668,18 @@ section.locked>:not(.ph):not(.lockcard):not(h1){display:none!important}
 .mn-add #ex-amt{width:120px}
 .mn-ch{margin-top:12px;padding:10px 12px;border-radius:10px;border:1px solid var(--line-2)}
 .mn-eq{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:8px;font-size:14px;font-variant-numeric:tabular-nums}
+
+/* 吹き出し: 小さく・短く・ふわっと。下のボタンを押すじゃまをしない */
+.say{max-width:min(64vw,320px);font-size:13px;line-height:1.55;padding:8px 12px;transition:opacity .2s ease,transform .2s ease;opacity:1;transform:none;cursor:pointer}
+.say.off{opacity:0;transform:translateY(4px);pointer-events:none}
+/* ボタンのふるまいをそろえる */
+.btn{transition:background-color .15s ease,border-color .15s ease,transform .05s ease}
+.btn.ghost{font-weight:600}
+.btn:active:not(:disabled){transform:translateY(1px)}
+.btn:disabled,.btn[aria-disabled="true"]{opacity:.5;cursor:default}
+.ask .btn.sm,.row .btn.sm,.hy-ed .btn.sm,.bt .btn.sm{margin-left:0}
+:where(button,a,input,select,textarea,summary):focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.chip[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--card);font-weight:700}
 </style>
 </head>
 <body>

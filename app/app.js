@@ -2046,8 +2046,13 @@ function toast(text, kind) {
 function chat(text, role) {
   if (role) act(role, 1.3);
   if (!text) return;
-  clearTimeout(talkT); say.textContent = text; say.hidden = false; talkT = setTimeout(() => say.hidden = true, 5200);
+  // 長さに合わせて出す時間を決める(短い言葉はすぐ消える)。押すか、画面を動かすと消える
+  clearTimeout(talkT); say.textContent = text; say.hidden = false; say.classList.remove('off');
+  talkT = setTimeout(sayOff, Math.min(5200, 2200 + String(text).length * 60));
 }
+function sayOff() { if (say.hidden) return; say.classList.add('off'); clearTimeout(talkT); talkT = setTimeout(() => { say.hidden = true; say.classList.remove('off'); }, 220); }
+say.addEventListener('click', sayOff);
+addEventListener('scroll', () => { if (!say.hidden && !say.classList.contains('off')) sayOff(); }, { passive: true });
 function hello() {
   const q = notices().length, u = D.ups.length, h = new Date().getHours();
   const g = h < 10 ? 'おはようございます。' : h < 17 ? '' : 'おつかれさまです。';
