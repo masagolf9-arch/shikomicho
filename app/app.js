@@ -1678,16 +1678,29 @@ function renderMoney() {
   box.innerHTML = `<div class="card"><div class="row"><h2 class="ch">お金の出入り</h2>${ms.length > 1 ? `<select id="mn-mo" aria-label="月">${ms.slice().reverse().map(k => `<option value="${k}"${k === sel ? ' selected' : ''}>${k.replace('-', '年')}月</option>`).join('')}</select>` : `<span class="k">${sel.replace('-', '年')}月</span>`}</div>
     <div class="mn-sum"><div><b>${yen(o.in)}</b><span>入ったお金</span></div><div><b>${yen(o.out)}</b><span>出たお金</span></div><div class="${o.left < 0 ? 'neg' : ''}"><b>${yen(o.left)}</b><span>残り</span></div></div>
     <p class="k" style="margin:0">入ったお金: 売上 ${yen(o.sales)}(税込)${o.ws ? `・卸 ${yen(o.ws)}` : ''}。出たお金は、帳簿に入った請求書・レシート・手で入れた経費です(人件費は入っていません)。</p>
-    ${o.outs.length ? `<div class="mn-out">${o.outs.map(x => `<div class="rw"><span>${esc(x.acct)}</span><span class="n">${yen(x.amount)}</span></div>`).join('')}</div>` : ''}
+    ${(o.channels || []).map((c, i) => `<div class="mn-ch"><div class="row"><b>${esc(c.name)}</b><span class="pill ${c.actual ? '' : 'gray'}">${c.actual ? '入金で確定' : '見込み'}</span></div>
+      <div class="mn-eq"><span>売上 ${yen(c.gross)}</span><span>− 手数料 ${yen(c.fee)}${c.actual ? '' : `(${c.rate}%)`}</span><span>= 入金 <b>${yen(c.deposit)}</b></span></div>
+      ${c.actual && c.diff ? `<p class="k" style="margin:4px 0 0">${c.rate}%で計算した額との差: ${c.diff > 0 ? '+' : ''}${c.diff.toLocaleString('ja-JP')}円(端数や返品などの前後。入金額に合わせています)</p>` : ''}
+      <div class="ask" style="margin-top:6px"><input id="dp-${i}" inputmode="numeric" placeholder="実際の入金額(円)" value="${c.actual ? c.deposit : ''}" style="flex:1;min-width:0;width:auto" aria-label="${esc(c.name)}の実際の入金額"><button class="btn ghost sm" type="button" data-dp="${i}">${c.actual ? '直す' : '入金額を入れる'}</button>${c.actual ? `<button class="btn ghost sm" type="button" data-dpx="${i}">見込みに戻す</button>` : ''}</div></div>`).join('')}
+    ${o.outs.length ? `<div class="mn-out">${o.outs.map(x => `<div class="rw"><span>${esc(x.acct)}${x.est ? ' <span class="k" style="display:inline">(見込み)</span>' : ''}</span><span class="n">${yen(x.amount)}</span></div>`).join('')}</div>` : ''}
     ${ms.length > 1 ? `<div class="mn-bars" aria-label="月ごとの入ったお金と出たお金">${ms.map(k => `<div class="mn-bar"><span class="k">${+k.slice(5)}月</span><span class="t"><i style="width:${Math.round(mm[k].in / mx * 100)}%"></i><i class="o" style="width:${Math.round(mm[k].out / mx * 100)}%"></i></span><span class="v ${mm[k].left < 0 ? 'dnx' : ''}">${yen(mm[k].left)}</span></div>`).join('')}<p class="k" style="margin:2px 0 0">青が入ったお金、赤が出たお金。右は残り。</p></div>` : ''}
     ${expForm()}</div>`;
   if ($('mn-mo')) $('mn-mo').onchange = () => { moneyMo = $('mn-mo').value; renderMoney(); };
+  box.querySelectorAll('[data-dp]').forEach(b => b.onclick = () => { const c = o.channels[b.dataset.dp], v = $('dp-' + b.dataset.dp).value.trim(); if (!v) { $('dp-' + b.dataset.dp).focus(); return; } setValueX({ field: 'deposit', value: { name: c.name, month: sel, amount: v } }); });
+  box.querySelectorAll('[data-dpx]').forEach(b => b.onclick = () => setValueX({ field: 'deposit', value: { name: o.channels[b.dataset.dpx].name, month: sel, amount: '' } }));
   bindExp();
 }
 function expForm() {
-  return `<details style="margin-top:12px"><summary class="k" style="cursor:pointer">レシートのない経費を入れる(家賃・電気代など)</summary><div class="mn-add"><input id="ex-date" type="date" value="${new Date().toLocaleDateString('sv-SE')}" aria-label="日付"><input id="ex-item" placeholder="内容(例: 電気代)" maxlength="40"><input id="ex-amt" inputmode="numeric" placeholder="金額(円)"><select id="ex-acct" aria-label="科目"><option value="">科目はおまかせ</option>${(D.expAccts || []).map(a => `<option>${esc(a)}</option>`).join('')}</select><button class="btn" type="button" id="ex-go">入れる</button></div><p class="k" style="margin:6px 0 0">${VIA}「経費 電気代 8000」でも入ります。</p></details>`;
+  const cf = D.chFees || [];
+  return `<details style="margin-top:12px"${cf.length ? '' : ' open'}><summary class="k" style="cursor:pointer">販路の手数料(道の駅・直売所など、入金の前に引かれる分)${cf.length ? ': ' + cf.map(x => esc(x.name) + ' ' + x.rate + '%').join('・') : ''}</summary>
+    <p class="k" style="margin:6px 0">売上はそのまま記録し、手数料は「出たお金」に入れます。売上の記録の名前(メールの店舗名など)にこの名前が入っていれば、その販路として数えます。</p>
+    ${cf.map((x, i) => `<div class="row" style="padding:4px 0"><span>${esc(x.name)} ${x.rate}%</span><button class="btn ghost sm" type="button" data-cfx="${i}">外す</button></div>`).join('')}
+    <div class="mn-add"><input id="cf-name" placeholder="販路の名前(例: 道の駅)" maxlength="20" style="flex:1 1 140px;min-width:0"><input id="cf-rate" inputmode="decimal" placeholder="手数料(%)" style="width:110px"><button class="btn" type="button" id="cf-go">入れる</button></div></details>
+  <details style="margin-top:12px"><summary class="k" style="cursor:pointer">レシートのない経費を入れる(家賃・電気代など)</summary><div class="mn-add"><input id="ex-date" type="date" value="${new Date().toLocaleDateString('sv-SE')}" aria-label="日付"><input id="ex-item" placeholder="内容(例: 電気代)" maxlength="40"><input id="ex-amt" inputmode="numeric" placeholder="金額(円)"><select id="ex-acct" aria-label="科目"><option value="">科目はおまかせ</option>${(D.expAccts || []).map(a => `<option>${esc(a)}</option>`).join('')}</select><button class="btn" type="button" id="ex-go">入れる</button></div><p class="k" style="margin:6px 0 0">${VIA}「経費 電気代 8000」でも入ります。</p></details>`;
 }
 function bindExp() {
+  if ($('cf-go')) $('cf-go').onclick = () => { const name = $('cf-name').value.trim(), rate = $('cf-rate').value.trim(); if (!name) { $('cf-name').focus(); return; } if (!rate) { $('cf-rate').focus(); return; } setValueX({ field: 'chfee', value: { name, rate } }); };
+  document.querySelectorAll('[data-cfx]').forEach(b => b.onclick = () => { const x = (D.chFees || [])[b.dataset.cfx]; if (x && confirm(x.name + 'の手数料を外しますか?')) setValueX({ field: 'chfee', value: { name: x.name, remove: true } }); });
   if (!$('ex-go')) return;
   $('ex-go').onclick = () => { const item = $('ex-item').value.trim(), amount = $('ex-amt').value.trim(); if (!item) { $('ex-item').focus(); return; } if (!amount) { $('ex-amt').focus(); return; } setValueX({ field: 'expense', value: { date: $('ex-date').value, item, amount, acct: $('ex-acct').value } }); };
 }
