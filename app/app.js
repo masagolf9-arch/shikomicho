@@ -1268,6 +1268,7 @@ function matEdit(name, preset) {
   };
 }
 function renderCount() {
+  if (!D) return;
   let box = $('countbox');
   if (SH('stock')) { if (box) box.remove(); return; }
   if (!box) { box = document.createElement('div'); box.id = 'countbox'; $('mat-sum').after(box); }
@@ -1466,25 +1467,28 @@ function renderHyg() {
   const H = t.health || { cols: [], people: [] }, ppl = H.people.slice();
   if (me && !ppl.some(p => p.name === me)) ppl.unshift({ name: me, rec: null });
   const mark = v => v === '×' ? '<b class="ng">×</b>' : v === '○' ? '○' : '';
-  $('hyg-health').innerHTML = `<h2 class="ch">体調チェック表</h2><p class="k" style="margin:0 0 8px">作業の前に1人ずつつけます。×が1つでもあると店主に知らせます。LINEで「体調OK」でも入ります。</p>
-    <div class="scroll"><table class="hgrid hh"><tr><th>人</th>${H.cols.map(c => `<th>${esc(c)}</th>`).join('')}<th></th></tr>
+  $('hyg-health').innerHTML = `<h2 class="ch">体調チェック表</h2><p class="k" style="margin:0 0 4px">作業の前に1人ずつつけます。×が1つでもあると店主に知らせます。LINEで「体調OK」でも入ります。</p>
     ${ppl.map((p, i) => { const r = p.rec, mine = p.name === me, can = mine || own;
-      if (r) return `<tr><td>${esc(p.name)}</td>${r.j === '休み' ? `<td colspan="${H.cols.length}" class="k">休み</td>` : r.v.map(v => `<td>${mark(v)}</td>`).join('')}<td><span class="pill ${r.j === '要注意' ? 'warn' : r.j === '休み' ? 'gray' : ''}">${r.j === 'OK' ? '済' : esc(r.j)}</span></td></tr>`;
-      return `<tr><td>${esc(p.name)}</td>${H.cols.map((c, j) => `<td>${can ? `<button type="button" class="tg" data-hp="${i}" data-j="${j}" aria-pressed="true" aria-label="${esc(c)}">○</button>` : ''}</td>`).join('')}<td>${can ? `<button class="btn sm" type="button" data-hgo="${i}">つける</button>${own && !mine ? `<button class="btn ghost sm" type="button" data-hoff="${i}">休み</button>` : ''}` : '<span class="k">まだ</span>'}</td></tr>`; }).join('')}</table></div>
-    <p class="k" style="margin:8px 0 0">○は「問題なし」。押すと×に変わります(発熱・せき、下痢・おう吐、手の傷はあれば×、手洗い・服装はできていなければ×)。</p>`;
-  $('hyg-health').querySelectorAll('.tg').forEach(b => b.onclick = () => { const on = b.getAttribute('aria-pressed') !== 'true'; b.setAttribute('aria-pressed', on); b.textContent = on ? '○' : '×'; b.classList.toggle('ng', !on); });
-  $('hyg-health').querySelectorAll('[data-hgo]').forEach(b => b.onclick = () => { const i = b.dataset.hgo, marks = [...$('hyg-health').querySelectorAll(`.tg[data-hp="${i}"]`)].map(x => x.getAttribute('aria-pressed') === 'true'); setValueX({ field: 'health', value: { person: ppl[i].name, marks } }); });
+      const st = r ? `<span class="pill ${r.j === '要注意' ? 'warn' : r.j === '休み' ? 'gray' : ''}">${r.j === 'OK' ? 'つけました' : esc(r.j)}</span>` : '<span class="pill gray">まだ</span>';
+      const body = r ? (r.j === '休み' ? '' : `<div class="hc-marks">${H.cols.map((c, j) => `<span class="hc-m ${r.v[j] === '×' ? 'ng' : ''}">${esc(c)} ${r.v[j] === '×' ? '×' : '○'}</span>`).join('')}</div>`)
+        : can ? `<div class="hc-marks">${H.cols.map((c, j) => `<button type="button" class="hc-t" data-hp="${i}" data-j="${j}" aria-pressed="true">${esc(c)} <b>○</b></button>`).join('')}</div>
+          <div class="ask" style="margin-top:8px"><button class="btn sm" type="button" data-hgo="${i}">つける</button>${own && !mine ? `<button class="btn ghost sm" type="button" data-hoff="${i}">休み</button>` : ''}</div>` : '';
+      return `<div class="hc"><div class="row"><b>${esc(p.name)}</b>${st}</div>${body}</div>`; }).join('')}
+    <p class="k" style="margin:10px 0 0">○は「問題なし」。当てはまるものを押して×にします(発熱・せき、下痢・おう吐、手の傷はあれば×。手洗い・服装はできていなければ×)。</p>`;
+  $('hyg-health').querySelectorAll('.hc-t').forEach(b => b.onclick = () => { const on = b.getAttribute('aria-pressed') !== 'true'; b.setAttribute('aria-pressed', on); b.querySelector('b').textContent = on ? '○' : '×'; b.classList.toggle('ng', !on); });
+  $('hyg-health').querySelectorAll('[data-hgo]').forEach(b => b.onclick = () => { const i = b.dataset.hgo, marks = [...$('hyg-health').querySelectorAll(`.hc-t[data-hp="${i}"]`)].map(x => x.getAttribute('aria-pressed') === 'true'); setValueX({ field: 'health', value: { person: ppl[i].name, marks } }); });
   $('hyg-health').querySelectorAll('[data-hoff]').forEach(b => b.onclick = () => setValueX({ field: 'health', value: { person: ppl[b.dataset.hoff].name, off: true } }));
   // 機器と点検の項目(店主)
   const ib = $('hyg-items'); ib.hidden = !own;
   if (own) {
     ib.innerHTML = `<h2 class="ch">冷蔵庫・冷凍庫と点検の項目</h2><p class="k" style="margin:0 0 8px">冷蔵庫が何台あっても、1台ずつ名前をつけて足せます。ショーケースや温蔵庫、清掃の点検も足せます。</p>
-      <div class="hy-list">${t.items.map((it, i) => `<div class="hy-row"><div class="hy-nm"><b>${esc(it.name)}</b><span class="k">${range(it)}・1日${it.times}回</span></div>
-        <div class="hy-vals">${it.kind === 'temp' ? `<input id="hi-lo-${i}" inputmode="decimal" value="${it.lo ?? ''}" aria-label="${esc(it.name)}の下限" style="width:64px"><span class="k">〜</span><input id="hi-hi-${i}" inputmode="decimal" value="${it.hi ?? ''}" aria-label="${esc(it.name)}の上限" style="width:64px"><span class="k">℃</span>` : ''}
-        <select id="hi-t-${i}" aria-label="${esc(it.name)}の回数"><option value="1"${it.times === 1 ? ' selected' : ''}>1日1回</option><option value="2"${it.times === 2 ? ' selected' : ''}>1日2回</option></select>
-        <button class="btn ghost sm" type="button" data-hie="${i}">保存</button><button class="btn ghost sm" type="button" data-hio="${i}">止める</button></div></div>`).join('')}</div>
+      <div class="hy-list">${t.items.map((it, i) => `<div class="hy-row"><div class="hy-nm"><b>${esc(it.name)}</b><span class="k">${range(it)}・1日${it.times}回</span></div><button class="btn ghost sm" type="button" data-hiopen="${i}">変える</button>
+        <div class="hy-ed" id="hi-ed-${i}" hidden>${it.kind === 'temp' ? `<label class="k">目安</label><input id="hi-lo-${i}" inputmode="decimal" value="${it.lo ?? ''}" aria-label="${esc(it.name)}の下限"><span class="k">〜</span><input id="hi-hi-${i}" inputmode="decimal" value="${it.hi ?? ''}" aria-label="${esc(it.name)}の上限"><span class="k">℃</span>` : ''}
+          <select id="hi-t-${i}" aria-label="${esc(it.name)}の回数"><option value="1"${it.times === 1 ? ' selected' : ''}>1日1回</option><option value="2"${it.times === 2 ? ' selected' : ''}>1日2回(朝・夕)</option></select>
+          <div class="ask" style="margin:0;width:100%"><button class="btn sm" type="button" data-hie="${i}">保存</button><button class="btn ghost sm" type="button" data-hio="${i}">記録を止める</button></div></div></div>`).join('')}</div>
       <div class="hy-add"><input id="hi-name" placeholder="名前(例: 冷蔵庫2、ショーケース)" maxlength="20"><select id="hi-type" aria-label="種類"><option value="冷蔵">冷蔵(0〜10℃)</option><option value="冷凍">冷凍(-30〜-15℃)</option><option value="温蔵">温蔵(65℃以上)</option><option value="中心温度">加熱の中心温度(75℃以上)</option><option value="チェック">点検(OK/NG)</option></select><select id="hi-times" aria-label="回数"><option value="1">1日1回</option><option value="2">1日2回(朝・夕)</option></select><button class="btn" type="button" id="hi-add">足す</button></div>`;
     $('hi-add').onclick = () => { const name = $('hi-name').value.trim(); if (!name) { $('hi-name').focus(); return; } setValueX({ field: 'hygitem', value: { action: 'add', name, type: $('hi-type').value, times: +$('hi-times').value } }); };
+    ib.querySelectorAll('[data-hiopen]').forEach(b => b.onclick = () => { const e = $('hi-ed-' + b.dataset.hiopen); e.hidden = !e.hidden; b.textContent = e.hidden ? '変える' : '閉じる'; });
     ib.querySelectorAll('[data-hie]').forEach(b => b.onclick = () => { const i = b.dataset.hie, it = t.items[i]; setValueX({ field: 'hygitem', value: { action: 'edit', name: it.name, lo: it.kind === 'temp' ? $('hi-lo-' + i).value : '', hi: it.kind === 'temp' ? $('hi-hi-' + i).value : '', times: +$('hi-t-' + i).value } }); });
     ib.querySelectorAll('[data-hio]').forEach(b => b.onclick = () => { const it = t.items[b.dataset.hio]; if (confirm(`「${it.name}」の記録を止めますか? これまでの記録は残ります。`)) setValueX({ field: 'hygitem', value: { action: 'off', name: it.name } }); });
   }

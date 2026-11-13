@@ -607,6 +607,16 @@ b.ng{color:var(--warn)}
 .ht:first-child{margin-top:0}
 .hgrid.fx td{white-space:normal;text-align:left}
 #t-hyg .card+.card{margin-top:12px}
+.hc{padding:12px 0;border-top:1px solid var(--line-2)}
+.hc:first-of-type{border-top:0}
+.hc-marks{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}
+.hc-m,.hc-t{font:inherit;font-size:14px;display:flex;justify-content:space-between;align-items:center;min-height:40px;padding:0 12px;border-radius:10px;border:1.5px solid var(--line);background:var(--card);color:var(--ink)}
+.hc-m{border-color:var(--line-2);background:var(--bg);min-height:36px}
+.hc-t{cursor:pointer}.hc-t b{color:var(--ok)}
+.hc-t.ng,.hc-m.ng{border-color:var(--warn);background:var(--warn-soft);color:var(--warn)}.hc-t.ng b{color:var(--warn)}
+.hy-ed{display:flex;gap:8px;align-items:center;flex-wrap:wrap;width:100%;padding-top:4px}
+.hy-ed input{font:inherit;font-size:16px;min-height:44px;width:72px;padding:0 10px;border:1.5px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)}
+.hy-ed select{font:inherit;font-size:16px;min-height:44px;padding:0 10px;border:1.5px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)}
 </style>
 </head>
 <body>
@@ -795,6 +805,6 @@ b.ng{color:var(--warn)}
 </div></nav>
 
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-<script src="app.js?v=113"></script>
+<script src="app.js?v=114"></script>
 </body>
 </html>
