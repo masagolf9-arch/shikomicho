@@ -1473,7 +1473,7 @@ function renderHyg() {
       const body = r ? (r.j === '休み' ? '' : `<div class="hc-marks">${H.cols.map((c, j) => `<span class="hc-m ${r.v[j] === '×' ? 'ng' : ''}">${esc(c)} ${r.v[j] === '×' ? '×' : '○'}</span>`).join('')}</div>`)
         : can ? `<div class="hc-marks">${H.cols.map((c, j) => `<button type="button" class="hc-t" data-hp="${i}" data-j="${j}" aria-pressed="true">${esc(c)} <b>○</b></button>`).join('')}</div>
           <div class="ask" style="margin-top:8px"><button class="btn sm" type="button" data-hgo="${i}">つける</button>${own && !mine ? `<button class="btn ghost sm" type="button" data-hoff="${i}">休み</button>` : ''}</div>` : '';
-      return `<div class="hc"><div class="row"><b>${esc(p.name)}</b>${st}</div>${body}</div>`; }).join('')}
+      return `<div class="hpx"><div class="row"><b>${esc(p.name)}</b>${st}</div>${body}</div>`; }).join('')}
     <p class="k" style="margin:10px 0 0">○は「問題なし」。当てはまるものを押して×にします(発熱・せき、下痢・おう吐、手の傷はあれば×。手洗い・服装はできていなければ×)。</p>`;
   $('hyg-health').querySelectorAll('.hc-t').forEach(b => b.onclick = () => { const on = b.getAttribute('aria-pressed') !== 'true'; b.setAttribute('aria-pressed', on); b.querySelector('b').textContent = on ? '○' : '×'; b.classList.toggle('ng', !on); });
   $('hyg-health').querySelectorAll('[data-hgo]').forEach(b => b.onclick = () => { const i = b.dataset.hgo, marks = [...$('hyg-health').querySelectorAll(`.hc-t[data-hp="${i}"]`)].map(x => x.getAttribute('aria-pressed') === 'true'); setValueX({ field: 'health', value: { person: ppl[i].name, marks } }); });
