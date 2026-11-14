@@ -262,12 +262,14 @@ function renderBar() {
 // はじめの5つ(新しいお店。終わると消える)
 function renderStart() {
   const si = D.shopInfo || {}, goods = D.products.filter(p => p.kind !== 'part');
+  // 最初の3分で、強み(写真1枚から原価→袋の裏でアレルゲン→店の外に出すラベル→衛生→AI)に触れる順番
+  const mats = D.materials || [];
   const steps = [
-    ['お店の名前と住所を入れる', !!(si.name && si.addr), () => { show('set'); setTimeout(() => { const i = document.querySelector('[data-shop="name"]'); if (i) i.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, 200); }, '設定へ'],
-    ['レシピの写真を1枚撮る', goods.length > 0, openCamera, '撮る'],
-    ['請求書の写真を1枚撮る(材料の値段が本物になる)', (D.materials || []).some(m => m.ok), openCamera, '撮る'],
-    ['1個の重さと売値を入れる', goods.some(p => p.pw && p.price), () => show('cost'), '原価へ'],
-    ['今日の衛生記録を1回つける', !!(D.hyg && D.hyg.today && D.hyg.today.missing.length < (D.hyg.today.items || []).length) || !!(D.hyg && D.hyg.months && Object.keys(D.hyg.months).length), () => show('hyg'), '衛生へ']];
+    ['レシピの写真を1枚撮る(1個の原価が出ます)', goods.length > 0, openCamera, '撮る'],
+    ['材料の袋の裏を1枚撮る(原材料名とアレルゲンが入ります)', mats.some(m => !m.fromKind && ((m.allergens || []).length || (m.display && m.display !== m.name))), openCamera, '撮る'],
+    ['裏表示のラベルを見て、印刷してみる(お店の名前と住所もここで)', !!(si.name && si.addr) && !!store.get('labelSeen'), () => { store.set('labelSeen', 1); show('label'); }, '裏表示へ'],
+    ['今日の衛生記録をつける', !!(D.hyg && D.hyg.today && D.hyg.today.missing.length < (D.hyg.today.items || []).length) || !!(D.hyg && D.hyg.months && Object.keys(D.hyg.months).length), () => show('hyg'), '衛生へ'],
+    ['キャラに話しかけてみる(「この商品の原価率は?」など)', !!store.get('chatTried'), () => openAsk(), '話す']];
   const done = steps.filter(x => x[1]).length, box = $('start');
   if (done === steps.length || store.get('startHide') || !(D.me && D.me.owner)) { box.hidden = true; return; }
   box.hidden = false;
@@ -984,6 +986,7 @@ function bindStore() {
   if ($('pc-print')) $('pc-print').onclick = () => openPrint(cards([D.products.find(x => x.name === labelName) || D.products[0]]));
   if ($('pc-print-all')) $('pc-print-all').onclick = () => openPrint(cards(D.products.filter(p => p.kind !== 'part')));
 }
+document.addEventListener('click', e => { if (e.target && e.target.id === 'ls-go') { const name = $('ls-name').value.trim(), addr = $('ls-addr').value.trim(); if (!addr) { $('ls-addr').focus(); return; } setValueX({ field: 'shop', value: { name, addr } }); } });
 function renderLabel() {
   const chips = $('label-chips'), box = $('label-box'), face = sellFace();
   $('label-h').textContent = face ? 'アレルゲン' : '裏表示';
@@ -996,7 +999,9 @@ function renderLabel() {
   chips.querySelectorAll('.chip').forEach((b, i) => b.onclick = () => { labelName = goods[i].name; renderLabel(); });
   if (cur === 'label' && labelName) setCrumb([labelName]);
   const p = D.products.find(x => x.name === labelName), lb = p.label, L = lblOf(p), si = D.shopInfo || {};
-  box.innerHTML = (face ? storeBox() + `<details class="card" style="margin-top:16px" id="face-lbl"><summary><b>包装して売る・卸す商品のラベル</b> <span class="k">持ち帰り・道の駅・スーパーに出す分だけ</span></summary><div style="margin-top:12px">` : '') + `<div class="label">
+  const needShop = !(si.name && si.addr) && D.me && D.me.owner;
+  const shopMini = needShop ? `<div class="card" id="lbl-shop"><p style="margin:0 0 8px"><b>ラベルの「製造者」に入れる、お店の名前と住所</b></p><div class="mn-add" style="margin:0;padding:0;border:0"><input id="ls-name" placeholder="お店の名前" value="${esc(si.name || D.shop || '')}" style="flex:1 1 140px;min-width:0"><input id="ls-addr" placeholder="住所(例: 千葉県勝浦市〜)" value="${esc(si.addr || '')}" style="flex:2 1 200px;min-width:0"><button class="btn" type="button" id="ls-go">入れる</button></div></div>` : '';
+  box.innerHTML = shopMini + (face ? storeBox() + `<details class="card" style="margin-top:16px" id="face-lbl"><summary><b>包装して売る・卸す商品のラベル</b> <span class="k">持ち帰り・道の駅・スーパーに出す分だけ</span></summary><div style="margin-top:12px">` : '') + `<div class="label">
     <div class="r"><div class="h">名称</div><div class="v">${esc(L.name)}</div></div>
     <div class="r"><div class="h">原材料名</div><div class="v"><span id="ing">${esc(lb.text) || '(まだ出せません)'}</span>${lb.check.length ? `、<mark>${lb.check.map(esc).join('、')}(要確認)</mark>` : ''}${esc(lb.contains)}</div></div>
     <div class="r"><div class="h">内容量</div><div class="v">${esc(L.content)}</div></div>
@@ -1364,6 +1369,7 @@ function renderAll() {
 const tabs = ['today', 'hyg', 'sales', 'cost', 'howto', 'label', 'mat', 'book', 'ws', 'ct', 'post', 'cal', 'set'];
 let cur = 'today';
 function show(t, quiet, keep) {
+  if (t === 'label') store.set('labelSeen', 1);
   if (!D) return;
   if (noMoney() && MONEY_TABS.includes(t)) { toast('お金の画面は、店主が「見せる」にした人だけが見られます'); t = 'today'; }
   if ((SH('post') && t === 'post') || (SH('cal') && t === 'cal')) t = 'today';
@@ -2111,6 +2117,7 @@ async function answer(s) {
 // キャラとの会話は表の側(AI)で。つながらないときだけ、この画面の中の簡単な答えに切り替える
 let asking = false;
 async function ask(s) {
+  store.set('chatTried', 1);
   if (!s.trim() || asking) return; asking = true;
   addMsg(esc(s), true); qIn.value = '';
   const pc = D && D.plan && D.plan.chat, slow = pc && pc.normal && pc.n >= pc.normal && pc.n < pc.max;
