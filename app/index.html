@@ -725,6 +725,7 @@ section.locked>:not(.ph):not(.lockcard):not(h1){display:none!important}
       <div class="colL">
         <h1 class="sub">今日やること</h1>
         <div class="card todo" id="todo"></div>
+        <div id="regc-wrap" hidden><h1 class="sub">レジ締め</h1><div class="card" id="regc"></div></div>
         <div hidden><h1 class="sub">レジに入れる値段</h1><div class="card" id="reg-box"></div></div>
         <h1 class="sub">約束 <button class="btn ghost sm" type="button" id="pr-add">＋ 受けた</button></h1>
         <div id="promises"></div>
@@ -765,6 +766,7 @@ section.locked>:not(.ph):not(.lockcard):not(h1){display:none!important}
 
   <section id="t-cost" hidden>
     <div class="ph"><div><h1>原価</h1><p class="lead">1個あたりの材料費。下の線は、請求書で確かめた割合。カードを押すと中身と入力欄が出ます。</p></div><div class="acts"><label class="srch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="cost-q" type="search" placeholder="商品をさがす" autocomplete="off"></label><select id="cost-sort" class="sel" aria-label="並び順"><option value="rate">原価率が高い順</option><option value="name">名前順</option><option value="new">新しい順</option><option value="est">仮が多い順</option></select></div></div>
+    <div id="cat-box"></div>
     <div class="stack" id="costs"></div>
   </section>
 
@@ -892,6 +894,6 @@ section.locked>:not(.ph):not(.lockcard):not(h1){display:none!important}
 </div></nav>
 
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-<script src="app.js?v=132"></script>
+<script src="app.js?v=133"></script>
 </body>
 </html>
