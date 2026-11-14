@@ -1424,7 +1424,7 @@ function renderSet() {
       <p class="k" style="margin:8px 0 0">税率が変わることが法律で決まったら、変わる日と税率を入れてください。その日から自動で切りかわります。</p>
       <div class="ask"><button class="btn ghost sm" type="button" id="tx-save">税率を保存</button></div></div>` : ''}
     <div class="set-row"><span>数え方<br><span class="k">原価や分量の「1個あたり」の言葉</span></span>${seg('unitword', [['個', '個'], ['人前', '人前'], ['杯', '杯'], ['食', '食']], (D.words || {}).unit || '個')}</div>
-    <div class="set-row"><span>業種<br><span class="k">AIに伝えるためのメモ。画面や機能は変わりません</span></span>${seg('biz', ((D.words || {}).list || []).map(b => [b, b]), (D.words || {}).biz)}</div>
+    <div class="set-row"><span>業種<br><span class="k">AIに伝えるためのメモ。画面や機能は変わりません</span>${(D.words || {}).biz ? '' : '<br><span class="pill">未記入</span>'}</span>${seg('biz', ((D.words || {}).list || []).map(b => [b, b]), (D.words || {}).biz)}</div>
     `) + grp('お知らせ', 'hyg', `
     <div class="set-row"><span>衛生記録のお知らせ<br><span class="k">記録がまだのとき、LINEで念押しする時刻</span></span><div class="seg" id="hygnotice" style="flex-wrap:wrap;justify-content:flex-end">${[['off', '送らない'], ['9', '9時'], ['12', '12時'], ['15', '15時'], ['17', '17時'], ['19', '19時'], ['21', '21時']].map(([v, l]) => `<button type="button" data-v="${v}" aria-pressed="${String((D.shopInfo || {}).hygNotice || '17') === v}">${l}</button>`).join('')}</div></div>
     <div class="set-row"><span>定休日<br><span class="k">衛生の念押しを休む</span></span><div class="seg" id="closed">${['月', '火', '水', '木', '金', '土', '日'].map(w => `<button type="button" data-w="${w}" aria-pressed="${((D.shopInfo || {}).closed || '').includes(w)}">${w}</button>`).join('')}</div></div>
