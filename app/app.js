@@ -1647,7 +1647,7 @@ function renderHygPlan(own) {
     <div class="row" style="gap:8px;flex-wrap:wrap"><span class="k">衛生の責任者</span>${own ? `<input id="hp-resp" value="${esc(P.resp)}" placeholder="例: 税所" maxlength="30" style="width:10em"><button class="btn ghost sm" type="button" id="hp-resp-go">保存</button>` : `<b>${esc(P.resp || '未記入')}</b>`}</div>
     <h2 class="ch" style="margin-top:14px">一般衛生管理</h2>
     <div class="scroll"><table class="hp-tbl"><thead><tr><th>項目</th><th>いつ</th><th>どのように</th><th>問題があったとき</th>${own ? '<th></th>' : ''}</tr></thead><tbody>
-    ${P.gen.map((g, i) => `<tr><td>${esc(g.name)}</td><td>${esc(g.when)}</td><td>${esc(g.how)}</td><td>${esc(g.ng)}</td>${own ? `<td><button class="btn ghost sm" type="button" data-hpe="${i}">直す</button></td>` : ''}</tr>
+    ${P.gen.map((g, i) => `<tr><td>${esc(g.name)}</td><td data-l="いつ">${esc(g.when)}</td><td data-l="どのように">${esc(g.how)}</td><td data-l="問題があったとき">${esc(g.ng)}</td>${own ? `<td><button class="btn ghost sm" type="button" data-hpe="${i}">直す</button></td>` : ''}</tr>
       ${own ? `<tr id="hp-ed-${i}" hidden><td colspan="5"><div class="fld"><span class="k">いつ</span><input id="hp-w-${i}" value="${esc(g.when)}" maxlength="40"><span class="k">どのように</span><input id="hp-h-${i}" value="${esc(g.how)}" maxlength="120"><span class="k">問題があったとき</span><input id="hp-n-${i}" value="${esc(g.ng)}" maxlength="120"></div><div class="ask"><button class="btn sm" type="button" data-hps="${i}">保存</button></div></td></tr>` : ''}`).join('')}
     </tbody></table></div>
     <h2 class="ch" style="margin-top:16px">重要管理(商品の分け方)</h2>
