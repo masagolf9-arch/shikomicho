@@ -64,6 +64,21 @@ section[hidden]{display:none}
 .row{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
 .foot{font-size:13px;color:var(--ink-2);margin-top:24px}
 
+/* コース・セット */
+.crs{border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-top:10px}
+.crs .hd2{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.crs .hd2 b{font-size:16px}
+.crs .nums{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin:10px 0}
+.crs .nums div{background:var(--line-2);border-radius:10px;padding:8px 10px}
+.crs .nums span{display:block;font-size:12px;color:var(--ink-2)}
+.crs .nums b{font-family:var(--round);font-size:20px;font-variant-numeric:tabular-nums}
+.crs .nums b.ac{color:var(--accent)}.crs .nums b.ng{color:var(--warn)}
+.crs .say{font-size:14px;margin:0;padding:8px 10px;border-radius:10px;background:var(--soft);color:var(--ink)}
+.crs .its{font-size:13px;color:var(--ink-2);margin:6px 0 0}
+.crs .its .ng{color:var(--warn)}
+.crs-f{display:grid;gap:8px;margin-top:8px}
+.crs-f .rw{display:grid;grid-template-columns:1fr 80px auto;gap:6px;align-items:center}
+.crs-f .rw input{min-width:0}
 /* 今月の状況(ホームの一番上) */
 .status{display:grid;grid-template-columns:1fr auto;gap:16px 24px;background:var(--card);border:1px solid var(--line);border-radius:20px;padding:18px 20px;box-shadow:var(--shadow);margin:0 0 16px;align-items:center}
 .status .rate{display:flex;flex-direction:column;gap:4px;min-width:0}
@@ -866,6 +881,7 @@ section.locked>:not(.ph):not(.lockcard):not(h1){display:none!important}
   <section id="t-sales" hidden>
     <div class="ph"><div><h1>商品分析</h1><p class="lead">レジの精算レシートを撮ると、売上を記録して、原価が分かる商品はもうけを出します。</p></div></div>
     <div id="money-box"></div>
+    <div id="course-wrap"><h1 class="sub">コース・セット・飲み放題の売値</h1><p class="lead">料理(商品)を組んで1人前の原価を出し、目標の原価率で売値を提案します。飲み会の料金もここで決められます。</p><div class="card" id="courses"></div><div class="card" id="party" style="margin-top:12px"></div></div>
     <div class="chips" id="sales-chips"></div>
     <div class="stack" id="sales-box"></div>
     <h1 class="sub" style="margin-top:24px">メニューの分析</h1>
@@ -944,6 +960,6 @@ section.locked>:not(.ph):not(.lockcard):not(h1){display:none!important}
 </div></nav>
 
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-<script src="app.js?v=141"></script>
+<script src="app.js?v=142"></script>
 </body>
 </html>

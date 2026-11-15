@@ -1982,7 +1982,56 @@ function bindExp() {
   document.querySelectorAll('[data-eax]').forEach(b => b.onclick = () => { const x = (D.expExtra || [])[b.dataset.eax]; if (x) setValueX({ field: 'expacct', value: { name: x, remove: true } }); });
 }
 let exDupKey = '';
+// コース・セット・飲み放題: 商品を組んで1人前の原価 → 目標の原価率で売値を提案。飲み会は人数と値引きで原価率ともうけ
+let crsEdit = null;
+function renderCourses() {
+  const wrap = $('course-wrap'), box = $('courses'), pbox = $('party'); if (!wrap) return;
+  if (noMoney() || !PL('analysis')) { wrap.hidden = true; return; }
+  wrap.hidden = false;
+  const cs = D.courses || [], goods = D.products.filter(p => p.kind !== 'part'), tgt = (D.shopInfo || {}).targetRate || 30;
+  const pct = v => v == null ? '—' : v + '%';
+  const card = c => `<div class="crs"><div class="hd2"><b>${esc(c.name)}</b><span class="k">${c.type === 'drink' ? `飲み放題 ・ 1人 ${c.cups}杯` : `コース ・ ${c.items.length}品`} ・ 目標 ${c.target}% ・ ${c.serve === 'takeout' ? '持ち帰り' : '店内'}</span><span><button class="btn ghost sm" type="button" data-ce="${esc(c.name)}">変える</button> <button class="btn ghost sm" type="button" data-cx="${esc(c.name)}">消す</button></span></div>
+    <div class="nums"><div><span>1人の原価</span><b>${c.cost ? yen(c.cost) : '—'}</b></div><div><span>売値の目安(税込)</span><b class="ac">${c.guide ? yen(c.guide) : '—'}</b></div><div><span>今の売値</span><b>${c.price ? yen(c.price) : '未設定'}</b></div><div><span>原価率</span><b class="${c.ratio != null && c.ratio > c.target + 5 ? 'ng' : ''}">${pct(c.ratio)}</b></div>${c.margin != null ? `<div><span>1人の残り(税抜)</span><b>${yen(c.margin)}</b></div>` : ''}</div>
+    <p class="say">${esc(c.say)}</p>
+    <p class="its">${c.items.map(i => `${esc(i.name)}${i.qty !== 1 ? ' ×' + i.qty : ''}${i.cost != null ? ` ${yen(i.cost)}` : ` <span class="ng">(原価なし)</span>`}`).join(' ・ ')}${c.note ? `<br>${esc(c.note)}` : ''}</p></div>`;
+  const e = crsEdit || {};
+  const form = `<div class="crs crs-f" id="crs-form"><div class="row" style="flex-wrap:wrap;gap:8px"><input id="cr-name" placeholder="名前(例: 季節のコース、2時間飲み放題)" value="${esc(e.name || '')}" maxlength="40" style="flex:1 1 200px;min-width:0"><select id="cr-type" aria-label="種類"><option value="course"${e.type !== 'drink' ? ' selected' : ''}>コース・セット</option><option value="drink"${e.type === 'drink' ? ' selected' : ''}>飲み放題</option></select><select id="cr-serve" aria-label="出し方"><option value="eatin"${e.serve !== 'takeout' ? ' selected' : ''}>店内(10%)</option><option value="takeout"${e.serve === 'takeout' ? ' selected' : ''}>持ち帰り(8%)</option></select></div>
+    <div id="cr-rows">${(e.items && e.items.length ? e.items : [{ name: '', qty: 1 }]).map(i => `<div class="rw"><input class="cr-n" list="cr-list" placeholder="料理・ドリンク(商品の名前)" value="${esc(i.name)}"><input class="cr-q" inputmode="decimal" value="${i.qty || 1}" aria-label="数"><button class="btn ghost sm" type="button" data-cr-del>×</button></div>`).join('')}</div>
+    <datalist id="cr-list">${goods.map(p => `<option value="${esc(p.name)}">`).join('')}</datalist>
+    <div class="row" style="flex-wrap:wrap;gap:8px;justify-content:flex-start"><button class="btn ghost sm" type="button" id="cr-add">＋ 品を足す</button><span class="k">今の売値(税込)</span><input id="cr-price" inputmode="numeric" value="${e.price || ''}" placeholder="例 5000" style="width:7em"><span class="k">目標の原価率</span><input id="cr-tgt" inputmode="numeric" value="${e.target || ''}" placeholder="${tgt}" style="width:4em"><span class="k">%</span><span id="cr-cups-w"${e.type === 'drink' ? '' : ' hidden'}><span class="k">1人の平均杯数</span><input id="cr-cups" inputmode="numeric" value="${e.cups || 4}" style="width:4em"></span></div>
+    <input id="cr-note" placeholder="メモ(任意。例: 前菜・魚・肉・デザート)" value="${esc(e.note || '')}" maxlength="120">
+    <div class="ask"><button class="btn" type="button" id="cr-go">${e.name ? '保存して計算' : '作って計算'}</button>${crsEdit ? '<button class="btn ghost" type="button" id="cr-cancel">やめる</button>' : ''}</div></div>`;
+  box.innerHTML = `<p class="k" style="margin:0">料理は、原価の画面にある商品から選びます。飲み放題は、ドリンクを何種類か入れると1杯の平均原価で計算します。目標の原価率を空にすると、設定の${tgt}%を使います。</p>${cs.map(card).join('')}${form}`;
+  box.querySelectorAll('[data-ce]').forEach(b => b.onclick = () => { crsEdit = cs.find(c => c.name === b.dataset.ce); renderCourses(); $('crs-form').scrollIntoView({ block: 'nearest' }); });
+  box.querySelectorAll('[data-cx]').forEach(b => b.onclick = () => { if (confirm(`「${b.dataset.cx}」を消しますか?`)) setValueX({ field: 'course', value: { name: b.dataset.cx, remove: true } }); });
+  $('cr-type').onchange = () => { $('cr-cups-w').hidden = $('cr-type').value !== 'drink'; };
+  const bindDel = () => box.querySelectorAll('[data-cr-del]').forEach(x => x.onclick = () => { if ($('cr-rows').children.length > 1) x.parentNode.remove(); });
+  bindDel();
+  $('cr-add').onclick = () => { $('cr-rows').insertAdjacentHTML('beforeend', '<div class="rw"><input class="cr-n" list="cr-list" placeholder="料理・ドリンク(商品の名前)"><input class="cr-q" inputmode="decimal" value="1" aria-label="数"><button class="btn ghost sm" type="button" data-cr-del>×</button></div>'); bindDel(); $('cr-rows').lastElementChild.querySelector('.cr-n').focus(); };
+  if ($('cr-cancel')) $('cr-cancel').onclick = () => { crsEdit = null; renderCourses(); };
+  $('cr-go').onclick = async () => {
+    const name = $('cr-name').value.trim(); if (!name) { $('cr-name').focus(); return; }
+    const items = [...$('cr-rows').querySelectorAll('.rw')].map(r => ({ name: r.querySelector('.cr-n').value.trim(), qty: parseFloat(r.querySelector('.cr-q').value) || 1 })).filter(i => i.name);
+    if (!items.length) { $('cr-rows').querySelector('.cr-n').focus(); return; }
+    const out = await api({ kind: 'app_set', field: 'course', value: { name, type: $('cr-type').value, serve: $('cr-serve').value, items, price: $('cr-price').value, target: $('cr-tgt').value, cups: $('cr-cups').value, note: $('cr-note').value } }).catch(() => ({ ok: false, error: 'つながりませんでした' }));
+    if (!out.ok) { toast(out.error || '保存できませんでした', 'ng'); return; }
+    crsEdit = null; D = out.data; renderAll(); chat(out.msg || '保存しました');
+  };
+  // 飲み会・宴会の料金
+  const foods = cs.filter(c => c.type !== 'drink'), drinks = cs.filter(c => c.type === 'drink');
+  pbox.innerHTML = `<p style="margin:0 0 4px"><b>飲み会・宴会の料金を決める</b></p><p class="k" style="margin:0 0 8px">コースと飲み放題を選び、人数を入れると、1人の料金の目安と全体の原価率・残りが出ます。幹事への値引きも試せます。</p>
+    <div class="row" style="flex-wrap:wrap;gap:8px;justify-content:flex-start"><select id="pt-food" aria-label="コース"><option value="">コースなし</option>${foods.map(c => `<option value="${esc(c.name)}">${esc(c.name)}</option>`).join('')}</select><select id="pt-drink" aria-label="飲み放題"><option value="">飲み放題なし</option>${drinks.map(c => `<option value="${esc(c.name)}">${esc(c.name)}</option>`).join('')}</select><span class="k">人数</span><input id="pt-n" inputmode="numeric" value="8" style="width:4em"><span class="k">1人の料金(税込)</span><input id="pt-price" inputmode="numeric" placeholder="空なら目安" style="width:7em"><span class="k">1人の値引き</span><input id="pt-disc" inputmode="numeric" placeholder="0" style="width:5em"><button class="btn" type="button" id="pt-go">計算</button></div>
+    <div id="pt-out" style="margin-top:10px"></div>`;
+  if (!cs.length) { pbox.hidden = true; } else pbox.hidden = false;
+  $('pt-go').onclick = async () => {
+    const out = await api({ kind: 'app_set', field: 'party', value: { course: $('pt-food').value, drink: $('pt-drink').value, people: $('pt-n').value, price: $('pt-price').value, discount: $('pt-disc').value } }).catch(() => ({ ok: false }));
+    if (!out.ok) { toast(out.error || '計算できませんでした', 'ng'); return; }
+    const p = out.party;
+    $('pt-out').innerHTML = `<div class="crs"><div class="nums"><div><span>1人の料金(税込)</span><b class="ac">${yen(p.price1)}</b></div><div><span>1人の原価</span><b>${yen(p.cost1)}</b></div><div><span>${p.people}名の売上</span><b>${yen(p.total)}</b></div><div><span>残り(税抜)</span><b>${yen(p.margin)}</b></div><div><span>原価率</span><b class="${p.ratio > p.target + 5 ? 'ng' : ''}">${p.ratio == null ? '—' : p.ratio + '%'}</b></div>${p.discount ? `<div><span>値引き後の原価率</span><b class="${p.ratioAfter > p.target + 5 ? 'ng' : ''}">${p.ratioAfter}%</b></div>` : ''}</div><p class="say">${esc(p.say)}</p></div>`;
+  };
+}
 function renderSales() {
+  renderCourses();
   renderMoney();
   renderMenuA();
   if ($('sales-bulk')) $('sales-bulk').hidden = noMoney();
