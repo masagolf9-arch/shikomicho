@@ -64,6 +64,31 @@ section[hidden]{display:none}
 .row{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
 .foot{font-size:13px;color:var(--ink-2);margin-top:24px}
 
+/* 今月の状況(ホームの一番上) */
+.status{display:grid;grid-template-columns:1fr auto;gap:16px 24px;background:var(--card);border:1px solid var(--line);border-radius:20px;padding:18px 20px;box-shadow:var(--shadow);margin:0 0 16px;align-items:center}
+.status .rate{display:flex;flex-direction:column;gap:4px;min-width:0}
+.status .rate .t{font-size:13px;color:var(--ink-2);font-weight:600}
+.status .rate .v{font-family:var(--round);font-weight:700;font-size:44px;line-height:1.05;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.status .rate .v small{font-size:18px;font-weight:600;margin-left:2px}
+.status .rate .d{display:inline-flex;align-items:center;gap:6px;font-weight:700;font-size:15px;align-self:flex-start;padding:3px 10px;border-radius:999px;background:var(--line-2);color:var(--ink-2)}
+.status .rate .d.up{background:var(--warn-soft);color:var(--warn)}
+.status .rate .d.dn{background:var(--ok-soft);color:var(--ok)}
+.status .rate .d svg{width:16px;height:16px}
+.status .rate .k{line-height:1.5}
+.status .pie{display:flex;align-items:center;gap:14px}
+.status .pie svg{width:112px;height:112px;flex:none}
+.status .lg{display:grid;gap:6px;font-size:13px;color:var(--ink-2)}
+.status .lg b{display:block;color:var(--ink);font-family:var(--round);font-size:16px;font-variant-numeric:tabular-nums}
+.status .lg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:middle}
+.status .why{grid-column:1/-1;border-top:1px solid var(--line-2);padding-top:12px;display:grid;gap:8px}
+.status .why .h{font-size:13px;font-weight:700;color:var(--ink-2)}
+.status .why .r{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:baseline;font-size:14px}
+.status .why .r .n{font-family:var(--round);font-weight:700;color:var(--accent);width:20px}
+.status .why .r .u{font-family:var(--round);font-weight:700;color:var(--warn);white-space:nowrap;font-variant-numeric:tabular-nums}
+.status .why .r .u.ok{color:var(--ok)}
+.status .why .r .g{color:var(--ink-2);font-size:13px}
+.status .empty{grid-column:1/-1;color:var(--ink-2);font-size:14px;margin:0}
+@media (max-width:520px){.status{grid-template-columns:1fr}.status .pie{justify-content:flex-start}.status .rate .v{font-size:38px}}
 /* 面: 白い札 */
 .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px 16px;box-shadow:var(--shadow)}
 .stack{display:flex;flex-direction:column;gap:12px}
@@ -737,21 +762,22 @@ section.locked>:not(.ph):not(.lockcard):not(h1){display:none!important}
   <div class="state" id="state"><div class="skel"><i style="width:40%;height:28px"></i><i style="height:56px;border-radius:999px"></i><div class="skr"><i></i><i></i><i></i><i></i></div><i style="width:30%"></i><div class="skr"><i style="height:120px"></i><i style="height:120px"></i><i style="height:120px"></i><i style="height:120px"></i></div></div></div>
 
   <section id="t-today" hidden>
-    <div class="greet"><h1 id="greet-h">こんにちは</h1><p id="greet-p">何をしますか?</p></div>
-    <form class="askbar" id="askbar-home" autocomplete="off"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6.5h16M4 12h16M4 17.5h10"/></svg><input id="ask-home" placeholder="話しかける" aria-label="相談する"><button class="btn" type="submit">送る</button></form>
+    <div class="greet"><h1 id="greet-h">今月の状況</h1><p id="greet-p"></p></div>
+    <div class="status" id="status" hidden></div>
     <div class="menu" id="menu"></div>
     <div class="card" id="a2hs" hidden></div>
-    <div class="card start" id="start" hidden></div>
-    <div class="card intake" id="intake" hidden></div>
     <div class="cols">
       <div class="colL">
         <h1 class="sub">今日やること</h1>
         <div class="card todo" id="todo"></div>
+        <div class="card start" id="start" hidden></div>
+        <div class="card intake" id="intake" hidden></div>
+        <form class="askbar" id="askbar-home" autocomplete="off" hidden><input id="ask-home" aria-label="相談する"><button class="btn" type="submit">送る</button></form>
         <div id="regc-wrap" hidden><h1 class="sub">レジ締め</h1><div class="card" id="regc"></div></div>
         <div hidden><h1 class="sub">レジに入れる値段</h1><div class="card" id="reg-box"></div></div>
-        <h1 class="sub">約束 <button class="btn ghost sm" type="button" id="pr-add">＋ 受けた</button></h1>
+        <h1 class="sub">申し送り <button class="btn ghost sm" type="button" id="pr-add">＋ 受けた</button></h1>
         <div id="promises"></div>
-        <h1 class="sub">伝言 <button class="btn ghost sm" type="button" id="memo-add">＋ 書く</button></h1>
+        <h1 class="sub">連絡事項 <button class="btn ghost sm" type="button" id="memo-add">＋ 書く</button></h1>
         <div id="memos"></div>
         <div id="insp-wrap" hidden><h1 class="sub">点検 <span class="k" id="insp-n" style="font-size:13px;font-weight:400"></span></h1>
         <p class="lead">ピタット原価がデータを見回って、おかしいかもしれない所を出しています。押すと直す場所が開きます。</p>
@@ -761,7 +787,7 @@ section.locked>:not(.ph):not(.lockcard):not(h1){display:none!important}
         <div class="stack" id="notices"></div>
       </div>
       <div class="colR">
-        <h1 class="sub">今の数字</h1>
+        <h1 class="sub">お金の動き</h1>
         <div class="hero" id="hero"></div>
         <div class="dots" id="hero-dots"></div>
         <h1 class="sub" id="prods-h">商品</h1>
@@ -838,7 +864,7 @@ section.locked>:not(.ph):not(.lockcard):not(h1){display:none!important}
       </ul></div>
   </section>
   <section id="t-sales" hidden>
-    <div class="ph"><div><h1>売上ともうけ</h1><p class="lead">レジの精算レシートを撮ると、売上を記録して、原価が分かる商品はもうけを出します。</p></div></div>
+    <div class="ph"><div><h1>商品分析</h1><p class="lead">レジの精算レシートを撮ると、売上を記録して、原価が分かる商品はもうけを出します。</p></div></div>
     <div id="money-box"></div>
     <div class="chips" id="sales-chips"></div>
     <div class="stack" id="sales-box"></div>
@@ -918,6 +944,6 @@ section.locked>:not(.ph):not(.lockcard):not(h1){display:none!important}
 </div></nav>
 
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-<script src="app.js?v=139"></script>
+<script src="app.js?v=140"></script>
 </body>
 </html>

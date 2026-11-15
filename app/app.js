@@ -233,7 +233,7 @@ const dayDiff = s => Math.round((new Date(s.slice(0, 4), +s.slice(5, 7) - 1, +s.
 const EVK = { '納品': 'ws', '催事': 'post', '休み': 'hyg', 'その他': 'set' };
 function todoItems(q) {
   const t = [], me = profileName || '';
-  (D.memos || []).filter(m => !m.seen.includes(me)).slice(0, 3).forEach(m => t.push({ c: 'post', ic: 'memo', b: `伝言: ${m.text}`, k: `${m.by}から`, d: '', star: 3, go: () => $('memos').scrollIntoView({ behavior: 'smooth', block: 'start' }) }));
+  (D.memos || []).filter(m => !m.seen.includes(me)).slice(0, 3).forEach(m => t.push({ c: 'post', ic: 'memo', b: `連絡事項: ${m.text}`, k: `${m.by}から`, d: '', star: 3, go: () => $('memos').scrollIntoView({ behavior: 'smooth', block: 'start' }) }));
   if (!noMoney()) unpaid().forEach(p => { const dd = p.due ? dayDiff(p.due) : null; if (dd == null || dd <= 7) t.push({ c: 'book', ic: 'book', b: `${p.supplier}に払う ${yen(p.total)}`, k: `${+p.month.slice(5) || p.month}月分`, d: dd == null ? '期限なし' : dd < 0 ? `${-dd}日すぎ` : dd === 0 ? '今日まで' : dd === 1 ? '明日まで' : md(p.due) + 'まで', due: dd != null && dd <= 1, star: dd != null && dd <= 1 ? 3 : 2, go: () => show('book') }); });
   const regs = noMoney() ? [] : (D.priceChanges || []).filter(x => !x.done); if (regs.length) t.push({ c: 'sales', ic: 'sales', b: `レジの値段を直す ${regs.length}品`, k: regs.slice(0, 3).map(x => `${x.name} ${x.old ? x.old + '→' : ''}${x.now}円`).join('・') + (regs.length > 3 ? ' ほか' : ''), d: regs.some(x => x.at && Date.now() - x.at > DAY) ? '昨日から' : '今日', star: 3, go: () => { $('reg-box').scrollIntoView({ behavior: 'smooth', block: 'start' }); } });
   const hm = hygMissing(); if (hm.length) t.push({ c: 'hyg', ic: 'hyg', b: `今日の衛生記録 あと${hm.length}つ`, k: hm.join('・'), d: '今日', star: new Date().getHours() >= 15 ? 3 : 2, go: () => show('hyg') });
@@ -273,7 +273,7 @@ function renderStart() {
   const done = steps.filter(x => x[1]).length, box = $('start');
   if (done === steps.length || store.get('startHide') || !(D.me && D.me.owner)) { box.hidden = true; return; }
   box.hidden = false;
-  box.innerHTML = `<div class="sh"><b>はじめの5つ</b><span class="k">${done}/${steps.length} 済</span></div><div class="pg"><i style="width:${done / steps.length * 100}%"></i></div><ol>${steps.map((x, i) => `<li class="${x[1] ? 'ok' : ''}" data-i="${i}"><span class="n">${x[1] ? '✓' : i + 1}</span><span>${esc(x[0])}</span>${x[1] ? '' : `<span class="go">${esc(x[3])} ›</span>`}</li>`).join('')}</ol><p class="k" style="margin:8px 0 0">5つ終わると、この箱は消えます。<a href="#" id="start-hide" style="color:var(--accent)">今は隠す</a></p>`;
+  box.innerHTML = `<div class="sh"><b>最初の設定</b><span class="k">${done}/${steps.length} 済</span></div><div class="pg"><i style="width:${done / steps.length * 100}%"></i></div><ol>${steps.map((x, i) => `<li class="${x[1] ? 'ok' : ''}" data-i="${i}"><span class="n">${x[1] ? '✓' : i + 1}</span><span>${esc(x[0])}</span>${x[1] ? '' : `<span class="go">${esc(x[3])} ›</span>`}</li>`).join('')}</ol><p class="k" style="margin:8px 0 0">5つ終わると、この箱は消えます。<a href="#" id="start-hide" style="color:var(--accent)">今は隠す</a></p>`;
   box.querySelectorAll('li').forEach(li => li.onclick = () => { const x = steps[li.dataset.i]; if (!x[1]) x[2](); });
   $('start-hide').onclick = e => { e.preventDefault(); store.set('startHide', 1); box.hidden = true; };
 }
@@ -349,13 +349,13 @@ function renderMemos() {
   const box = $('memos'), ms = D.memos || [], me = profileName || '';
   box.hidden = SH('memo'); $('memo-add').closest('h1').hidden = SH('memo'); if (SH('memo')) return;
   box.innerHTML = ms.length ? `<div class="card" style="padding:0">${ms.map(m => `<div class="memo"><div class="mb"><p>${esc(m.text)}</p><span class="k">${esc(m.by)} · ${m.t ? new Date(m.t).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}${m.seen.length ? ' · 見た: ' + m.seen.map(esc).join('、') : ''}</span></div><span class="acts">${m.seen.includes(me) ? '' : `<button class="btn sm" type="button" data-seen="${m.row}">見た</button>`}<button class="btn ghost sm" type="button" data-done="${m.row}">済</button></span></div>`).join('')}</div>`
-    : `<div class="card"><p class="k" style="margin:0">伝言はありません。「＋ 書く」で、お店のみんなのホームに出ます。</p></div>`;
+    : `<div class="card"><p class="k" style="margin:0">連絡事項はありません。「＋ 書く」で、お店のみんなのホームに出ます。</p></div>`;
   box.querySelectorAll('[data-seen]').forEach(b => b.onclick = () => setValueX({ field: 'memo', value: { row: +b.dataset.seen } }));
   box.querySelectorAll('[data-done]').forEach(b => b.onclick = () => setValueX({ field: 'memo', value: { row: +b.dataset.done, done: true } }));
 }
 $('memo-add').onclick = () => {
   const box = $('memos'); if ($('memo-form')) { $('memo-form').remove(); return; }
-  box.insertAdjacentHTML('afterbegin', `<div class="card" id="memo-form"><textarea id="memo-text" rows="2" placeholder="伝言を書く" style="width:100%;box-sizing:border-box;font:inherit;font-size:15px;padding:8px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)"></textarea><div class="ask"><button class="btn" type="button" id="memo-go">残す</button><button class="btn ghost" type="button" id="memo-cancel">やめる</button><span class="k">お店のみんなにLINEでも届きます</span></div></div>`);
+  box.insertAdjacentHTML('afterbegin', `<div class="card" id="memo-form"><textarea id="memo-text" rows="2" placeholder="連絡事項を書く" style="width:100%;box-sizing:border-box;font:inherit;font-size:15px;padding:8px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)"></textarea><div class="ask"><button class="btn" type="button" id="memo-go">残す</button><button class="btn ghost" type="button" id="memo-cancel">やめる</button><span class="k">お店のみんなにLINEでも届きます</span></div></div>`);
   $('memo-text').focus();
   $('memo-cancel').onclick = () => $('memo-form').remove();
   $('memo-go').onclick = () => { const v = $('memo-text').value.trim(); if (!v) { $('memo-text').focus(); return; } setValueX({ field: 'memo', value: { text: v } }); };
@@ -366,7 +366,7 @@ const prDue = p => { if (!p.date) return ''; const dd = dayDiff(p.date); return 
 function renderPromises() {
   const box = $('promises'), ps = D.promises || [];
   box.innerHTML = ps.length ? `<div class="card" style="padding:0">${ps.map(p => { const dd = p.date ? dayDiff(p.date) : null; return `<div class="memo" style="--c:var(--c-${PRK[p.kind] || 'set'})"><div class="mb"><p><span class="prk">${esc(p.kind)}</span>${esc(p.text)}</p><span class="k">${p.who ? esc(p.who) + ' ' : ''}${p.tel ? `<a href="tel:${esc(p.tel.replace(/[^\d+]/g, ''))}">☎ ${esc(p.tel)}</a> ` : ''}· ${p.date ? `<b class="${dd != null && dd <= 0 ? 'prdue' : ''}">${esc(prDue(p))}</b>` : '期限なし'} · ${esc(p.src)}で${esc(p.by)}が受けた</span></div><span class="acts"><button class="btn ghost sm" type="button" data-pedit="${p.row}">直す</button><button class="btn sm" type="button" data-pdone="${p.row}">済</button></span></div>`; }).join('')}</div>`
-    : `<div class="card"><p class="k" style="margin:0">済んでいない約束はありません。電話を切ったら「＋ 受けた」で、聞いたことをそのまま入れてください。</p></div>`;
+    : `<div class="card"><p class="k" style="margin:0">未対応の申し送りはありません。電話や店頭で受けた予約・注文・折り返しは「＋ 受けた」で、聞いたとおりに入れてください。</p></div>`;
   box.querySelectorAll('[data-pdone]').forEach(b => b.onclick = () => setValueX({ field: 'promise', value: { row: +b.dataset.pdone, done: true } }));
   box.querySelectorAll('[data-pedit]').forEach(b => b.onclick = () => editPromise(ps.find(p => p.row === +b.dataset.pedit), b.closest('.memo')));
 }
@@ -633,7 +633,7 @@ function drawMembers(ms, plan, count) {
   box.querySelectorAll('[data-remove]').forEach(b => b.onclick = () => { if (confirmOnce('mem' + b.dataset.remove, `もう一度押すと、${b.dataset.n}さんを外します(その場で入れなくなります)`)) act(+b.dataset.remove, 'remove'); });
 }
 // パンくず(パソコン): ホーム › 原価 › 栗万十
-const TABNAME = { today: 'ホーム', cost: '原価', label: '裏表示', mat: '材料', book: '帳簿', hyg: '衛生記録', ws: '卸', ct: '業者・卸先', post: '発信', sales: '売上', set: '設定', cal: '予定' };
+const TABNAME = { today: 'ホーム', cost: '原価', label: '裏表示', mat: '材料', book: '帳簿', hyg: '衛生記録', ws: '卸', ct: '業者・卸先', post: '発信', sales: '商品分析', set: '設定', cal: '予定' };
 function setCrumb(parts) {
   const c = $('crumb'); if (!c) return;
   if (cur === 'today' && !parts) { c.hidden = true; return; }
@@ -647,9 +647,28 @@ const AVC = ['cost', 'label', 'mat', 'stock', 'hyg', 'book', 'ws', 'post', 'sale
 const avColor = n => { let h = 0; for (const ch of String(n)) h = (h * 31 + ch.charCodeAt(0)) | 0; return 'var(--c-' + AVC[Math.abs(h) % AVC.length] + ')'; };
 const avatar = (n, small) => `<span class="av${small ? ' s' : ''}" style="--c:${avColor(n)}" aria-hidden="true">${esc(String(n).trim().slice(0, 1))}</span>`;
 function renderGreet() {
-  const h = new Date().getHours(), g = h < 10 ? 'おはようございます' : h < 17 ? 'こんにちは' : 'こんばんは';
-  $('greet-h').textContent = `${g}${profileName ? '、' + profileName + 'さん' : ''}`;
-  $('greet-p').textContent = `${D.shop} · ${$('date').textContent}`;
+  const S = D.status, mo = new Date();
+  $('greet-h').textContent = noMoney() ? `${D.shop}` : `${mo.getMonth() + 1}月の状況`;
+  $('greet-p').textContent = noMoney() ? $('date').textContent : `${D.shop} · ${$('date').textContent}${S && S.prevMonth ? ` · 先月(${+S.prevMonth.slice(5)}月)と比べて` : ''}`;
+  renderStatus();
+}
+// 今月の状況: 原価率(大きく)と先月との差、売上の内わけの円グラフ、なぜ上がったか(上から3つ)、売値の目安
+function renderStatus() {
+  const box = $('status'), S = D.status; if (!box) return;
+  if (noMoney() || !S) { box.hidden = true; return; }
+  box.hidden = false;
+  const pct = v => v == null ? '—' : (Math.round(v * 10) / 10).toLocaleString('ja-JP');
+  const arrow = d => d > 0 ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M6 11l6-6 6 6"/></svg>' : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M6 13l6 6 6-6"/></svg>';
+  const hasSales = S.salesEx > 0 && S.rate != null;
+  // 円グラフ(材料費と残り)。数字がないときは目標の原価率を薄く描く
+  const r = 44, c = 2 * Math.PI * r, share = hasSales ? Math.min(1, Math.max(0, S.rate / 100)) : 0;
+  const pie = `<svg viewBox="0 0 112 112" role="img" aria-label="売上の内わけ: 材料費 ${pct(S.rate)}%"><circle cx="56" cy="56" r="${r}" fill="none" stroke="var(--ok-soft)" stroke-width="18"/><circle cx="56" cy="56" r="${r}" fill="none" stroke="var(--accent)" stroke-width="18" stroke-dasharray="${(share * c).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 56 56)" stroke-linecap="butt"/><text x="56" y="52" text-anchor="middle" font-size="18" font-weight="700" fill="var(--ink)" font-family="Zen Maru Gothic,sans-serif">${hasSales ? pct(S.rate) + '%' : '—'}</text><text x="56" y="68" text-anchor="middle" font-size="10" fill="var(--ink-2)">材料費</text></svg>`;
+  const diffHtml = S.diff == null ? `<span class="d">${S.prevRate == null ? '先月の数字なし' : '先月と同じ'}</span>` : S.diff === 0 ? '<span class="d">先月と同じ</span>' : `<span class="d ${S.diff > 0 ? 'up' : 'dn'}">${arrow(S.diff)}先月より ${Math.abs(S.diff).toLocaleString('ja-JP')}ポイント${S.diff > 0 ? '上がった' : '下がった'}</span>`;
+  const why = S.why || [], guide = S.guide || [];
+  box.innerHTML = `<div class="rate"><span class="t">今月の原価率(税抜の売上に対する材料費)</span><span class="v">${hasSales ? `${pct(S.rate)}<small>%</small>` : '<small style="font-size:20px">売れた数を入れると出ます</small>'}</span>${hasSales ? diffHtml : ''}${hasSales ? `<span class="k">売上 ${yen(S.salesEx)}(税抜) ・ 材料費 ${yen(S.matCost)} ・ 残り ${yen(S.profit)} ・ 今月はまだ途中です</span>` : '<span class="k">精算レシートを撮るか、売上の報告を取り込むと、今月の原価率が出ます。</span>'}</div>
+    <div class="pie">${pie}<div class="lg"><span><i style="background:var(--accent)"></i>材料費<b>${hasSales ? yen(S.matCost) : '—'}</b></span><span><i style="background:var(--ok-soft);border:1px solid var(--ok)"></i>残り(売上−材料費)<b>${hasSales ? yen(S.profit) : '—'}</b></span></div></div>
+    ${why.length ? `<div class="why"><span class="h">原価が上がった理由(直近60日の値上がり)</span>${why.map((w, i) => `<div class="r"><span class="n">${i + 1}</span><span><b>${esc(w.item)}</b>${w.spec ? ` <span class="g">${esc(w.spec)}</span>` : ''} が ${Math.round(w.old).toLocaleString('ja-JP')}円 → ${Math.round(w.now).toLocaleString('ja-JP')}円(+${w.pct}%)。<span class="g">${esc(w.prod)}が苦しい</span></span><span class="u">1${U} +${w.up}円</span></div>`).join('')}</div>` : hasSales ? '<p class="empty">直近60日で、原価を押し上げた値上がりはありません。</p>' : ''}
+    ${guide.length ? `<div class="why"><span class="h">売値の目安(原価率${S.target}%にするなら)</span>${guide.map((g, i) => `<div class="r"><span class="n">${i + 1}</span><span><b>${esc(g.name)}</b> <span class="g">原価率 ${g.rate}% ・ 今 ${yen(g.price)}</span></span><span class="u ok">${yen(g.guide)}〜</span></div>`).join('')}</div>` : ''}`;
 }
 function renderHomeProds() {
   const box = $('home-prods'), goods = D.products.filter(p => p.kind !== 'part'), ps = goods.slice(0, 8);
@@ -744,7 +763,7 @@ function renderMenu(q) {
   const low = ((D.stock || {}).items || []).filter(x => x.low).length, up = unpaid().length;
   const items = [
     ['cam', '撮る', openCamera, 0, 'p'], ['cost', '原価', () => show('cost')], ['label', sellFace() ? 'アレルゲン' : '裏表示', () => show('label')], ['howto', '作り方', () => show('howto')], ['mat', '材料', () => { matF = 'all'; show('mat'); }],
-    ...(SH('stock') ? [] : [['stock', '在庫', () => { matF = 'low'; show('mat'); }, low]]), ['hyg', '衛生', () => show('hyg'), hygMissing().length, hygMissing().length], ['book', '帳簿', () => show('book'), up], ['ws', '卸', () => show('ws')], ['ct', '業者・卸先', () => show('ct')], ...(SH('post') ? [] : [['post', '発信', () => show('post')]]), ['sales', '売上', () => show('sales')], ...(SH('cal') ? [] : [['cal', '予定', () => show('cal'), (D.events || []).filter(e => dayDiff(e.date) === 0).length]])];
+    ...(SH('stock') ? [] : [['stock', '在庫', () => { matF = 'low'; show('mat'); }, low]]), ['hyg', '衛生', () => show('hyg'), hygMissing().length, hygMissing().length], ['book', '帳簿', () => show('book'), up], ['ws', '卸', () => show('ws')], ['ct', '業者・卸先', () => show('ct')], ...(SH('post') ? [] : [['post', '発信', () => show('post')]]), ['sales', '商品分析', () => show('sales')], ...(SH('cal') ? [] : [['cal', '予定', () => show('cal'), (D.events || []).filter(e => dayDiff(e.date) === 0).length]])];
   const m = $('menu');
   m.innerHTML = items.map(([k, l, , b, w], i) => w === 'p' || tabLocked(k) || SH(k) ? '' : `<button type="button" data-i="${i}" style="--c:var(--c-${k})"><span class="ic${w === 'p' ? ' p' : ''}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[k]}</svg></span>${l}${b ? `<span class="badge">${b}</span>` : ''}</button>`).join('');
   m.querySelectorAll('button').forEach(b => b.onclick = () => items[b.dataset.i][2]());
