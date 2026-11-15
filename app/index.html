@@ -390,6 +390,17 @@ section>h1:first-child{margin-top:24px}
 .todo .tr.done{opacity:.55}
 .todo .none{padding:14px;color:var(--ink-2);display:flex;gap:12px;align-items:center}
 .todo .none .mark{flex:0 0 32px;height:32px;border-radius:10px;display:grid;place-items:center;font-weight:700;background:var(--ok-soft);color:var(--ok)}
+/* 最初の取り込み */
+.intake .sh{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.intake .goal{font-family:var(--round,inherit);font-size:28px;font-weight:700;line-height:1.2;font-variant-numeric:tabular-nums}
+.intake .goal small{font-size:14px;color:var(--ink-2);font-weight:500}
+.intake .acts{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;margin:12px 0 0}
+.intake .acts label,.intake .acts button{justify-content:center;text-align:center}
+.intake .q{list-style:none;margin:12px 0 0;padding:0;display:grid;gap:4px;font-size:14px}
+.intake .q li{display:flex;justify-content:space-between;gap:8px;padding:6px 10px;border-radius:10px;background:var(--bg-2,#f3f5f8)}
+.intake .q li .st{white-space:nowrap;font-weight:600}
+.intake .q li.ok .st{color:var(--ok,#1f7a45)}.intake .q li.ng .st{color:var(--warn,#b42d2d)}
+.intake textarea{width:100%;min-height:140px;margin-top:8px;font:inherit}
 /* はじめの5つ */
 .start{padding:14px 16px}
 .start .sh{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}
@@ -721,6 +732,7 @@ section.locked>:not(.ph):not(.lockcard):not(h1){display:none!important}
     <div class="menu" id="menu"></div>
     <div class="card" id="a2hs" hidden></div>
     <div class="card start" id="start" hidden></div>
+    <div class="card intake" id="intake" hidden></div>
     <div class="cols">
       <div class="colL">
         <h1 class="sub">今日やること</h1>
@@ -894,6 +906,6 @@ section.locked>:not(.ph):not(.lockcard):not(h1){display:none!important}
 </div></nav>
 
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-<script src="app.js?v=135"></script>
+<script src="app.js?v=136"></script>
 </body>
 </html>

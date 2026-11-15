@@ -277,6 +277,73 @@ function renderStart() {
   box.querySelectorAll('li').forEach(li => li.onclick = () => { const x = steps[li.dataset.i]; if (!x[1]) x[2](); });
   $('start-hide').onclick = e => { e.preventDefault(); store.set('startHide', 1); box.hidden = true; };
 }
+// 最初の取り込み: 初日の30分で10品を原価つきでそろえる。レシピ・請求書の写真をまとめて選ぶ、文字で貼り付ける、よく使う材料を入れる
+// 写真は1枚ずつ順に送る(待つ間もほかの画面を使える)。進み具合はお店のデータから出すので、途中でやめても続きから
+const INTAKE_GOAL = 10;
+let intakeQ = [], intakeBusy = false, intakeMsgs = [];
+function intakeState() {
+  const goods = D.products.filter(p => p.kind !== 'part'), ready = goods.filter(p => p.batch_cost > 0 && !(p.unknown || []).length);
+  const noPrice = [...new Set(goods.flatMap(p => p.noPrice || []))], unknown = [...new Set(goods.flatMap(p => (p.unknown || []).filter(u => !(p.noPrice || []).includes(u))))];
+  return { goods, ready, noPrice, unknown };
+}
+function renderIntake() {
+  const box = $('intake'); if (!box) return;
+  const S = intakeState(), canEdit = D.me && (D.me.owner || perm('recipe'));
+  if (!canEdit || store.get('intakeHide') || (S.ready.length >= INTAKE_GOAL && !intakeQ.length)) { box.hidden = true; return; }
+  box.hidden = false;
+  const left = intakeQ.filter(x => x.st === 'wait' || x.st === 'run').length, lost = (() => { try { return JSON.parse(localStorage.getItem('intakeLost') || '[]'); } catch (e) { return []; } })();
+  const fewMats = (D.materials || []).length < 30;
+  box.innerHTML = `<div class="sh"><b>最初の取り込み</b><span class="k">目標: ${INTAKE_GOAL}品を原価つきで</span></div>
+    <div class="goal">${S.ready.length}<small> / ${INTAKE_GOAL}品 原価が出ました</small></div>
+    <div class="pg"><i style="width:${Math.min(100, S.ready.length / INTAKE_GOAL * 100)}%"></i></div>
+    <p class="k" style="margin:8px 0 0">${S.goods.length ? `入っている商品 ${S.goods.length}品。` : ''}${S.noPrice.length ? `値段がまだない材料: <b>${S.noPrice.slice(0, 6).map(esc).join('、')}${S.noPrice.length > 6 ? ' ほか' + (S.noPrice.length - 6) : ''}</b> → その請求書を撮ると入ります。` : ''}${S.unknown.length ? `辞書にない材料: ${S.unknown.slice(0, 4).map(esc).join('、')}${S.unknown.length > 4 ? ' ほか' : ''}。` : ''}${!S.goods.length ? 'レシピの写真か文字から始めてください。請求書を撮ると、載っている材料と値段が一気に入ります。' : ''}</p>
+    <div class="acts">
+      <label class="btn">レシピの写真をまとめて選ぶ<input type="file" id="in-rec" accept="image/*" multiple hidden></label>
+      <label class="btn ghost">請求書の写真をまとめて選ぶ<input type="file" id="in-inv" accept="image/*" multiple hidden></label>
+      <button class="btn ghost" type="button" id="in-txt">文字で貼り付ける(紙・Excel)</button>
+      ${fewMats ? '<button class="btn ghost" type="button" id="in-st">よく使う材料を入れる</button>' : ''}
+    </div>
+    <div id="in-txtbox" hidden><textarea id="in-text" placeholder="例)\nどら焼き 20個分\n薄力粉 300g\n卵 6個\n砂糖 280g\n…\n\n商品ごとに、名前と材料・分量を書いてください。何品でもまとめて貼り付けられます。"></textarea><div class="ask"><button class="btn" type="button" id="in-txtgo">取り込む</button></div></div>
+    ${intakeQ.length ? `<ul class="q">${intakeQ.map(x => `<li class="${x.st === 'ok' ? 'ok' : x.st === 'ng' ? 'ng' : ''}"><span>${esc(x.kind)} ${esc(x.name)}</span><span class="st">${x.st === 'wait' ? '待ち' : x.st === 'run' ? '読んでいます…' : x.st === 'ok' ? '入りました' : esc(x.err || '読めませんでした')}</span></li>`).join('')}</ul>${left ? `<p class="k" style="margin:6px 0 0">残り${left}枚。待つ間も、ほかの画面を使えます(この画面を閉じると、残りは送られません)。</p>` : ''}` : ''}
+    ${!left && lost.length ? `<p class="k" style="margin:8px 0 0">前に送りきれなかった写真が${lost.length}枚あります(${lost.slice(0, 3).map(esc).join('、')}${lost.length > 3 ? ' ほか' : ''})。もう一度選んでください。<a href="#" id="in-lostx">消す</a></p>` : ''}
+    ${intakeMsgs.length ? `<details style="margin-top:8px"><summary class="k" style="cursor:pointer">読み取りの結果(${intakeMsgs.length})</summary><div class="k" style="margin-top:6px;white-space:pre-wrap">${intakeMsgs.slice(-12).map(esc).join('\n\n')}</div></details>` : ''}
+    <p class="k" style="margin:10px 0 0">${S.ready.length >= INTAKE_GOAL ? `${INTAKE_GOAL}品そろいました。` : ''}<a href="#" id="in-hide">この箱を閉じる</a></p>`;
+  const pick = (id, kind) => { const f = $(id); f.onchange = () => { intakeAdd([...f.files], kind); f.value = ''; }; };
+  pick('in-rec', 'レシピ'); pick('in-inv', '請求書');
+  $('in-txt').onclick = () => { $('in-txtbox').hidden = !$('in-txtbox').hidden; if (!$('in-txtbox').hidden) $('in-text').focus(); };
+  $('in-txtgo').onclick = async () => {
+    const v = $('in-text').value.trim(); if (!v) { $('in-text').focus(); return; }
+    const b = $('in-txtgo'); b.disabled = true; b.textContent = '読んでいます…(20〜60秒)';
+    const out = await api({ kind: 'app_set', field: 'recipetext', value: v }).catch(() => ({ ok: false, error: 'つながりませんでした' }));
+    b.disabled = false; b.textContent = '取り込む';
+    if (!out.ok) { toast(out.error || '取り込めませんでした', 'ng'); return; }
+    $('in-text').value = ''; intakeMsgs.push(out.msg || ''); D = out.data; renderAll(); toast(out.msg || '取り込みました', 'ok');
+  };
+  if ($('in-st')) $('in-st').onclick = () => setValueX({ field: 'starter', value: 1 });
+  if ($('in-lostx')) $('in-lostx').onclick = e => { e.preventDefault(); try { localStorage.removeItem('intakeLost'); } catch (x) {} renderIntake(); };
+  $('in-hide').onclick = e => { e.preventDefault(); store.set('intakeHide', 1); box.hidden = true; };
+}
+function intakeSaveLost() { try { const l = intakeQ.filter(x => x.st === 'wait' || x.st === 'run').map(x => x.name); if (l.length) localStorage.setItem('intakeLost', JSON.stringify(l)); else localStorage.removeItem('intakeLost'); } catch (e) {} }
+function intakeAdd(files, kind) {
+  files.filter(f => /^image\//.test(f.type)).slice(0, 40).forEach(f => intakeQ.push({ file: f, name: f.name.replace(/\.[a-z0-9]+$/i, '').slice(0, 24), kind, st: 'wait' }));
+  intakeSaveLost(); renderIntake(); intakeRun();
+}
+async function intakeRun() {
+  if (intakeBusy) return; intakeBusy = true;
+  try {
+    for (let x; (x = intakeQ.find(y => y.st === 'wait'));) {
+      x.st = 'run'; renderIntake();
+      try {
+        const out = await api({ kind: 'liff_upload', web: true, image: await shrink(x.file), type: 'image/jpeg' });
+        if (!out.ok) throw new Error(out.error || '読めませんでした');
+        x.st = 'ok'; intakeMsgs.push(`【${x.kind} ${x.name}】\n` + (out.msgs || []).join('\n'));
+      } catch (e) { x.st = 'ng'; x.err = String(e.message || e).slice(0, 40); }
+      delete x.file; intakeSaveLost();
+      const fresh = await api({ kind: 'app_data' }).catch(() => null); if (fresh && fresh.ok) { D = fresh.data; renderAll(); } else renderIntake();
+    }
+  } finally { intakeBusy = false; intakeSaveLost(); renderIntake(); }
+}
+addEventListener('beforeunload', e => { if (intakeQ.some(x => x.st === 'wait' || x.st === 'run')) { intakeSaveLost(); e.preventDefault(); e.returnValue = ''; } });
 // 伝言: お店のみんなに残すメモ。「見た」で名前が残り、「済」で消える
 function renderMemos() {
   const box = $('memos'), ms = D.memos || [], me = profileName || '';
@@ -1405,7 +1472,7 @@ function renderJournal() {
 }
 function renderAll() {
   U = (D.words || {}).unit || '個';
-  renderToday(); renderRegClose(); renderCost(); renderHowto(); renderLabel(); renderMat(); renderBook(); renderHyg(); renderSales(); renderWs(); renderPost(); renderSet(); applyPlanLocks();
+  renderToday(); renderIntake(); renderRegClose(); renderCost(); renderHowto(); renderLabel(); renderMat(); renderBook(); renderHyg(); renderSales(); renderWs(); renderPost(); renderSet(); applyPlanLocks();
   $('shop').textContent = D.shop; if ($('shop2')) { $('shop2').textContent = D.shop; $('date2').textContent = $('date').textContent; }
   $('foot').textContent = `${new Date(D.at).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} 時点。開き直すと新しくなります。キャラの絵はAtelier SAISPEのLINE絵文字。`;
 }
