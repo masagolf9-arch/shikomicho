@@ -67,7 +67,7 @@ section[hidden]{display:none}
 /* 今月の状況(ホームの一番上) */
 .status{display:grid;grid-template-columns:1fr auto;gap:16px 24px;background:var(--card);border:1px solid var(--line);border-radius:20px;padding:18px 20px;box-shadow:var(--shadow);margin:0 0 16px;align-items:center}
 .status .rate{display:flex;flex-direction:column;gap:4px;min-width:0}
-.status .rate .t{font-size:13px;color:var(--ink-2);font-weight:600}
+.status .rate .t{font-size:12px;color:var(--ink-2);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .status .rate .v{font-family:var(--round);font-weight:700;font-size:44px;line-height:1.05;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
 .status .rate .v small{font-size:18px;font-weight:600;margin-left:2px}
 .status .rate .d{display:inline-flex;align-items:center;gap:6px;font-weight:700;font-size:15px;align-self:flex-start;padding:3px 10px;border-radius:999px;background:var(--line-2);color:var(--ink-2)}
@@ -87,7 +87,7 @@ section[hidden]{display:none}
 .status .why .r .u{font-family:var(--round);font-weight:700;color:var(--warn);white-space:nowrap;font-variant-numeric:tabular-nums}
 .status .why .r .u.ok{color:var(--ok)}
 .status .why .r .g{color:var(--ink-2);font-size:13px}
-.status .empty{grid-column:1/-1;color:var(--ink-2);font-size:14px;margin:0}
+.status .empty{grid-column:1/-1;color:var(--ink-2);font-size:13px;margin:0;border-top:1px solid var(--line-2);padding-top:10px}
 @media (max-width:520px){.status{grid-template-columns:1fr}.status .pie{justify-content:flex-start}.status .rate .v{font-size:38px}}
 /* 面: 白い札 */
 .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px 16px;box-shadow:var(--shadow)}
@@ -944,6 +944,6 @@ section.locked>:not(.ph):not(.lockcard):not(h1){display:none!important}
 </div></nav>
 
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-<script src="app.js?v=140"></script>
+<script src="app.js?v=141"></script>
 </body>
 </html>
