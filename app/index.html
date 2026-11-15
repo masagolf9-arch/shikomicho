@@ -42,6 +42,12 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);font
 .top .shop{display:flex;align-items:center;gap:8px;font-weight:700;font-size:18px;letter-spacing:.06em;font-family:var(--round)}
 .top .shop img{width:28px;height:28px;display:block;filter:var(--logo-f,none)}
 .top .date{font-size:13px;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.top .date{margin-left:auto}
+.opsgo{display:inline-flex;align-items:center;gap:6px;text-decoration:none;font-weight:700;font-size:13px;color:var(--accent);background:var(--line-2);border:1px solid var(--line);border-radius:999px;padding:6px 12px;white-space:nowrap}
+.opsgo svg{width:16px;height:16px;flex:0 0 16px}
+.opsgo:hover{background:var(--card)}
+#side .opsgo{font-size:15px;border-radius:10px;padding:10px 12px;margin:8px 0 0;gap:12px;justify-content:flex-start}
+#side .opsgo svg{width:22px;height:22px;flex:0 0 22px}
 
 /* 右下に座るキャラ。吹き出しは左上に出る */
 .chara{position:fixed;right:10px;bottom:calc(74px + env(safe-area-inset-bottom,0px));width:var(--cs,72px);height:var(--cs,72px);background-repeat:no-repeat;background-size:auto var(--cs,72px);cursor:pointer;z-index:12;-webkit-tap-highlight-color:transparent;filter:drop-shadow(0 2px 2px rgba(0,0,0,.14))}
@@ -960,6 +966,6 @@ section.locked>:not(.ph):not(.lockcard):not(h1){display:none!important}
 </div></nav>
 
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-<script src="app.js?v=142"></script>
+<script src="app.js?v=143"></script>
 </body>
 </html>

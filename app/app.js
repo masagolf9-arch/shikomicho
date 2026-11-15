@@ -774,6 +774,7 @@ function renderMenu(q) {
   side.innerHTML = `<div class="sname"><i></i>${esc(D.shop)}<small>${esc($('date').textContent)}</small></div>` + all.map(([k, l, , b, w, t], i) => tabLocked(k) || SH(k) ? '' : `<button type="button" data-i="${i}" data-tab="${t}" class="${w === 'p' ? 'p' : ''}" style="--c:var(--c-${k})"${t && t === cur ? ' aria-current="page"' : ''}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[k]}</svg>${l}${b ? `<span class="badge">${b}</span>` : ''}</button>`).join('');
   side.insertAdjacentHTML('beforeend', `<div class="gap"></div><div class="who">${esc(profileName || '')}${profileName ? ' · ' : ''}${esc(D.shop)}</div>`);
   side.querySelectorAll('button').forEach(b => b.onclick = () => all[b.dataset.i][2]());
+  opsMark();
 }
 // ---------- 作り方(スタッフも見られる。書く・直すのは原価のカード) ----------
 function bindStepImgs(box) {
@@ -2506,6 +2507,26 @@ function showShot() {
   let out = null; try { out = JSON.parse(sessionStorage.getItem('shikomi:shot') || 'null'); sessionStorage.removeItem('shikomi:shot'); } catch (e) {}
   if (!out || !D) return;
   openAsk(); addMsg('<span class="k">📷 撮った写真を送りました</span>', true); sayShot(out);
+}
+// ---------- 運営の人には、運営の画面への入り口をいつも見える所に出す ----------
+// パソコン: 左のメニューのいちばん下。スマホ: 上の帯の右。運営の人(店主・サポート役)にだけ出す
+const OPS_IC = '<path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2.4-.6-.6-2.4z"/>';
+async function opsMark() {
+  if (!CF || IN_LINE) return;
+  if (window.__ops === undefined) {
+    window.__ops = null;
+    const a = await api({ kind: 'app_account' }).catch(() => null);
+    window.__ops = a && a.ok && a.ops ? a.ops : '';
+  }
+  if (!window.__ops) return;
+  const side = $('side');
+  if (side && !side.querySelector('.opsgo')) {
+    const who = side.querySelector('.who');
+    const html = `<a class="opsgo" href="/ops"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${OPS_IC}</svg>運営の画面</a>`;
+    if (who) who.insertAdjacentHTML('beforebegin', html); else side.insertAdjacentHTML('beforeend', html);
+  }
+  const top = document.querySelector('.top');
+  if (top && !top.querySelector('.opsgo')) top.insertAdjacentHTML('beforeend', `<a class="opsgo" href="/ops" aria-label="運営の画面"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${OPS_IC}</svg>運営</a>`);
 }
 // ---------- ログインの設定(ホームページのときだけ) ----------
 async function renderAccount() {
