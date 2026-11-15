@@ -858,7 +858,8 @@ section.locked>:not(.ph):not(.lockcard):not(h1){display:none!important}
     <p class="foot" id="mat-sum"></p>
   </section>
   <section id="t-book" hidden>
-    <div class="ph"><div><h1>帳簿</h1><p class="lead">請求書を撮ると、業者ごと・月ごとに仕分けて、科目の案もつけます。</p></div><div class="acts"><button class="btn ghost" type="button" id="book-copy-top">この月をコピー</button></div></div>
+    <div class="ph"><div><h1>帳簿</h1><p class="lead">請求書を撮ると、業者ごと・月ごとに仕分けて、科目の案もつけます。PDFや、受発注システムから書き出したCSVもまとめて入ります。</p></div><div class="acts"><label class="btn ghost">PDF・CSVを取り込む<input type="file" id="book-doc" accept=".pdf,.csv,.txt,.tsv,application/pdf,text/csv,text/plain" multiple hidden></label><button class="btn ghost" type="button" id="book-copy-top">この月をコピー</button></div></div>
+    <div id="book-doc-out" hidden></div>
     <div class="stack" id="pays"></div>
     <h1 class="sub">請求書の仕分け</h1>
     <div class="chips" id="sort-chips"></div>
@@ -967,6 +968,6 @@ section.locked>:not(.ph):not(.lockcard):not(h1){display:none!important}
 </div></nav>
 
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-<script src="app.js?v=143"></script>
+<script src="app.js?v=144"></script>
 </body>
 </html>

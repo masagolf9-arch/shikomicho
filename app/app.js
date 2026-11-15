@@ -299,7 +299,7 @@ function renderIntake() {
     <p class="k" style="margin:8px 0 0">${S.goods.length ? `入っている商品 ${S.goods.length}品。` : ''}${S.noPrice.length ? `値段がまだない材料: <b>${S.noPrice.slice(0, 6).map(esc).join('、')}${S.noPrice.length > 6 ? ' ほか' + (S.noPrice.length - 6) : ''}</b> → その請求書を撮ると入ります。` : ''}${S.unknown.length ? `辞書にない材料: ${S.unknown.slice(0, 4).map(esc).join('、')}${S.unknown.length > 4 ? ' ほか' : ''}。` : ''}${!S.goods.length ? 'レシピの写真か文字から始めてください。請求書を撮ると、載っている材料と値段が一気に入ります。' : ''}</p>
     <div class="acts">
       <label class="btn">レシピの写真をまとめて選ぶ<input type="file" id="in-rec" accept="image/*" multiple hidden></label>
-      <label class="btn ghost">請求書の写真をまとめて選ぶ<input type="file" id="in-inv" accept="image/*" multiple hidden></label>
+      <label class="btn ghost">請求書の写真・PDF・CSVをまとめて選ぶ<input type="file" id="in-inv" accept="image/*,.pdf,.csv,.txt,.tsv,application/pdf,text/csv" multiple hidden></label>
       <button class="btn ghost" type="button" id="in-txt">文字で貼り付ける(紙・Excel)</button>
       ${fewMats ? '<button class="btn ghost" type="button" id="in-st">よく使う材料を入れる</button>' : ''}
     </div>
@@ -325,7 +325,7 @@ function renderIntake() {
 }
 function intakeSaveLost() { try { const l = intakeQ.filter(x => x.st === 'wait' || x.st === 'run').map(x => x.name); if (l.length) localStorage.setItem('intakeLost', JSON.stringify(l)); else localStorage.removeItem('intakeLost'); } catch (e) {} }
 function intakeAdd(files, kind) {
-  files.filter(f => /^image\//.test(f.type)).slice(0, 40).forEach(f => intakeQ.push({ file: f, name: f.name.replace(/\.[a-z0-9]+$/i, '').slice(0, 24), kind, st: 'wait' }));
+  files.filter(f => /^image\//.test(f.type) || isDocFile(f)).slice(0, 40).forEach(f => intakeQ.push({ file: f, name: f.name.replace(/\.[a-z0-9]+$/i, '').slice(0, 24), kind: isDocFile(f) ? '請求書' : kind, st: 'wait', doc: isDocFile(f) }));
   intakeSaveLost(); renderIntake(); intakeRun();
 }
 async function intakeRun() {
@@ -334,7 +334,7 @@ async function intakeRun() {
     for (let x; (x = intakeQ.find(y => y.st === 'wait'));) {
       x.st = 'run'; renderIntake();
       try {
-        const out = await api({ kind: 'liff_upload', web: true, image: await shrink(x.file), type: 'image/jpeg' });
+        const out = x.doc ? await invoiceDoc(x.file) : await api({ kind: 'liff_upload', web: true, image: await shrink(x.file), type: 'image/jpeg' });
         if (!out.ok) throw new Error(out.error || '読めませんでした');
         x.st = 'ok'; intakeMsgs.push(`【${x.kind} ${x.name}】\n` + (out.msgs || []).join('\n'));
       } catch (e) { x.st = 'ng'; x.err = String(e.message || e).slice(0, 40); }
@@ -342,6 +342,23 @@ async function intakeRun() {
       const fresh = await api({ kind: 'app_data' }).catch(() => null); if (fresh && fresh.ok) { D = fresh.data; renderAll(); } else renderIntake();
     }
   } finally { intakeBusy = false; intakeSaveLost(); renderIntake(); }
+}
+// 請求書のPDF・CSV(受発注システムの書き出し)を1つ送る。PDFはそのまま、CSV・文字は中身を送る
+const isDocFile = f => /\.(pdf|csv|txt|tsv)$/i.test(f.name) || /pdf|csv|text\/plain/.test(f.type);
+async function invoiceDoc(f) {
+  if (f.size > 8 * 1024 * 1024) return { ok: false, error: '8MBより大きいファイルは送れません' };
+  let value;
+  if (/pdf/i.test(f.type) || /\.pdf$/i.test(f.name)) {
+    const data = await new Promise((ok, ng) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(',')[1]); r.onerror = ng; r.readAsDataURL(f); });
+    value = { file: { data, type: 'application/pdf' } };
+  } else {
+    let text = await f.text();
+    if (/[\ufffd]/.test(text) || !/[ぁ-んァ-ン一-龥]/.test(text)) { try { const b = await f.arrayBuffer(); const t2 = new TextDecoder('shift_jis').decode(b); if (/[ぁ-んァ-ン一-龥]/.test(t2)) text = t2; } catch (e) {} }
+    value = { text };
+  }
+  const out = await api({ kind: 'app_set', field: 'invoicedoc', value }).catch(() => ({ ok: false, error: 'つながりませんでした' }));
+  if (out.ok) out.msgs = out.msgs || [out.msg];
+  return out;
 }
 addEventListener('beforeunload', e => { if (intakeQ.some(x => x.st === 'wait' || x.st === 'run')) { intakeSaveLost(); e.preventDefault(); e.returnValue = ''; } });
 // 伝言: お店のみんなに残すメモ。「見た」で名前が残り、「済」で消える
@@ -883,6 +900,18 @@ function renderBanks() {
 }
 function renderPays() {
   const box = $('pays');
+  if ($('book-doc') && !$('book-doc').dataset.b) { $('book-doc').dataset.b = 1; $('book-doc').onchange = async () => {
+    const files = [...$('book-doc').files].filter(isDocFile).slice(0, 20); $('book-doc').value = ''; if (!files.length) return;
+    const out = $('book-doc-out'); out.hidden = false; out.innerHTML = `<div class="card"><p class="k" style="margin:0">読んでいます… ${files.length}件(1件 20〜60秒)</p></div>`;
+    const logs = [];
+    for (const f of files) {
+      const r = await invoiceDoc(f);
+      logs.push(`【${esc(f.name)}】 ${r.ok ? (r.msgs || []).map(esc).join('<br>') : '<mark>' + esc(r.error || '読めませんでした') + '</mark>'}`);
+      out.innerHTML = `<div class="card"><div class="k" style="white-space:normal">${logs.join('<hr style="border:0;border-top:1px solid var(--line);margin:8px 0">')}</div><p class="k" style="margin:8px 0 0"><a href="#" id="book-doc-x">閉じる</a></p></div>`;
+      $('book-doc-x').onclick = e => { e.preventDefault(); out.hidden = true; };
+      if (r.ok && r.data) { D = r.data; renderAll(); }
+    }
+  }; }
   const up = unpaid();
   if (!(D.pays || []).length) { box.innerHTML = emptyBox('book', 'まだ請求書がありません', '請求書を撮ると、業者ごと・月ごとに仕分けて、払っていないものがここに並びます。', ['請求書を撮る', 'cam']); return; }
   const sum = up.reduce((a, p) => a + p.total, 0);
