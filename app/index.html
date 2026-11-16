@@ -141,21 +141,21 @@ section[hidden]{display:none}
 .mk .qty button.on{background:var(--accent);color:var(--accent-ink)}
 .mk .tg{display:inline-flex;align-items:center;gap:8px;font-size:15px;font-weight:600}
 .mk .x{font:inherit;font-weight:700;font-size:15px;border:2px solid var(--line);background:var(--card);color:var(--ink);border-radius:999px;padding:9px 16px;cursor:pointer}
-.sheet{max-width:980px;margin:0 auto}
-.sheet .head{display:grid;grid-template-columns:110px 1fr;border:2px solid var(--ink);width:min(100%,560px);margin-bottom:12px}
-.sheet .head div{padding:9px 12px;border-bottom:1px dotted var(--ink-2);font-size:16px}
-.sheet .head div:nth-child(odd){border-right:1px dotted var(--ink-2);color:var(--ink-2)}
-.sheet .head div:nth-last-child(-n+2){border-bottom:0}
-.sheet .head b{font-family:var(--round);font-size:22px}
-.sheet table{width:100%;border:2px solid var(--ink);border-collapse:collapse;font-size:19px}
-.sheet th,.sheet td{padding:9px 12px;border-bottom:1px dotted var(--ink-2);border-right:1px dotted var(--ink-2);white-space:normal;vertical-align:middle;text-align:left}
-.sheet th{border-bottom:2px solid var(--ink);font-size:15px;background:transparent}
-.sheet td:last-child,.sheet th:last-child{border-right:0}
-.sheet td.n{font-family:var(--round);font-size:24px;text-align:right;white-space:nowrap}
-.sheet tr.grp td{font-weight:700;font-size:18px;padding-top:14px;background:var(--bg)}
-.sheet tr.gap td{height:18px}
-.sheet td.rem{color:var(--ink-2);font-size:14px}
-.sheet.nomoney .money{display:none}.sheet.nomoney .head .m{display:none}
+.rsheet{max-width:980px;margin:0 auto}
+.rsheet .head{display:grid;grid-template-columns:110px 1fr;border:2px solid var(--ink);width:min(100%,560px);margin-bottom:12px}
+.rsheet .head div{padding:9px 12px;border-bottom:1px dotted var(--ink-2);font-size:16px}
+.rsheet .head div:nth-child(odd){border-right:1px dotted var(--ink-2);color:var(--ink-2)}
+.rsheet .head div:nth-last-child(-n+2){border-bottom:0}
+.rsheet .head b{font-family:var(--round);font-size:22px}
+.rsheet table{width:100%;border:2px solid var(--ink);border-collapse:collapse;font-size:19px}
+.rsheet th,.rsheet td{padding:9px 12px;border-bottom:1px dotted var(--ink-2);border-right:1px dotted var(--ink-2);white-space:normal;vertical-align:middle;text-align:left}
+.rsheet th{border-bottom:2px solid var(--ink);font-size:15px;background:transparent}
+.rsheet td:last-child,.rsheet th:last-child{border-right:0}
+.rsheet td.n{font-family:var(--round);font-size:24px;text-align:right;white-space:nowrap}
+.rsheet tr.grp td{font-weight:700;font-size:18px;padding-top:14px;background:var(--bg)}
+.rsheet tr.gap td{height:18px}
+.rsheet td.rem{color:var(--ink-2);font-size:14px}
+.rsheet.nomoney .money{display:none}.rsheet.nomoney .head .m{display:none}
 .mk .tip{color:var(--ink-2);font-size:14px;margin:14px auto 0;max-width:980px}
 @media (max-width:860px){.rv{grid-template-columns:1fr}.rv .pic .img{height:140px}.ml .ef{grid-template-columns:1fr 80px 64px}.steps2 .ef{grid-template-columns:1fr}.sheet table{font-size:16px}.sheet td.n{font-size:20px}}
 /* 理論と実際の差 */
@@ -1099,6 +1099,6 @@ section.locked>:not(.ph):not(.lockcard):not(h1){display:none!important}
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-<script src="app.js?v=152"></script>
+<script src="app.js?v=153"></script>
 </body>
 </html>
