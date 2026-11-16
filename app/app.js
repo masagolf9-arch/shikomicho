@@ -52,7 +52,7 @@ async function load() {
       if (out.error === 'noshop') return state('<b>まだお店とつながっていません。</b><br>お店の方から届いた招待のリンクを開いてください。<br><form method="post" action="/auth/logout" style="margin-top:12px"><button class="btn ghost">別の方法でログインし直す</button></form>');
       return state(esc(out.error));
     }
-    const first = !D; D = out.data; cache.set(D); state(''); renderAll(); if (first) show(store.get('tab', 'today'), true); else show(cur, true, true);
+    const first = !D; D = out.data; cache.set(D); state(''); renderAll(); if (first) { show(store.get('tab', 'today'), true); setTimeout(() => showHints(cur), 800); } else show(cur, true, true);
     if (first) setTimeout(() => chat(hello(), 'greet'), 250);
     if (first) setTimeout(loadSup, 1500);   // 担当からのお返事があれば、設定に印
     if (CF && !window.__acct) { window.__acct = 1; renderAccount(); }
@@ -1197,6 +1197,7 @@ function bindStore() {
   if ($('pc-print-all')) $('pc-print-all').onclick = () => openPrint(cards(D.products.filter(p => p.kind !== 'part')));
   bindQr();
 }
+document.addEventListener('click', e => { if (e.target && e.target.id === 'hint-again') { store.set('hintsOff', false); store.set('hintSeen', {}); toast('次に画面を開いたとき、ヒントが出ます'); show('today'); } });
 document.addEventListener('click', e => { if (e.target && e.target.id === 'ls-go') { const name = $('ls-name').value.trim(), addr = $('ls-addr').value.trim(); if (!addr) { $('ls-addr').focus(); return; } setValueX({ field: 'shop', value: { name, addr } }); } });
 function renderLabel() {
   const chips = $('label-chips'), box = $('label-box'), face = sellFace();
@@ -1637,10 +1638,36 @@ function show(t, quiet, keep) {
   document.querySelectorAll('nav button[data-t]').forEach(b => b.dataset.t === t ? b.setAttribute('aria-current', 'page') : b.removeAttribute('aria-current'));
   document.querySelectorAll('#side button[data-tab]').forEach(b => b.dataset.tab === t ? b.setAttribute('aria-current', 'page') : b.removeAttribute('aria-current'));
   store.set('tab', t); if (!keep) window.scrollTo(0, 0);
-  setCrumb(null); renderBar();
+  setCrumb(null); renderBar(); hintClear(); if (!quiet) showHints(t);
   const seen = (() => { try { const k = 'shikomi:seen:' + t; if (localStorage.getItem(k)) return true; localStorage.setItem(k, '1'); } catch (e) {} return false; })();
   const busy = (t === 'hyg' && hygMissing().length) || (t === 'book' && unpaid().length);
   if (!quiet && (!seen || busy)) chat({ today: null, cost: '原価です。カードを押すと中身と入力欄が出ます。', label: '裏表示の案です。色のついたところだけ確かめてください。', howto: '作り方です。商品を押すと、手順と写真が出ます。', mat: '材料の値段です。「仮」は請求書が来たら置き換えます。', set: '設定です。キャラや文字の大きさを変えられます。', hyg: hygMissing().length ? `今日まだの記録が${hygMissing().length}つあります。` : '今日の衛生記録はそろっています。', ws: '卸の納品と請求書です。', sales: '売上と粗利です。精算レシートを撮ると増えていきます。', post: 'ポップやインスタの文、いっしょに考えます。', cal: '予定です。納品・催事・休みを入れておくと、当日の「今日やること」に出ます。', book: unpaid().length ? `払っていないものが${unpaid().length}件あります。払ったら「払った」を押してください。` : '帳簿です。請求書は月ごとに仕分けてあります。' }[t], t === 'cost' ? 'clap' : t === 'label' ? 'point' : null);
+}
+// ---------- ふきだしヒント(初めてでも迷わない) ----------
+// 画面ごとに1〜2個。「次へ」で進み、「もう出さない」で全部止める。設定の「使い方のヒントをもう一度」で戻る
+const HINTS = {
+  today: [{ sel: '#status', t: 'ここが今月の状況です。原価率と、先月との差、上がった理由が出ます。' }, { sel: 'nav button[data-t="shot"], #side button[data-tab="shot"]', t: 'レシピ・請求書・材料の袋の裏は、ここから撮影して取り込みます。' }],
+  cost: [{ sel: '#ask-top', t: 'ここに「バター 1kg 2,260円」と打つだけで、材料の値段が入れ替わります。FAX・紙の請求書は「撮る」から。' }, { sel: '#costs', t: '商品を押すと、材料ごとの原価と、売価・原価率の入力が出ます。' }],
+  label: [{ sel: '.label', t: 'レシピから食品表示の案が出ます。色のついた所だけ確かめて、ラベルを印刷できます。' }, { sel: '#qr-card', t: 'このQRを店頭に置くと、お客様がスマートフォンで商品ごとのアレルゲンを確認できます。' }],
+  hyg: [{ sel: '#hyg-today', t: '朝と片付けに、温度・体調・清掃を押すだけ。基準を外れるとその場で知らせます。' }],
+  sales: [{ sel: '#gap-wrap', t: 'レシピどおりの材料費と、実際に買った材料費の差です。ロスや量のぶれに気づけます。' }, { sel: '#course-wrap', t: 'コース・セット・宴会の売価は、ここで原価から決められます。' }],
+  book: [{ sel: '#book-doc', t: '請求書のPDFや、受発注システムのCSVは、ここからまとめて取り込めます。' }]
+};
+let hintEl = null;
+function hintClear() { if (hintEl) { hintEl.classList.remove('hint-ring'); hintEl = null; } const h = $('hint'); if (h) h.hidden = true; }
+function showHints(tab) {
+  const h = $('hint'); if (!h || store.get('hintsOff', false)) return;
+  const seen = store.get('hintSeen', {}); if (seen[tab]) return;
+  const list = (HINTS[tab] || []).map(x => ({ ...x, el: document.querySelector(x.sel) })).filter(x => x.el && !x.el.hidden && x.el.offsetParent !== null);
+  if (!list.length) return;
+  let i = 0;
+  const draw = () => {
+    hintClear(); const x = list[i]; hintEl = x.el; x.el.classList.add('hint-ring'); try { x.el.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) {}
+    h.hidden = false; h.innerHTML = `<p class="n">使い方のヒント ${i + 1}/${list.length}</p><p>${esc(x.t)}</p><div class="acts"><button class="btn ghost sm" type="button" id="hint-off">もう出さない</button><button class="btn sm" type="button" id="hint-next">${i + 1 < list.length ? '次へ' : '分かった'}</button></div>`;
+    $('hint-next').onclick = () => { i++; if (i < list.length) draw(); else { seen[tab] = 1; store.set('hintSeen', seen); hintClear(); } };
+    $('hint-off').onclick = () => { store.set('hintsOff', true); hintClear(); toast('ヒントを止めました。設定からもう一度出せます'); };
+  };
+  setTimeout(draw, 500);
 }
 document.querySelectorAll('nav button[data-t]').forEach(b => b.onclick = () => show(b.dataset.t));
 // 左右スワイプで隣の画面へ(横に動く部品の上では反応しない)
@@ -1667,7 +1694,7 @@ function renderSet() {
   const grp = (t, k, body) => `<div class="card sgrp"><div class="sgh"><span class="ic" style="--c:var(--c-${k})"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[k]}</svg></span><b>${t}</b></div>${body}</div>`;
   const stand = matchMedia('(display-mode: standalone)').matches || navigator.standalone;
   const homeIcon = `<div class="card" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><b>${matchMedia('(pointer:coarse)').matches ? 'ホーム画面のアイコン' : 'パソコンのアイコン'}</b>${stand ? '<span class="pill">アイコンから開いています(置けています)</span>' : `<button class="btn sm" type="button" id="set-a2hs">${matchMedia('(pointer:coarse)').matches ? 'ホーム画面に置く' : 'パソコンに置く'}</button><span class="k">LINEやブラウザを通らず、アイコンから開けるようにします</span>`}</div>`;
-  $('set-box').innerHTML = homeIcon + (CF ? `<div class="card" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><b>使い方ガイド</b><a class="btn ghost sm" href="/guide/start" target="_blank">はじめの設定(店主向け)</a><a class="btn ghost sm" href="/guide/daily" target="_blank">ふだんの使い方(みんな向け)</a><a class="btn ghost sm" href="/guide/faq" target="_blank">よくある質問(動画つき)</a></div>` : '') + grp('見え方', 'set', `
+  $('set-box').innerHTML = homeIcon + (CF ? `<div class="card" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><b>使い方ガイド</b><a class="btn ghost sm" href="/guide/start" target="_blank">はじめの設定(店主向け)</a><a class="btn ghost sm" href="/guide/daily" target="_blank">ふだんの使い方(みんな向け)</a><a class="btn ghost sm" href="/guide/faq" target="_blank">よくある質問(動画つき)</a><button class="btn ghost sm" type="button" id="hint-again">使い方のヒントをもう一度</button></div>` : '') + grp('見え方', 'set', `
     <div class="set-row"><span>キャラの大きさ</span>${seg('csize', [['s', '小'], ['m', '中'], ['l', '大']], store.get('csize', 'm'))}</div>
     <div class="set-row"><span>文字の大きさ</span>${seg('size', [['normal', 'ふつう'], ['big', '大きめ']], store.get('size', 'normal'))}</div>
     <div class="set-row"><span>画面の色</span>${seg('theme', [['auto', '自動'], ['light', '明るい'], ['dark', '暗い']], store.get('theme', 'auto'))}</div>`) + grp('お店の決まりごと', 'stock', `

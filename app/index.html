@@ -97,6 +97,14 @@ section[hidden]{display:none}
 .crs-f{display:grid;gap:8px;margin-top:8px}
 .crs-f .rw{display:grid;grid-template-columns:1fr 80px auto;gap:6px;align-items:center}
 .crs-f .rw input{min-width:0}
+/* ふきだしヒント(初めてでも迷わない): 画面ごとに1〜2個。指す所に青い輪 */
+.hint{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:60;width:min(92vw,460px);background:var(--card);color:var(--ink);border:2px solid var(--accent);border-radius:16px;padding:12px 14px;box-shadow:0 12px 32px rgba(16,40,70,.22);font-size:15px;line-height:1.55}
+.hint::before{content:"";position:absolute;left:50%;top:-10px;width:16px;height:16px;background:var(--card);border-left:2px solid var(--accent);border-top:2px solid var(--accent);transform:translateX(-50%) rotate(45deg)}
+.hint .n{font-size:12px;font-weight:700;color:var(--accent);letter-spacing:.08em;margin:0 0 4px}
+.hint p{margin:0}
+.hint .acts{display:flex;gap:8px;justify-content:flex-end;margin-top:10px}
+.hint-ring{outline:3px solid var(--accent);outline-offset:4px;border-radius:12px;box-shadow:0 0 0 8px rgba(24,95,165,.15);transition:outline-color .3s}
+@media (min-width:1000px){.hint{bottom:24px}}
 /* お客様向けのアレルゲン一覧のQR */
 .qrbox{display:grid;grid-template-columns:150px 1fr;gap:16px;align-items:start}
 .qrbox .qr{width:150px;height:150px;background:#fff;padding:8px;border:1px solid var(--line);border-radius:10px}
@@ -985,6 +993,7 @@ section.locked>:not(.ph):not(.lockcard):not(h1){display:none!important}
 </div>
 
 <div class="inv" id="inv" hidden></div>
+<div class="hint" id="hint" hidden role="dialog" aria-live="polite"></div>
 <div class="say" id="say" hidden></div>
 <div class="chara" id="chara" role="button" tabindex="0" aria-label="相談する"></div>
 <nav aria-label="画面の切り替え"><div class="in">
@@ -997,6 +1006,6 @@ section.locked>:not(.ph):not(.lockcard):not(h1){display:none!important}
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-<script src="app.js?v=148"></script>
+<script src="app.js?v=149"></script>
 </body>
 </html>
