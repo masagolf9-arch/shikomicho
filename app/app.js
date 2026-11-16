@@ -1075,9 +1075,27 @@ function renderPdet() {
     <div class="ml"><div class="mh"><span>材料</span>${qn}</div>${rows}${total ? `<div class="row sub"><span>合計(${per ? n + U : '1仕込み'}分)</span><b style="font-size:16px">${total}</b><span></span></div>` : ''}<div class="row sub"><span>アレルゲン</span><span style="font-weight:500;font-size:13px">${algs.length ? algs.map(esc).join('・') : 'なし'}</span><span></span></div>${canEdit ? `<div class="add"><button class="btn ghost sm" type="button" id="ef-add">＋ 材料を足す</button></div>` : ''}</div></div>
     <datalist id="mat-names">${D.materials.map(m => `<option value="${esc(m.name)}">`).join('')}</datalist>
     <div class="steps2"><h3>作り方</h3>${(p.steps || []).length ? `<ol>${steps}</ol>` : '<p class="k" style="margin:0">まだ手順がありません。</p>'}${canEdit ? `<div class="add"><input id="es-new" placeholder="手順を足す(例: 粗熱を取って袋に入れる)" maxlength="120"><button class="btn ghost sm" type="button" id="es-add">足す</button></div>` : ''}</div>
-    <details class="setd"><summary>設定(1${U}の重さ・売価・分類・出し方・値段のない材料・消す)</summary><div id="pdet-set"></div></details>`;
+    <details class="setd"><summary>設定(1${U}の重さ・売価・分類・出し方・値段のない材料・消す)</summary>${canEdit ? `<div class="ask" style="justify-content:space-between;flex-wrap:wrap;margin:8px 0"><span>材料や作り方を消してしまったら: 毎朝4時の控えと見比べて戻せます</span><button class="btn ghost sm" type="button" id="pdet-bk">控えと見比べる</button></div><div id="pdet-bkout"></div>` : ''}<div id="pdet-set"></div></details>`;
   bindStepImgs(box);
   $('pdet-x').onclick = () => { prodSel = null; renderCost(); };
+  if ($('pdet-bk')) $('pdet-bk').onclick = async () => {
+    const out = $('pdet-bkout'); out.innerHTML = '<p class="k">控えを読んでいます…</p>';
+    const r = await api({ kind: 'app_backup_recipe', product: p.name });
+    if (!r.ok) { out.innerHTML = `<p class="k">${esc(r.error)}</p>`; return; }
+    if (!r.found) { out.innerHTML = `<p class="k">${esc(r.day)}の控えに「${esc(p.name)}」はありません。</p>`; return; }
+    const cur = p.rows.map(x => [x.name, x.q, x.u]), key = x => x[0] + '|' + x[1] + x[2];
+    const curK = new Set(cur.map(key)), bkK = new Set(r.ingredients.map(key));
+    const gone = r.ingredients.filter(x => !curK.has(key(x))), added = cur.filter(x => !bkK.has(key(x)));
+    const sgone = (r.steps || []).filter(t => !(p.steps || []).includes(t));
+    out.innerHTML = `<div class="card" style="margin:8px 0"><p style="margin:0 0 6px"><b>${esc(r.day)} 4時の控え</b></p>
+      <p style="margin:0">材料: ${gone.length ? `控えにあって今ない: ${gone.map(x => `<b>${esc(x[0])} ${x[1]}${esc(x[2])}</b>`).join('、')}` : '控えと同じ'}${added.length ? `<br><span class="k">今だけにある: ${added.map(x => esc(x[0]) + ' ' + x[1] + esc(x[2])).join('、')}</span>` : ''}</p>
+      ${sgone.length ? `<p style="margin:6px 0 0">作り方: 控えにあって今ない <b>${sgone.map(esc).join(' / ')}</b></p>` : ''}
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">${gone.length ? `<button class="btn sm" type="button" id="bk-ing">消えた材料だけ足す</button><button class="btn ghost sm" type="button" id="bk-ing-all">材料を控えの形にそっくり戻す</button>` : ''}${sgone.length ? `<button class="btn ghost sm" type="button" id="bk-steps">作り方を控えの形に戻す</button>` : ''}</div>
+      <p class="k" style="margin:8px 0 0">戻したあとも、いちばん下の「戻す」から直す前に戻せます。</p></div>`;
+    if ($('bk-ing')) $('bk-ing').onclick = () => setValueX({ field: 'ing', product: p.name, value: cur.concat(gone) });
+    if ($('bk-ing-all')) $('bk-ing-all').onclick = () => setValueX({ field: 'ing', product: p.name, value: r.ingredients });
+    if ($('bk-steps')) $('bk-steps').onclick = () => setValueX({ field: 'steps', product: p.name, value: r.steps });
+  };
   $('mk-open').onclick = () => openMk(p);
   if ($('pdet-label')) $('pdet-label').onclick = () => { labelName = p.name; show('label'); };
   $('pdet-photo').onclick = () => { const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*'; inp.onchange = async () => { const fl = inp.files[0]; if (!fl) return; try { const img64 = await shrinkStep(fl); const r = await api({ kind: 'app_img', product: p.name, idx: 0, image: img64, type: 'image/jpeg' }); if (!r.ok) throw new Error(r.error); D = r.data; renderAll(); toast('写真を付けました', 'ok'); } catch (e) { toast(e.message || '写真を送れませんでした'); } }; inp.click(); };
