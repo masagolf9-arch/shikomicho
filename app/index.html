@@ -70,6 +70,94 @@ section[hidden]{display:none}
 .row{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
 .foot{font-size:13px;color:var(--ink-2);margin-top:24px}
 
+/* 原価の一覧(表計算の密度。見出しを押すと並べ替え、行を押すと下に商品) */
+.tw{overflow:auto;border:1px solid var(--line);border-radius:14px;background:var(--card);max-height:60vh}
+.ctab{border-collapse:separate;border-spacing:0;width:100%;min-width:760px;font-size:14px}
+.ctab th,.ctab td{padding:0 10px;height:46px;border-bottom:1px solid var(--line-2);white-space:nowrap;vertical-align:middle}
+.ctab th{position:sticky;top:0;background:var(--bg);text-align:left;font-weight:700;font-size:12.5px;color:var(--ink-2);border-bottom:1px solid var(--line);cursor:pointer;user-select:none;z-index:1}
+.ctab th.n,.ctab td.n{text-align:right;font-variant-numeric:tabular-nums}
+.ctab th:first-child,.ctab td:first-child{position:sticky;left:0;background:var(--card);z-index:2;border-right:1px solid var(--line-2)}
+.ctab th:first-child{background:var(--bg);z-index:3}
+.ctab th .s{display:inline-block;width:0;height:0;margin-left:6px;border-left:4px solid transparent;border-right:4px solid transparent;border-top:5px solid var(--ink-3);vertical-align:middle;opacity:.5}
+.ctab th.asc .s{transform:rotate(180deg);opacity:1;border-top-color:var(--accent)}.ctab th.desc .s{opacity:1;border-top-color:var(--accent)}
+.ctab tbody tr{cursor:pointer}.ctab tbody tr:hover td{background:var(--soft)}
+.ctab tr.sel td{background:var(--sun-soft)}
+.ctab td b{font-family:var(--round);font-size:16px}
+.ctab .th{display:inline-flex;align-items:center;gap:10px}
+.ctab .th i{width:32px;height:32px;border-radius:9px;flex:none;display:grid;place-items:center;color:#fff;font-family:var(--round);font-weight:700;font-size:14px;background:var(--accent);overflow:hidden}
+.ctab .th i img{width:100%;height:100%;object-fit:cover}
+.ctab .up{color:var(--warn);font-weight:700}.ctab .dn{color:var(--ok);font-weight:700}
+.ctab tr.part td{color:var(--ink-2)}
+.ctab tfoot td{position:sticky;bottom:0;background:var(--bg);font-weight:700;border-top:1px solid var(--line);height:40px}
+.foot-k{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:13px;color:var(--ink-2);margin:8px 2px 0}
+/* 商品(行を押したとき): 左に写真、右に材料と量、下に作り方。設定はたたむ */
+.pdet{margin-top:12px;border:1.5px solid var(--accent)}
+.pdet .hd2{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.pdet .hd2 h2{font-family:var(--round);font-size:20px;margin:0}
+.rv{display:grid;grid-template-columns:240px 1fr;gap:16px;align-items:start}
+.rv .pic{border-radius:14px;overflow:hidden;background:var(--line-2)}
+.rv .pic .img{height:170px;display:grid;place-items:center;color:#fff;font-family:var(--round);font-size:22px;font-weight:700;background:var(--accent);overflow:hidden}
+.rv .pic .img img{width:100%;height:100%;object-fit:cover}
+.rv .pic .cap{padding:10px 12px;font-size:13px;color:var(--ink-2)}
+.rv .pic .btns{display:grid;gap:6px;padding:0 12px 12px}
+.ml{border:1px solid var(--line);border-radius:14px;overflow:hidden;min-width:0}
+.ml .mh{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 14px;background:var(--bg);font-weight:700}
+.ml .qn{display:inline-flex;align-items:center;gap:4px;flex-wrap:wrap;justify-content:flex-end}
+.ml .qn button{border:1px solid var(--line);background:var(--card);font:inherit;font-size:13px;font-weight:700;color:var(--ink-2);padding:6px 10px;border-radius:999px;cursor:pointer;min-height:36px}
+.ml .qn button.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.ml .qn label{display:inline-flex;align-items:center;gap:4px;font-size:13px;font-weight:600;color:var(--ink-2);margin-left:4px}
+.ml .qn input{width:5.5em;font:inherit;font-size:16px;font-weight:700;padding:5px 8px;border:1.5px solid var(--line);border-radius:9px;background:var(--card);color:var(--ink);text-align:right}
+.ml .row{display:grid;grid-template-columns:1fr auto auto;gap:12px;align-items:baseline;padding:9px 14px;border-top:1px solid var(--line-2);font-size:17px}
+.ml .row.sub{background:var(--bg);font-weight:700;font-size:14px;color:var(--ink-2)}
+.ml .row b{font-family:var(--round);font-size:22px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.ml .row b small{font-size:13px;color:var(--ink-2);margin-left:2px}
+.ml .row .alg{font-size:12px;color:var(--warn);margin-left:6px}
+.ml .row .est{font-size:11px;color:var(--ink-3);margin-left:6px}
+.ml .row .ed{border:0;background:transparent;color:var(--ink-3);font-size:16px;cursor:pointer;padding:2px 6px;border-radius:8px}
+.ml .row .ed:hover{background:var(--soft);color:var(--accent)}
+.ml .row.editing{grid-template-columns:1fr;background:var(--soft)}
+.ml .ef{display:grid;grid-template-columns:1fr 90px 70px auto auto;gap:6px;align-items:center}
+.ml .ef input,.ml .ef select{font:inherit;font-size:16px;padding:7px 9px;border:1.5px solid var(--line);border-radius:9px;background:var(--card);color:var(--ink);min-width:0}
+.ml .add{display:flex;gap:8px;padding:10px 14px;border-top:1px solid var(--line)}
+.steps2{margin-top:12px;border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+.steps2 h3{font-size:14px;color:var(--ink-2);margin:0 0 8px}
+.steps2 ol{margin:0;padding-left:1.4em;display:grid;gap:8px;font-size:16px}
+.steps2 ol li{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center}
+.steps2 ol li .ed{border:0;background:transparent;color:var(--ink-3);cursor:pointer;font-size:15px;padding:2px 6px;border-radius:8px}
+.steps2 ol li .ed:hover{background:var(--soft);color:var(--accent)}
+.steps2 ol li.editing{grid-template-columns:1fr}
+.steps2 .ef{display:grid;grid-template-columns:1fr auto auto auto;gap:6px;align-items:center}
+.steps2 .ef input{font:inherit;font-size:16px;padding:7px 9px;border:1.5px solid var(--line);border-radius:9px;background:var(--card);color:var(--ink);min-width:0}
+.steps2 .add{margin-top:10px;display:flex;gap:8px}
+.steps2 .add input{flex:1;font:inherit;font-size:16px;padding:8px 10px;border:1.5px solid var(--line);border-radius:9px;background:var(--card);color:var(--ink);min-width:0}
+.pdet details.setd{margin-top:12px}.pdet details.setd summary{cursor:pointer;font-weight:700;color:var(--ink-2)}
+/* レシピ票(製造モード): 紙と同じ並び。材料名と分量だけ、大きな文字。店主は金額も */
+.mk{position:fixed;inset:0;z-index:70;background:var(--card);color:var(--ink);overflow:auto;padding:max(14px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) 40px max(16px,env(safe-area-inset-left,0px))}
+.mk .top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px;max-width:980px;margin-inline:auto}
+.mk h2{font-family:var(--round);font-size:clamp(24px,3.4vw,32px);margin:0}
+.mk .ctl{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.mk .qty{display:inline-flex;background:var(--bg);border-radius:999px;padding:4px;gap:4px}
+.mk .qty button{border:0;background:transparent;font:inherit;font-weight:700;font-size:16px;padding:8px 14px;border-radius:999px;cursor:pointer;color:var(--ink-2)}
+.mk .qty button.on{background:var(--accent);color:var(--accent-ink)}
+.mk .tg{display:inline-flex;align-items:center;gap:8px;font-size:15px;font-weight:600}
+.mk .x{font:inherit;font-weight:700;font-size:15px;border:2px solid var(--line);background:var(--card);color:var(--ink);border-radius:999px;padding:9px 16px;cursor:pointer}
+.sheet{max-width:980px;margin:0 auto}
+.sheet .head{display:grid;grid-template-columns:110px 1fr;border:2px solid var(--ink);width:min(100%,560px);margin-bottom:12px}
+.sheet .head div{padding:9px 12px;border-bottom:1px dotted var(--ink-2);font-size:16px}
+.sheet .head div:nth-child(odd){border-right:1px dotted var(--ink-2);color:var(--ink-2)}
+.sheet .head div:nth-last-child(-n+2){border-bottom:0}
+.sheet .head b{font-family:var(--round);font-size:22px}
+.sheet table{width:100%;border:2px solid var(--ink);border-collapse:collapse;font-size:19px}
+.sheet th,.sheet td{padding:9px 12px;border-bottom:1px dotted var(--ink-2);border-right:1px dotted var(--ink-2);white-space:normal;vertical-align:middle;text-align:left}
+.sheet th{border-bottom:2px solid var(--ink);font-size:15px;background:transparent}
+.sheet td:last-child,.sheet th:last-child{border-right:0}
+.sheet td.n{font-family:var(--round);font-size:24px;text-align:right;white-space:nowrap}
+.sheet tr.grp td{font-weight:700;font-size:18px;padding-top:14px;background:var(--bg)}
+.sheet tr.gap td{height:18px}
+.sheet td.rem{color:var(--ink-2);font-size:14px}
+.sheet.nomoney .money{display:none}.sheet.nomoney .head .m{display:none}
+.mk .tip{color:var(--ink-2);font-size:14px;margin:14px auto 0;max-width:980px}
+@media (max-width:860px){.rv{grid-template-columns:1fr}.rv .pic .img{height:140px}.ml .ef{grid-template-columns:1fr 80px 64px}.steps2 .ef{grid-template-columns:1fr}.sheet table{font-size:16px}.sheet td.n{font-size:20px}}
 /* 理論と実際の差 */
 .gapm{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
 .gapc{border:1px solid var(--line);border-radius:14px;padding:12px 14px}
@@ -872,7 +960,12 @@ section.locked>:not(.ph):not(.lockcard):not(h1){display:none!important}
   <section id="t-cost" hidden>
     <div class="ph"><div><h1>原価</h1><p class="lead">1個あたりの材料費。下の線は、請求書で確かめた割合。カードを押すと中身と入力欄が出ます。</p></div><div class="acts"><label class="srch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="cost-q" type="search" placeholder="商品をさがす" autocomplete="off"></label><select id="cost-sort" class="sel" aria-label="並び順"><option value="rate">原価率が高い順</option><option value="name">名前順</option><option value="new">新しい順</option><option value="est">仮が多い順</option></select></div></div>
     <div id="cat-box"></div>
+    <div class="chips" id="cost-chips"></div>
+    <div class="tw" id="cost-tw"><table class="ctab" id="cost-table"></table></div>
+    <div class="foot-k" id="cost-foot"></div>
+    <div class="card pdet" id="pdet" hidden></div>
     <div class="stack" id="costs"></div>
+    <div class="mk" id="mk" hidden></div>
   </section>
 
   <section id="t-howto" hidden>
@@ -1006,6 +1099,6 @@ section.locked>:not(.ph):not(.lockcard):not(h1){display:none!important}
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-<script src="app.js?v=150"></script>
+<script src="app.js?v=151"></script>
 </body>
 </html>
