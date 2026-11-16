@@ -2156,7 +2156,27 @@ function renderCourses() {
     $('pt-out').innerHTML = `<div class="crs"><div class="nums"><div><span>1人の料金(税込)</span><b class="ac">${yen(p.price1)}</b></div><div><span>1人の原価</span><b>${yen(p.cost1)}</b></div><div><span>${p.people}名の売上</span><b>${yen(p.total)}</b></div><div><span>残り(税抜)</span><b>${yen(p.margin)}</b></div><div><span>原価率</span><b class="${p.ratio > p.target + 5 ? 'ng' : ''}">${p.ratio == null ? '—' : p.ratio + '%'}</b></div>${p.discount ? `<div><span>値引き後の原価率</span><b class="${p.ratioAfter > p.target + 5 ? 'ng' : ''}">${p.ratioAfter}%</b></div>` : ''}</div><p class="say">${esc(p.say)}</p></div>`;
   };
 }
+// 理論と実際の差(簡易版): 月ごとに2本の棒(レシピどおり / 実際に買った)と差、材料の上位5つ
+function renderGap() {
+  const wrap = $('gap-wrap'), box = $('gap'); if (!wrap) return;
+  if (noMoney() || !PL('analysis') || !Array.isArray(D.gap)) { wrap.hidden = true; return; }
+  wrap.hidden = false;
+  if (!D.gap.length) { box.innerHTML = '<p class="k" style="margin:0">請求書と作った数(製造メモ)がそろうと、ここに月ごとの差が出ます。作った数は「どら焼き 40個」のように入れられます。</p>'; return; }
+  const cards = D.gap.slice().reverse().map(g => {
+    const mx = Math.max(g.theory, g.actual, 1), pct = v => Math.round(v / mx * 100), ym = g.ym.slice(0, 4) + '年' + (+g.ym.slice(5)) + '月';
+    const note = !g.madeN ? '作った数(製造メモ)がない月。差は出せません' : !g.invN ? '請求書がない月' : g.rate == null ? '' : g.rate > 15 ? '買った分がレシピより' + g.rate + '%多い。ロス・量のぶれ・在庫の増えを確かめる' : g.rate < -15 ? '買った分がレシピより少ない。在庫を使っているか、作った数の入れ忘れ' : 'レシピどおりの範囲(±15%)';
+    return `<div class="gapc"><div class="ym">${ym}<span>作った ${g.madeN}${U} ・ 請求書 ${g.invN}行</span></div>
+      <div class="gbar"><span>レシピどおり</span><i><b style="width:${pct(g.theory)}%"></b></i><em>${yen(g.theory)}</em></div>
+      <div class="gbar ac"><span>実際に買った</span><i><b style="width:${pct(g.actual)}%"></b></i><em>${yen(g.actual)}</em></div>
+      <p class="df">差 <b class="${g.rate == null ? '' : Math.abs(g.rate) > 15 ? 'ng' : 'ok'}">${g.diff >= 0 ? '+' : ''}${yen(g.diff)}</b>${g.rate != null ? ` <span class="k">(${g.rate >= 0 ? '+' : ''}${g.rate}%)</span>` : ''}</p>
+      ${note ? `<p class="k" style="margin:4px 0 0">${esc(note)}</p>` : ''}
+      ${g.top.length ? `<table class="gapt"><tr><th>材料</th><th>買った</th><th>使ったはず</th><th>差</th></tr>${g.top.map(t => `<tr><td>${esc(t.display)}</td><td>${t.boughtG ? fmtG(t.boughtG) : '—'}<br><span class="k">${yen(t.boughtYen)}</span></td><td>${t.usedG ? fmtG(t.usedG) : '—'}<br><span class="k">${yen(t.usedYen)}</span></td><td class="${Math.abs(t.diffYen) > Math.max(500, t.usedYen * 0.2) ? 'ng' : ''}" style="font-weight:700">${t.diffYen >= 0 ? '+' : ''}${yen(t.diffYen)}</td></tr>`).join('')}</table>` : ''}</div>`;
+  });
+  box.innerHTML = `<div class="gapm">${cards.join('')}</div><p class="k" style="margin:10px 0 0">レシピどおり＝作った数 × レシピの量 × 今の材料の単価。実際＝その月の請求書の材料の行(包材は除く)。材料の在庫が増えた月は「実際」が大きく出ます。棚卸を組み込んだ本格版は、次の商品分析で足します。</p>`;
+}
+const fmtG = v => v >= 1000 ? (Math.round(v / 100) / 10) + 'kg' : Math.round(v) + 'g';
 function renderSales() {
+  renderGap();
   renderCourses();
   renderMoney();
   renderMenuA();

@@ -70,6 +70,18 @@ section[hidden]{display:none}
 .row{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
 .foot{font-size:13px;color:var(--ink-2);margin-top:24px}
 
+/* 理論と実際の差 */
+.gapm{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+.gapc{border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+.gapc .ym{font-family:var(--round);font-weight:700;font-size:16px;margin-bottom:8px;display:flex;justify-content:space-between;gap:8px}
+.gapc .ym span{font-family:var(--body);font-weight:600;font-size:13px;color:var(--ink-2)}
+.gbar{display:grid;grid-template-columns:5.5em 1fr auto;gap:8px;align-items:center;font-size:13px;margin:4px 0}
+.gbar i{display:block;height:14px;border-radius:7px;background:var(--line-2);position:relative;overflow:hidden}
+.gbar i b{position:absolute;left:0;top:0;bottom:0;border-radius:7px;background:var(--accent)}
+.gbar.ac i b{background:var(--sun)}
+.gbar em{font-style:normal;font-family:var(--round);font-variant-numeric:tabular-nums;white-space:nowrap}
+.gapc .df{margin:8px 0 0;font-size:14px}.gapc .df b{font-family:var(--round);font-size:18px}.gapc .df b.ng{color:var(--warn)}.gapc .df b.ok{color:var(--ok)}
+.gapt{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px}.gapt td,.gapt th{padding:4px 4px;border-top:1px solid var(--line-2);text-align:right;white-space:nowrap}.gapt th{color:var(--ink-2);font-weight:600;border-top:0}.gapt td:first-child,.gapt th:first-child{text-align:left}
 /* コース・セット */
 .crs{border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-top:10px}
 .crs .hd2{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
@@ -904,6 +916,7 @@ section.locked>:not(.ph):not(.lockcard):not(h1){display:none!important}
   <section id="t-sales" hidden>
     <div class="ph"><div><h1>商品分析</h1><p class="lead">レジの精算レシートを撮ると、売上を記録して、原価が分かる商品は粗利を出します。</p></div></div>
     <div id="money-box"></div>
+    <div id="gap-wrap" hidden><h1 class="sub">理論と実際の差</h1><p class="lead">レシピどおりに使ったはずの材料費と、請求書で実際に買った材料費を月ごとに並べます。差は、ロス・量のぶれ・値段の違い・在庫の増減が混ざった目安です。</p><div class="card" id="gap"></div></div>
     <div id="course-wrap"><h1 class="sub">コース・セット・飲み放題の売値</h1><p class="lead">料理(商品)を組んで1人前の原価を出し、目標の原価率で売値を提案します。飲み会の料金もここで決められます。</p><div class="card" id="courses"></div><div class="card" id="party" style="margin-top:12px"></div></div>
     <div class="chips" id="sales-chips"></div>
     <div class="stack" id="sales-box"></div>
@@ -984,6 +997,6 @@ section.locked>:not(.ph):not(.lockcard):not(h1){display:none!important}
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-<script src="app.js?v=147"></script>
+<script src="app.js?v=148"></script>
 </body>
 </html>
