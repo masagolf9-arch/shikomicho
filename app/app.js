@@ -841,7 +841,7 @@ function renderHowto() {
     const n = +($('hq').value || 0), out = $('hq-out');
     if (!(n > 0)) { out.innerHTML = '<p class="k" style="margin:4px 0 0">作る数を入れてください。</p>'; return; }
     if (!p.pieces) { out.innerHTML = `<p class="k" style="margin:4px 0 0">1${U}の重さがまだ入っていないため、分量を出せません。${noMoney() ? '店主に声をかけてください。' : '「原価」のカードで入れられます。'}</p>`; return; }
-    const f = n / p.pieces, fq = v => v >= 1000 ? (Math.round(v / 10) / 100) + 'kg' : (v >= 20 ? Math.round(v) : Math.round(v * 10) / 10) + 'g';
+    const f = n / p.pieces, fq = v => (v >= 20 ? Math.round(v).toLocaleString() : Math.round(v * 10) / 10) + 'g';
     out.innerHTML = `<table style="margin:4px 0 0">${p.rows.map(r => `<tr><td>${esc(r.name)}</td><td class="n">${r.grams == null ? (Math.round(r.qty * f * 10) / 10) + esc(r.unit) : fq(r.grams * f)}</td></tr>`).join('')}${canCost ? `<tr><td><b>材料費</b></td><td class="n"><b>${yen(p.batch_cost * f)}</b></td></tr>` : ''}</table>`;
   };
   bindStepImgs(box);
@@ -1057,7 +1057,7 @@ function renderPdet() {
   const costs0 = costsEl(); box.after(costs0);
   box.hidden = false;
   const per = p.pieces || null, base = per || 1, n = prodN == null ? (per || 1) : prodN, f = per ? n / per : 1;
-  const fq = v => v >= 1000 ? (Math.round(v / 10) / 100) + 'kg' : (v >= 20 ? Math.round(v) : Math.round(v * 10) / 10) + 'g';
+  const fq = v => (v >= 20 ? Math.round(v).toLocaleString() : Math.round(v * 10) / 10) + 'g';
   const canEdit = perm('recipe'), img = (p.simgs || [])[0];
   const algs = p.label ? p.label.allergens : [];
   const matOf = r => D.materials.find(m => m.name === (r.which || r.name) || m.name === r.name || (m.aliases || []).includes(r.name));
@@ -1117,7 +1117,7 @@ function renderPdet() {
 // レシピ票(製造モード): 紙と同じ並び。材料名と分量だけ大きく。店主は「金額も見る」で原体価格・価格・原価率
 function openMk(p) {
   const mk = $('mk'); let mul = 1, money = false;
-  const per = p.pieces || null, fq = v => v >= 1000 ? (Math.round(v / 10) / 100) + 'kg' : (v >= 20 ? Math.round(v) : Math.round(v * 10) / 10) + 'g';
+  const per = p.pieces || null, fq = v => (v >= 20 ? Math.round(v).toLocaleString() : Math.round(v * 10) / 10) + 'g';
   const draw = () => {
     const rows = p.rows, tot = (p.batch_cost || 0) * mul, pp = p.per_piece, price = p.price, ex = price ? price / (1 + (p.serve === 'eatin' ? 10 : 8) / 100) : null;
     const sheet = `<div class="rsheet${money ? '' : ' nomoney'}"><div class="head"><div>料理名</div><div><b>${esc(p.name)}</b></div><div>取り数</div><div>${per ? per * mul + U + '(1仕込み×' + mul + ')' : '1仕込み×' + mul}${p.pw ? ' ・ 1' + U + ' ' + p.pw + 'g' : ''}</div><div class="m">売価</div><div class="m">${price ? yen(price) + '(税込)' : '未設定'}</div><div class="m">原価</div><div class="m">${pp != null ? pp.toFixed(1) + '円 /' + U + '(1仕込み ' + yen(p.batch_cost) + ')' : yen(p.batch_cost) + '/仕込み'}</div><div class="m">原価率</div><div class="m">${pp != null && ex ? Math.round(pp / ex * 1000) / 10 + '%(税抜)' : '—'}</div></div>
@@ -1169,7 +1169,7 @@ function renderCostCards(only) {
     const i = +b.dataset.scale, p = D.products[i], out = $('sqout-' + i), n = +($('sqty-' + i).value || 0);
     if (!(n > 0)) { out.innerHTML = '<p class="k" style="margin:4px 0 8px">作る数を入れてください。</p>'; return; }
     if (!p.pieces) { out.innerHTML = `<p class="k" style="margin:4px 0 8px">先に「1${U}の重さ」を入れると、分量を出せます。</p>`; return; }
-    const f = n / p.pieces, fq = v => v >= 1000 ? (Math.round(v / 10) / 100) + 'kg' : (v >= 20 ? Math.round(v) : Math.round(v * 10) / 10) + 'g';
+    const f = n / p.pieces, fq = v => (v >= 20 ? Math.round(v).toLocaleString() : Math.round(v * 10) / 10) + 'g';
     out.innerHTML = `<table style="margin:4px 0 8px">${p.rows.map(r => `<tr><td>${esc(r.name)}</td><td class="n">${r.grams == null ? (Math.round(r.qty * f * 10) / 10) + esc(r.unit) : fq(r.grams * f)}</td></tr>`).join('')}<tr><td><b>材料費</b></td><td class="n"><b>${yen(p.batch_cost * f)}</b></td></tr></table><p class="k" style="margin:0 0 8px">${p.composed ? `1${U}の配合 × ${n}` : `ふだんの1仕込み 約${p.pieces}${U} × ${Math.round(f * 100) / 100}`}。印刷はこの画面のまま、ブラウザの印刷でできます。</p>`;
   });
   // 手順の写真: 出す・付ける・消す
