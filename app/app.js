@@ -12,6 +12,12 @@ const CAMTXT = CF ? '「撮る」' : 'LINEの「📷 写真を撮る」', VIA = 
 const $ = id => document.getElementById(id);
 const store = { get(k, d) { try { const v = localStorage.getItem('shikomi:' + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
                 set(k, v) { try { localStorage.setItem('shikomi:' + k, JSON.stringify(v)); } catch (e) {} } };
+// お店のデータ(原価・売上など)は端末に残さない: 画面を閉じたら消える置き場(sessionStorage)にだけ置く。前の版が端末に残した控えは消す(2026-11-16)
+const cache = { get() { try { const v = sessionStorage.getItem('shikomi:data'); return v == null ? null : JSON.parse(v); } catch (e) { return null; } },
+                set(v) { try { if (v == null) sessionStorage.removeItem('shikomi:data'); else sessionStorage.setItem('shikomi:data', JSON.stringify(v)); } catch (e) {} } };
+try { localStorage.removeItem('shikomi:data'); } catch (e) {}
+// ログアウトしたら、画面を閉じたら消える置き場もその場で空にする
+document.addEventListener('submit', e => { if (e.target && /\/auth\/logout$/.test(e.target.action || '')) cache.set(null); }, true);
 // 見え方の設定(この端末だけ)
 const applyLook = () => { const th = store.get('theme', 'auto'); if (th === 'auto') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme', th); document.body.style.zoom = store.get('size', 'normal') === 'big' ? '1.15' : ''; document.documentElement.style.setProperty('--cs', ({ s: 60, m: 72, l: 88 })[store.get('csize', 'm')] + 'px'); };
 applyLook();
@@ -38,15 +44,15 @@ async function load() {
   try {
     const out = await api({ kind: 'app_data' });
     if (!out.ok) {
-      if (out.error === 'removed') { store.set('data', null); D = null; document.querySelectorAll('section').forEach(s => s.hidden = true); return state('<b>このお店のピタット原価からは外されています。</b><br>心当たりがなければ、店主に聞いてください。' + (CF && !IN_LINE ? '<form method="post" action="/auth/logout" style="margin-top:12px"><button class="btn ghost">ログアウト</button></form>' : '')); }
-      if (out.error === 'wait' || out.error === 'login') { store.set('data', null); if (D) { D = null; document.querySelectorAll('section').forEach(s => s.hidden = true); } }
+      if (out.error === 'removed') { cache.set(null); D = null; document.querySelectorAll('section').forEach(s => s.hidden = true); return state('<b>このお店のピタット原価からは外されています。</b><br>心当たりがなければ、店主に聞いてください。' + (CF && !IN_LINE ? '<form method="post" action="/auth/logout" style="margin-top:12px"><button class="btn ghost">ログアウト</button></form>' : '')); }
+      if (out.error === 'wait' || out.error === 'login') { cache.set(null); if (D) { D = null; document.querySelectorAll('section').forEach(s => s.hidden = true); } }
       if (out.error === 'wait') return state('<b>店主の許可待ちです。</b><br>店主のLINEに「見たい」とお知らせを送りました。<br>店主が「許可」を押したら、もう一度開いてください。<br><button class="btn ghost" onclick="load()">もう一度読む</button>');
       if (out.error === 'login' && CF && !IN_LINE) { location.href = '/login?next=' + encodeURIComponent(location.pathname); return; }
       if (out.error === 'login') { liff.logout(); return state('ログインし直してください。<br><button class="btn" onclick="location.reload()">ログイン</button>'); }
       if (out.error === 'noshop') return state('<b>まだお店とつながっていません。</b><br>お店の方から届いた招待のリンクを開いてください。<br><form method="post" action="/auth/logout" style="margin-top:12px"><button class="btn ghost">別の方法でログインし直す</button></form>');
       return state(esc(out.error));
     }
-    const first = !D; D = out.data; store.set('data', D); state(''); renderAll(); if (first) show(store.get('tab', 'today'), true); else show(cur, true, true);
+    const first = !D; D = out.data; cache.set(D); state(''); renderAll(); if (first) show(store.get('tab', 'today'), true); else show(cur, true, true);
     if (first) setTimeout(() => chat(hello(), 'greet'), 250);
     if (first) setTimeout(loadSup, 1500);   // 担当からのお返事があれば、設定に印
     if (CF && !window.__acct) { window.__acct = 1; renderAccount(); }
@@ -670,7 +676,18 @@ function renderGreet() {
   renderStatus();
 }
 // 今月の状況: 原価率(大きく)と先月との差、売上の内わけの円グラフ、なぜ上がったか(上から3つ)、売値の目安
+// よくなったこと: 大きな変更があったときだけ、ホームの上に1行。「見た」で消え、次の大きな変更まで出ない。一覧は /guide/updates
+let UPD = null;
+async function renderUpdBar() {
+  const bar = $('updbar'); if (!bar || !CF) return;
+  if (UPD === null) { try { const r = await fetch('/guide/updates.json', { cache: 'no-store' }); UPD = (await r.json()).updates || []; } catch (e) { UPD = []; } }
+  const big = UPD.find(u => u.big), seen = store.get('updSeen', '');
+  if (!big || seen === big.d + big.t) { bar.hidden = true; return; }
+  bar.hidden = false; bar.innerHTML = `<b>よくなりました</b><span>${esc(big.t)}</span><a href="/guide/updates" target="_blank" rel="noopener">一覧</a><button class="btn ghost sm" type="button" id="upd-ok">見た</button>`;
+  $('upd-ok').onclick = () => { store.set('updSeen', big.d + big.t); bar.hidden = true; };
+}
 function renderStatus() {
+  renderUpdBar();
   const box = $('status'), S = D.status; if (!box) return;
   if (noMoney() || !S) { box.hidden = true; return; }
   box.hidden = false;
@@ -2681,7 +2698,7 @@ async function renderAccount() {
 if (CF) { $('words-h').textContent = '話しかけられる言葉'; $('ct-via').textContent = '「問い合わせ 〜」と話しかけてもOK'; }
 rest();
 // 前に読んだ内容をすぐ出して、裏で新しいものを読み直す(電波が弱くても待たない)
-(() => { const c = store.get('data', null); if (c && c.products) { try { D = c; state(''); renderAll(); show(store.get('tab', 'today'), true); setTimeout(() => chat(hello(), 'greet'), 250); } catch (e) { D = null; } } })();
+(() => { const c = cache.get(); if (c && c.products) { try { D = c; state(''); renderAll(); show(store.get('tab', 'today'), true); setTimeout(() => chat(hello(), 'greet'), 250); } catch (e) { D = null; } } })();
 (async () => {
   if (CF && !IN_LINE) { load(); return; }   // ホームページ: ログインの鍵(クッキー)で入る
   if (CF) {   // LINEの中でホームページを開いたとき: ログインの鍵があれば、それで入る
