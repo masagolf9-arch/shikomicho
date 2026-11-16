@@ -997,8 +997,8 @@ function prodVals(p) {
 }
 function renderCost() {
   const tw = $('cost-tw'), tb = $('cost-table'), chips = $('cost-chips'), foot = $('cost-foot');
-  if (!D.products.length) { tw.hidden = true; chips.innerHTML = ''; foot.innerHTML = ''; $('pdet').hidden = true; $('costs').innerHTML = emptyBox('cam', 'まだレシピがありません', '手書きのレシピを1枚撮ると、1個の原価がここに出ます。', ['レシピを撮る', 'cam']); return; }
-  tw.hidden = false; if (!prodSel) $('costs').innerHTML = '';
+  if (!D.products.length) { tw.hidden = true; chips.innerHTML = ''; foot.innerHTML = ''; $('pdet').hidden = true; costsEl().innerHTML = emptyBox('cam', 'まだレシピがありません', '手書きのレシピを1枚撮ると、1個の原価がここに出ます。', ['レシピを撮る', 'cam']); return; }
+  tw.hidden = false; if (!prodSel) costsEl().innerHTML = '';
   const rate = p => p.price && p.per_piece != null ? exRatio(p) / 100 : -1;
   renderCats(rate);
   const cs = $('cost-sort'); if (cs && !cs.dataset.bound) { cs.dataset.bound = 1; cs.onchange = () => { store.set('costSort', cs.value); store.set('costDir', cs.value === 'name' ? 1 : -1); renderCost(); }; }
@@ -1034,11 +1034,13 @@ function renderCost() {
   const gl = list.filter(p => p.kind !== 'part' && prodVals(p).rate != null), avg = gl.length ? Math.round(gl.reduce((a, p) => a + prodVals(p).rate, 0) / gl.length) : null;
   foot.innerHTML = `<span>${list.length} / ${D.products.length} 品${avg != null && money ? ` ・ 原価率の平均 ${avg}%` : ''}</span><span>行を押すと、下にその商品(写真・材料と量・作り方)が出ます</span>`;
   if (prodSel && !D.products.find(p => p.name === prodSel)) prodSel = null;
-  if (prodSel) renderPdet(); else { $('pdet').hidden = true; $('costs').innerHTML = ''; }
+  if (prodSel) renderPdet(); else { $('pdet').hidden = true; costsEl().innerHTML = ''; }
 }
 // 商品: 左に写真、右に材料と量(個数を変えられる・1つずつ直せる)、下に作り方(1つずつ直せる)。設定はたたんで下に
+function costsEl() { let c = $('costs'); if (!c) { c = document.createElement('div'); c.id = 'costs'; c.className = 'stack'; $('pdet').after(c); } return c; }
 function renderPdet() {
   const p = D.products.find(x => x.name === prodSel), box = $('pdet'); if (!p) return;
+  const costs0 = costsEl(); box.after(costs0);
   box.hidden = false;
   const per = p.pieces || null, base = per || 1, n = prodN == null ? (per || 1) : prodN, f = per ? n / per : 1;
   const fq = v => v >= 1000 ? (Math.round(v / 10) / 100) + 'kg' : (v >= 20 ? Math.round(v) : Math.round(v * 10) / 10) + 'g';
@@ -1076,7 +1078,7 @@ function renderPdet() {
   if ($('es-ok')) { $('es-ok').onclick = () => { const st = p.steps.slice(); st[prodEditS] = $('es-t').value.trim() || st[prodEditS]; prodEditS = -1; saveSteps(st); }; $('es-del').onclick = () => { const st = p.steps.slice(); st.splice(prodEditS, 1); prodEditS = -1; saveSteps(st); }; $('es-up').onclick = () => { if (prodEditS > 0) { const st = p.steps.slice(); [st[prodEditS - 1], st[prodEditS]] = [st[prodEditS], st[prodEditS - 1]]; prodEditS = -1; saveSteps(st); } }; }
   if ($('es-add')) { $('es-add').onclick = () => { const v = $('es-new').value.trim(); if (!v) return; saveSteps((p.steps || []).concat([v])); }; $('es-new').onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); $('es-add').click(); } }; }
   // 設定は今までのカードをそのまま、たたんで下に
-  renderCostCards(p.name); const set = $('pdet-set'), costs = $('costs'); set.appendChild(costs);
+  renderCostCards(p.name); const set = $('pdet-set'), costs = costs0; set.appendChild(costs);
   costs.querySelectorAll('.prod > .hd, .prod > .big, .prod > .bar').forEach(h => { h.hidden = true; });
   costs.querySelectorAll('.prod .detail').forEach(d => { d.hidden = false; d.querySelectorAll(':scope > table, :scope > details').forEach(x => { x.hidden = true; }); d.querySelectorAll(':scope > div').forEach(x => { if (/^<b>作り方<\/b>/.test(x.innerHTML)) x.hidden = true; }); });
 }
@@ -1101,7 +1103,7 @@ function openMk(p) {
 }
 // 商品の設定(1個の重さ・売価・分類・出し方・値段のない材料・手順の写真・消す)。表で選んだ商品だけを出す
 function renderCostCards(only) {
-  const box = $('costs');
+  const box = costsEl();
   if (!D.products.length) { box.innerHTML = ''; return; }
   const rate = p => p.price && p.per_piece != null ? exRatio(p) / 100 : -1;
   const ordered = D.products.map((p, i) => [p, i]).filter(([p]) => p.name === only);
