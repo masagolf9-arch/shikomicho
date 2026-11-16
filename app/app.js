@@ -1151,7 +1151,35 @@ function allergenTable(forPrint) {
 function priceCard(p) {
   const L = lblOf(p), alg = p.label.allergens;
   return `<div class="pcard"><div class="pn">${esc(p.name)}</div><div class="pp">${p.price ? p.price.toLocaleString('ja-JP') + '<small>円</small>' : '<small class="k">売価は原価の画面で</small>'}</div>
-    <div class="pa">${alg.length ? 'アレルゲン: ' + alg.map(esc).join('・') : 'アレルゲン: 特定原材料は使っていません'}</div></div>`;
+    <div class="pa">${alg.length ? 'アレルゲン: ' + alg.map(esc).join('・') : 'アレルゲン: 特定原材料は使っていません'}</div>${store.get('qrOnCard', false) && D.pubUrl ? `<img class="pqr" src="${qrDataUrl(D.pubUrl, 120)}" alt="" style="position:absolute;right:4mm;bottom:4mm;width:16mm;height:16mm">` : ''}</div>`;
+}
+// QRの絵(データURL)。qrcodejs を隠した箱に描いて取り出す。使えないときは空
+function qrDataUrl(text, size) {
+  try { if (!window.QRCode) return ''; const d = document.createElement('div'); d.style.cssText = 'position:absolute;left:-9999px;top:0'; document.body.appendChild(d);
+    new QRCode(d, { text, width: size || 300, height: size || 300, correctLevel: QRCode.CorrectLevel.M }); const c = d.querySelector('canvas'), u = c ? c.toDataURL('image/png') : (d.querySelector('img') || {}).src || ''; d.remove(); return u; } catch (e) { return ''; }
+}
+// お客様向けのアレルゲン一覧のQR(全プラン)。出すのは商品名とアレルゲンだけ
+function qrBox() {
+  if (!D.pubUrl) return '';
+  const goods = D.products.filter(p => p.kind !== 'part'), shown = goods.filter(p => !p.pubHide).length, u = qrDataUrl(D.pubUrl, 300);
+  return `<div class="card" id="qr-card" style="margin-top:12px"><p style="margin:0 0 8px"><b>お客様向けのアレルゲン一覧(QR)</b> <span class="k">お客様がスマートフォンで読むと、商品ごとのアレルゲンが見られます。ログインなし。原価・売価・原材料名は出ません</span></p>
+    <div class="qrbox"><div class="qr">${u ? `<img src="${u}" alt="アレルゲン一覧のQRコード">` : '<span class="k">QRを作れませんでした</span>'}</div>
+    <div><p class="url" style="margin:0 0 6px">${esc(D.pubUrl)}</p><p class="k" style="margin:0 0 8px">出している商品 ${shown}/${goods.length}品。レシピを変えると、一覧も変わります。</p>
+      <div class="ask" style="justify-content:flex-start"><a class="btn ghost sm" href="${esc(D.pubUrl)}" target="_blank" rel="noopener">開いて確かめる</a><button class="btn ghost sm" type="button" id="qr-a5">A5の紙を印刷</button><button class="btn ghost sm" type="button" id="qr-cards">名刺の大きさ(A4に10枚)</button><button class="btn ghost sm" type="button" id="qr-copy">住所をコピー</button>${D.me && D.me.owner ? '<button class="btn ghost sm" type="button" id="qr-renew">QRを作り直す</button>' : ''}</div>
+      <details style="margin-top:8px"><summary class="k">出す商品・出さない商品</summary><div class="publ">${goods.map(p => `<label class="${p.pubHide ? 'off' : ''}"><input type="checkbox" data-pub="${esc(p.name)}"${p.pubHide ? '' : ' checked'}>${esc(p.name)}${p.label.allergens.length ? ` <span class="k">${p.label.allergens.map(esc).join('・')}</span>` : ''}</label>`).join('')}</div></details>
+      <label style="display:flex;gap:8px;align-items:center;margin-top:8px;font-size:14px"><input type="checkbox" id="qr-oncard"${store.get('qrOnCard', false) ? ' checked' : ''}>プライスカード・ポップの隅にもQRを入れる</label></div></div></div>`;
+}
+function bindQr() {
+  if (!$('qr-card')) return;
+  const si = D.shopInfo || {}, u = qrDataUrl(D.pubUrl, 600), name = esc(si.name || D.shop);
+  const sheet = (w, h, n) => `<style>.qg{display:grid;grid-template-columns:repeat(${n === 1 ? 1 : 2},1fr);gap:6mm}.qc{border:1px solid #999;border-radius:3mm;padding:${n === 1 ? '10mm' : '4mm'};width:${w};height:${h};display:grid;grid-template-columns:${n === 1 ? '1fr' : '28mm 1fr'};gap:${n === 1 ? '6mm' : '3mm'};align-items:center;break-inside:avoid;page-break-inside:avoid;text-align:${n === 1 ? 'center' : 'left'}}.qc img{width:${n === 1 ? '70mm' : '28mm'};height:auto;margin:0 auto}.qc b{display:block;font-size:${n === 1 ? '20pt' : '11pt'}}.qc p{margin:2mm 0 0;font-size:${n === 1 ? '13pt' : '8pt'};line-height:1.4}</style><div class="qg">` +
+    Array.from({ length: n }, () => `<div class="qc"><img src="${u}" alt=""><div><b>${name}</b><p>アレルゲン一覧</p><p>このQRで、商品ごとのアレルゲンをスマートフォンで確認できます。</p><p style="font-size:${n === 1 ? '10pt' : '7pt'}">詳しくはお店の人に確かめてください</p></div></div>`).join('') + '</div>';
+  $('qr-a5').onclick = () => openPrint(sheet('128mm', '170mm', 1), { bare: true });
+  $('qr-cards').onclick = () => openPrint(sheet('91mm', '55mm', 10), { bare: true });
+  $('qr-copy').onclick = async () => { try { await navigator.clipboard.writeText(D.pubUrl); toast('住所をコピーしました'); } catch (e) { prompt('この住所をコピー', D.pubUrl); } };
+  if ($('qr-renew')) $('qr-renew').onclick = () => { if (confirm('QRを作り直すと、今までのQR(印刷した紙)は使えなくなります。作り直しますか?')) setValueX({ field: 'pubqr', value: 1 }); };
+  $('qr-oncard').onchange = () => { store.set('qrOnCard', $('qr-oncard').checked); renderLabel(); };
+  document.querySelectorAll('[data-pub]').forEach(c => c.onchange = () => setValueX({ field: 'pubhide', product: c.dataset.pub, value: !c.checked }));
 }
 function storeBox() {
   if (!D.products.length) return '';
@@ -1159,14 +1187,15 @@ function storeBox() {
   return `<div class="card" id="alg-card"><p style="margin:0 0 8px"><b>アレルゲン一覧表</b> <span class="k">店頭やメニューのそばに。聞かれたら見せる</span></p><div class="scroll">${allergenTable()}</div>
       <div class="ask"><button class="btn ghost" type="button" id="alg-print">一覧表を印刷・PDF</button></div></div>
     <div class="card" style="margin-top:12px"><p style="margin:0 0 8px"><b>プライスカード</b> <span class="k">${esc(sel.name)} · 名前・値段・アレルゲン</span></p>${priceCard(sel)}
-      <div class="ask"><button class="btn ghost" type="button" id="pc-print">この商品を印刷</button><button class="btn ghost" type="button" id="pc-print-all">全部の商品を印刷</button></div></div>`;
+      <div class="ask"><button class="btn ghost" type="button" id="pc-print">この商品を印刷</button><button class="btn ghost" type="button" id="pc-print-all">全部の商品を印刷</button></div></div>` + qrBox();
 }
 function bindStore() {
   const head = `<h2 style="letter-spacing:.1em">アレルゲン一覧表</h2><p>${esc(D.shop)} · ${new Date().toLocaleDateString('ja-JP')}時点</p>`;
   if ($('alg-print')) $('alg-print').onclick = () => openPrint(head + allergenTable(true).replace(/class="k"/g, 'style="font-size:11px"'));
-  const cards = ps => `<style>.pcg{display:grid;grid-template-columns:1fr 1fr;gap:8mm}.pcard{border:1.5px solid #111;border-radius:4mm;padding:6mm;min-height:48mm;break-inside:avoid}.pn{font-size:22px;font-weight:700}.pp{font-size:34px;font-weight:700;margin:4px 0}.pp small{font-size:16px}.pa{font-size:14px;border-top:1px solid #999;padding-top:4px;margin-top:6px}</style><div class="pcg">${ps.map(priceCard).join('')}</div>`;
+  const cards = ps => `<style>.pcg{display:grid;grid-template-columns:1fr 1fr;gap:8mm}.pcard{position:relative;border:1.5px solid #111;border-radius:4mm;padding:6mm;min-height:48mm;break-inside:avoid}.pn{font-size:22px;font-weight:700}.pp{font-size:34px;font-weight:700;margin:4px 0}.pp small{font-size:16px}.pa{font-size:14px;border-top:1px solid #999;padding-top:4px;margin-top:6px}</style><div class="pcg">${ps.map(priceCard).join('')}</div>`;
   if ($('pc-print')) $('pc-print').onclick = () => openPrint(cards([D.products.find(x => x.name === labelName) || D.products[0]]));
   if ($('pc-print-all')) $('pc-print-all').onclick = () => openPrint(cards(D.products.filter(p => p.kind !== 'part')));
+  bindQr();
 }
 document.addEventListener('click', e => { if (e.target && e.target.id === 'ls-go') { const name = $('ls-name').value.trim(), addr = $('ls-addr').value.trim(); if (!addr) { $('ls-addr').focus(); return; } setValueX({ field: 'shop', value: { name, addr } }); } });
 function renderLabel() {

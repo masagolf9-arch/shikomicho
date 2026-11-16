@@ -85,6 +85,15 @@ section[hidden]{display:none}
 .crs-f{display:grid;gap:8px;margin-top:8px}
 .crs-f .rw{display:grid;grid-template-columns:1fr 80px auto;gap:6px;align-items:center}
 .crs-f .rw input{min-width:0}
+/* お客様向けのアレルゲン一覧のQR */
+.qrbox{display:grid;grid-template-columns:150px 1fr;gap:16px;align-items:start}
+.qrbox .qr{width:150px;height:150px;background:#fff;padding:8px;border:1px solid var(--line);border-radius:10px}
+.qrbox .qr img,.qrbox .qr canvas{width:100%!important;height:100%!important;display:block}
+.qrbox .url{font-size:12px;word-break:break-all;color:var(--ink-2)}
+.publ{display:grid;gap:4px;margin-top:8px;max-height:220px;overflow:auto;border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+.publ label{display:flex;gap:8px;align-items:center;font-size:14px;min-height:36px}
+.publ label.off{color:var(--ink-3)}
+@media (max-width:560px){.qrbox{grid-template-columns:1fr}.qrbox .qr{margin:0 auto}}
 /* よくなったことの1行(大きな変更のときだけ) */
 .updbar{display:flex;align-items:center;gap:10px;background:var(--sun-soft,#fff4d6);border:1px solid var(--sun,#f2b632);border-radius:12px;padding:8px 12px;margin-bottom:10px;font-size:14px}
 .updbar b{font-size:12px;background:var(--sun,#f2b632);color:var(--sun-ink,#3d2a00);border-radius:999px;padding:1px 8px;white-space:nowrap}
@@ -177,7 +186,7 @@ td.n{text-align:right;white-space:nowrap;padding-left:10px}
 .label .v{padding:6px 8px}
 .label .tbd{color:var(--warn)}
 .alg th,.alg td{text-align:center}.alg td{font-size:15px}
-.pcard{border:1.5px solid var(--ink);border-radius:10px;padding:12px 14px;max-width:320px}.pcard .pn{font-size:20px;font-weight:700}.pcard .pp{font-family:var(--round);font-size:28px;font-weight:700;margin:4px 0}.pcard .pp small{font-size:14px}.pcard .pa{font-size:13px;border-top:1px solid var(--line);padding-top:4px;margin-top:8px}
+.pcard{position:relative;border:1.5px solid var(--ink);border-radius:10px;padding:12px 14px;max-width:320px}.pcard .pn{font-size:20px;font-weight:700}.pcard .pp{font-family:var(--round);font-size:28px;font-weight:700;margin:4px 0}.pcard .pp small{font-size:14px}.pcard .pa{font-size:13px;border-top:1px solid var(--line);padding-top:4px;margin-top:8px}
 details.card summary{cursor:pointer}
 
 /* 材料 */
@@ -973,7 +982,8 @@ section.locked>:not(.ph):not(.lockcard):not(h1){display:none!important}
   <button type="button" data-t="set"><span class="badge" id="badge-set" hidden>!</span><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8"/></svg></span><span>設定</span></button>
 </div></nav>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-<script src="app.js?v=146"></script>
+<script src="app.js?v=147"></script>
 </body>
 </html>
