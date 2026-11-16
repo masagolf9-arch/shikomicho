@@ -1647,7 +1647,7 @@ function show(t, quiet, keep) {
 // 画面ごとに1〜2個。「次へ」で進み、「もう出さない」で全部止める。設定の「使い方のヒントをもう一度」で戻る
 const HINTS = {
   today: [{ sel: '#status', t: 'ここが今月の状況です。原価率と、先月との差、上がった理由が出ます。' }, { sel: 'nav button[data-t="shot"], #side button[data-tab="shot"]', t: 'レシピ・請求書・材料の袋の裏は、ここから撮影して取り込みます。' }],
-  cost: [{ sel: '#ask-top', t: 'ここに「バター 1kg 2,260円」と打つだけで、材料の値段が入れ替わります。FAX・紙の請求書は「撮る」から。' }, { sel: '#costs', t: '商品を押すと、材料ごとの原価と、売価・原価率の入力が出ます。' }],
+  cost: [{ sel: '#chara', t: 'ここを押して「バター 1kg 2,260円」と話しかけるだけで、材料の値段が入れ替わります。FAX・紙の請求書は「撮る」から。' }, { sel: '#costs', t: '商品を押すと、材料ごとの原価と、売価・原価率の入力が出ます。' }],
   label: [{ sel: '.label', t: 'レシピから食品表示の案が出ます。色のついた所だけ確かめて、ラベルを印刷できます。' }, { sel: '#qr-card', t: 'このQRを店頭に置くと、お客様がスマートフォンで商品ごとのアレルゲンを確認できます。' }],
   hyg: [{ sel: '#hyg-today', t: '朝と片付けに、温度・体調・清掃を押すだけ。基準を外れるとその場で知らせます。' }],
   sales: [{ sel: '#gap-wrap', t: 'レシピどおりの材料費と、実際に買った材料費の差です。ロスや量のぶれに気づけます。' }, { sel: '#course-wrap', t: 'コース・セット・宴会の売価は、ここで原価から決められます。' }],
@@ -1658,7 +1658,7 @@ function hintClear() { if (hintEl) { hintEl.classList.remove('hint-ring'); hintE
 function showHints(tab) {
   const h = $('hint'); if (!h || store.get('hintsOff', false)) return;
   const seen = store.get('hintSeen', {}); if (seen[tab]) return;
-  const list = (HINTS[tab] || []).map(x => ({ ...x, el: document.querySelector(x.sel) })).filter(x => x.el && !x.el.hidden && x.el.offsetParent !== null);
+  const list = (HINTS[tab] || []).map(x => ({ ...x, el: document.querySelector(x.sel) })).filter(x => x.el && !x.el.hidden && x.el.getBoundingClientRect().width > 0);
   if (!list.length) return;
   let i = 0;
   const draw = () => {
