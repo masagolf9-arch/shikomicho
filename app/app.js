@@ -1035,6 +1035,20 @@ function renderCost() {
   foot.innerHTML = `<span>${list.length} / ${D.products.length} 品${avg != null && money ? ` ・ 原価率の平均 ${avg}%` : ''}</span><span>行を押すと、下にその商品(写真・材料と量・作り方)が出ます</span>`;
   if (prodSel && !D.products.find(p => p.name === prodSel)) prodSel = null;
   if (prodSel) renderPdet(); else { $('pdet').hidden = true; costsEl().innerHTML = ''; }
+  renderCostBack();
+}
+// 戻す: 消したレシピ(戻す・完全に消す)と、材料・作り方を直す前の控え
+function renderCostBack() {
+  let box = $('cost-back'); if (!box) { box = document.createElement('div'); box.id = 'cost-back'; $('t-cost').appendChild(box); }
+  const tr = noMoney() ? [] : (D.trash || []), un = perm('recipe') ? (D.undo || []) : [];
+  if (!tr.length && !un.length) { box.innerHTML = ''; return; }
+  const when = t => t ? new Date(t).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
+  box.innerHTML = `<div class="card" style="margin-top:12px"><p style="margin:0 0 8px"><b>戻す</b> <span class="k">間違えて消した・直したときは、ここから戻せます</span></p>
+    ${tr.length ? `<p class="k" style="margin:8px 0 4px">消したレシピ(「完全に消す」はもう戻せません)</p>${tr.map(t => `<div class="ask" style="justify-content:space-between;flex-wrap:wrap"><span>${esc(t.name)} <span class="k">${when(t.at)}${t.by ? ' ' + esc(t.by) : ''}</span></span><span style="display:flex;gap:8px"><button class="btn sm" type="button" data-restore="${t.row}">戻す</button><button class="btn ghost sm" type="button" data-purge="${t.row}" style="color:var(--warn);border-color:var(--warn)">完全に消す</button></span></div>`).join('')}` : ''}
+    ${un.length ? `<p class="k" style="margin:8px 0 4px">材料・作り方を直す前(新しい順)</p>${un.map(u => `<div class="ask" style="justify-content:space-between;flex-wrap:wrap"><span>${esc(u.product)} <span class="k">${u.field === 'steps' ? '作り方' : '材料'} ・ ${when(u.at)}${u.by ? ' ' + esc(u.by) : ''}</span></span><button class="btn sm" type="button" data-undo="${u.row}">直す前に戻す</button></div>`).join('')}` : ''}</div>`;
+  box.querySelectorAll('[data-restore]').forEach(b => b.onclick = () => setValueX({ field: 'restoreprod', value: +b.dataset.restore }));
+  box.querySelectorAll('[data-purge]').forEach(b => twice(b, '完全に消す(もう戻せません)', () => setValueX({ field: 'purgetrash', value: +b.dataset.purge })));
+  box.querySelectorAll('[data-undo]').forEach(b => b.onclick = () => setValueX({ field: 'undo', value: +b.dataset.undo }));
 }
 // 商品: 左に写真、右に材料と量(個数を変えられる・1つずつ直せる)、下に作り方(1つずつ直せる)。設定はたたんで下に
 function costsEl() { let c = $('costs'); if (!c) { c = document.createElement('div'); c.id = 'costs'; c.className = 'stack'; $('pdet').after(c); } return c; }
@@ -1182,12 +1196,6 @@ function renderCostCards(only) {
   box.querySelectorAll('[data-delprod]').forEach(b => delChoice(b,
     () => setValueX({ field: 'delprod', product: b.dataset.delprod }),
     () => setValueX({ field: 'delprod', product: b.dataset.delprod, value: { purge: true } })));
-  const tr = D.trash || [];
-  if (tr.length && !noMoney()) {
-    box.insertAdjacentHTML('beforeend', `<div class="card" style="grid-column:1/-1;margin-top:12px"><p style="margin:0 0 8px"><b>消したレシピ</b> <span class="k">間違えて消したときは「戻す」。「完全に消す」はもう戻せません</span></p>${tr.map(t => `<div class="ask" style="justify-content:space-between;flex-wrap:wrap"><span>${esc(t.name)} <span class="k">${t.at ? new Date(t.at).toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' }) : ''}${t.by ? ' ' + esc(t.by) : ''}</span></span><span style="display:flex;gap:8px"><button class="btn ghost sm" type="button" data-restore="${t.row}">戻す</button><button class="btn ghost sm" type="button" data-purge="${t.row}" style="color:var(--warn);border-color:var(--warn)">完全に消す</button></span></div>`).join('')}</div>`);
-    box.querySelectorAll('[data-restore]').forEach(b => b.onclick = () => setValueX({ field: 'restoreprod', value: +b.dataset.restore }));
-    box.querySelectorAll('[data-purge]').forEach(b => twice(b, '完全に消す(もう戻せません)', () => setValueX({ field: 'purgetrash', value: +b.dataset.purge })));
-  }
   box.querySelectorAll('.prod').forEach(c => {
     const t = c.querySelector('[data-toggle]'), name = c.dataset.name;
     const tog = () => { const d = c.querySelector('.detail'); d.hidden = !d.hidden; t.setAttribute('aria-expanded', String(!d.hidden)); d.hidden ? open.delete(name) : open.add(name); };
@@ -1674,7 +1682,9 @@ function renderCount() {
 async function setValueX(extra) {
   const out = await api(Object.assign({ kind: 'app_set' }, extra));
   if (!out.ok) { toast(out.error || 'うまく記録できませんでした', 'ng'); return; }
-  D = out.data; renderAll(); if (out.msg) { chat(out.msg); return; } toast(extra.field === 'check' ? '確かめました。' : extra.field === 'restoreprod' ? 'レシピを戻しました。' : extra.field === 'hyg' ? '記録しました。' : extra.field === 'deliv' ? '納品を記録しました。' : extra.field === 'shop' ? 'お店の情報を保存しました。' : extra.field === 'lbl' ? 'ラベルの設定を保存しました。' : extra.field === 'paybank' ? `振込は「${esc((payBank() || {}).name || '')}」を開くようにしました。` : ['biz', 'sell', 'unitword', 'serve', 'closed', 'wsprice', 'regalias'].includes(extra.field) ? '変えました。' : extra.field === 'tax' ? '税率を保存しました。' : extra.field === 'target' || extra.field === 'ptarget' ? '目標の原価率を保存しました。' : extra.field === 'aicap' ? 'AI代の上限を保存しました。' : extra.field === 'mat' ? (extra.value && extra.value.alias ? `「${esc(extra.value.alias)}」を「${esc(extra.name)}」の別名にしました。原価に反映しました。` : '材料を保存しました。') : extra.field === 'hygnotice' ? (extra.value === 'off' ? '衛生記録のお知らせは送らないようにしました。' : `衛生記録のお知らせは${extra.value}時に送ります。`) : extra.field === 'sales' ? '売上を記録しました。' : extra.field === 'cycle' ? `棚卸は「${extra.value}」にしました。その前にLINEでお知らせします。` : '記録しました。在庫を計算しなおしました。', 'ok'); act('heart', 1.3);
+  D = out.data; renderAll();
+  if ((extra.field === 'ing' || extra.field === 'steps') && (D.undo || [])[0] && D.undo[0].product === extra.product) { const u0 = D.undo[0]; toast(out.msg || '直しました', 'ok', ['元に戻す', () => setValueX({ field: 'undo', value: u0.row })]); return; }
+  if (out.msg) { chat(out.msg); return; } toast(extra.field === 'check' ? '確かめました。' : extra.field === 'restoreprod' ? 'レシピを戻しました。' : extra.field === 'hyg' ? '記録しました。' : extra.field === 'deliv' ? '納品を記録しました。' : extra.field === 'shop' ? 'お店の情報を保存しました。' : extra.field === 'lbl' ? 'ラベルの設定を保存しました。' : extra.field === 'paybank' ? `振込は「${esc((payBank() || {}).name || '')}」を開くようにしました。` : ['biz', 'sell', 'unitword', 'serve', 'closed', 'wsprice', 'regalias'].includes(extra.field) ? '変えました。' : extra.field === 'tax' ? '税率を保存しました。' : extra.field === 'target' || extra.field === 'ptarget' ? '目標の原価率を保存しました。' : extra.field === 'aicap' ? 'AI代の上限を保存しました。' : extra.field === 'mat' ? (extra.value && extra.value.alias ? `「${esc(extra.value.alias)}」を「${esc(extra.name)}」の別名にしました。原価に反映しました。` : '材料を保存しました。') : extra.field === 'hygnotice' ? (extra.value === 'off' ? '衛生記録のお知らせは送らないようにしました。' : `衛生記録のお知らせは${extra.value}時に送ります。`) : extra.field === 'sales' ? '売上を記録しました。' : extra.field === 'cycle' ? `棚卸は「${extra.value}」にしました。その前にLINEでお知らせします。` : '記録しました。在庫を計算しなおしました。', 'ok'); act('heart', 1.3);
 }
 // 税理士さんに渡す一式(印刷用)
 function taxHtml(r) {
@@ -2633,10 +2643,11 @@ setInterval(() => { if (!STILL && !busy && document.visibilityState === 'visible
 function place() {}
 // 画面の上に短く出る知らせ(記録しました、など)。キャラの吹き出しは会話用に残す
 let toastT = null;
-function toast(text, kind) {
+function toast(text, kind, act0) {
   let t = $('toast'); if (!t) { t = document.createElement('div'); t.id = 'toast'; t.setAttribute('role', 'status'); document.body.appendChild(t); }
-  t.className = kind || ''; t.innerHTML = `<span class="tk"></span>${esc(text)}`; t.hidden = false; requestAnimationFrame(() => t.classList.add('on'));
-  clearTimeout(toastT); toastT = setTimeout(() => { t.classList.remove('on'); setTimeout(() => t.hidden = true, 250); }, 2600);
+  t.className = kind || ''; t.innerHTML = `<span class="tk"></span>${esc(text)}${act0 ? `<button type="button" class="ta">${esc(act0[0])}</button>` : ''}`; t.hidden = false; requestAnimationFrame(() => t.classList.add('on'));
+  if (act0) t.querySelector('.ta').onclick = () => { t.classList.remove('on'); t.hidden = true; act0[1](); };
+  clearTimeout(toastT); toastT = setTimeout(() => { t.classList.remove('on'); setTimeout(() => t.hidden = true, 250); }, act0 ? 7000 : 2600);
 }
 function chat(text, role) {
   if (role) act(role, 1.3);
