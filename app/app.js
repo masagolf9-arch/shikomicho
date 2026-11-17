@@ -239,6 +239,8 @@ const dayDiff = s => Math.round((new Date(s.slice(0, 4), +s.slice(5, 7) - 1, +s.
 const EVK = { '納品': 'ws', '催事': 'post', '休み': 'hyg', 'その他': 'set' };
 function todoItems(q) {
   const t = [], me = profileName || '';
+  // 印をつけた仕事に入っていないのに使っているもの → メニューの前に出すか聞く(1回押したら、もう出さない)
+  if (D.me && D.me.owner && Array.isArray(D.jobs)) jobSignals().filter(j => !D.jobs.includes(j)).forEach(j => { let seen = ''; try { seen = localStorage.getItem('shikomi:jobsug:' + j) || ''; } catch (e) {} if (seen) return; const l = { ws: ['卸', '卸の納品が入っています'], stock: ['在庫', '在庫の数が入っています'], cal: ['予定', '予定が入っています'] }[j]; t.push({ c: 'more', ic: 'more', b: `「${l[0]}」をメニューの前に出しますか`, k: l[1] + '。設定の「うちの店でやっている仕事」で選べます', d: '', star: 1, go: () => { try { localStorage.setItem('shikomi:jobsug:' + j, '1'); } catch (e) {} show('set'); setTimeout(() => { const el = $('jobs'); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 200); } }); });
   (D.memos || []).filter(m => !m.seen.includes(me)).slice(0, 3).forEach(m => t.push({ c: 'post', ic: 'memo', b: `連絡事項: ${m.text}`, k: `${m.by}から`, d: '', star: 3, go: () => $('memos').scrollIntoView({ behavior: 'smooth', block: 'start' }) }));
   if (!noMoney()) unpaid().forEach(p => { const dd = p.due ? dayDiff(p.due) : null; if (dd == null || dd <= 7) t.push({ c: 'book', ic: 'book', b: `${p.supplier}に払う ${yen(p.total)}`, k: `${+p.month.slice(5) || p.month}月分`, d: dd == null ? '期限なし' : dd < 0 ? `${-dd}日すぎ` : dd === 0 ? '今日まで' : dd === 1 ? '明日まで' : md(p.due) + 'まで', due: dd != null && dd <= 1, star: dd != null && dd <= 1 ? 3 : 2, go: () => show('book') }); });
   const regs = noMoney() ? [] : (D.priceChanges || []).filter(x => !x.done); if (regs.length) t.push({ c: 'sales', ic: 'sales', b: `レジの値段を直す ${regs.length}品`, k: regs.slice(0, 3).map(x => `${x.name} ${x.old ? x.old + '→' : ''}${x.now}円`).join('・') + (regs.length > 3 ? ' ほか' : ''), d: regs.some(x => x.at && Date.now() - x.at > DAY) ? '昨日から' : '今日', star: 3, go: () => { $('reg-box').scrollIntoView({ behavior: 'smooth', block: 'start' }); } });
@@ -792,14 +794,33 @@ const IC = {
   ct: '<rect x="4" y="3" width="15" height="18" rx="2"/><circle cx="11.5" cy="10" r="2.6"/><path d="M7.5 17c.6-2.2 2.2-3.3 4-3.3s3.4 1.1 4 3.3M19 7h1.5M19 11h1.5M19 15h1.5"/>',
   cal: '<rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/><path d="M8 13h3M8 16.5h3M13.5 13h2.5"/>',
   memo: '<path d="M4 5.5h16v10H9l-4 3.5z"/><path d="M8 9h8M8 12h5"/>',
+  more: '<circle cx="6" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="18" cy="12" r="1.6"/>',
   sort: '<path d="M3 7l2-3h14l2 3"/><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 12h6"/>',
   set: '<circle cx="12" cy="12" r="3"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8"/>'
 };
+// ---------- 入口をしぼる: うちの店でやっている仕事で、メニューの前に出すものを決める ----------
+let MORE = false;
+const JOB_TABS = { ws: ['ws', 'ct'], stock: ['stock'], cal: ['cal'], sales: ['sales'], post: ['post'], howto: ['howto'] };
+// 印をつける前は、いま使っているもの(卸の納品・在庫・予定がある)から決める
+function jobSignals() { const s = []; if (D && D.ws && Object.keys(D.ws).length) s.push('ws'); if (D && ((D.stock || {}).items || []).length) s.push('stock'); if (D && (D.events || []).length) s.push('cal'); return s; }
+function jobsNow() { return D && Array.isArray(D.jobs) ? D.jobs : jobSignals(); }
+function frontKeys() {
+  if (noMoney()) return ['cam', 'sort', 'hyg', 'howto'];
+  const f = ['cam', 'sort', 'cost', 'label', 'hyg', 'book'];
+  jobsNow().forEach(j => (JOB_TABS[j] || []).forEach(k => f.includes(k) || f.push(k)));
+  return f;
+}
 function renderMenu(q) {
   const low = ((D.stock || {}).items || []).filter(x => x.low).length, up = unpaid().length;
-  const items = [
+  const items0 = [
     ['cam', '撮る', openCamera, 0, 'p'], ...(CF ? [['sort', '仕分けの箱', sortOpen, (SORT || []).filter(x => x.state === '聞く' || x.state === '確かめ').length, (SORT || []).filter(x => x.state === '聞く').length]] : []), ['cost', '原価', () => show('cost')], ['label', sellFace() ? 'アレルゲン' : '裏表示', () => show('label')], ['howto', '作り方', () => show('howto')], ['mat', '材料', () => { matF = 'all'; show('mat'); }],
     ...(SH('stock') ? [] : [['stock', '在庫', () => { matF = 'low'; show('mat'); }, low]]), ['hyg', '衛生', () => show('hyg'), hygMissing().length, hygMissing().length], ['book', '帳簿', () => show('book'), up], ['ws', '卸', () => show('ws')], ['ct', '業者・卸先', () => show('ct')], ...(SH('post') ? [] : [['post', '発信', () => show('post')]]), ['sales', '商品分析', () => show('sales')], ...(SH('cal') ? [] : [['cal', '予定', () => show('cal'), (D.events || []).filter(e => dayDiff(e.date) === 0).length]])];
+  // 前に出すのは、よく使う入口だけ。ほかは「ほかの機能」にしまう(消さない)。スタッフは4つ
+  const F = new Set(frontKeys()), vis = x => !(tabLocked(x[0]) || SH(x[0]));
+  const restAll = items0.filter(x => !F.has(x[0]) && vis(x)), TAB0 = { stock: 'mat', mat: 'mat' };
+  const open = MORE || restAll.some(x => (TAB0[x[0]] || x[0]) === cur);
+  const moreB = restAll.reduce((a, x) => a + (x[3] || 0), 0);
+  const items = items0.filter(x => F.has(x[0])).concat(restAll.length ? [['more', open ? 'しまう' : 'ほかの機能', () => { MORE = !open; renderMenu(); }, open ? 0 : moreB]] : [], open ? restAll : []);
   const m = $('menu');
   m.innerHTML = items.map(([k, l, , b, w], i) => w === 'p' || tabLocked(k) || SH(k) ? '' : `<button type="button" data-i="${i}" style="--c:var(--c-${k})"><span class="ic${w === 'p' ? ' p' : ''}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[k]}</svg></span>${l}${b ? `<span class="badge">${b}</span>` : ''}</button>`).join('');
   m.querySelectorAll('button').forEach(b => b.onclick = () => items[b.dataset.i][2]());
@@ -807,7 +828,7 @@ function renderMenu(q) {
   const TAB = { cost: 'cost', howto: 'howto', label: 'label', mat: 'mat', hyg: 'hyg', book: 'book', ws: 'ws', ct: 'ct', post: 'post', sales: 'sales', cal: 'cal' };
   const all = [['home', 'ホーム', () => show('today'), 0, 0, 'today']].concat(items.map(x => [x[0], x[1], x[2], x[3] || 0, x[4] || 0, TAB[x[0]] || '']), [['set', '設定', () => show('set'), 0, 0, 'set']]);
   const side = $('side');
-  side.innerHTML = `<div class="sname"><i></i>${esc(D.shop)}<small>${esc($('date').textContent)}</small></div>` + all.map(([k, l, , b, w, t], i) => tabLocked(k) || SH(k) ? '' : `<button type="button" data-i="${i}" data-tab="${t}" class="${w === 'p' ? 'p' : ''}" style="--c:var(--c-${k})"${t && t === cur ? ' aria-current="page"' : ''}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[k]}</svg>${l}${b ? `<span class="badge">${b}</span>` : ''}</button>`).join('');
+  side.innerHTML = `<div class="sname"><i></i>${esc(D.shop)}<small>${esc($('date').textContent)}</small></div>` + all.map(([k, l, , b, w, t], i) => tabLocked(k) || SH(k) ? '' : `<button type="button" data-i="${i}" data-tab="${t}" class="${w === 'p' ? 'p' : k === 'more' ? 'more' : ''}" style="--c:var(--c-${k})"${t && t === cur ? ' aria-current="page"' : ''}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[k]}</svg>${l}${b ? `<span class="badge">${b}</span>` : ''}</button>`).join('');
   side.insertAdjacentHTML('beforeend', `<div class="gap"></div><div class="who">${esc(profileName || '')}${profileName ? ' · ' : ''}${esc(D.shop)}</div>`);
   side.querySelectorAll('button').forEach(b => b.onclick = () => all[b.dataset.i][2]());
   opsMark();
@@ -1986,6 +2007,7 @@ function renderSet() {
     ${D.me && D.me.owner && PL('sales') && !SH('regclose') ? `<div class="set-row" style="display:block"><span>レジ<br><span class="k">POSレジがあるかどうかで、閉店後のレジ締めの形が変わります。お釣りの準備金は、毎朝レジに入れておくお金です</span></span><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px">${seg('regmode', [['pos', 'POSレジがある'], ['none', 'POSレジはない']], (D.reg || {}).mode || '')}<span class="k">お釣りの準備金</span><input id="rg-fl" inputmode="numeric" style="width:7em" value="${(D.reg || {}).float || ''}" aria-label="お釣りの準備金"><span class="k">円</span><button class="btn ghost sm" type="button" id="rg-fls">保存</button></div></div>` : ''}
     ${D.me && D.me.owner ? `<div class="set-row"><span>お金の画面の鍵<br><span class="k">お店のタブレットを置いたままにしても、売上や原価を見られないように。この時間さわらないと閉じ、開くときは人ごとの4けたの暗証番号</span></span><div class="seg" id="mlock-seg">${[[0, '使わない'], [5, '5分'], [10, '10分'], [30, '30分']].map(([v, l]) => `<button type="button" data-ml="${v}" aria-pressed="${((MLOCK || {}).min || 0) === v}">${l}</button>`).join('')}</div></div>` : ''}
     <div class="set-row"><span>数え方<br><span class="k">原価や分量の「1個あたり」の言葉</span></span><span style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:flex-end">${seg('unitword', [['個', '個'], ['人前', '人前'], ['杯', '杯'], ['食', '食'], ['本', '本'], ['枚', '枚']], (D.words || {}).unit || '個')}<input id="uw-v" placeholder="ほか(例: 皿)" maxlength="4" style="width:7em" value="${['個', '人前', '杯', '食', '本', '枚'].includes((D.words || {}).unit || '個') ? '' : esc((D.words || {}).unit)}" aria-label="ほかの数え方"><button class="btn ghost sm" type="button" id="uw-save">決める</button></span></div>
+    ${D.me && D.me.owner && (D.jobList || []).length ? `<div class="set-row" style="display:block"><span>うちの店でやっている仕事<br><span class="k">印をつけた仕事の入口が、メニューの前に出ます。撮る・仕分けの箱・原価・表示・衛生・帳簿はいつも前にあります。ほかは「ほかの機能」から開けます(消えません)</span></span><div class="seg" id="jobs" style="flex-wrap:wrap;margin-top:8px">${D.jobList.map(([k, l]) => `<button type="button" data-k="${k}" aria-pressed="${jobsNow().includes(k)}">${l}</button>`).join('')}</div></div>` : ''}
     ${D.me && D.me.owner && (D.hideable || []).length ? `<div class="set-row" style="display:block"><span>使う画面<br><span class="k">使わない画面を隠すと、メニューに出なくなります。データは消えず、いつでも戻せます</span></span><div class="seg" id="hide-tabs" style="flex-wrap:wrap;margin-top:8px">${D.hideable.map(([k, l]) => `<button type="button" data-k="${k}" aria-pressed="${!(D.hidden || []).includes(k)}">${l}</button>`).join('')}</div></div>` : ''}
     <div class="set-row"><span>業種<br><span class="k">AIに伝えるためのメモ。画面や機能は変わりません</span>${(D.words || {}).biz ? '' : '<br><span class="pill">未記入</span>'}</span>${seg('biz', ((D.words || {}).list || []).map(b => [b, b]), (D.words || {}).biz)}</div>
     `) + grp('お知らせ', 'hyg', `
@@ -2032,6 +2054,7 @@ function renderSet() {
   $('closed').querySelectorAll('button').forEach(b => b.onclick = () => { b.setAttribute('aria-pressed', b.getAttribute('aria-pressed') !== 'true'); const v = [...$('closed').querySelectorAll('[aria-pressed="true"]')].map(x => x.dataset.w).join(''); setValueX({ field: 'closed', value: v }); });
   if (false && $('ai-cap-save')) $('ai-cap-save').onclick = () => { const v = parseFloat($('ai-cap').value); if (!(v >= 100 && v <= 30000)) { $('ai-cap').focus(); chat('上限は100〜30,000円で入れてください'); return; } setValueX({ field: 'aicap', value: v }); };
   if ($('uw-save')) $('uw-save').onclick = () => { const v = $('uw-v').value.trim(); if (!v) { $('uw-v').focus(); return; } setValueX({ field: 'unitword', value: v }); };
+  if ($('jobs')) $('jobs').querySelectorAll('button').forEach(b => b.onclick = () => { b.setAttribute('aria-pressed', b.getAttribute('aria-pressed') !== 'true'); setValueX({ field: 'jobs', value: [...$('jobs').querySelectorAll('[aria-pressed="true"]')].map(x => x.dataset.k) }); });
   if ($('hide-tabs')) $('hide-tabs').querySelectorAll('button').forEach(b => b.onclick = () => { b.setAttribute('aria-pressed', b.getAttribute('aria-pressed') !== 'true'); setValueX({ field: 'hidetabs', value: [...$('hide-tabs').querySelectorAll('[aria-pressed="false"]')].map(x => x.dataset.k) }); });
   if ($('rg-fls')) $('rg-fls').onclick = () => setValueX({ field: 'regset', value: { float: $('rg-fl').value.trim() || '0' } });
   if ($('tg-save')) $('tg-save').onclick = () => { const v = parseFloat($('tg-v').value); if (!(v >= 5 && v <= 90)) { $('tg-v').focus(); chat('目標の原価率は5〜90(%)で入れてください'); return; } setValueX({ field: 'target', value: v }); };
@@ -2970,12 +2993,12 @@ async function sortLoad() {
 }
 function sortCard() {
   let c = $('sort-card'); const L = SORT || [], ask = L.filter(x => x.state === '聞く').length, hold = L.filter(x => x.state === '確かめ').length;
-  const today = new Date().toDateString(), done = L.filter(x => x.state === '済' && new Date(x.at).toDateString() === today).length;
-  if (!L.length) { if (c) c.remove(); return; }
+  const today = new Date().toDateString(), done = L.filter(x => x.state === '済' && new Date(x.at).toDateString() === today).length, gap = costGaps().length;
+  if (!L.length && !gap) { if (c) c.remove(); return; }
   if (!c) { c = document.createElement('div'); c.id = 'sort-card'; c.className = 'card'; c.style.cssText = 'display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:12px'; }
   const t = $('t-today'), anchor = $('pk-ban') || $('mlock-bar'); if (c.parentNode !== t) t.insertBefore(c, anchor ? anchor.nextSibling : t.firstChild);
   c.style.borderColor = ask ? 'var(--warn)' : '';
-  c.innerHTML = `<span><b>仕分けの箱</b><br><span class="k">${ask ? `<b style="color:var(--warn)">聞きたいこと ${ask}</b>・` : ''}${hold ? `確かめ待ち ${hold}・` : ''}今日入ったもの ${done}</span></span><button class="btn sm${ask || hold ? '' : ' ghost'}" type="button" id="sort-open">開く</button>`;
+  c.innerHTML = `<span><b>仕分けの箱</b><br><span class="k">${ask ? `<b style="color:var(--warn)">聞きたいこと ${ask}</b>・` : ''}${hold ? `確かめ待ち ${hold}・` : ''}${gap ? `原価まであと少し ${gap}・` : ''}今日入ったもの ${done}</span></span><button class="btn sm${ask || hold || gap ? '' : ' ghost'}" type="button" id="sort-open">開く</button>`;
   $('sort-open').onclick = sortOpen;
 }
 function sortOpen() {
@@ -3000,18 +3023,66 @@ function sortDraw() {
       <div data-sharebox="${esc(x.id)}" hidden style="margin-top:8px"><textarea rows="3" placeholder="どこがおかしいか(例: 材料がちがう所に入った)" style="width:100%"></textarea><p class="k" style="margin:4px 0">この写真1枚だけ、ピタット原価のサポートが見られるようになります。ほかの写真や帳面は見えません。</p><button class="btn sm" type="button" data-sharego="${esc(x.id)}">送る</button></div>
       </div></div>`;
   const grp = (t, xs, note) => xs.length ? `<h3 style="margin:14px 0 4px;font-size:16px">${t} <span class="k">${xs.length}</span></h3>${note ? `<p class="k" style="margin:0 0 4px">${note}</p>` : ''}${xs.map(row).join('')}` : '';
-  box.innerHTML = (L.length ? '' : '<p class="k">まだありません。「撮る」から、納品書・レシピ・袋の裏・売上の紙・ラベル・機械など、何でも撮ってください。</p>') +
+  box.innerHTML = (L.length || costGaps().length ? '' : '<p class="k">まだありません。「撮る」から、納品書・レシピ・袋の裏・売上の紙・ラベル・機械など、何でも撮ってください。</p>') +
     grp('聞きたいこと', L.filter(x => x.state === '聞く'), '答えると、その答えでもう一度読みます。次からは覚えます') +
+    gapHtml() +
     grp('確かめ待ち', L.filter(x => x.state === '確かめ'), '店主か、レシピを直せる人が確かめます') +
     grp('入ったもの(7日)', L.filter(x => x.state === '済')) + grp('消したもの(7日)', L.filter(x => x.state === '消した'));
   box.querySelectorAll('[data-img]').forEach(b => { const id = b.dataset.img; if (!id) return; if (!sortImgs[id]) api({ kind: 'app_img_get', id }).then(r => { if (r.ok) { sortImgs[id] = 'data:' + r.type + ';base64,' + r.data; const im = b.querySelector('img') || document.createElement('img'); im.src = sortImgs[id]; im.alt = ''; im.style.cssText = 'width:100%;height:100%;object-fit:cover'; b.innerHTML = ''; b.appendChild(im); } }); b.onclick = () => { if (sortImgs[id]) openPrint(`<img src="${sortImgs[id]}" style="max-width:100%">`, { bare: true }); }; });
   box.querySelectorAll('[data-ans]').forEach(b => b.onclick = () => sortDo(b.dataset.ans, { act: 'answer', choice: b.dataset.c }, b));
+  gapBind(box);
   box.querySelectorAll('[data-mat]').forEach(b => b.onclick = () => { const v = box.querySelector(`[data-matin="${CSS.escape(b.dataset.mat)}"]`).value.trim(); if (!v) return; sortDo(b.dataset.mat, { act: 'mat', value: v }, b); });
   box.querySelectorAll('[data-ok]').forEach(b => b.onclick = () => { const x = (SORT || []).find(y => y.id === b.dataset.ok); if (x && x.dev) sortApplyDev(x.dev); sortDo(b.dataset.ok, { act: 'ok' }, b); });
   box.querySelectorAll('[data-drop]').forEach(b => twice(b, 'もう一度押すと消えます', () => sortDo(b.dataset.drop, { act: 'drop' }, b)));
   box.querySelectorAll('[data-undo]').forEach(b => twice(b, 'もう一度押すと取り消します', () => sortDo(b.dataset.undo, { act: 'undo' }, b)));
   box.querySelectorAll('[data-share]').forEach(b => b.onclick = () => { const sb = box.querySelector(`[data-sharebox="${CSS.escape(b.dataset.share)}"]`); sb.hidden = !sb.hidden; if (!sb.hidden) sb.querySelector('textarea').focus(); });
   box.querySelectorAll('[data-sharego]').forEach(b => b.onclick = async () => { const sb = box.querySelector(`[data-sharebox="${CSS.escape(b.dataset.sharego)}"]`); b.disabled = true; const r = await api({ kind: 'app_sort_share', id: b.dataset.sharego, text: sb.querySelector('textarea').value }).catch(() => ({ ok: false, error: 'つながりませんでした' })); b.disabled = false; if (!r.ok) { toast(r.error || '送れませんでした'); return; } sb.hidden = true; toast('サポートに送りました。お返事は「設定」の問い合わせと、LINEに届きます', 'ok'); });
+}
+// 原価まで、あと少し: 撮った写真だけでは埋まらない所(1個の重さ・値段のない材料・数で書いた材料の重さ)を、箱でたずねる
+// お金を見られる人にだけ出す。答えると、その場で原価が出なおす
+function costGaps() {
+  if (!D || noMoney()) return [];
+  const has = n => (D.materials || []).find(m => m.name === n || (m.aliases || []).includes(n)), out = [], mats = {};
+  (D.products || []).filter(p => p.kind !== 'part' && (p.rows || []).length).forEach(p => {
+    if (p.per_piece == null && !p.pw && !p.piecesN) out.push({ t: 'pieces', n: p.name, ps: [p.name] });
+    (p.unknown || []).forEach(n => (mats['p:' + n] = mats['p:' + n] || { t: 'price', n, ps: [], m: has(n) }).ps.push(p.name));
+    (p.noWeight || []).forEach(n => (mats['w:' + n] = mats['w:' + n] || { t: 'weight', n, ps: [], m: has(n) }).ps.push(p.name));
+  });
+  return out.concat(Object.values(mats));
+}
+function gapHtml() {
+  const G = costGaps(); if (!G.length) return '';
+  const id = (g, i) => `data-gap="${i}"`, inp = (k, ph, w) => `<input data-gk="${k}" inputmode="decimal" placeholder="${ph}" style="width:${w || 6}em">`;
+  const used = g => `<div class="k">${g.ps.length > 1 ? esc(g.ps.slice(0, 3).join('・')) + (g.ps.length > 3 ? ` ほか${g.ps.length - 3}品` : '') + 'で使っています' : esc(g.ps[0]) + 'で使っています'}</div>`;
+  const row = (g, i) => `<div class="sort-row" ${id(g, i)} style="padding:12px 0;border-top:1px solid var(--line)">` + (
+    g.t === 'pieces' ? `<b>${esc(g.n)}</b> <span class="k">1個の原価がまだ出ていません</span><div class="k">どちらか1つで出ます</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px">1${U}の重さ ${inp('pw', '例 45')} g <button class="btn sm" type="button" data-gs="pw">決める</button></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:6px">1回の仕込みで ${inp('pieces', '例 24')} ${U}できる <button class="btn ghost sm" type="button" data-gs="pieces">決める</button></div>`
+    : g.t === 'price' ? `<b>${esc(g.n)}</b> <span class="k">値段がないため、原価に入っていません</span>${used(g)}
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px">${inp('yen', '例 1980')} 円で ${inp('qty', '例 1')} <select data-gk="unit"><option value="kg">kg</option><option value="g">g</option></select> <button class="btn sm" type="button" data-gs="price">決める</button></div>
+      <div class="k" style="margin-top:4px">請求書や納品書を撮っても入ります(そのときは、こちらは答えなくて大丈夫です)</div>`
+    : `<b>${esc(g.n)}</b> <span class="k">数で書かれていて、重さが分かりません</span>${used(g)}
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px">1つ ${inp('g', '例 60')} g${g.m ? '' : ` ・1つ ${inp('yen', '例 30')} 円`} <button class="btn sm" type="button" data-gs="weight">決める</button></div>`) + '</div>';
+  return `<h3 style="margin:14px 0 4px;font-size:16px">原価まで、あと少し <span class="k">${G.length}</span></h3><p class="k" style="margin:0 0 4px">写真だけでは分からなかった所です。分かる所だけ答えてください</p>` + G.map(row).join('');
+}
+function gapBind(box) {
+  const G = costGaps();
+  box.querySelectorAll('[data-gap] [data-gs]').forEach(b => b.onclick = async () => {
+    const el = b.closest('[data-gap]'), g = G[+el.dataset.gap], v = k => { const x = el.querySelector(`[data-gk="${k}"]`); return x ? x.value.trim() : ''; }, num = k => Number(v(k).replace(/[,，円gｇ]/g, ''));
+    let body = null, bad = '';
+    if (b.dataset.gs === 'pw' || b.dataset.gs === 'pieces') { const n = num(b.dataset.gs); if (!(n > 0)) bad = '数字を入れてください'; else body = { kind: 'app_set', field: b.dataset.gs, product: g.n, value: n }; }
+    else if (b.dataset.gs === 'price') { const y = num('yen'), q = num('qty'), kg = v('unit') === 'g' ? q / 1000 : q; if (!(y > 0) || !(q > 0)) bad = '値段と量を入れてください'; else body = { kind: 'app_set', field: 'mat', name: g.m ? g.m.name : g.n, create: !g.m, value: { ppkg: Math.round(y / kg) } }; }
+    else { const w = num('g'), y = num('yen'); if (!(w > 0)) bad = '1つの重さ(g)を入れてください'; else if (!g.m && !(y > 0)) bad = 'まだない材料なので、1つの値段も入れてください'; else body = { kind: 'app_set', field: 'mat', name: g.m ? g.m.name : g.n, create: !g.m, value: g.m ? { pieceG: w } : { pieceG: w, ppkg: Math.round(y / w * 1000) } }; }
+    if (bad) { toast(bad); return; }
+    b.disabled = true;
+    const r = await api(body).catch(() => ({ ok: false, error: 'つながりませんでした' }));
+    b.disabled = false;
+    if (!r.ok) { toast(r.error || 'できませんでした'); return; }
+    if (r.data) { D = r.data; renderAll(); }
+    const p = g.t === 'pieces' ? (D.products || []).find(x => x.name === g.n) : null;
+    toast(p && p.per_piece != null ? `${g.n}: 1${U} ${yen1(p.per_piece)}になりました` + ((p.unknown || []).length ? `(値段のない材料${p.unknown.length}つは、まだ入っていません)` : '') : `「${g.n}」を入れました。原価を出しなおしました`, 'ok');
+    sortDraw(); sortCard();
+  });
 }
 // 機械・ラベルの用紙を確かめたら、この端末のラベル印刷の設定にする
 function sortApplyDev(dv) {
