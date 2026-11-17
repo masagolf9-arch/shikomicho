@@ -1,0 +1,10 @@
+# 部品の弱点の知らせ(戦略室 2026-11-16「保守の契約なしで守る形」2)
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Asia/Tokyo

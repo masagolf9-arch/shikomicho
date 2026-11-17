@@ -1,0 +1,45 @@
+# ピタット原価の見張り: 5分おきにホームページ・お店の画面・本体の様子を開く。止まったら税所さんのLINEに知らせる
+# 公開の保管庫なので、GitHub Actions の時間は無料。中に入れるのは公開のアドレスだけ(LINEの鍵は Secrets)
+name: watch
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+    - cron: '0 0 1 * *'      # 毎月1日 9時(日本): 「見張りは動いています」
+  workflow_dispatch:
+    inputs:
+      test:
+        description: 'ためしに知らせを送る'
+        type: boolean
+        default: true
+permissions:
+  contents: read
+concurrency:
+  group: watch
+  cancel-in-progress: false
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github
+      - uses: actions/cache/restore@v4
+        with:
+          path: .watch
+          key: watch-state-${{ github.run_id }}
+          restore-keys: watch-state-
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node .github/watch.mjs
+        env:
+          LINE_TOKEN: ${{ secrets.WATCH_LINE_TOKEN }}
+          LINE_TO: ${{ secrets.WATCH_LINE_TO }}
+          EVENT_SCHEDULE: ${{ github.event.schedule }}
+          TEST: ${{ github.event_name == 'workflow_dispatch' && inputs.test }}
+      - uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: .watch
+          key: watch-state-${{ github.run_id }}
