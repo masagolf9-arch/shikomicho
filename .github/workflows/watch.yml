@@ -29,7 +29,7 @@ jobs:
           path: .watch
           key: watch-state-${{ github.run_id }}
           restore-keys: watch-state-
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
       - run: node .github/watch.mjs
