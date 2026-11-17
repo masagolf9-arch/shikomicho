@@ -3081,7 +3081,7 @@ function gapHtml() {
     : `<b>${esc(g.n)}</b> <span class="k">数で書かれていて、重さが分かりません</span>${used(g)}
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px">1つ ${inp('g', '例 60')} g${g.m ? '' : ` ・1つ ${inp('yen', '例 30')} 円`} <button class="btn sm" type="button" data-gs="weight">決める</button></div>`) + '</div>';
   const N0 = 6, more = G.length > N0 && !GAP_ALL;
-  return `<h3 style="margin:14px 0 4px;font-size:16px">原価まで、あと少し <span class="k">${G.length}</span></h3><p class="k" style="margin:0 0 4px">写真だけでは分からなかった所です。たくさんの商品で使うものから並べています。分かる所だけ答えてください</p>` + (more ? G.slice(0, N0) : G).map(row).join('') + (more ? `<button class="btn ghost sm" type="button" id="gap-all" style="margin-top:8px">残りの${G.length - N0}つも見る</button>` : '');
+  return `<h3 style="margin:14px 0 4px;font-size:16px">原価まで、あと少し <span class="k">${G.length}</span></h3><p class="k" style="margin:0 0 4px">写真だけでは分からなかった所です。たくさんの商品で使うものから並べています。分かる所だけ答えてください</p>` + (more ? G.slice(0, N0) : G).map(row).join('') + (more ? `<button class="btn ghost sm" type="button" id="gap-all" style="margin-top:8px">残り${G.length - N0}件も見る</button>` : '');
 }
 function gapBind(box) {
   const G = costGaps();
