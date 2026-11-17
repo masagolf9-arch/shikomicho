@@ -792,12 +792,13 @@ const IC = {
   ct: '<rect x="4" y="3" width="15" height="18" rx="2"/><circle cx="11.5" cy="10" r="2.6"/><path d="M7.5 17c.6-2.2 2.2-3.3 4-3.3s3.4 1.1 4 3.3M19 7h1.5M19 11h1.5M19 15h1.5"/>',
   cal: '<rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/><path d="M8 13h3M8 16.5h3M13.5 13h2.5"/>',
   memo: '<path d="M4 5.5h16v10H9l-4 3.5z"/><path d="M8 9h8M8 12h5"/>',
+  sort: '<path d="M3 7l2-3h14l2 3"/><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 12h6"/>',
   set: '<circle cx="12" cy="12" r="3"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8"/>'
 };
 function renderMenu(q) {
   const low = ((D.stock || {}).items || []).filter(x => x.low).length, up = unpaid().length;
   const items = [
-    ['cam', '撮る', openCamera, 0, 'p'], ['cost', '原価', () => show('cost')], ['label', sellFace() ? 'アレルゲン' : '裏表示', () => show('label')], ['howto', '作り方', () => show('howto')], ['mat', '材料', () => { matF = 'all'; show('mat'); }],
+    ['cam', '撮る', openCamera, 0, 'p'], ...(CF ? [['sort', '仕分けの箱', sortOpen, (SORT || []).filter(x => x.state === '聞く' || x.state === '確かめ').length, (SORT || []).filter(x => x.state === '聞く').length]] : []), ['cost', '原価', () => show('cost')], ['label', sellFace() ? 'アレルゲン' : '裏表示', () => show('label')], ['howto', '作り方', () => show('howto')], ['mat', '材料', () => { matF = 'all'; show('mat'); }],
     ...(SH('stock') ? [] : [['stock', '在庫', () => { matF = 'low'; show('mat'); }, low]]), ['hyg', '衛生', () => show('hyg'), hygMissing().length, hygMissing().length], ['book', '帳簿', () => show('book'), up], ['ws', '卸', () => show('ws')], ['ct', '業者・卸先', () => show('ct')], ...(SH('post') ? [] : [['post', '発信', () => show('post')]]), ['sales', '商品分析', () => show('sales')], ...(SH('cal') ? [] : [['cal', '予定', () => show('cal'), (D.events || []).filter(e => dayDiff(e.date) === 0).length]])];
   const m = $('menu');
   m.innerHTML = items.map(([k, l, , b, w], i) => w === 'p' || tabLocked(k) || SH(k) ? '' : `<button type="button" data-i="${i}" style="--c:var(--c-${k})"><span class="ic${w === 'p' ? ' p' : ''}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[k]}</svg></span>${l}${b ? `<span class="badge">${b}</span>` : ''}</button>`).join('');
@@ -2965,7 +2966,7 @@ const SORT_CH = [['label', '裏表示・ラベル'], ['mat', '材料(袋の裏�
 async function sortLoad() {
   if (!CF) return;
   const r = await api({ kind: 'app_sort' }).catch(() => null);
-  if (r && r.ok) { SORT = r.items || []; sortCard(); if ($('sort-ov')) sortDraw(); }
+  if (r && r.ok) { SORT = r.items || []; sortCard(); if ($('sort-ov')) sortDraw(); try { renderMenu(); } catch (e) {} }
 }
 function sortCard() {
   let c = $('sort-card'); const L = SORT || [], ask = L.filter(x => x.state === '聞く').length, hold = L.filter(x => x.state === '確かめ').length;
