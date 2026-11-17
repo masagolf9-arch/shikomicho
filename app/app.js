@@ -1829,29 +1829,29 @@ async function pkLoad() {
   PK_KEYS = r.keys; pkBanner();
   const box = $('pk-set'); if (!box) return;
   const day = t => t ? new Date(t).toLocaleDateString('ja-JP', { year: 'numeric', month: 'numeric', day: 'numeric' }) : '—';
-  box.innerHTML = `<b>顔・指紋のログイン</b><p class="k" style="margin:6px 0 8px">登録した端末なら、メールもパスワードもいらず、顔や指紋(または端末の暗証番号)だけで入れます。パスワードを盗まれても、登録した端末がなければ入れません。${D && D.me && D.me.owner ? '<b>店主の方は登録してください。</b>' : ''}</p>
-    ${PK_KEYS.length ? PK_KEYS.map(k => `<div class="ask" style="justify-content:space-between;flex-wrap:wrap"><span>${esc(k.dev || '端末')} <span class="k">登録 ${day(k.at)}・最後に使った日 ${day(k.last)}</span></span><button class="btn ghost sm" type="button" data-pkdel="${esc(k.id)}">消す</button></div>`).join('') : '<p class="k" style="margin:0 0 8px">まだ登録していません。</p>'}
-    <div style="margin-top:8px"><button class="btn sm" type="button" id="pk-add">この端末を登録する</button> <span class="k" id="pk-msg"></span></div>`;
+  box.innerHTML = `<b>顔・指紋のログイン</b><p class="k" style="margin:6px 0 8px">iPhone・Androidに入っている顔・指紋(Face ID・指紋認証など)を、そのままログインに使います。新しく顔や指紋を登録することはなく、顔・指紋のデータはスマホの外に出ません。使えるようにした端末なら、メールもパスワードもいりません。${D && D.me && D.me.owner ? '<b>店主の方は使えるようにしてください。</b>' : ''}</p>
+    ${PK_KEYS.length ? PK_KEYS.map(k => `<div class="ask" style="justify-content:space-between;flex-wrap:wrap"><span>${esc(k.dev || '端末')} <span class="k">使えるようにした日 ${day(k.at)}・最後に使った日 ${day(k.last)}</span></span><button class="btn ghost sm" type="button" data-pkdel="${esc(k.id)}">消す</button></div>`).join('') : '<p class="k" style="margin:0 0 8px">まだ使えるようにしていません。</p>'}
+    <div style="margin-top:8px"><button class="btn sm" type="button" id="pk-add">この端末の顔・指紋を使う</button> <span class="k" id="pk-msg"></span></div>`;
   $('pk-add').onclick = pkAdd;
   box.querySelectorAll('[data-pkdel]').forEach(b => twice(b, 'もう一度押すと消えます', async () => { const r2 = await pkPost('/auth/passkey/del', { id: b.dataset.pkdel }); if (!r2.ok) { toast(r2.error); return; } toast('消しました', 'ok'); pkLoad(); }));
 }
 async function pkAdd() {
-  const m = $('pk-msg'); if (m) m.textContent = '端末の顔・指紋の画面が出ます…';
+  const m = $('pk-msg'); if (m) m.textContent = 'いつもの顔・指紋の画面が出ます…';
   try {
     const r = await pkPost('/auth/passkey/reg-options'); if (!r.ok) throw new Error(r.error);
     const o = r.options; o.challenge = pkU(o.challenge); o.user.id = pkU(o.user.id); o.excludeCredentials = (o.excludeCredentials || []).map(x => Object.assign({}, x, { id: pkU(x.id) }));
     const c = await navigator.credentials.create({ publicKey: o });
     const r2 = await pkPost('/auth/passkey/reg', { id: c.id, clientDataJSON: pkE(c.response.clientDataJSON), attestationObject: pkE(c.response.attestationObject) });
     if (!r2.ok) throw new Error(r2.error);
-    toast('この端末を登録しました。次から顔・指紋で入れます', 'ok'); pkLoad();
-  } catch (e) { const t = e && e.name === 'InvalidStateError' ? 'この端末はもう登録されています' : e && e.name === 'NotAllowedError' ? 'やめました' : (e && e.message) || '登録できませんでした'; if (m) m.textContent = t; else toast(t); }
+    toast('この端末の顔・指紋で入れるようにしました', 'ok'); pkLoad();
+  } catch (e) { const t = e && e.name === 'InvalidStateError' ? 'この端末は、もう使えるようになっています' : e && e.name === 'NotAllowedError' ? 'やめました' : (e && e.message) || '使えるようにできませんでした'; if (m) m.textContent = t; else toast(t); }
 }
 // 店主で、まだ1台も登録していないときは、ホームに1行(「あとで」で1日出さない)
 function pkBanner() {
   let b = $('pk-ban'); const want = PK_OK && PK_KEYS && !PK_KEYS.length && D && D.me && D.me.owner && Date.now() - store.get('pkLater', 0) > 86400000;
   if (!want) { if (b) b.remove(); return; }
   if (!b) { b = document.createElement('div'); b.id = 'pk-ban'; b.className = 'card'; b.style.cssText = 'display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:12px'; const t = $('t-today'); t.insertBefore(b, $('mlock-bar') ? $('mlock-bar').nextSibling : t.firstChild); }
-  b.innerHTML = `<span><b>顔・指紋のログインを入れてください</b><br><span class="k">店主のアカウントを守るため。パスワードを盗まれても、この端末がなければ入れなくなります</span></span><span style="display:flex;gap:8px"><button class="btn ghost sm" type="button" id="pk-later">あとで</button><button class="btn sm" type="button" id="pk-ban-add">登録する</button></span>`;
+  b.innerHTML = `<span><b>スマホの顔・指紋でログインできるようにしてください</b><br><span class="k">いつものFace ID・指紋認証をそのまま使います。店主のアカウントを守るため</span></span><span style="display:flex;gap:8px"><button class="btn ghost sm" type="button" id="pk-later">あとで</button><button class="btn sm" type="button" id="pk-ban-add">使う</button></span>`;
   $('pk-later').onclick = () => { store.set('pkLater', Date.now()); b.remove(); };
   $('pk-ban-add').onclick = pkAdd;
 }
