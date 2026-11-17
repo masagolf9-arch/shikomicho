@@ -1875,8 +1875,10 @@ async function pkAdd() {
   } catch (e) { const t = e && e.name === 'InvalidStateError' ? 'この端末は、もう使えるようになっています' : e && e.name === 'NotAllowedError' ? 'やめました' : (e && e.message) || '使えるようにできませんでした'; if (m) m.textContent = t; else toast(t); }
 }
 // 店主で、まだ1台も登録していないときは、ホームに1行(「あとで」で1日出さない)
+const PK_NUDGE = false;
 function pkBanner() {
-  let b = $('pk-ban'); const want = PK_OK && PK_KEYS && !PK_KEYS.length && D && D.me && D.me.owner && Date.now() - store.get('pkLater', 0) > 86400000;
+  // 独自のドメインに移ると登録し直しになるため、決まるまではホームで勧めない(設定からは使える)
+  let b = $('pk-ban'); const want = PK_NUDGE && PK_OK && PK_KEYS && !PK_KEYS.length && D && D.me && D.me.owner && Date.now() - store.get('pkLater', 0) > 86400000;
   if (!want) { if (b) b.remove(); return; }
   if (!b) { b = document.createElement('div'); b.id = 'pk-ban'; b.className = 'card'; b.style.cssText = 'display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:12px'; const t = $('t-today'); t.insertBefore(b, $('mlock-bar') ? $('mlock-bar').nextSibling : t.firstChild); }
   b.innerHTML = `<span><b>スマホの顔・指紋でログインできるようにしてください</b><br><span class="k">いつものFace ID・指紋認証をそのまま使います。店主のアカウントを守るため</span></span><span style="display:flex;gap:8px"><button class="btn ghost sm" type="button" id="pk-later">あとで</button><button class="btn sm" type="button" id="pk-ban-add">使う</button></span>`;
@@ -2031,6 +2033,7 @@ function renderSet() {
     ${D.me && D.me.owner ? `<div class="set-row"><span>お金の画面の鍵<br><span class="k">お店のタブレットを置いたままにしても、売上や原価を見られないように。この時間さわらないと閉じ、開くときは人ごとの4けたの暗証番号</span></span><div class="seg" id="mlock-seg">${[[0, '使わない'], [5, '5分'], [10, '10分'], [30, '30分']].map(([v, l]) => `<button type="button" data-ml="${v}" aria-pressed="${((MLOCK || {}).min || 0) === v}">${l}</button>`).join('')}</div></div>` : ''}
     <div class="set-row"><span>数え方<br><span class="k">原価や分量の「1個あたり」の言葉</span></span><span style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:flex-end">${seg('unitword', [['個', '個'], ['人前', '人前'], ['杯', '杯'], ['食', '食'], ['本', '本'], ['枚', '枚']], (D.words || {}).unit || '個')}<input id="uw-v" placeholder="ほか(例: 皿)" maxlength="4" style="width:7em" value="${['個', '人前', '杯', '食', '本', '枚'].includes((D.words || {}).unit || '個') ? '' : esc((D.words || {}).unit)}" aria-label="ほかの数え方"><button class="btn ghost sm" type="button" id="uw-save">決める</button></span></div>
     ${D.me && D.me.owner && (D.jobList || []).length ? `<div class="set-row" style="display:block"><span>うちの店でやっている仕事<br><span class="k">印をつけた仕事の入口が、メニューの前に出ます。撮る・仕分けの箱・原価・表示・衛生・帳簿はいつも前にあります。ほかは「ほかの機能」から開けます(消えません)</span></span><div class="seg" id="jobs" style="flex-wrap:wrap;margin-top:8px">${D.jobList.map(([k, l]) => `<button type="button" data-k="${k}" aria-pressed="${jobsNow().includes(k)}">${l}</button>`).join('')}</div></div>` : ''}
+    ${D.me && D.me.owner && CF ? `<div class="set-row" style="display:block"><span>お店のデータを書き出す<br><span class="k">お店の記録を丸ごと、いつでも自分で持ち出せます(やめるときも)。表ごとのCSVはExcelで開けます。店主だけ</span></span><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button class="btn sm" type="button" id="exp-all">丸ごと書き出す</button></div><div id="exp-list" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px"></div></div>` : ''}
     ${D.me && D.me.owner && (D.hideable || []).length ? `<div class="set-row" style="display:block"><span>使う画面<br><span class="k">使わない画面を隠すと、メニューに出なくなります。データは消えず、いつでも戻せます</span></span><div class="seg" id="hide-tabs" style="flex-wrap:wrap;margin-top:8px">${D.hideable.map(([k, l]) => `<button type="button" data-k="${k}" aria-pressed="${!(D.hidden || []).includes(k)}">${l}</button>`).join('')}</div></div>` : ''}
     <div class="set-row"><span>業種<br><span class="k">AIに伝えるためのメモ。画面や機能は変わりません</span>${(D.words || {}).biz ? '' : '<br><span class="pill">未記入</span>'}</span>${seg('biz', ((D.words || {}).list || []).map(b => [b, b]), (D.words || {}).biz)}</div>
     `) + grp('お知らせ', 'hyg', `
@@ -2077,6 +2080,17 @@ function renderSet() {
   $('closed').querySelectorAll('button').forEach(b => b.onclick = () => { b.setAttribute('aria-pressed', b.getAttribute('aria-pressed') !== 'true'); const v = [...$('closed').querySelectorAll('[aria-pressed="true"]')].map(x => x.dataset.w).join(''); setValueX({ field: 'closed', value: v }); });
   if (false && $('ai-cap-save')) $('ai-cap-save').onclick = () => { const v = parseFloat($('ai-cap').value); if (!(v >= 100 && v <= 30000)) { $('ai-cap').focus(); chat('上限は100〜30,000円で入れてください'); return; } setValueX({ field: 'aicap', value: v }); };
   if ($('uw-save')) $('uw-save').onclick = () => { const v = $('uw-v').value.trim(); if (!v) { $('uw-v').focus(); return; } setValueX({ field: 'unitword', value: v }); };
+  if ($('exp-all')) $('exp-all').onclick = async () => {
+    const b = $('exp-all'); b.disabled = true; const r = await api({ kind: 'app_export_all' }).catch(() => ({ ok: false, error: 'つながりませんでした' })); b.disabled = false;
+    if (!r.ok) { toast(r.error || '書き出せませんでした', 'ng'); return; }
+    const day = new Date().toISOString().slice(0, 10), nm = String(r.shop || 'お店').replace(/[\\/:*?"<>|]/g, '');
+    const save = (blob, name) => { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove(); };
+    save(new Blob([JSON.stringify({ shop: r.shop, at: new Date(r.at).toISOString(), sheets: r.sheets }, null, 1)], { type: 'application/json' }), `${nm}_ぜんぶ_${day}.json`);
+    const csv = rows => '\ufeff' + rows.map(row => row.map(v => { const t = v == null ? '' : typeof v === 'object' ? JSON.stringify(v) : String(v); return /[",\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t; }).join(',')).join('\r\n');
+    $('exp-list').innerHTML = '<span class="k" style="width:100%">表ごとのCSV:</span>' + r.sheets.map((x, i) => `<button class="btn ghost sm" type="button" data-exp="${i}">${esc(x.name)}</button>`).join('');
+    $('exp-list').querySelectorAll('[data-exp]').forEach(e => e.onclick = () => { const x = r.sheets[+e.dataset.exp]; save(new Blob([csv(x.rows)], { type: 'text/csv' }), `${nm}_${x.name}_${day}.csv`); });
+    toast('書き出しました(ぜんぶのファイル)。表ごとのCSVは下のボタンから', 'ok');
+  };
   if ($('jobs')) $('jobs').querySelectorAll('button').forEach(b => b.onclick = () => { b.setAttribute('aria-pressed', b.getAttribute('aria-pressed') !== 'true'); setValueX({ field: 'jobs', value: [...$('jobs').querySelectorAll('[aria-pressed="true"]')].map(x => x.dataset.k) }); });
   if ($('hide-tabs')) $('hide-tabs').querySelectorAll('button').forEach(b => b.onclick = () => { b.setAttribute('aria-pressed', b.getAttribute('aria-pressed') !== 'true'); setValueX({ field: 'hidetabs', value: [...$('hide-tabs').querySelectorAll('[aria-pressed="false"]')].map(x => x.dataset.k) }); });
   if ($('rg-fls')) $('rg-fls').onclick = () => setValueX({ field: 'regset', value: { float: $('rg-fl').value.trim() || '0' } });
