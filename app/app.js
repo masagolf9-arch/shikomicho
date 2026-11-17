@@ -52,7 +52,7 @@ async function load() {
       if (out.error === 'noshop') return state('<b>まだお店とつながっていません。</b><br>お店の方から届いた招待のリンクを開いてください。<br><form method="post" action="/auth/logout" style="margin-top:12px"><button class="btn ghost">別の方法でログインし直す</button></form>');
       return state(esc(out.error));
     }
-    const first = !D; D = out.data; cache.set(D); state(''); renderAll(); if (first) { show(store.get('tab', 'today'), true); setTimeout(() => showHints(cur), 800); } else show(cur, true, true);
+    const first = !D; D = out.data; MLOCK = D.mlock || null; cache.set(D); state(''); renderAll(); if (first) { show(store.get('tab', 'today'), true); setTimeout(() => showHints(cur), 800); } else show(cur, true, true);
     if (first) setTimeout(() => chat(hello(), 'greet'), 250);
     if (first) setTimeout(loadSup, 1500);   // 担当からのお返事があれば、設定に印
     if (CF && !window.__acct) { window.__acct = 1; renderAccount(); }
@@ -568,7 +568,8 @@ function bindContacts(root) {
 }
 // ---------- メンバー(店主だけ): 役割・お金を見せる/見せない・外す ----------
 const MONEY_TABS = ['cost', 'book', 'sales'];
-const noMoney = () => !!(D && D.hideMoney);
+let mLocked = false, MLOCK = null;   // お金の画面の鍵(しばらく使わなければ閉じる)。閉じている間は、お金を見せない人と同じ見え方にする
+const noMoney = () => !!(D && D.hideMoney) || mLocked;
 const noCost = () => !!(D && D.hideCost);
 const tabLocked = k => k === 'cost' ? noCost() : noMoney() && MONEY_TABS.includes(k);
 const perm = k => !D || !D.me || !D.me.perms || !!D.me.perms[k];
@@ -1756,6 +1757,66 @@ function renderJournal() {
     toast('仕訳の案を保存しました', 'ok');
   };
 }
+// ---- お金の画面の鍵: 店主が決めた分だけさわらないと、帳簿・売上を閉じ、原価の画面のお金の列も隠す。開くときは人ごとの4けたの暗証番号 ----
+const MLK = 'shikomi:mlast';
+let mlockTimer = null;
+const mlockOn = () => !!(D && MLOCK && MLOCK.min && !D.hideMoney);
+function mlockTouch() { if (!mLocked && mlockOn()) { try { sessionStorage.setItem(MLK, String(Date.now())); } catch (e) {} } }
+function mlockSet(v) {
+  if (mLocked === v) return; mLocked = v;
+  if (v && MONEY_TABS.includes(cur) && cur !== 'cost') show('today', true);
+  renderAll();
+}
+function mlockInit() {
+  if (!mlockOn()) { if (mLocked) { mLocked = false; } clearInterval(mlockTimer); mlockTimer = null; mlockBar(); return; }
+  if (!mlockTimer) {
+    let last = 0; try { last = Number(sessionStorage.getItem(MLK) || 0); } catch (e) {}
+    mLocked = !last || Date.now() - last > MLOCK.min * 60e3;
+    ['pointerdown', 'keydown', 'scroll'].forEach(e => addEventListener(e, mlockTouch, { passive: true }));
+    mlockTimer = setInterval(() => { if (!mlockOn() || mLocked) return; let l = 0; try { l = Number(sessionStorage.getItem(MLK) || 0); } catch (e) {} if (!l || Date.now() - l > MLOCK.min * 60e3) mlockSet(true); }, 15000);
+  }
+  mlockBar();
+}
+function mlockBar() {
+  let b = $('mlock-bar'); const want = mlockOn() && mLocked;
+  if (!want) { if (b) b.remove(); return; }
+  if (!b) { b = document.createElement('div'); b.id = 'mlock-bar'; b.className = 'card'; b.style.cssText = 'display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:12px'; $('t-today').prepend(b); }
+  b.innerHTML = `<span><b>🔒 お金の画面は閉じています</b><br><span class="k">${MLOCK.min}分さわらなかったので、帳簿・売上と原価のお金を隠しました。レシピと分量はそのまま見られます</span></span><button class="btn sm" type="button" id="mlock-open">開く</button>`;
+  $('mlock-open').onclick = () => mlockAsk();
+}
+function mlockAsk(next) {
+  if ($('mlock-ov')) return;
+  const hasPin = MLOCK.hasPin;
+  const ov = document.createElement('div'); ov.id = 'mlock-ov'; ov.className = 'a2ov'; ov.style.alignItems = 'center';
+  const draw = mode => {
+    const pinIn = (id, ph) => `<input id="${id}" type="password" inputmode="numeric" autocomplete="off" maxlength="4" placeholder="${ph}" style="font-size:28px;letter-spacing:.4em;text-align:center;width:100%;margin:6px 0">`;
+    ov.innerHTML = `<div class="card" role="dialog" aria-modal="true" aria-labelledby="mlk-h" style="max-width:380px;width:100%">
+      <h2 id="mlk-h" style="font-family:var(--round);margin:0 0 6px">${mode === 'set' ? 'お金の画面の暗証番号を決める' : mode === 'reset' ? '暗証番号を決め直す' : 'お金の画面を開く'}</h2>
+      <p class="k" style="margin:0 0 6px">${mode === 'set' ? 'あなただけの4けたの数字です。お店の人に教えないでください(1111のような同じ数字・1234のような並びは使えません)' : mode === 'reset' ? '店主のLINEに届いた6けたの数字と、新しい4けたの暗証番号を入れてください' : 'あなたの4けたの暗証番号を入れてください'}</p>
+      ${mode === 'reset' ? `<input id="mlk-code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="6けたの数字" style="font-size:22px;text-align:center;width:100%;margin:6px 0">` : ''}
+      ${pinIn('mlk-pin', '4けた')}${mode !== 'open' ? pinIn('mlk-pin2', 'もう一度') : ''}
+      <p class="k" id="mlk-msg" style="margin:4px 0 8px;color:var(--warn)"></p>
+      <div style="display:flex;gap:8px"><button class="btn ghost" type="button" id="mlk-x" style="flex:1">やめる</button><button class="btn" type="button" id="mlk-ok" style="flex:2">${mode === 'open' ? '開く' : '決める'}</button></div>
+      ${mode === 'open' ? `<p style="margin:10px 0 0;text-align:center"><button class="btn ghost sm" type="button" id="mlk-forgot">暗証番号を忘れた</button></p>` : ''}</div>`;
+    const msg = t => { $('mlk-msg').textContent = t; };
+    $('mlk-x').onclick = () => ov.remove();
+    $('mlk-pin').focus();
+    const go = async () => {
+      const pin = $('mlk-pin').value.trim();
+      if (mode !== 'open' && pin !== $('mlk-pin2').value.trim()) { msg('2つの数字がちがいます'); return; }
+      $('mlk-ok').disabled = true;
+      let r = mode === 'set' ? await api({ kind: 'app_mlock_pin', pin }) : mode === 'reset' ? await api({ kind: 'app_mlock_reset', code: $('mlk-code').value.trim(), pin }) : await api({ kind: 'app_mlock_unlock', pin });
+      if (r.ok && mode !== 'open') { MLOCK.hasPin = true; r = await api({ kind: 'app_mlock_unlock', pin }); }
+      $('mlk-ok').disabled = false;
+      if (!r.ok) { if (r.needPin) { draw('set'); return; } msg(r.error || '開けませんでした'); $('mlk-pin').value = ''; $('mlk-pin').focus(); return; }
+      ov.remove(); try { sessionStorage.setItem(MLK, String(Date.now())); } catch (e) {} mlockSet(false); toast('お金の画面を開きました', 'ok'); if (next) show(next);
+    };
+    $('mlk-ok').onclick = go;
+    ov.querySelectorAll('input').forEach(i => i.onkeydown = e => { if (e.key === 'Enter') go(); });
+    if ($('mlk-forgot')) $('mlk-forgot').onclick = async () => { const r = await api({ kind: 'app_mlock_forgot' }); if (!r.ok) { msg(r.error); return; } toast(r.msg, 'ok'); draw('reset'); };
+  };
+  document.body.appendChild(ov); draw(hasPin ? 'open' : 'set');
+}
 // テスト中のサービスだと了解をもらう(店主だけ・1回)
 function betaAsk() {
   if (!D.betaAsk || $('beta-ov')) return;
@@ -1778,8 +1839,9 @@ function betaAsk() {
 }
 function renderAll() {
   U = (D.words || {}).unit || '個';
+  mlockInit();
   renderToday(); renderIntake(); renderRegClose(); renderCost(); renderHowto(); renderLabel(); renderMat(); renderBook(); renderHyg(); renderSales(); renderWs(); renderPost(); renderSet(); applyPlanLocks();
-  betaAsk();
+  betaAsk(); mlockBar();
   $('shop').textContent = D.shop; if ($('shop2')) { $('shop2').textContent = D.shop; $('date2').textContent = $('date').textContent; }
   $('foot').textContent = `${new Date(D.at).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} 時点。開き直すと新しくなります。キャラの絵はAtelier SAISPEのLINE絵文字。`;
 }
@@ -1790,6 +1852,7 @@ let cur = 'today';
 function show(t, quiet, keep) {
   if (t === 'label') store.set('labelSeen', 1);
   if (!D) return;
+  if (mLocked && MONEY_TABS.includes(t) && t !== 'cost') { mlockAsk(t); return; }
   if (tabLocked(t)) { toast(t === 'cost' ? '原価の画面は、店主が許した人だけが見られます' : 'お金の画面は、店主が「見せる」にした人だけが見られます'); t = 'today'; }
   if (t !== 'today' && t !== 'set' && SH(t)) t = 'today';
   const dir = tabs.indexOf(t) - tabs.indexOf(cur); if (t === 'set' && cur !== 'set') { supPrev = cur; loadSup(); } cur = t;
@@ -1869,6 +1932,7 @@ function renderSet() {
       <p class="k" style="margin:8px 0 0">税率が変わることが法律で決まったら、変わる日と税率を入れてください。その日から自動で切りかわります。</p>
       <div class="ask"><button class="btn ghost sm" type="button" id="tx-save">税率を保存</button></div></div>` : ''}
     ${D.me && D.me.owner && PL('sales') && !SH('regclose') ? `<div class="set-row" style="display:block"><span>レジ<br><span class="k">POSレジがあるかどうかで、閉店後のレジ締めの形が変わります。お釣りの準備金は、毎朝レジに入れておくお金です</span></span><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px">${seg('regmode', [['pos', 'POSレジがある'], ['none', 'POSレジはない']], (D.reg || {}).mode || '')}<span class="k">お釣りの準備金</span><input id="rg-fl" inputmode="numeric" style="width:7em" value="${(D.reg || {}).float || ''}" aria-label="お釣りの準備金"><span class="k">円</span><button class="btn ghost sm" type="button" id="rg-fls">保存</button></div></div>` : ''}
+    ${D.me && D.me.owner ? `<div class="set-row"><span>お金の画面の鍵<br><span class="k">お店のタブレットを置いたままにしても、売上や原価を見られないように。この時間さわらないと閉じ、開くときは人ごとの4けたの暗証番号</span></span><div class="seg" id="mlock-seg">${[[0, '使わない'], [5, '5分'], [10, '10分'], [30, '30分']].map(([v, l]) => `<button type="button" data-ml="${v}" aria-pressed="${((MLOCK || {}).min || 0) === v}">${l}</button>`).join('')}</div></div>` : ''}
     <div class="set-row"><span>数え方<br><span class="k">原価や分量の「1個あたり」の言葉</span></span><span style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:flex-end">${seg('unitword', [['個', '個'], ['人前', '人前'], ['杯', '杯'], ['食', '食'], ['本', '本'], ['枚', '枚']], (D.words || {}).unit || '個')}<input id="uw-v" placeholder="ほか(例: 皿)" maxlength="4" style="width:7em" value="${['個', '人前', '杯', '食', '本', '枚'].includes((D.words || {}).unit || '個') ? '' : esc((D.words || {}).unit)}" aria-label="ほかの数え方"><button class="btn ghost sm" type="button" id="uw-save">決める</button></span></div>
     ${D.me && D.me.owner && (D.hideable || []).length ? `<div class="set-row" style="display:block"><span>使う画面<br><span class="k">使わない画面を隠すと、メニューに出なくなります。データは消えず、いつでも戻せます</span></span><div class="seg" id="hide-tabs" style="flex-wrap:wrap;margin-top:8px">${D.hideable.map(([k, l]) => `<button type="button" data-k="${k}" aria-pressed="${!(D.hidden || []).includes(k)}">${l}</button>`).join('')}</div></div>` : ''}
     <div class="set-row"><span>業種<br><span class="k">AIに伝えるためのメモ。画面や機能は変わりません</span>${(D.words || {}).biz ? '' : '<br><span class="pill">未記入</span>'}</span>${seg('biz', ((D.words || {}).list || []).map(b => [b, b]), (D.words || {}).biz)}</div>
@@ -1894,6 +1958,13 @@ function renderSet() {
     store.set(key, v);
     if (key === 'pack') { location.reload(); return; }
     applyLook(); renderSet();
+  });
+  $('set-box').querySelectorAll('[data-ml]').forEach(b => b.onclick = async () => {
+    const min = +b.dataset.ml, r = await api({ kind: 'app_mlock_cfg', min });
+    if (!r.ok) { toast(r.error || '変えられませんでした'); return; }
+    MLOCK = min ? r.mlock : null; try { sessionStorage.setItem(MLK, String(Date.now())); } catch (e) {} mLocked = false; clearInterval(mlockTimer); mlockTimer = null; mlockInit(); renderSet();
+    toast(min ? `お金の画面は、${min}分さわらないと閉じるようにしました` : 'お金の画面の鍵を使わないようにしました', 'ok');
+    if (min && !r.mlock.hasPin) setTimeout(() => mlockAsk(), 300);
   });
   $('reload').onclick = () => location.reload();
   if ($('set-a2hs')) $('set-a2hs').onclick = async () => {
@@ -2936,7 +3007,7 @@ async function renderAccount() {
 if (CF) { $('words-h').textContent = '話しかけられる言葉'; $('ct-via').textContent = '「問い合わせ 〜」と話しかけてもOK'; }
 rest();
 // 前に読んだ内容をすぐ出して、裏で新しいものを読み直す(電波が弱くても待たない)
-(() => { const c = cache.get(); if (c && c.products) { try { D = c; state(''); renderAll(); show(store.get('tab', 'today'), true); setTimeout(() => chat(hello(), 'greet'), 250); } catch (e) { D = null; } } })();
+(() => { const c = cache.get(); if (c && c.products) { try { D = c; MLOCK = D.mlock || null; state(''); renderAll(); show(store.get('tab', 'today'), true); setTimeout(() => chat(hello(), 'greet'), 250); } catch (e) { D = null; } } })();
 (async () => {
   if (CF && !IN_LINE) { load(); return; }   // ホームページ: ログインの鍵(クッキー)で入る
   if (CF) {   // LINEの中でホームページを開いたとき: ログインの鍵があれば、それで入る
