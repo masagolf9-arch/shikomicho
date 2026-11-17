@@ -1914,7 +1914,7 @@ function renderAllInner() {
   U = (D.words || {}).unit || '個';
   renderToday(); renderIntake(); renderRegClose(); renderCost(); renderHowto(); renderLabel(); renderMat(); renderBook(); renderHyg(); renderSales(); renderWs(); renderPost(); renderSet(); applyPlanLocks();
   betaAsk(); mlockBar(); if (PK_KEYS) pkBanner(); else if (PK_OK && !window.__pkl) { window.__pkl = 1; pkLoad(); }
-  if (SORT) sortCard(); else if (CF && !window.__sortl) { window.__sortl = 1; sortLoad(); }
+  stuckBind(); if (SORT) sortCard(); else if (CF && !window.__sortl) { window.__sortl = 1; sortLoad(); }
   $('shop').textContent = D.shop; if ($('shop2')) { $('shop2').textContent = D.shop; $('date2').textContent = $('date').textContent; }
   $('foot').textContent = `${new Date(D.at).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} 時点。開き直すと新しくなります。キャラの絵はAtelier SAISPEのLINE絵文字。`;
 }
@@ -1922,6 +1922,22 @@ function renderAllInner() {
 // ---------- タブ ----------
 const tabs = ['today', 'hyg', 'sales', 'cost', 'howto', 'label', 'mat', 'book', 'ws', 'ct', 'post', 'cal', 'set'];
 let cur = 'today';
+// ---------- この画面で迷ったら、知らせる(迷った所を集めて、画面を直す) ----------
+const SCREEN_NAME = { today: 'ホーム', cost: '原価', label: '表示', howto: '作り方', mat: '材料', hyg: '衛生', book: '帳簿', ws: '卸', ct: '業者・卸先', post: '発信', sales: '商品分析', cal: '予定', set: '設定' };
+function stuckBind() {
+  const box = $('stuck'); if (!box || !CF || box.dataset.b) return; box.dataset.b = 1; box.hidden = false;
+  const f = $('stuck-f'), b = $('stuck-b');
+  b.onclick = () => { f.hidden = false; b.hidden = true; $('stuck-t').focus(); };
+  $('stuck-x').onclick = () => { f.hidden = true; b.hidden = false; };
+  $('stuck-go').onclick = async () => {
+    const go = $('stuck-go'); go.disabled = true;
+    const scr = ($('sort-ov') ? '仕分けの箱' : SCREEN_NAME[cur] || cur) + (innerWidth < 700 ? '(スマホ)' : innerWidth < 1100 ? '(タブレット)' : '(パソコン)');
+    const r = await api({ kind: 'app_stuck', screen: scr, text: $('stuck-t').value, width: innerWidth }).catch(() => ({ ok: false, error: 'つながりませんでした' }));
+    go.disabled = false;
+    if (!r.ok) { toast(r.error || '送れませんでした'); return; }
+    $('stuck-t').value = ''; f.hidden = true; b.hidden = false; toast('知らせました。ありがとうございます。直したら「よくなったこと」でお知らせします', 'ok');
+  };
+}
 function show(t, quiet, keep) {
   if (t === 'label') store.set('labelSeen', 1);
   if (!D) return;

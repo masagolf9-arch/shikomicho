@@ -70,6 +70,7 @@ section[hidden]{display:none}
 .big{font-weight:700;font-size:28px;font-variant-numeric:tabular-nums;line-height:1.2;letter-spacing:-.01em}
 .row{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
 .foot{font-size:13px;color:var(--ink-2);margin-top:24px}
+.stuck{margin-top:28px}.stuck textarea{width:100%;max-width:560px}
 
 /* 原価の一覧(表計算の密度。見出しを押すと並べ替え、行を押すと下に商品) */
 .tw{overflow:auto;border:1px solid var(--line);border-radius:14px;background:var(--card);max-height:60vh}
@@ -1073,6 +1074,7 @@ section.locked>:not(.ph):not(.lockcard):not(h1){display:none!important}
     <h1 class="sub" id="words-h">話しかけられる言葉</h1>
     <div class="card"><p style="margin:0">決まった言い方はありません。ふだんの言葉で話しかけてください。</p><p class="k" style="margin:8px 0 0">作った数、払ったこと、冷蔵庫の温度、納品、予定、「今月どう?」のような相談まで、話しかけるだけで大丈夫です。</p><p class="k" style="margin:8px 0 0">記録の前には「〜として記録しますか?」と確かめます。「はい」で確定した言い方は覚えて、次からは同じ意味に取ります。分からないときは聞き返します。</p></div>
   </section>
+  <div class="stuck" id="stuck" hidden><button class="btn ghost sm" type="button" id="stuck-b">この画面で迷ったら、知らせる</button><div id="stuck-f" hidden><textarea id="stuck-t" rows="2" placeholder="ひと言(なくても大丈夫です。例: 1個の重さをどこで入れるか分からない)"></textarea><div style="display:flex;gap:8px;margin-top:6px"><button class="btn sm" type="button" id="stuck-go">知らせる</button><button class="btn ghost sm" type="button" id="stuck-x">やめる</button></div><p class="k" style="margin:6px 0 0">どの画面だったかと、このひと言だけが作る人に届きます。帳面の中身は届きません。</p></div></div>
   <p class="foot" id="foot">試作。キャラの絵はAtelier SAISPEのLINE絵文字。</p>
 </div>
 
@@ -1103,6 +1105,6 @@ section.locked>:not(.ph):not(.lockcard):not(h1){display:none!important}
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-<script src="app.js?v=169"></script>
+<script src="app.js?v=170"></script>
 </body>
 </html>
