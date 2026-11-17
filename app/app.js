@@ -3001,6 +3001,11 @@ if (CF) {
 }
 // ---------- 仕分けの箱: 撮った写真の行き先。聞きたいこと・確かめ待ち・入ったもの(7日) ----------
 let SORT = null; const sortImgs = {};
+// 確認にかかった秒数: 箱を開いて見ていた時間だけを数える(ほかのアプリに行った間は数えない)。押したものに、前に押してからの時間をつける
+const BOXT = { acc: 0, since: 0 };
+function boxTimeStart() { BOXT.acc = 0; BOXT.since = document.hidden ? 0 : Date.now(); }
+function boxTimeTake() { const now = Date.now(), sec = (BOXT.acc + (BOXT.since ? now - BOXT.since : 0)) / 1000; BOXT.acc = 0; BOXT.since = document.hidden ? 0 : now; return Math.min(600, Math.round(sec)); }
+document.addEventListener('visibilitychange', () => { if (!$('sort-ov')) return; if (document.hidden) { if (BOXT.since) BOXT.acc += Date.now() - BOXT.since; BOXT.since = 0; } else BOXT.since = Date.now(); });
 const SORT_CH = [['label', '裏表示・ラベル'], ['mat', '材料(袋の裏・値段)'], ['recipe', 'レシピ'], ['money', 'お金(納品書・売上)'], ['device', '機械の設定'], ['mistake', 'まちがえて撮った']];
 async function sortLoad() {
   if (!CF) return;
@@ -3023,7 +3028,7 @@ function sortOpen() {
   ov.innerHTML = `<div class="card" role="dialog" aria-modal="true" aria-labelledby="sort-h" style="max-width:720px;width:100%;margin:auto;max-height:92vh;overflow:auto"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><h2 id="sort-h" style="font-family:var(--round);margin:0">仕分けの箱</h2><button class="btn ghost sm" type="button" id="sort-x">閉じる</button></div><p class="k" style="margin:6px 0 10px">撮った写真の行き先です。足すだけのもの(仕入れ・売上・新しいレシピ)はすぐ入り、今あるものを書きかえるもの(材料の表示・レシピの置きかえ・機械の設定)は、確かめてから入ります。写真は確かめが済んで60日で消えます。紙の原本は捨てないでください。</p><div id="sort-list"></div></div>`;
   document.body.appendChild(ov);
   $('sort-x').onclick = () => ov.remove(); ov.onclick = e => { if (e.target === ov) ov.remove(); };
-  sortDraw(); sortLoad();
+  sortDraw(); sortLoad(); boxTimeStart();
 }
 function sortDraw() {
   const box = $('sort-list'); if (!box) return;
@@ -3093,7 +3098,7 @@ function gapBind(box) {
     else if (b.dataset.gs === 'price') { const y = num('yen'), q = num('qty'), kg = v('unit') === 'g' ? q / 1000 : q; if (!(y > 0) || !(q > 0)) bad = '値段と量を入れてください'; else body = { kind: 'app_set', field: 'mat', name: g.m ? g.m.name : g.n, create: !g.m, value: { ppkg: Math.round(y / kg) } }; }
     else { const w = num('g'), y = num('yen'); if (!(w > 0)) bad = '1つの重さ(g)を入れてください'; else if (!g.m && !(y > 0)) bad = 'まだない材料なので、1つの値段も入れてください'; else body = { kind: 'app_set', field: 'mat', name: g.m ? g.m.name : g.n, create: !g.m, value: g.m ? { pieceG: w } : { pieceG: w, ppkg: Math.round(y / w * 1000) } }; }
     if (bad) { toast(bad); return; }
-    b.disabled = true;
+    b.disabled = true; body.sortSec = boxTimeTake(); body.sortFor = g.ps[0];
     const r = await api(body).catch(() => ({ ok: false, error: 'つながりませんでした' }));
     b.disabled = false;
     if (!r.ok) { toast(r.error || 'できませんでした'); return; }
@@ -3115,7 +3120,7 @@ function sortApplyDev(dv) {
 }
 async function sortDo(id, o, btn) {
   if (btn) btn.disabled = true;
-  const r = await api(Object.assign({ kind: 'app_sort_act', id }, o)).catch(() => ({ ok: false, error: 'つながりませんでした' }));
+  const r = await api(Object.assign({ kind: 'app_sort_act', id, sec: boxTimeTake() }, o)).catch(() => ({ ok: false, error: 'つながりませんでした' }));
   if (btn) btn.disabled = false;
   if (!r.ok) { toast(r.error || 'できませんでした'); return; }
   if (r.data) { D = r.data; renderAll(); }
