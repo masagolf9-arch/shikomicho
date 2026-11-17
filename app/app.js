@@ -3064,8 +3064,9 @@ function costGaps() {
     (p.unknown || []).forEach(n => (mats['p:' + n] = mats['p:' + n] || { t: 'price', n, ps: [], m: has(n) }).ps.push(p.name));
     (p.noWeight || []).forEach(n => (mats['w:' + n] = mats['w:' + n] || { t: 'weight', n, ps: [], m: has(n) }).ps.push(p.name));
   });
-  return out.concat(Object.values(mats));
+  return out.concat(Object.values(mats).sort((a, b) => b.ps.length - a.ps.length));
 }
+let GAP_ALL = false;
 function gapHtml() {
   const G = costGaps(); if (!G.length) return '';
   const id = (g, i) => `data-gap="${i}"`, inp = (k, ph, w) => `<input data-gk="${k}" inputmode="decimal" placeholder="${ph}" style="width:${w || 6}em">`;
@@ -3079,10 +3080,12 @@ function gapHtml() {
       <div class="k" style="margin-top:4px">請求書や納品書を撮っても入ります(そのときは、こちらは答えなくて大丈夫です)</div>`
     : `<b>${esc(g.n)}</b> <span class="k">数で書かれていて、重さが分かりません</span>${used(g)}
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px">1つ ${inp('g', '例 60')} g${g.m ? '' : ` ・1つ ${inp('yen', '例 30')} 円`} <button class="btn sm" type="button" data-gs="weight">決める</button></div>`) + '</div>';
-  return `<h3 style="margin:14px 0 4px;font-size:16px">原価まで、あと少し <span class="k">${G.length}</span></h3><p class="k" style="margin:0 0 4px">写真だけでは分からなかった所です。分かる所だけ答えてください</p>` + G.map(row).join('');
+  const N0 = 6, more = G.length > N0 && !GAP_ALL;
+  return `<h3 style="margin:14px 0 4px;font-size:16px">原価まで、あと少し <span class="k">${G.length}</span></h3><p class="k" style="margin:0 0 4px">写真だけでは分からなかった所です。たくさんの商品で使うものから並べています。分かる所だけ答えてください</p>` + (more ? G.slice(0, N0) : G).map(row).join('') + (more ? `<button class="btn ghost sm" type="button" id="gap-all" style="margin-top:8px">残りの${G.length - N0}つも見る</button>` : '');
 }
 function gapBind(box) {
   const G = costGaps();
+  if ($('gap-all')) $('gap-all').onclick = () => { GAP_ALL = true; sortDraw(); };
   box.querySelectorAll('[data-gap] [data-gs]').forEach(b => b.onclick = async () => {
     const el = b.closest('[data-gap]'), g = G[+el.dataset.gap], v = k => { const x = el.querySelector(`[data-gk="${k}"]`); return x ? x.value.trim() : ''; }, num = k => Number(v(k).replace(/[,，円gｇ]/g, ''));
     let body = null, bad = '';
