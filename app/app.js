@@ -1837,9 +1837,21 @@ function betaAsk() {
   $('beta-read').onchange = e => { $('beta-ok').disabled = !e.target.checked; };
   $('beta-ok').onclick = async () => { $('beta-ok').disabled = true; const r = await api({ kind: 'app_beta_ok', v: D.betaAsk, read: $('beta-read').checked }); if (!r.ok) { $('beta-msg').textContent = r.error || '送れませんでした'; $('beta-ok').disabled = false; return; } delete D.betaAsk; ov.remove(); toast('ありがとうございます。よろしくお願いします', 'ok'); };
 }
+// 鍵が閉じている間は、お金を見せない人と同じ形にしたデータで画面を作る(サーバーがスタッフに隠すものと同じ)
+function maskMoney(d) {
+  const m = Object.assign({}, d, { hideMoney: true, status: null, gap: null, courses: null, months: {}, journal: {}, sales: {}, money: {}, ups: [], priceChanges: [], fixedExps: [], menu: {} });
+  m.inspect = (d.inspect || []).filter(x => !x.money);
+  m.products = (d.products || []).map(p => Object.assign({}, p, { batch_cost: null, per_piece: null, price: null, guide: null, prevCost: null, rows: (p.rows || []).map(r => Object.assign({}, r, { cost: null })) }));
+  m.materials = (d.materials || []).map(x => Object.assign({}, x, { ppg: null, ppu: null }));
+  return m;
+}
 function renderAll() {
-  U = (D.words || {}).unit || '個';
   mlockInit();
+  if (mLocked && D && !D.__masked) { const real = D; D = Object.assign(maskMoney(real), { __masked: 1 }); try { renderAllInner(); } finally { D = real; } return; }
+  renderAllInner();
+}
+function renderAllInner() {
+  U = (D.words || {}).unit || '個';
   renderToday(); renderIntake(); renderRegClose(); renderCost(); renderHowto(); renderLabel(); renderMat(); renderBook(); renderHyg(); renderSales(); renderWs(); renderPost(); renderSet(); applyPlanLocks();
   betaAsk(); mlockBar();
   $('shop').textContent = D.shop; if ($('shop2')) { $('shop2').textContent = D.shop; $('date2').textContent = $('date').textContent; }
@@ -2833,7 +2845,7 @@ async function ask(s) {
   const pc = D && D.plan && D.plan.chat, slow = pc && pc.normal && pc.n >= pc.normal && pc.n < pc.max;
   const wait = addMsg(slow ? '<span class="k">今日はゆっくりモードです(明日の朝4時に戻ります)。お返事まで30秒〜1分ほどお待ちください…</span>' : '<span class="k">考えています…</span>'); chat(null, 'think');
   try {
-    const out = await api({ kind: 'app_chat', text: s, pack: PACK });
+    const out = await api({ kind: 'app_chat', text: s, pack: PACK, lockMoney: mLocked || undefined });
     if (pc) pc.n++;
     if (!out.ok) throw new Error(out.error || 'ng');
     wait.remove();
