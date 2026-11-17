@@ -43,6 +43,18 @@
   #fallback { display:none; position:absolute; inset:0; align-items:center; justify-content:center; flex-direction:column; gap:16px; padding:28px; text-align:center; background:#111; font-size:16px; line-height:1.6; }
   #fallback label { padding:16px 22px; border-radius:16px; background:var(--blue); font-weight:700; }
   input[type=file] { display:none; }
+  /* 仕分けの列: 撮った写真が並び、「AIが確認中」→ 札がつく。待たずに次を撮れる */
+  #queue { position:absolute; left:0; right:0; bottom:calc(env(safe-area-inset-bottom) + 160px); display:none; gap:8px; padding:0 12px; overflow-x:auto; scrollbar-width:none; }
+  #queue::-webkit-scrollbar { display:none; }
+  .qi { flex:none; width:84px; background:rgba(0,0,0,.6); border-radius:12px; padding:4px; text-align:center; font-size:11px; font-weight:700; line-height:1.3; color:#fff; border:2px solid transparent; }
+  .qi img { width:100%; height:56px; object-fit:cover; border-radius:8px; display:block; margin-bottom:3px; }
+  .qi.run { border-color:rgba(255,255,255,.35); } .qi.done { border-color:var(--green); } .qi.ask { border-color:#f5a623; background:#f5a623; color:#1d1d1f; } .qi.hold { border-color:var(--blue); } .qi.ng { border-color:#e5484d; }
+  #qsheet { position:absolute; left:0; right:0; bottom:0; display:none; background:var(--paper); color:var(--ink); border-radius:18px 18px 0 0; padding:18px 18px calc(env(safe-area-inset-bottom) + 18px); z-index:5; }
+  #qsheet h2 { font-size:17px; margin-bottom:6px; } #qsheet p { font-size:14px; color:#555; margin-bottom:12px; }
+  #qsheet .ch { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  #qsheet .ch button, #qsheet .row button { padding:13px 8px; border-radius:12px; background:#fff; border:2px solid #ddd; font-weight:700; font-size:14px; color:var(--ink); }
+  #qsheet .row { display:flex; gap:8px; margin-top:10px; } #qsheet .row input { flex:1; font:inherit; font-size:16px; padding:10px 12px; border-radius:12px; border:2px solid #ddd; }
+  #qsheet .x { margin-top:12px; width:100%; padding:12px; border-radius:12px; background:transparent; color:#666; font-weight:700; }
   @media (prefers-reduced-motion: reduce) { #guide.pulse { animation:none; } }
 </style>
 </head>
@@ -63,6 +75,8 @@
     <button class="side" id="close">閉じる</button>
   </div>
   <div id="review"><button id="retake">撮り直す</button><button id="send">これで送る</button></div>
+  <div id="queue" aria-live="polite"></div>
+  <div id="qsheet" role="dialog" aria-modal="true"></div>
   <div id="busy"><div class="spin"></div><div id="busyText">読んでいます…</div></div>
   <div id="fallback">
     <div>カメラが使えませんでした。<br>LINEの設定でカメラを許可するか、<br>写真を選んで送ってください。</div>
@@ -259,7 +273,8 @@ async function send() {
   $('busy').style.display = 'flex';
   try {
     const data = await new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result.split(',')[1]); fr.readAsDataURL(shotBlob); });
-    if (CF) {   // ホームページ: 答えはLINEではなく、お店の画面のキャラが返す
+    if (CF) { enqueue(shotBlob, data); return; }   // ホームページ: 待たずに次を撮る。仕分けは裏で進む
+    if (false) {
       const h = { 'Content-Type': 'application/json', 'X-Shikomi': '1' }; if (inLiff) h['X-Line-Token'] = liff.getIDToken();
       const out = await (await fetch('/api/upload', { method: 'POST', credentials: 'same-origin', headers: h,
         body: JSON.stringify({ kind: 'liff_upload', web: true, what: kind, image: data, type: 'image/jpeg' }) })).json();
@@ -286,10 +301,85 @@ async function send() {
   }
 }
 
+// ---- 仕分けの列(ホームページから開いたとき) ----
+const Q = []; let qBusy = false, leaveArmed = false;
+const CH = [['label', '裏表示・ラベル'], ['mat', '材料(袋の裏・値段)'], ['recipe', 'レシピ'], ['money', 'お金(納品書・売上)'], ['device', '機械の設定'], ['mistake', 'まちがえて撮った']];
+const esc = t => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+function hdr() { const h = { 'Content-Type': 'application/json', 'X-Shikomi': '1' }; if (inLiff) h['X-Line-Token'] = liff.getIDToken(); return h; }
+async function post(body) { const r = await fetch('/api/upload', { method: 'POST', credentials: 'same-origin', headers: hdr(), body: JSON.stringify(body) }); return r.json(); }
+function enqueue(blob, data) {
+  Q.push({ url: URL.createObjectURL(blob), data, st: 'wait', label: '送る順番待ち' });
+  $('busy').style.display = 'none'; drawQ(); retake();
+  say('次の紙を撮れます', 'AIが裏で仕分けています(' + Q.filter(x => x.st === 'wait' || x.st === 'run').length + '枚)');
+  runQ();
+}
+function chipOf(x) {
+  if (x.st === 'wait') return ['run', '順番待ち'];
+  if (x.st === 'run') return ['run', 'AIが確認中'];
+  if (x.st === 'ng') return ['ng', '送れません。押すともう一度'];
+  const s = x.sort || {};
+  if (s.state === '聞く') return ['ask', '聞きたいこと'];
+  if (s.state === '確かめ') return ['hold', (s.kind || '') + ' 確かめ待ち'];
+  if (x.private) return ['done', '大事な書類は読みません'];
+  return ['done', (s.kind || '済') + ' ✓'];
+}
+function drawQ() {
+  const q = $('queue'); q.style.display = Q.length ? 'flex' : 'none';
+  q.innerHTML = Q.map((x, i) => { const [c, t] = chipOf(x); return `<button class="qi ${c}" data-i="${i}" type="button"><img src="${x.url}" alt="">${esc(t)}</button>`; }).join('');
+  q.querySelectorAll('.qi').forEach(b => b.onclick = () => openQ(+b.dataset.i));
+  q.scrollLeft = q.scrollWidth;
+}
+async function runQ() {
+  if (qBusy) return; qBusy = true;
+  try {
+    for (let x; (x = Q.find(y => y.st === 'wait'));) {
+      x.st = 'run'; drawQ();
+      try {
+        const out = await post({ kind: 'liff_upload', web: true, sort: true, what: kind, image: x.data, type: 'image/jpeg' });
+        if (out.error === 'login') { location.href = '/login?next=' + encodeURIComponent(location.pathname + location.search); return; }
+        if (!out.ok) throw new Error(out.error || '受け取れませんでした');
+        x.st = 'ok'; x.sort = out.sort || null; x.private = !!out.private; x.msgs = out.msgs || []; delete x.data;
+      } catch (e) { x.st = 'ng'; x.err = String(e.message || e); }
+      drawQ();
+    }
+  } finally { qBusy = false; const n = Q.filter(x => x.sort && x.sort.state === '聞く').length; say(n ? '聞きたいことが' + n + '枚あります' : '次の紙を撮れます', n ? 'オレンジの写真を押して答えてください(あとで、お店の画面でも答えられます)' : '撮り終わったら「閉じる」'); }
+}
+function openQ(i) {
+  const x = Q[i], sh = $('qsheet'); if (!x) return;
+  if (x.st === 'ng') { x.st = 'wait'; x.data = x.data || null; if (!x.data) { say('この写真はもう一度撮ってください'); return; } drawQ(); runQ(); return; }
+  if (!x.sort) return;
+  const s = x.sort, close = () => { sh.style.display = 'none'; };
+  const msg = (x.msgs || []).join('\n');
+  if (s.state === '聞く' && s.ask === 'mat') {
+    sh.innerHTML = `<h2>どの材料の袋ですか?</h2><p>${esc(msg)}</p><div class="row"><input id="qmat" placeholder="材料の名前(例: 生クリーム)"><button type="button" id="qmatgo">決める</button></div><button class="x" type="button" id="qx">あとで答える</button>`;
+    $('qmatgo').onclick = () => act(x, { act: 'mat', value: $('qmat').value.trim() });
+  } else if (s.state === '聞く') {
+    sh.innerHTML = `<h2>この写真は何に使いますか?</h2><p>答えると、その答えでもう一度読みます。次からは覚えます。</p><div class="ch">${CH.map(c => `<button type="button" data-c="${c[0]}">${c[1]}</button>`).join('')}</div><button class="x" type="button" id="qx">あとで答える</button>`;
+    sh.querySelectorAll('[data-c]').forEach(b => b.onclick = () => act(x, { act: 'answer', choice: b.dataset.c }));
+  } else {
+    sh.innerHTML = `<h2>${esc(s.kind || '')} ${esc(s.title || '')}</h2><p style="white-space:pre-wrap">${esc(msg)}</p>${s.state === '確かめ' ? '<p>お店の画面の「仕分けの箱」で、確かめてから入れます。</p>' : ''}<button class="x" type="button" id="qx">閉じる</button>`;
+  }
+  $('qx').onclick = close; sh.style.display = 'block';
+}
+async function act(x, o) {
+  const sh = $('qsheet'); sh.querySelectorAll('button').forEach(b => b.disabled = true);
+  try {
+    const out = await post(Object.assign({ kind: 'app_sort_act', id: x.sort.id }, o));
+    if (!out.ok) throw new Error(out.error || 'できませんでした');
+    if (out.sort) x.sort = out.sort; else if (o.choice === 'mistake' || o.act === 'drop') x.sort = Object.assign({}, x.sort, { state: '消した', kind: '消しました' }); else x.sort = Object.assign({}, x.sort, { state: '済' });
+    x.msgs = out.msgs || x.msgs; sh.style.display = 'none'; drawQ();
+  } catch (e) { sh.querySelectorAll('button').forEach(b => b.disabled = false); say('うまくいきませんでした', String(e.message || e)); }
+}
+
 $('shutter').onclick = capture;
 $('retake').onclick = retake;
 $('send').onclick = send;
-$('close').onclick = () => { if (CF) location.href = BACK; else if (inLiff) liff.closeWindow(); else history.back(); };
+$('close').onclick = () => {
+  const n = Q.filter(x => x.st === 'wait' || x.st === 'run').length;
+  if (CF && n && !leaveArmed) { leaveArmed = true; say('まだ' + n + '枚を送っています', '閉じると、送っていない写真は届きません。もう一度「閉じる」で閉じます'); setTimeout(() => { leaveArmed = false; }, 5000); return; }
+  if (CF) { try { sessionStorage.setItem('shikomi:sorted', String(Q.filter(x => x.st === 'ok').length)); } catch (e) {} location.href = BACK; } else if (inLiff) liff.closeWindow(); else history.back();
+};
+addEventListener('beforeunload', e => { if (Q.some(x => x.st === 'wait' || x.st === 'run')) { e.preventDefault(); e.returnValue = ''; } });
 
 // ---- はじまり ----
 layoutGuide();

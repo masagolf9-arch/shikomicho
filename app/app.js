@@ -340,14 +340,14 @@ async function intakeRun() {
     for (let x; (x = intakeQ.find(y => y.st === 'wait'));) {
       x.st = 'run'; renderIntake();
       try {
-        const out = x.doc ? await invoiceDoc(x.file) : await api({ kind: 'liff_upload', web: true, image: await shrink(x.file), type: 'image/jpeg' });
+        const out = x.doc ? await invoiceDoc(x.file) : await api({ kind: 'liff_upload', web: true, sort: true, image: await shrink(x.file), type: 'image/jpeg' });
         if (!out.ok) throw new Error(out.error || '読めませんでした');
         x.st = 'ok'; intakeMsgs.push(`【${x.kind} ${x.name}】\n` + (out.msgs || []).join('\n'));
       } catch (e) { x.st = 'ng'; x.err = String(e.message || e).slice(0, 40); }
       delete x.file; intakeSaveLost();
       const fresh = await api({ kind: 'app_data' }).catch(() => null); if (fresh && fresh.ok) { D = fresh.data; renderAll(); } else renderIntake();
     }
-  } finally { intakeBusy = false; intakeSaveLost(); renderIntake(); }
+  } finally { intakeBusy = false; intakeSaveLost(); renderIntake(); sortLoad(); }
 }
 // 請求書のPDF・CSV(受発注システムの書き出し)を1つ送る。PDFはそのまま、CSV・文字は中身を送る
 const isDocFile = f => /\.(pdf|csv|txt|tsv)$/i.test(f.name) || /pdf|csv|text\/plain/.test(f.type);
@@ -1892,6 +1892,7 @@ function renderAllInner() {
   U = (D.words || {}).unit || '個';
   renderToday(); renderIntake(); renderRegClose(); renderCost(); renderHowto(); renderLabel(); renderMat(); renderBook(); renderHyg(); renderSales(); renderWs(); renderPost(); renderSet(); applyPlanLocks();
   betaAsk(); mlockBar(); if (PK_KEYS) pkBanner(); else if (PK_OK && !window.__pkl) { window.__pkl = 1; pkLoad(); }
+  if (SORT) sortCard(); else if (CF && !window.__sortl) { window.__sortl = 1; sortLoad(); }
   $('shop').textContent = D.shop; if ($('shop2')) { $('shop2').textContent = D.shop; $('date2').textContent = $('date').textContent; }
   $('foot').textContent = `${new Date(D.at).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} 時点。開き直すと新しくなります。キャラの絵はAtelier SAISPEのLINE絵文字。`;
 }
@@ -2939,8 +2940,8 @@ async function sendWebFile(file) {
   openAsk(); addMsg('<span class="k">📷 写真を送りました</span>', true);
   const wait = addMsg('<span class="k">読んでいます…(10〜30秒かかります)</span>'); chat(null, 'think');
   try {
-    const out = await api({ kind: 'liff_upload', web: true, image: await shrink(file), type: 'image/jpeg' });
-    wait.remove();
+    const out = await api({ kind: 'liff_upload', web: true, sort: true, image: await shrink(file), type: 'image/jpeg' });
+    wait.remove(); sortLoad();
     if (!out.ok) throw new Error(out.error || 'うまく読めませんでした');
     sayShot(out); load();
   } catch (e) { wait.remove(); botSay(esc(e.message || 'うまく送れませんでした')); }
@@ -2958,8 +2959,77 @@ if (CF) {
   addEventListener('dragover', e => { if (e.dataTransfer && [...e.dataTransfer.types].includes('Files')) e.preventDefault(); });
   addEventListener('drop', e => { const file = e.dataTransfer && e.dataTransfer.files[0]; if (!file) return; e.preventDefault(); sendWebFile(file); });
 }
+// ---------- 仕分けの箱: 撮った写真の行き先。聞きたいこと・確かめ待ち・入ったもの(7日) ----------
+let SORT = null; const sortImgs = {};
+const SORT_CH = [['label', '裏表示・ラベル'], ['mat', '材料(袋の裏・値段)'], ['recipe', 'レシピ'], ['money', 'お金(納品書・売上)'], ['device', '機械の設定'], ['mistake', 'まちがえて撮った']];
+async function sortLoad() {
+  if (!CF) return;
+  const r = await api({ kind: 'app_sort' }).catch(() => null);
+  if (r && r.ok) { SORT = r.items || []; sortCard(); if ($('sort-ov')) sortDraw(); }
+}
+function sortCard() {
+  let c = $('sort-card'); const L = SORT || [], ask = L.filter(x => x.state === '聞く').length, hold = L.filter(x => x.state === '確かめ').length;
+  const today = new Date().toDateString(), done = L.filter(x => x.state === '済' && new Date(x.at).toDateString() === today).length;
+  if (!L.length) { if (c) c.remove(); return; }
+  if (!c) { c = document.createElement('div'); c.id = 'sort-card'; c.className = 'card'; c.style.cssText = 'display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:12px'; }
+  const t = $('t-today'), anchor = $('pk-ban') || $('mlock-bar'); if (c.parentNode !== t) t.insertBefore(c, anchor ? anchor.nextSibling : t.firstChild);
+  c.style.borderColor = ask ? 'var(--warn)' : '';
+  c.innerHTML = `<span><b>仕分けの箱</b><br><span class="k">${ask ? `<b style="color:var(--warn)">聞きたいこと ${ask}</b>・` : ''}${hold ? `確かめ待ち ${hold}・` : ''}今日入ったもの ${done}</span></span><button class="btn sm${ask || hold ? '' : ' ghost'}" type="button" id="sort-open">開く</button>`;
+  $('sort-open').onclick = sortOpen;
+}
+function sortOpen() {
+  if ($('sort-ov')) return;
+  const ov = document.createElement('div'); ov.id = 'sort-ov'; ov.className = 'a2ov'; ov.style.alignItems = 'stretch';
+  ov.innerHTML = `<div class="card" role="dialog" aria-modal="true" aria-labelledby="sort-h" style="max-width:720px;width:100%;margin:auto;max-height:92vh;overflow:auto"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><h2 id="sort-h" style="font-family:var(--round);margin:0">仕分けの箱</h2><button class="btn ghost sm" type="button" id="sort-x">閉じる</button></div><p class="k" style="margin:6px 0 10px">撮った写真の行き先です。足すだけのもの(仕入れ・売上・新しいレシピ)はすぐ入り、今あるものを書きかえるもの(材料の表示・レシピの置きかえ・機械の設定)は、確かめてから入ります。写真は確かめが済んで60日で消えます。紙の原本は捨てないでください。</p><div id="sort-list"></div></div>`;
+  document.body.appendChild(ov);
+  $('sort-x').onclick = () => ov.remove(); ov.onclick = e => { if (e.target === ov) ov.remove(); };
+  sortDraw(); sortLoad();
+}
+function sortDraw() {
+  const box = $('sort-list'); if (!box) return;
+  const L = SORT || [], when = t => new Date(t).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  const row = x => `<div class="sort-row" data-id="${esc(x.id)}" style="display:flex;gap:12px;padding:12px 0;border-top:1px solid var(--line);align-items:flex-start">
+      <button type="button" data-img="${esc(x.photo)}" aria-label="元の写真を見る" style="flex:none;width:72px;height:72px;border-radius:10px;border:1px solid var(--line);background:var(--bg);padding:0;overflow:hidden;cursor:${x.photo ? 'zoom-in' : 'default'}">${x.photo ? (sortImgs[x.photo] ? `<img src="${sortImgs[x.photo]}" alt="" style="width:100%;height:100%;object-fit:cover">` : '<span class="k">写真</span>') : '<span class="k">なし</span>'}</button>
+      <div style="flex:1;min-width:0"><b>${esc(x.kind || '')}</b> ${esc(x.title || '')}<div class="k">${when(x.at)}${x.who ? '・' + esc(x.who) : ''}</div>
+      <div class="k" style="white-space:pre-wrap;margin-top:4px;max-height:7.5em;overflow:auto">${esc(x.result || '')}</div>
+      ${x.state === '聞く' && x.ask === 'mat' ? `<div style="display:flex;gap:8px;margin-top:8px"><input data-matin="${esc(x.id)}" placeholder="材料の名前(例: 生クリーム)" style="flex:1"><button class="btn sm" type="button" data-mat="${esc(x.id)}">決める</button></div>` : ''}
+      ${x.state === '聞く' && x.ask !== 'mat' ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">${SORT_CH.map(c => `<button class="btn ghost sm" type="button" data-ans="${esc(x.id)}" data-c="${c[0]}">${c[1]}</button>`).join('')}</div>` : ''}
+      ${x.state === '確かめ' ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button class="btn sm" type="button" data-ok="${esc(x.id)}">確かめて入れる</button><button class="btn ghost sm" type="button" data-drop="${esc(x.id)}">入れずに消す</button></div>` : ''}
+      </div></div>`;
+  const grp = (t, xs, note) => xs.length ? `<h3 style="margin:14px 0 4px;font-size:16px">${t} <span class="k">${xs.length}</span></h3>${note ? `<p class="k" style="margin:0 0 4px">${note}</p>` : ''}${xs.map(row).join('')}` : '';
+  box.innerHTML = (L.length ? '' : '<p class="k">まだありません。「撮る」から、納品書・レシピ・袋の裏・売上の紙・ラベル・機械など、何でも撮ってください。</p>') +
+    grp('聞きたいこと', L.filter(x => x.state === '聞く'), '答えると、その答えでもう一度読みます。次からは覚えます') +
+    grp('確かめ待ち', L.filter(x => x.state === '確かめ'), '店主か、レシピを直せる人が確かめます') +
+    grp('入ったもの(7日)', L.filter(x => x.state === '済')) + grp('消したもの(7日)', L.filter(x => x.state === '消した'));
+  box.querySelectorAll('[data-img]').forEach(b => { const id = b.dataset.img; if (!id) return; if (!sortImgs[id]) api({ kind: 'app_img_get', id }).then(r => { if (r.ok) { sortImgs[id] = 'data:' + r.type + ';base64,' + r.data; const im = b.querySelector('img') || document.createElement('img'); im.src = sortImgs[id]; im.alt = ''; im.style.cssText = 'width:100%;height:100%;object-fit:cover'; b.innerHTML = ''; b.appendChild(im); } }); b.onclick = () => { if (sortImgs[id]) openPrint(`<img src="${sortImgs[id]}" style="max-width:100%">`, { bare: true }); }; });
+  box.querySelectorAll('[data-ans]').forEach(b => b.onclick = () => sortDo(b.dataset.ans, { act: 'answer', choice: b.dataset.c }, b));
+  box.querySelectorAll('[data-mat]').forEach(b => b.onclick = () => { const v = box.querySelector(`[data-matin="${CSS.escape(b.dataset.mat)}"]`).value.trim(); if (!v) return; sortDo(b.dataset.mat, { act: 'mat', value: v }, b); });
+  box.querySelectorAll('[data-ok]').forEach(b => b.onclick = () => { const x = (SORT || []).find(y => y.id === b.dataset.ok); if (x && x.dev) sortApplyDev(x.dev); sortDo(b.dataset.ok, { act: 'ok' }, b); });
+  box.querySelectorAll('[data-drop]').forEach(b => twice(b, 'もう一度押すと消えます', () => sortDo(b.dataset.drop, { act: 'drop' }, b)));
+}
+// 機械・ラベルの用紙を確かめたら、この端末のラベル印刷の設定にする
+function sortApplyDev(dv) {
+  const S = lsGet();
+  if (dv.kind === 'device') S.mode = 'roll';
+  if (dv.kind === 'labelpaper' && dv.w && dv.h) {
+    if (dv.roll) { const k = Object.keys(ROLLS).find(k => ROLLS[k][0] === dv.w && ROLLS[k][1] === dv.h); S.mode = 'roll'; if (k) S.roll = k; else { S.roll = 'custom'; S.rw = dv.w; S.rh = dv.h; } }
+    else { S.mode = 'sheet'; S.sheet = 'custom'; S.custom = Object.assign({}, S.custom, { w: dv.w, h: dv.h }); }
+  }
+  lsSet(S); toast('この端末のラベル印刷の設定を変えました(裏表示の印刷で確かめられます)', 'ok');
+}
+async function sortDo(id, o, btn) {
+  if (btn) btn.disabled = true;
+  const r = await api(Object.assign({ kind: 'app_sort_act', id }, o)).catch(() => ({ ok: false, error: 'つながりませんでした' }));
+  if (btn) btn.disabled = false;
+  if (!r.ok) { toast(r.error || 'できませんでした'); return; }
+  if (r.data) { D = r.data; renderAll(); }
+  toast((r.msgs && r.msgs[0]) ? String(r.msgs[0]).slice(0, 80) : '済みました', 'ok');
+  await sortLoad(); if (!r.data) load();
+}
 // 青い枠のカメラで撮って戻ってきたとき、キャラの答えを出す
 function showShot() {
+  let n = null; try { n = sessionStorage.getItem('shikomi:sorted'); sessionStorage.removeItem('shikomi:sorted'); } catch (e) {}
+  if (n != null && D) { sortLoad().then(() => { if ((SORT || []).some(x => x.state === '聞く' || x.state === '確かめ')) sortOpen(); }); return; }
   let out = null; try { out = JSON.parse(sessionStorage.getItem('shikomi:shot') || 'null'); sessionStorage.removeItem('shikomi:shot'); } catch (e) {}
   if (!out || !D) return;
   openAsk(); addMsg('<span class="k">📷 撮った写真を送りました</span>', true); sayShot(out);
