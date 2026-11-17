@@ -29,7 +29,13 @@ const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&am
 let D = null, idToken = null, profileName = '';
 
 // ---------- 記録の表とのやり取り ----------
+// 画面で直した時間(撮るだけの数字): 前に直してから・画面を移ってからの、見ていた時間(5分まで)。写真から入ったものを直したときだけ数に入る
+const EDT = { acc: 0, since: Date.now() };
+function editTimeReset() { EDT.acc = 0; EDT.since = document.hidden ? 0 : Date.now(); }
+function editTimeTake() { const now = Date.now(), sec = Math.min(300, Math.round((EDT.acc + (EDT.since ? now - EDT.since : 0)) / 1000)); editTimeReset(); return sec; }
+document.addEventListener('visibilitychange', () => { if (document.hidden) { if (EDT.since) EDT.acc += Date.now() - EDT.since; EDT.since = 0; } else EDT.since = Date.now(); });
 async function api(body) {
+  if (body && body.kind === 'app_set' && body.sortSec == null && !$('sort-ov')) body = Object.assign({}, body, { sortSec: editTimeTake() });
   if (CF) {
     const h = { 'Content-Type': 'application/json', 'X-Shikomi': '1' }; if (idToken) h['X-Line-Token'] = idToken;
     const r = await fetch('/api/app', { method: 'POST', credentials: 'same-origin', headers: h, body: JSON.stringify(Object.assign({ name: profileName }, body)) });
@@ -1939,6 +1945,7 @@ function stuckBind() {
   };
 }
 function show(t, quiet, keep) {
+  editTimeReset();
   if (t === 'label') store.set('labelSeen', 1);
   if (!D) return;
   if (mLocked && MONEY_TABS.includes(t) && t !== 'cost') { mlockAsk(t); return; }
