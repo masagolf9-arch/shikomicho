@@ -1760,7 +1760,7 @@ function renderJournal() {
 // ---- お金の画面の鍵: 店主が決めた分だけさわらないと、帳簿・売上を閉じ、原価の画面のお金の列も隠す。開くときは人ごとの4けたの暗証番号 ----
 const MLK = 'shikomi:mlast';
 let mlockTimer = null;
-const mlockOn = () => !!(D && MLOCK && MLOCK.min && !D.hideMoney);
+const mlockOn = () => !!(D && MLOCK && MLOCK.min && (D.__masked || !D.hideMoney));
 function mlockTouch() { if (!mLocked && mlockOn()) { try { sessionStorage.setItem(MLK, String(Date.now())); } catch (e) {} } }
 function mlockSet(v) {
   if (mLocked === v) return; mLocked = v;
