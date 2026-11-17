@@ -3047,7 +3047,7 @@ function sortDraw() {
       <button type="button" data-img="${esc(x.photo)}" aria-label="元の写真を見る" style="flex:none;width:72px;height:72px;border-radius:10px;border:1px solid var(--line);background:var(--bg);padding:0;overflow:hidden;cursor:${x.photo ? 'zoom-in' : 'default'}">${x.photo ? (sortImgs[x.photo] ? `<img src="${sortImgs[x.photo]}" alt="" style="width:100%;height:100%;object-fit:cover">` : '<span class="k">写真</span>') : '<span class="k">なし</span>'}</button>
       <div style="flex:1;min-width:0"><b>${esc(x.kind || '')}</b> ${esc(x.title || '')}<div class="k">${when(x.at)}${x.who ? '・' + esc(x.who) : ''}</div>
       <div class="k" style="white-space:pre-wrap;margin-top:4px;max-height:7.5em;overflow:auto">${esc(x.result || '')}</div>
-      ${x.state === '聞く' && x.ask === 'mat' ? `<div style="display:flex;gap:8px;margin-top:8px"><input data-matin="${esc(x.id)}" placeholder="材料の名前(例: 生クリーム)" style="flex:1"><button class="btn sm" type="button" data-mat="${esc(x.id)}">決める</button></div>` : ''}
+      ${x.state === '聞く' && x.ask === 'mat' ? `${matCands(x.title).length ? `<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:8px"><span class="k">もしかして</span>${matCands(x.title).map(c => `<button class="btn sm" type="button" data-matc="${esc(x.id)}" data-v="${esc(c)}">${esc(c)}</button>`).join('')}</div>` : ''}<div style="display:flex;gap:8px;margin-top:8px"><input data-matin="${esc(x.id)}" placeholder="ちがうときは材料の名前(例: 生クリーム)" style="flex:1"><button class="btn ghost sm" type="button" data-mat="${esc(x.id)}">決める</button></div>` : ''}
       ${x.state === '聞く' && x.ask !== 'mat' ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">${SORT_CH.map(c => `<button class="btn ghost sm" type="button" data-ans="${esc(x.id)}" data-c="${c[0]}">${c[1]}</button>`).join('')}</div>` : ''}
       ${x.state === '確かめ' ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button class="btn sm" type="button" data-ok="${esc(x.id)}">確かめて入れる</button><button class="btn ghost sm" type="button" data-drop="${esc(x.id)}">入れずに消す</button></div>` : ''}
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">${x.undo ? `<button class="btn ghost sm" type="button" data-undo="${esc(x.id)}">取り消す(入る前に戻す)</button>` : ''}${x.photo ? `<button class="btn ghost sm" type="button" data-share="${esc(x.id)}">サポートに見てもらう</button>` : ''}</div>
@@ -3062,12 +3062,25 @@ function sortDraw() {
   box.querySelectorAll('[data-img]').forEach(b => { const id = b.dataset.img; if (!id) return; if (!sortImgs[id]) api({ kind: 'app_img_get', id }).then(r => { if (r.ok) { sortImgs[id] = 'data:' + r.type + ';base64,' + r.data; const im = b.querySelector('img') || document.createElement('img'); im.src = sortImgs[id]; im.alt = ''; im.style.cssText = 'width:100%;height:100%;object-fit:cover'; b.innerHTML = ''; b.appendChild(im); } }); b.onclick = () => { if (sortImgs[id]) openPrint(`<img src="${sortImgs[id]}" style="max-width:100%">`, { bare: true }); }; });
   box.querySelectorAll('[data-ans]').forEach(b => b.onclick = () => sortDo(b.dataset.ans, { act: 'answer', choice: b.dataset.c }, b));
   gapBind(box);
+  box.querySelectorAll('[data-matc]').forEach(b => b.onclick = () => sortDo(b.dataset.matc, { act: 'mat', value: b.dataset.v }, b));
   box.querySelectorAll('[data-mat]').forEach(b => b.onclick = () => { const v = box.querySelector(`[data-matin="${CSS.escape(b.dataset.mat)}"]`).value.trim(); if (!v) return; sortDo(b.dataset.mat, { act: 'mat', value: v }, b); });
   box.querySelectorAll('[data-ok]').forEach(b => b.onclick = () => { const x = (SORT || []).find(y => y.id === b.dataset.ok); if (x && x.dev) sortApplyDev(x.dev); sortDo(b.dataset.ok, { act: 'ok' }, b); });
   box.querySelectorAll('[data-drop]').forEach(b => twice(b, 'もう一度押すと消えます', () => sortDo(b.dataset.drop, { act: 'drop' }, b)));
   box.querySelectorAll('[data-undo]').forEach(b => twice(b, 'もう一度押すと取り消します', () => sortDo(b.dataset.undo, { act: 'undo' }, b)));
   box.querySelectorAll('[data-share]').forEach(b => b.onclick = () => { const sb = box.querySelector(`[data-sharebox="${CSS.escape(b.dataset.share)}"]`); sb.hidden = !sb.hidden; if (!sb.hidden) sb.querySelector('textarea').focus(); });
   box.querySelectorAll('[data-sharego]').forEach(b => b.onclick = async () => { const sb = box.querySelector(`[data-sharebox="${CSS.escape(b.dataset.sharego)}"]`); b.disabled = true; const r = await api({ kind: 'app_sort_share', id: b.dataset.sharego, text: sb.querySelector('textarea').value }).catch(() => ({ ok: false, error: 'つながりませんでした' })); b.disabled = false; if (!r.ok) { toast(r.error || '送れませんでした'); return; } sb.hidden = true; toast('サポートに送りました。お返事は「設定」の問い合わせと、LINEに届きます', 'ok'); });
+}
+// 書き方のちがう材料の候補(手書きの読みちがい・かっこ書き・ひらがなとカタカナ)。打ち込まずに押すだけで済ませるため
+const looseG = x => String(x || '').normalize('NFD').replace(/[゙゚]/g, '').normalize('NFC').replace(/[（(【\[][^）)】\]]*[）)】\]]/g, '').replace(/[\s・①-⑳0-9０-９]/g, '').replace(/[ァ-ヶ]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60)).toLowerCase();
+function matCands(n, max) {
+  const k = looseG(n); if (!k || !D) return [];
+  const bg = x => { const o = new Set(); for (let i = 0; i < x.length - 1; i++) o.add(x.slice(i, i + 2)); return o; }, A = bg(k), out = [];
+  (D.materials || []).filter(m => !m.packaging && m.name !== n).forEach(m => {
+    let best = 0;
+    [m.name].concat(m.aliases || []).forEach(a => { const b = looseG(a); if (!b) return; let sc = 0; if (b === k) sc = 100; else if (b.length >= 2 && k.length >= 2 && (b.includes(k) || k.includes(b))) sc = 60 + Math.min(b.length, k.length); else { const [sh, lg] = k.length <= b.length ? [k, b] : [b, k]; let j = 0; for (const ch of lg) if (ch === sh[j]) j++; if (sh.length >= 2 && j === sh.length && sh.length / lg.length >= 0.6) sc = 50; else { const B = bg(b); let c = 0; A.forEach(x => B.has(x) && c++); sc = c >= 2 && A.size && B.size ? Math.round(c * 2 / (A.size + B.size) * 50) : 0; } } best = Math.max(best, sc); });
+    if (best >= 35) out.push([best, m.name]);
+  });
+  return out.sort((a, b) => b[0] - a[0]).slice(0, max || 3).map(x => x[1]);
 }
 // 原価まで、あと少し: 撮った写真だけでは埋まらない所(1個の重さ・値段のない材料・数で書いた材料の重さ)を、箱でたずねる
 // お金を見られる人にだけ出す。答えると、その場で原価が出なおす
@@ -3090,13 +3103,13 @@ function gapHtml() {
     g.t === 'pieces' ? `<b>${esc(g.n)}</b> <span class="k">1個の原価がまだ出ていません</span><div class="k">どちらか1つで出ます</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px">1${U}の重さ ${inp('pw', '例 45')} g <button class="btn sm" type="button" data-gs="pw">決める</button></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:6px">1回の仕込みで ${inp('pieces', '例 24')} ${U}できる <button class="btn ghost sm" type="button" data-gs="pieces">決める</button></div>`
-    : g.t === 'price' ? `<b>${esc(g.n)}</b> <span class="k">値段がないため、原価に入っていません</span>${used(g)}
+    : g.t === 'price' ? `<b>${esc(g.n)}</b> <span class="k">値段がないため、原価に入っていません</span>${used(g)}${!g.m && matCands(g.n).length ? `<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:8px"><span class="k">もしかして</span>${matCands(g.n).map(c => `<button class="btn sm" type="button" data-gs="same" data-to="${esc(c)}">「${esc(c)}」と同じ</button>`).join('')}</div>` : ''}${!g.m ? `<div style="margin-top:6px"><button class="btn ghost sm" type="button" data-gs="cam">店で作るもの(レシピを撮る)</button></div>` : ''}
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px">${inp('yen', '例 1980')} 円で ${inp('qty', '例 1')} <select data-gk="unit"><option value="kg">kg</option><option value="g">g</option></select> <button class="btn sm" type="button" data-gs="price">決める</button></div>
-      <div class="k" style="margin-top:4px">請求書や納品書を撮っても入ります(そのときは、こちらは答えなくて大丈夫です)</div>`
+`
     : `<b>${esc(g.n)}</b> <span class="k">数で書かれていて、重さが分かりません</span>${used(g)}
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px">1つ ${inp('g', '例 60')} g${g.m ? '' : ` ・1つ ${inp('yen', '例 30')} 円`} <button class="btn sm" type="button" data-gs="weight">決める</button></div>`) + '</div>';
   const N0 = 6, more = G.length > N0 && !GAP_ALL;
-  return `<h3 style="margin:14px 0 4px;font-size:16px">原価まで、あと少し <span class="k">${G.length}</span></h3><p class="k" style="margin:0 0 4px">写真だけでは分からなかった所です。たくさんの商品で使うものから並べています。分かる所だけ答えてください</p>` + (more ? G.slice(0, N0) : G).map(row).join('') + (more ? `<button class="btn ghost sm" type="button" id="gap-all" style="margin-top:8px">残り${G.length - N0}件も見る</button>` : '');
+  return `<h3 style="margin:14px 0 4px;font-size:16px">原価まで、あと少し <span class="k">${G.length}</span></h3><p class="k" style="margin:0 0 4px">写真だけでは分からなかった所です。たくさんの商品で使うものから並べています。分かる所だけ答えてください。値段は、請求書や納品書を撮っても入ります</p>` + (more ? G.slice(0, N0) : G).map(row).join('') + (more ? `<button class="btn ghost sm" type="button" id="gap-all" style="margin-top:8px">残り${G.length - N0}件も見る</button>` : '');
 }
 function gapBind(box) {
   const G = costGaps();
@@ -3104,7 +3117,9 @@ function gapBind(box) {
   box.querySelectorAll('[data-gap] [data-gs]').forEach(b => b.onclick = async () => {
     const el = b.closest('[data-gap]'), g = G[+el.dataset.gap], v = k => { const x = el.querySelector(`[data-gk="${k}"]`); return x ? x.value.trim() : ''; }, num = k => Number(v(k).replace(/[,，円gｇ]/g, ''));
     let body = null, bad = '';
-    if (b.dataset.gs === 'pw' || b.dataset.gs === 'pieces') { const n = num(b.dataset.gs); if (!(n > 0)) bad = '数字を入れてください'; else body = { kind: 'app_set', field: b.dataset.gs, product: g.n, value: n }; }
+    if (b.dataset.gs === 'cam') { boxTimeTake(); $('sort-ov') && $('sort-ov').remove(); openCamera(); return; }
+    if (b.dataset.gs === 'same') body = { kind: 'app_set', field: 'mat', name: b.dataset.to, value: { alias: g.n } };
+    else if (b.dataset.gs === 'pw' || b.dataset.gs === 'pieces') { const n = num(b.dataset.gs); if (!(n > 0)) bad = '数字を入れてください'; else body = { kind: 'app_set', field: b.dataset.gs, product: g.n, value: n }; }
     else if (b.dataset.gs === 'price') { const y = num('yen'), q = num('qty'), kg = v('unit') === 'g' ? q / 1000 : q; if (!(y > 0) || !(q > 0)) bad = '値段と量を入れてください'; else body = { kind: 'app_set', field: 'mat', name: g.m ? g.m.name : g.n, create: !g.m, value: { ppkg: Math.round(y / kg) } }; }
     else { const w = num('g'), y = num('yen'); if (!(w > 0)) bad = '1つの重さ(g)を入れてください'; else if (!g.m && !(y > 0)) bad = 'まだない材料なので、1つの値段も入れてください'; else body = { kind: 'app_set', field: 'mat', name: g.m ? g.m.name : g.n, create: !g.m, value: g.m ? { pieceG: w } : { pieceG: w, ppkg: Math.round(y / w * 1000) } }; }
     if (bad) { toast(bad); return; }
@@ -3114,6 +3129,7 @@ function gapBind(box) {
     if (!r.ok) { toast(r.error || 'できませんでした'); return; }
     if (r.data) { D = r.data; renderAll(); }
     const p = g.t === 'pieces' ? (D.products || []).find(x => x.name === g.n) : null;
+    if (b.dataset.gs === 'same') { toast(`「${g.n}」を「${b.dataset.to}」として覚えました。次からは聞きません`, 'ok'); sortDraw(); sortCard(); return; }
     toast(p && p.per_piece != null ? `${g.n}: 1${U} ${yen1(p.per_piece)}になりました` + ((p.unknown || []).length ? `(値段のない材料${p.unknown.length}つは、まだ入っていません)` : '') : `「${g.n}」を入れました。原価を出しなおしました`, 'ok');
     sortDraw(); sortCard();
   });
