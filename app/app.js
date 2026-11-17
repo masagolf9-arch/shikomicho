@@ -2995,6 +2995,8 @@ function sortDraw() {
       ${x.state === '聞く' && x.ask === 'mat' ? `<div style="display:flex;gap:8px;margin-top:8px"><input data-matin="${esc(x.id)}" placeholder="材料の名前(例: 生クリーム)" style="flex:1"><button class="btn sm" type="button" data-mat="${esc(x.id)}">決める</button></div>` : ''}
       ${x.state === '聞く' && x.ask !== 'mat' ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">${SORT_CH.map(c => `<button class="btn ghost sm" type="button" data-ans="${esc(x.id)}" data-c="${c[0]}">${c[1]}</button>`).join('')}</div>` : ''}
       ${x.state === '確かめ' ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button class="btn sm" type="button" data-ok="${esc(x.id)}">確かめて入れる</button><button class="btn ghost sm" type="button" data-drop="${esc(x.id)}">入れずに消す</button></div>` : ''}
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">${x.undo ? `<button class="btn ghost sm" type="button" data-undo="${esc(x.id)}">取り消す(入る前に戻す)</button>` : ''}${x.photo ? `<button class="btn ghost sm" type="button" data-share="${esc(x.id)}">サポートに見てもらう</button>` : ''}</div>
+      <div data-sharebox="${esc(x.id)}" hidden style="margin-top:8px"><textarea rows="3" placeholder="どこがおかしいか(例: 材料がちがう所に入った)" style="width:100%"></textarea><p class="k" style="margin:4px 0">この写真1枚だけ、ピタット原価のサポートが見られるようになります。ほかの写真や帳面は見えません。</p><button class="btn sm" type="button" data-sharego="${esc(x.id)}">送る</button></div>
       </div></div>`;
   const grp = (t, xs, note) => xs.length ? `<h3 style="margin:14px 0 4px;font-size:16px">${t} <span class="k">${xs.length}</span></h3>${note ? `<p class="k" style="margin:0 0 4px">${note}</p>` : ''}${xs.map(row).join('')}` : '';
   box.innerHTML = (L.length ? '' : '<p class="k">まだありません。「撮る」から、納品書・レシピ・袋の裏・売上の紙・ラベル・機械など、何でも撮ってください。</p>') +
@@ -3006,6 +3008,9 @@ function sortDraw() {
   box.querySelectorAll('[data-mat]').forEach(b => b.onclick = () => { const v = box.querySelector(`[data-matin="${CSS.escape(b.dataset.mat)}"]`).value.trim(); if (!v) return; sortDo(b.dataset.mat, { act: 'mat', value: v }, b); });
   box.querySelectorAll('[data-ok]').forEach(b => b.onclick = () => { const x = (SORT || []).find(y => y.id === b.dataset.ok); if (x && x.dev) sortApplyDev(x.dev); sortDo(b.dataset.ok, { act: 'ok' }, b); });
   box.querySelectorAll('[data-drop]').forEach(b => twice(b, 'もう一度押すと消えます', () => sortDo(b.dataset.drop, { act: 'drop' }, b)));
+  box.querySelectorAll('[data-undo]').forEach(b => twice(b, 'もう一度押すと取り消します', () => sortDo(b.dataset.undo, { act: 'undo' }, b)));
+  box.querySelectorAll('[data-share]').forEach(b => b.onclick = () => { const sb = box.querySelector(`[data-sharebox="${CSS.escape(b.dataset.share)}"]`); sb.hidden = !sb.hidden; if (!sb.hidden) sb.querySelector('textarea').focus(); });
+  box.querySelectorAll('[data-sharego]').forEach(b => b.onclick = async () => { const sb = box.querySelector(`[data-sharebox="${CSS.escape(b.dataset.sharego)}"]`); b.disabled = true; const r = await api({ kind: 'app_sort_share', id: b.dataset.sharego, text: sb.querySelector('textarea').value }).catch(() => ({ ok: false, error: 'つながりませんでした' })); b.disabled = false; if (!r.ok) { toast(r.error || '送れませんでした'); return; } sb.hidden = true; toast('サポートに送りました。お返事は「設定」の問い合わせと、LINEに届きます', 'ok'); });
 }
 // 機械・ラベルの用紙を確かめたら、この端末のラベル印刷の設定にする
 function sortApplyDev(dv) {

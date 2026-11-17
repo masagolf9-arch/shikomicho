@@ -318,6 +318,7 @@ function chipOf(x) {
   if (x.st === 'run') return ['run', 'AIが確認中'];
   if (x.st === 'ng') return ['ng', '送れません。押すともう一度'];
   const s = x.sort || {};
+  if (s.state === '同じ写真') return ['done', '同じ写真(入れていません)'];
   if (s.state === '聞く') return ['ask', '聞きたいこと'];
   if (s.state === '確かめ') return ['hold', (s.kind || '') + ' 確かめ待ち'];
   if (x.private) return ['done', '大事な書類は読みません'];
