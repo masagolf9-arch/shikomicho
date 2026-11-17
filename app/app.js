@@ -1756,9 +1756,30 @@ function renderJournal() {
     toast('仕訳の案を保存しました', 'ok');
   };
 }
+// テスト中のサービスだと了解をもらう(店主だけ・1回)
+function betaAsk() {
+  if (!D.betaAsk || $('beta-ov')) return;
+  const ov = document.createElement('div'); ov.id = 'beta-ov'; ov.className = 'a2ov'; ov.style.alignItems = 'center';
+  ov.innerHTML = `<div class="card" role="dialog" aria-modal="true" aria-labelledby="beta-h" style="max-width:520px;width:100%;max-height:90vh;overflow:auto">
+    <h2 id="beta-h" style="font-family:var(--round);margin:0 0 8px">ピタット原価は、いまテスト中です</h2>
+    <p style="margin:0 0 8px">少ないお店で使っていただきながら、直しているところです。始める前に、次のことをご確認ください。</p>
+    <ul style="margin:0 0 12px;padding-left:1.2em;line-height:1.8">
+      <li>画面や使い方が、予告なく変わることがあります。</li>
+      <li>止まったり、計算がまちがったりすることがあります。原価や食品表示は、お店でも確かめてからお使いください。</li>
+      <li>お店のデータは毎日控えを取っていますが、すべてを戻せるとは限りません。大事な数字は「書き出し」で手元にも残してください。</li>
+      <li>気づいたことは「相談」から教えてください。直すときの参考にします。</li>
+    </ul>
+    <label style="display:flex;gap:8px;align-items:center;font-weight:700;margin:0 0 12px"><input type="checkbox" id="beta-read" style="width:22px;height:22px"> 上のことを読みました</label>
+    <button class="btn" type="button" id="beta-ok" disabled style="width:100%">テスト中と分かったうえで使う</button>
+    <p class="k" id="beta-msg" style="margin:8px 0 0"></p></div>`;
+  document.body.appendChild(ov);
+  $('beta-read').onchange = e => { $('beta-ok').disabled = !e.target.checked; };
+  $('beta-ok').onclick = async () => { $('beta-ok').disabled = true; const r = await api({ kind: 'app_beta_ok', v: D.betaAsk, read: $('beta-read').checked }); if (!r.ok) { $('beta-msg').textContent = r.error || '送れませんでした'; $('beta-ok').disabled = false; return; } delete D.betaAsk; ov.remove(); toast('ありがとうございます。よろしくお願いします', 'ok'); };
+}
 function renderAll() {
   U = (D.words || {}).unit || '個';
   renderToday(); renderIntake(); renderRegClose(); renderCost(); renderHowto(); renderLabel(); renderMat(); renderBook(); renderHyg(); renderSales(); renderWs(); renderPost(); renderSet(); applyPlanLocks();
+  betaAsk();
   $('shop').textContent = D.shop; if ($('shop2')) { $('shop2').textContent = D.shop; $('date2').textContent = $('date').textContent; }
   $('foot').textContent = `${new Date(D.at).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} 時点。開き直すと新しくなります。キャラの絵はAtelier SAISPEのLINE絵文字。`;
 }
