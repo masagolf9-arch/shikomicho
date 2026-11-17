@@ -3000,7 +3000,7 @@ if (CF) {
   addEventListener('drop', e => { const file = e.dataTransfer && e.dataTransfer.files[0]; if (!file) return; e.preventDefault(); sendWebFile(file); });
 }
 // ---------- 仕分けの箱: 撮った写真の行き先。聞きたいこと・確かめ待ち・入ったもの(7日) ----------
-let SORT = null; const sortImgs = {};
+let SORT = null, SORTW = null; const sortImgs = {};
 // 確認にかかった秒数: 箱を開いて見ていた時間だけを数える(ほかのアプリに行った間は数えない)。押したものに、前に押してからの時間をつける
 const BOXT = { acc: 0, since: 0 };
 function boxTimeStart() { BOXT.acc = 0; BOXT.since = document.hidden ? 0 : Date.now(); }
@@ -3010,7 +3010,7 @@ const SORT_CH = [['label', '裏表示・ラベル'], ['mat', '材料(袋の裏�
 async function sortLoad() {
   if (!CF) return;
   const r = await api({ kind: 'app_sort' }).catch(() => null);
-  if (r && r.ok) { SORT = r.items || []; sortCard(); if ($('sort-ov')) sortDraw(); try { renderMenu(); } catch (e) {} }
+  if (r && r.ok) { SORT = r.items || []; SORTW = r.weeks || null; sortCard(); if ($('sort-ov')) sortDraw(); try { renderMenu(); } catch (e) {} }
 }
 function sortCard() {
   let c = $('sort-card'); const L = SORT || [], ask = L.filter(x => x.state === '聞く').length, hold = L.filter(x => x.state === '確かめ').length;
@@ -3025,13 +3025,23 @@ function sortCard() {
 function sortOpen() {
   if ($('sort-ov')) return;
   const ov = document.createElement('div'); ov.id = 'sort-ov'; ov.className = 'a2ov'; ov.style.alignItems = 'stretch';
-  ov.innerHTML = `<div class="card" role="dialog" aria-modal="true" aria-labelledby="sort-h" style="max-width:720px;width:100%;margin:auto;max-height:92vh;overflow:auto"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><h2 id="sort-h" style="font-family:var(--round);margin:0">仕分けの箱</h2><button class="btn ghost sm" type="button" id="sort-x">閉じる</button></div><p class="k" style="margin:6px 0 10px">撮った写真の行き先です。足すだけのもの(仕入れ・売上・新しいレシピ)はすぐ入り、今あるものを書きかえるもの(材料の表示・レシピの置きかえ・機械の設定)は、確かめてから入ります。写真は確かめが済んで60日で消えます。紙の原本は捨てないでください。</p><div id="sort-list"></div></div>`;
+  ov.innerHTML = `<div class="card" role="dialog" aria-modal="true" aria-labelledby="sort-h" style="max-width:720px;width:100%;margin:auto;max-height:92vh;overflow:auto"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><h2 id="sort-h" style="font-family:var(--round);margin:0">仕分けの箱</h2><button class="btn ghost sm" type="button" id="sort-x">閉じる</button></div><p class="k" style="margin:6px 0 10px">撮った写真の行き先です。足すだけのもの(仕入れ・売上・新しいレシピ)はすぐ入り、今あるものを書きかえるもの(材料の表示・レシピの置きかえ・機械の設定)は、確かめてから入ります。写真は確かめが済んで60日で消えます。紙の原本は捨てないでください。</p><div id="sort-num"></div><div id="sort-list"></div></div>`;
   document.body.appendChild(ov);
   $('sort-x').onclick = () => ov.remove(); ov.onclick = e => { if (e.target === ov) ov.remove(); };
   sortDraw(); sortLoad(); boxTimeStart();
 }
+// 確認の数(使うほど減るか): この7日と、はじめの週。数だけ
+function sortNumHtml() {
+  const W = SORTW; if (!W || !W.week) return '';
+  const tot = o => Object.values(o || {}).reduce((a, x) => ({ n: a.n + x.n, c: a.c + x.checks, s: a.s + x.sec }), { n: 0, c: 0, s: 0 });
+  const w = tot(W.week), f = tot(W.first); if (!w.n) return '';
+  const per = x => (Math.round(x.c / x.n * 10) / 10).toLocaleString('ja-JP'), mins = s => s < 60 ? `${s}秒` : `約${Math.round(s / 60)}分`;
+  const old = Date.now() - W.since >= 14 * 864e5 && f.n;
+  return `<div class="card" style="background:var(--bg);margin:0 0 6px;padding:12px 14px"><b>この7日</b> <span class="k">写真 ${w.n}枚・確認したこと ${w.c}か所(1枚あたり ${per(w)}か所)・確かめた時間 ${mins(w.s)}</span>${costGaps().length ? `<div class="k" style="margin-top:4px">このほか、原価のために答えてほしい所が ${costGaps().length}か所あります(下)</div>` : ''}${old ? `<div class="k" style="margin-top:4px">はじめの週は1枚あたり ${per(f)}か所でした${f.c / f.n > w.c / w.n ? '。使うほど、聞くことが減っています' : ''}</div>` : '<div class="k" style="margin-top:4px">一度確かめたこと(材料の名前・1袋の重さなど)は覚えて、次からは聞きません</div>'}</div>`;
+}
 function sortDraw() {
   const box = $('sort-list'); if (!box) return;
+  if ($('sort-num')) $('sort-num').innerHTML = sortNumHtml();
   const L = SORT || [], when = t => new Date(t).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit' });
   const row = x => `<div class="sort-row" data-id="${esc(x.id)}" style="display:flex;gap:12px;padding:12px 0;border-top:1px solid var(--line);align-items:flex-start">
       <button type="button" data-img="${esc(x.photo)}" aria-label="元の写真を見る" style="flex:none;width:72px;height:72px;border-radius:10px;border:1px solid var(--line);background:var(--bg);padding:0;overflow:hidden;cursor:${x.photo ? 'zoom-in' : 'default'}">${x.photo ? (sortImgs[x.photo] ? `<img src="${sortImgs[x.photo]}" alt="" style="width:100%;height:100%;object-fit:cover">` : '<span class="k">写真</span>') : '<span class="k">なし</span>'}</button>
