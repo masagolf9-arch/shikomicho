@@ -989,7 +989,7 @@ body.pdet-on{overflow:hidden}
 <aside id="side" aria-label="メニュー"></aside>
 <div class="wrap">
   <div class="top">
-    <div class="shop"><img src="logo_mark.webp?v=1" alt="" onerror="this.remove()"><span id="shop">お店</span></div>
+    <div class="shop"><img src="logo_mark.webp?v=1" alt="" onerror="this.remove()"><span id="shop">店舗</span></div>
     <div class="date" id="date"></div>
   </div>
   <div class="appbar"><div><span class="sname" id="shop2"></span><span class="date" id="date2"></span><form class="askbar" id="askbar-top" autocomplete="off"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6.5h16M4 12h16M4 17.5h10"/></svg><input id="ask-top" placeholder="AIに質問・記録の入力" aria-label="AIに質問する"><button class="btn" type="submit">送る</button></form></div></div>
@@ -1066,7 +1066,7 @@ body.pdet-on{overflow:hidden}
   </section>
 
   <section id="t-label" hidden>
-    <div class="ph"><div><h1 id="label-h">裏表示</h1><p class="lead" id="label-lead">一括表示の原案とラベル印刷。<mark>色つき</mark>は要確認。最終確認と表示の責任はお店にあります。</p></div><div class="acts"><button class="btn ghost" type="button" id="label-print-top">ラベルを印刷</button></div></div>
+    <div class="ph"><div><h1 id="label-h">裏表示</h1><p class="lead" id="label-lead">一括表示の原案とラベル印刷。<mark>色つき</mark>は要確認。最終確認と表示の責任は店舗にあります。</p></div><div class="acts"><button class="btn ghost" type="button" id="label-print-top">ラベルを印刷</button></div></div>
     <div class="chips" id="label-chips"></div>
     <div id="label-box"></div>
   </section>
@@ -1146,24 +1146,22 @@ body.pdet-on{overflow:hidden}
     <div class="card" id="post-brand" style="margin-top:12px"></div>
   </section>
   <section id="t-set" hidden>
-    <div class="ph"><div><h1>設定</h1><p class="lead">この画面の見え方と、お店の決まりごと。</p></div></div>
+    <div class="ph"><div><h1>設定</h1><p class="lead">表示の見え方と、店舗の運用に関する設定です。</p></div></div>
     <div id="set-box"></div>
     <h1 class="sub" id="acct-h" hidden>ログインと招待</h1>
     <div hidden><div class="card" id="acct-box"></div></div>
     <div hidden><h1 class="sub">メンバー</h1><div class="card" id="members-box"></div></div>
-    <h1 class="sub" id="bank-h">振込に使う銀行</h1>
+    <h1 class="sub" id="bank-h">振込先一覧</h1>
     <div class="card" id="bank-box"></div>
     <h1 class="sub">問い合わせ</h1>
     <div class="card contact">
       <p class="k" style="margin:0 0 8px"><a href="/guide/faq" target="_blank" rel="noopener">よくあるご質問(動画付き)</a>に、多い質問の答えと動画があります。<a href="/guide/updates" target="_blank" rel="noopener">更新情報</a>(毎月の直したこと・足したこと)もここから。<br>分からないこと・うまく動かないことを書いてください。まずAIがすぐにお答えし、解決しなければ、そのまま担当におつなぎします。</p>
       <div class="seg" id="ct-cat" style="flex-wrap:wrap;justify-content:flex-start"><button type="button" data-v="使い方" aria-pressed="true">使い方</button><button type="button" data-v="うまく動かない" aria-pressed="false">うまく動かない</button><button type="button" data-v="プラン・お支払い" aria-pressed="false">プラン・お支払い</button><button type="button" data-v="こうしてほしい" aria-pressed="false">こうしてほしい</button><button type="button" data-v="その他" aria-pressed="false">その他</button></div>
       <textarea id="ct-text" rows="4" maxlength="2000" placeholder="例: 請求書の写真がうまく読めません" aria-label="問い合わせの内容"></textarea>
-      <div class="ask"><button class="btn" type="button" id="ct-go">聞く</button><span class="k" id="ct-via">お店の名前・プラン・最近のエラーは自動で添えます</span></div>
+      <div class="ask"><button class="btn" type="button" id="ct-go">聞く</button><span class="k" id="ct-via">店舗名・プラン・最近のエラーは自動で添えます</span></div>
       <div id="ct-ans" hidden></div>
     </div>
     <div class="card" id="ct-hist" hidden></div>
-    <h1 class="sub" id="words-h">話しかけられる言葉</h1>
-    <div class="card"><p style="margin:0">決まった言い方はありません。ふだんの言葉で話しかけてください。</p><p class="k" style="margin:8px 0 0">作った数、払ったこと、冷蔵庫の温度、納品、予定、「今月どう?」のような相談まで、話しかけるだけで大丈夫です。</p><p class="k" style="margin:8px 0 0">記録の前には「〜として記録しますか?」と確かめます。「はい」で確定した言い方は覚えて、次からは同じ意味に取ります。分からないときは聞き返します。</p></div>
   </section>
   <div class="stuck" id="stuck" hidden><button class="btn ghost sm" type="button" id="stuck-b">この画面についてご意見を送る</button><div id="stuck-f" hidden><textarea id="stuck-t" rows="2" placeholder="ひと言(なくても大丈夫です。例: 1個の重さをどこで入れるか分からない)"></textarea><div style="display:flex;gap:8px;margin-top:6px"><button class="btn sm" type="button" id="stuck-go">知らせる</button><button class="btn ghost sm" type="button" id="stuck-x">やめる</button></div><p class="k" style="margin:6px 0 0">どの画面だったかと、このひと言だけが作る人に届きます。帳面の中身は届きません。</p></div></div>
   <p class="foot" id="foot">試作。キャラの絵はAtelier SAISPEのLINE絵文字。</p>
@@ -1196,6 +1194,6 @@ body.pdet-on{overflow:hidden}
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-<script src="app.js?v=191"></script>
+<script src="app.js?v=192"></script>
 </body>
 </html>

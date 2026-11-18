@@ -22,6 +22,8 @@ document.addEventListener('submit', e => { if (e.target && /\/auth\/logout$/.tes
 const applyLook = () => { const th = store.get('theme', 'auto'); if (th === 'auto') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme', th); document.body.style.zoom = store.get('size', 'normal') === 'big' ? '1.15' : ''; document.documentElement.style.setProperty('--cs', ({ s: 60, m: 72, l: 88 })[store.get('csize', 'm')] + 'px'); };
 applyLook();
 let U = '個';
+// 商品ごとの数え方(個・人前・杯など)。商品に入れていなければ店舗の数え方
+const PU = p => (p && p.unitw) || U;
 const yen = n => Math.round(n).toLocaleString('ja-JP') + '円';
 const amt = (v, u) => u === '枚' ? v.toLocaleString('ja-JP') + '枚' : v >= 1000 ? (Math.round(v / 100) / 10).toLocaleString('ja-JP') + 'kg' : Math.round(v) + 'g';
 const yen1 = n => (Math.round(n * 10) / 10).toLocaleString('ja-JP') + '円';
@@ -50,12 +52,12 @@ async function load() {
   try {
     const out = await api({ kind: 'app_data' });
     if (!out.ok) {
-      if (out.error === 'removed') { cache.set(null); D = null; document.querySelectorAll('section').forEach(s => s.hidden = true); return state('<b>このお店のピタット原価からは外されています。</b><br>心当たりがなければ、店主に聞いてください。' + (CF && !IN_LINE ? '<form method="post" action="/auth/logout" style="margin-top:12px"><button class="btn ghost">ログアウト</button></form>' : '')); }
+      if (out.error === 'removed') { cache.set(null); D = null; document.querySelectorAll('section').forEach(s => s.hidden = true); return state('<b>この店舗のピタット原価からは外されています。</b><br>心当たりがなければ、店主に聞いてください。' + (CF && !IN_LINE ? '<form method="post" action="/auth/logout" style="margin-top:12px"><button class="btn ghost">ログアウト</button></form>' : '')); }
       if (out.error === 'wait' || out.error === 'login') { cache.set(null); if (D) { D = null; document.querySelectorAll('section').forEach(s => s.hidden = true); } }
       if (out.error === 'wait') return state('<b>店主の許可待ちです。</b><br>店主のLINEに「見たい」とお知らせを送りました。<br>店主が「許可」を押したら、もう一度開いてください。<br><button class="btn ghost" onclick="load()">もう一度読む</button>');
       if (out.error === 'login' && CF && !IN_LINE) { location.href = '/login?next=' + encodeURIComponent(location.pathname); return; }
       if (out.error === 'login') { liff.logout(); return state('ログインし直してください。<br><button class="btn" onclick="location.reload()">ログイン</button>'); }
-      if (out.error === 'noshop') return state('<b>まだお店とつながっていません。</b><br>お店の方から届いた招待のリンクを開いてください。<br><form method="post" action="/auth/logout" style="margin-top:12px"><button class="btn ghost">別の方法でログインし直す</button></form>');
+      if (out.error === 'noshop') return state('<b>まだ店舗とつながっていません。</b><br>店舗の方から届いた招待のリンクを開いてください。<br><form method="post" action="/auth/logout" style="margin-top:12px"><button class="btn ghost">別の方法でログインし直す</button></form>');
       return state(esc(out.error));
     }
     const first = !D; D = out.data; MLOCK = D.mlock || null; cache.set(D); state(''); renderAll(); if (first) { show(store.get('tab', 'today'), true); setTimeout(() => showHints(cur), 800); } else show(cur, true, true);
@@ -380,13 +382,13 @@ function renderMemos() {
   const box = $('memos'), ms = D.memos || [], me = profileName || '';
   box.hidden = SH('memo'); $('memo-add').closest('h1').hidden = SH('memo'); if (SH('memo')) return;
   box.innerHTML = ms.length ? `<div class="card" style="padding:0">${ms.map(m => `<div class="memo"><div class="mb"><p>${esc(m.text)}</p><span class="k">${esc(m.by)} · ${m.t ? new Date(m.t).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}${m.seen.length ? ' · 見た: ' + m.seen.map(esc).join('、') : ''}</span></div><span class="acts">${m.seen.includes(me) ? '' : `<button class="btn sm" type="button" data-seen="${m.row}">見た</button>`}<button class="btn ghost sm" type="button" data-done="${m.row}">済</button></span></div>`).join('')}</div>`
-    : `<div class="card"><p class="k" style="margin:0">連絡事項はありません。「＋ 書く」で、お店のみんなのホームに出ます。</p></div>`;
+    : `<div class="card"><p class="k" style="margin:0">連絡事項はありません。「＋ 書く」で、スタッフ全員のホームに出ます。</p></div>`;
   box.querySelectorAll('[data-seen]').forEach(b => b.onclick = () => setValueX({ field: 'memo', value: { row: +b.dataset.seen } }));
   box.querySelectorAll('[data-done]').forEach(b => b.onclick = () => setValueX({ field: 'memo', value: { row: +b.dataset.done, done: true } }));
 }
 $('memo-add').onclick = () => {
   const box = $('memos'); if ($('memo-form')) { $('memo-form').remove(); return; }
-  box.insertAdjacentHTML('afterbegin', `<div class="card" id="memo-form"><textarea id="memo-text" rows="2" placeholder="連絡事項を書く" style="width:100%;box-sizing:border-box;font:inherit;font-size:15px;padding:8px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)"></textarea><div class="ask"><button class="btn" type="button" id="memo-go">残す</button><button class="btn ghost" type="button" id="memo-cancel">やめる</button><span class="k">お店のみんなにLINEでも届きます</span></div></div>`);
+  box.insertAdjacentHTML('afterbegin', `<div class="card" id="memo-form"><textarea id="memo-text" rows="2" placeholder="連絡事項を書く" style="width:100%;box-sizing:border-box;font:inherit;font-size:15px;padding:8px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)"></textarea><div class="ask"><button class="btn" type="button" id="memo-go">残す</button><button class="btn ghost" type="button" id="memo-cancel">やめる</button><span class="k">スタッフ全員にLINEでも届きます</span></div></div>`);
   $('memo-text').focus();
   $('memo-cancel').onclick = () => $('memo-form').remove();
   $('memo-go').onclick = () => { const v = $('memo-text').value.trim(); if (!v) { $('memo-text').focus(); return; } setValueX({ field: 'memo', value: { text: v } }); };
@@ -473,7 +475,7 @@ function renderReg() {
     ${pend.some(x => x.old && x.now > x.old) ? `<div class="ask"><button class="btn ghost sm" type="button" id="reg-notice">値上げのお知らせ文を作る</button><span class="k">店頭やLINEでお客さまに伝える文の案</span></div>` : ''}`;
   const rn = $('reg-notice'); if (rn) rn.onclick = async () => {
     const ups = pend.filter(x => x.old && x.now > x.old);
-    const sub = '値上げのお知らせ: ' + ups.map(x => `${x.name} ${x.old}円→${x.now}円`).join('、') + '。材料の値上がりのため。日付と理由の書き足しはお店が行う。';
+    const sub = '値上げのお知らせ: ' + ups.map(x => `${x.name} ${x.old}円→${x.now}円`).join('、') + '。材料の値上がりのため。日付と理由の書き足しは店舗が行う。';
     openAsk(); const wait = addMsg('<span class="k">お知らせ文を考えています…(10秒ほど)</span>');
     const out = await api({ kind: 'app_gen', subject: sub }); wait.remove();
     if (!out.ok) { botSay(esc(out.error || 'うまく作れませんでした')); return; }
@@ -536,10 +538,10 @@ $('ev-add-top').onclick = () => evForm();
 // Googleカレンダーとつなぐ(購読の仕組み。入れるのは1か所でいい)
 function gcalBox() {
   const c = D.cal || {}; if (!D.me || !D.me.owner) return c.gcal ? '<p class="k" style="margin:12px 0 0">Googleカレンダーの予定も、この表に出ています(店主の設定)。</p>' : '';
-  return `<h1 class="sub">Googleカレンダーとつなぐ <span class="k" style="font-weight:400;font-size:13px">(お店が選べます。つながなくても使えます)</span></h1>
+  return `<h1 class="sub">Googleカレンダーとつなぐ <span class="k" style="font-weight:400;font-size:13px">(店舗が選べます。つながなくても使えます)</span></h1>
   <div class="card"><p style="margin:0 0 4px"><b>① ピタット原価の予定を、スマホのGoogleカレンダーにも出す</b></p><p class="k" style="margin:0 0 8px">ピタット原価に入れた納品・催事・休みが、自動でGoogleカレンダーに出ます(数時間遅れることがあります)。</p>
     <div class="ask" style="margin-top:0"><input id="cal-feed" readonly value="${esc(c.feed || '')}" style="flex:1;min-width:0;font-size:13px"><button class="btn ghost sm" type="button" id="cal-copy">コピー</button></div>
-    <details style="margin-top:8px"><summary class="k">Googleカレンダーでの入れ方</summary><ol class="k" style="margin:8px 0 0;padding-left:1.4em;line-height:1.8"><li>パソコンで Googleカレンダー を開く</li><li>左の「他のカレンダー」の「＋」→「URLで追加」</li><li>上の住所を貼って「カレンダーを追加」</li><li>スマホのGoogleカレンダーの設定で、そのカレンダーの表示をオンにする</li></ol><p class="k" style="margin:8px 0 0">この住所は合言葉つきです。お店の人以外には教えないでください。</p></details>
+    <details style="margin-top:8px"><summary class="k">Googleカレンダーでの入れ方</summary><ol class="k" style="margin:8px 0 0;padding-left:1.4em;line-height:1.8"><li>パソコンで Googleカレンダー を開く</li><li>左の「他のカレンダー」の「＋」→「URLで追加」</li><li>上の住所を貼って「カレンダーを追加」</li><li>スマホのGoogleカレンダーの設定で、そのカレンダーの表示をオンにする</li></ol><p class="k" style="margin:8px 0 0">この住所は合言葉つきです。店舗のスタッフ以外には教えないでください。</p></details>
     <hr style="border:0;border-top:1px solid var(--line-2);margin:16px 0">
     <p style="margin:0 0 4px"><b>② Googleカレンダーの予定を、ピタット原価にも出す</b></p><p class="k" style="margin:0 0 8px">Googleカレンダーの設定 › そのカレンダー › 「iCal形式の秘密のアドレス」をコピーして、ここに貼ります。Googleに入れた予定がピタット原価の予定と「今日やること」に出ます(見るだけ。消す・直すはGoogle側で)。</p>
     <div class="ask" style="margin-top:0"><input id="gcal-url" placeholder="https://calendar.google.com/calendar/ical/…/basic.ics" value="${esc(c.gcal || '')}" style="flex:1;min-width:0;font-size:13px"><button class="btn sm" type="button" id="gcal-save">${c.gcal ? '貼り直す' : 'つなぐ'}</button>${c.gcal ? '<button class="btn ghost sm" type="button" id="gcal-off">外す</button>' : ''}</div>
@@ -901,19 +903,69 @@ function renderSort() {
     try { await navigator.clipboard.writeText(txt); chat('コピーしました。貼りつけて使ってください。', 'heart'); } catch (e) { chat('コピーできませんでした。長押しで選んでください。'); }
   };
 }
-// ---------- 振込に使う銀行(押すと銀行のページへ。送金はしない) ----------
+// ---------- 振込先一覧(押すと銀行の公式サイトへ。送金はしない) ----------
+// 銀行名と公式サイトは、全国銀行協会の会員一覧(2026-11-18 確認)より
 const BANKS = [
-  ['宮崎', [['miyasin', '宮崎第一信用金庫(法人)', 'https://www.miyasin.co.jp/business/netbanking/'], ['miyasin_p', '宮崎第一信用金庫(個人)', 'https://www.miyasin.co.jp/netbanking/'],
-    ['miyagin', '宮崎銀行(法人)', 'https://www.miyagin.co.jp/hojin/settlement/banking/'], ['taiyo', '宮崎太陽銀行', 'https://www.taiyobank.co.jp/']]],
-  ['全国の銀行', [['yucho', 'ゆうちょ銀行', 'https://www.jp-bank.japanpost.jp/'], ['mufg', '三菱UFJ銀行', 'https://www.bk.mufg.jp/'], ['smbc', '三井住友銀行', 'https://www.smbc.co.jp/'],
-    ['mizuho', 'みずほ銀行', 'https://www.mizuhobank.co.jp/'], ['resona', 'りそな銀行', 'https://www.resonabank.co.jp/']]],
-  ['ネット銀行', [['sbi', '住信SBIネット銀行', 'https://www.netbk.co.jp/'], ['rakuten', '楽天銀行', 'https://www.rakuten-bank.co.jp/'], ['paypay', 'PayPay銀行', 'https://www.paypay-bank.co.jp/'],
-    ['gmo', 'GMOあおぞらネット銀行', 'https://gmo-aozora.com/'], ['sony', 'ソニー銀行', 'https://moneykit.net/'], ['jibun', 'auじぶん銀行', 'https://www.jibunbank.co.jp/']]]
+  ['主要銀行', [['yucho', 'ゆうちょ銀行', 'https://www.jp-bank.japanpost.jp/'], ['mizuho', 'みずほ銀行', 'https://www.mizuhobank.co.jp/'], ['mufg', '三菱UFJ銀行', 'https://www.bk.mufg.jp/'], ['smbc', '三井住友銀行', 'https://www.smbc.co.jp/'], ['resona', 'りそな銀行', 'https://www.resonabank.co.jp/']]],
+  ['ネット銀行', [['paypay', 'PayPay銀行', 'https://www.paypay-bank.co.jp/'], ['rakuten', '楽天銀行', 'https://www.rakuten-bank.co.jp/'], ['sbi', 'ドコモSMTBネット銀行(旧 住信SBIネット銀行)', 'https://www.netbk.co.jp/'], ['sony', 'ソニー銀行', 'https://moneykit.net/'], ['jibun', 'auじぶん銀行', 'https://www.jibunbank.co.jp/'], ['gmo', 'GMOあおぞらネット銀行', 'https://gmo-aozora.com/'], ['b0040', 'イオン銀行', 'https://www.aeonbank.co.jp/']]]
 ];
+// 地方銀行・第二地方銀行(都道府県ごと)
+const BANKS_REG = [
+  ['北海道', [['b0116', '北海道銀行', 'https://www.hokkaidobank.co.jp/'], ['b0501', '北洋銀行', 'https://www.hokuyobank.co.jp/']]],
+  ['青森県', [['b0117', '青森みちのく銀行', 'https://www.am-bk.co.jp/']]],
+  ['岩手県', [['b0123', '岩手銀行', 'https://www.iwatebank.co.jp/'], ['b0124', '東北銀行', 'https://www.tohoku-bank.co.jp/'], ['b0509', '北日本銀行', 'https://www.kitagin.co.jp/']]],
+  ['宮城県', [['b0125', '七十七銀行', 'https://www.77bank.co.jp/'], ['b0512', '仙台銀行', 'https://www.sendaibank.co.jp/']]],
+  ['秋田県', [['b0119', '秋田銀行', 'https://www.akita-bank.co.jp/'], ['b0120', '北都銀行', 'https://www.hokutobank.co.jp/']]],
+  ['山形県', [['b0121', '荘内銀行', 'https://www.shonai.co.jp/'], ['b0122', '山形銀行', 'https://www.yamagatabank.co.jp/'], ['b0508', 'きらやか銀行', 'https://www.kirayaka.co.jp/']]],
+  ['福島県', [['b0126', '東邦銀行', 'https://www.tohobank.co.jp/'], ['b0513', '福島銀行', 'https://www.fukushimabank.co.jp/'], ['b0514', '大東銀行', 'https://www.daitobank.co.jp/']]],
+  ['茨城県', [['b0130', '常陽銀行', 'https://www.joyobank.co.jp/'], ['b0131', '筑波銀行', 'https://www.tsukubabank.co.jp/']]],
+  ['栃木県', [['b0129', '足利銀行', 'https://www.ashikagabank.co.jp/'], ['b0517', '栃木銀行', 'https://www.tochigibank.co.jp/']]],
+  ['群馬県', [['b0128', '群馬銀行', 'https://www.gunmabank.co.jp/'], ['b0516', '東和銀行', 'https://www.towabank.co.jp/']]],
+  ['埼玉県', [['b0133', '武蔵野銀行', 'https://www.musashinobank.co.jp/'], ['b0017', '埼玉りそな銀行', 'https://www.resona-gr.co.jp/saitamaresona/']]],
+  ['千葉県', [['b0134', '千葉銀行', 'https://www.chibabank.co.jp/'], ['b0135', '千葉興業銀行', 'https://www.chibakogyo-bank.co.jp/'], ['b0522', '京葉銀行', 'https://www.keiyobank.co.jp/']]],
+  ['東京都', [['b0137', 'きらぼし銀行', 'https://www.kiraboshibank.co.jp/'], ['b0525', '東日本銀行', 'https://www.higashi-nipponbank.co.jp/'], ['b0526', '東京スター銀行', 'https://www.tokyostarbank.co.jp/']]],
+  ['神奈川県', [['b0138', '横浜銀行', 'https://www.boy.co.jp/'], ['b0530', '神奈川銀行', 'https://www.kanagawabank.co.jp/']]],
+  ['新潟県', [['b0140', '第四北越銀行', 'https://www.dhbk.co.jp/'], ['b0532', '大光銀行', 'https://www.taikobank.jp/']]],
+  ['富山県', [['b0144', '北陸銀行', 'https://www.hokugin.co.jp/'], ['b0145', '富山銀行', 'https://www.toyamabank.co.jp/'], ['b0534', '富山第一銀行', 'https://www.first-bank.co.jp/']]],
+  ['石川県', [['b0146', '北國銀行', 'https://www.hokkokubank.co.jp/']]],
+  ['福井県', [['b0147', '福井銀行', 'https://www.fukuibank.co.jp/']]],
+  ['山梨県', [['b0142', '山梨中央銀行', 'https://www.yamanashibank.co.jp/']]],
+  ['長野県', [['b0143', '八十二長野銀行', 'https://bank.82group.jp/']]],
+  ['岐阜県', [['b0152', '大垣共立銀行', 'https://www.okb.co.jp/'], ['b0153', '十六銀行', 'https://www.juroku.co.jp/']]],
+  ['静岡県', [['b0149', '静岡銀行', 'https://www.shizuokabank.co.jp/'], ['b0150', 'スルガ銀行', 'https://www.surugabank.co.jp/'], ['b0151', '清水銀行', 'https://www.shimizubank.co.jp/'], ['b0538', '静岡中央銀行', 'https://www.shizuokachuo-bank.co.jp/']]],
+  ['愛知県', [['b0542', 'あいち銀行', 'https://www.aichibank.co.jp/'], ['b0543', '名古屋銀行', 'https://www.meigin.com/']]],
+  ['三重県', [['b0154', '三十三銀行', 'https://www.33bank.co.jp/'], ['b0155', '百五銀行', 'https://www.hyakugo.co.jp/']]],
+  ['滋賀県', [['b0157', '滋賀銀行', 'https://www.shigagin.com/']]],
+  ['京都府', [['b0158', '京都銀行', 'https://www.kyotobank.co.jp/']]],
+  ['大阪府', [['b0159', '関西みらい銀行', 'https://www.kansaimiraibank.co.jp/'], ['b0161', '池田泉州銀行', 'https://www.sihd-bk.jp/']]],
+  ['兵庫県', [['b0164', '但馬銀行', 'https://www.tajimabank.co.jp/'], ['b0562', 'みなと銀行', 'https://www.minatobk.co.jp/']]],
+  ['奈良県', [['b0162', '南都銀行', 'https://www.nantobank.co.jp/']]],
+  ['和歌山県', [['b0163', '紀陽銀行', 'https://www.kiyobank.co.jp/']]],
+  ['鳥取県', [['b0166', '鳥取銀行', 'https://www.tottoribank.co.jp/']]],
+  ['島根県', [['b0167', '山陰合同銀行', 'https://www.gogin.co.jp/'], ['b0565', '島根銀行', 'https://www.shimagin.co.jp/']]],
+  ['岡山県', [['b0168', '中国銀行', 'https://www.chugin.co.jp/'], ['b0566', 'トマト銀行', 'https://www.tomatobank.co.jp/']]],
+  ['広島県', [['b0169', '広島銀行', 'https://www.hirogin.co.jp/'], ['b0569', 'もみじ銀行', 'https://www.momijibank.co.jp/']]],
+  ['山口県', [['b0170', '山口銀行', 'https://www.yamaguchibank.co.jp/'], ['b0570', '西京銀行', 'https://www.saikyobank.co.jp/']]],
+  ['徳島県', [['b0172', '阿波銀行', 'https://www.awabank.co.jp/'], ['b0572', '徳島大正銀行', 'https://www.tokugin.co.jp/']]],
+  ['香川県', [['b0173', '百十四銀行', 'https://www.114bank.co.jp/'], ['b0573', '香川銀行', 'https://www.kagawabank.co.jp/']]],
+  ['愛媛県', [['b0174', '伊予銀行', 'https://www.iyobank.co.jp/'], ['b0576', '愛媛銀行', 'https://www.himegin.co.jp/']]],
+  ['高知県', [['b0175', '四国銀行', 'https://www.shikokubank.co.jp/'], ['b0578', '高知銀行', 'https://www.kochi-bank.co.jp/']]],
+  ['福岡県', [['b0177', '福岡銀行', 'https://www.fukuokabank.co.jp/'], ['b0178', '筑邦銀行', 'https://www.chikugin.co.jp/'], ['b0190', '西日本シティ銀行', 'https://www.ncbank.co.jp/'], ['b0191', '北九州銀行', 'https://www.kitakyushubank.co.jp/'], ['b0582', '福岡中央銀行', 'https://www.fukuokachuo-bank.co.jp/']]],
+  ['佐賀県', [['b0179', '佐賀銀行', 'https://www.sagabank.co.jp/'], ['b0583', '佐賀共栄銀行', 'https://www.kyogin.co.jp/']]],
+  ['長崎県', [['b0181', '十八親和銀行', 'https://www.18shinwabank.co.jp/'], ['b0585', '長崎銀行', 'https://www.nagasakibank.co.jp/']]],
+  ['熊本県', [['b0182', '肥後銀行', 'https://www.higobank.co.jp/'], ['b0587', '熊本銀行', 'https://www.kumamotobank.co.jp/']]],
+  ['大分県', [['b0183', '大分銀行', 'https://www.oitabank.co.jp/'], ['b0590', '豊和銀行', 'https://www.howabank.co.jp/']]],
+  ['宮崎県', [['b0184', '宮崎銀行', 'https://www.miyagin.co.jp/'], ['taiyo', '宮崎太陽銀行', 'https://www.taiyobank.co.jp/']]],
+  ['鹿児島県', [['b0185', '鹿児島銀行', 'https://www.kagin.co.jp/'], ['b0594', '南日本銀行', 'https://nangin.jp/']]],
+  ['沖縄県', [['b0187', '琉球銀行', 'https://www.ryugin.co.jp/'], ['b0188', '沖縄銀行', 'https://www.okinawa-bank.co.jp/'], ['b0596', '沖縄海邦銀行', 'https://www.kaiho-bank.co.jp/']]]
+];
+// 以前に選べた銀行(一覧には出さないが、選んであれば使える・その他の入力で候補に出る)
+const BANKS_OLD = [['miyasin', '宮崎第一信用金庫(法人)', 'https://www.miyasin.co.jp/business/netbanking/'], ['miyasin_p', '宮崎第一信用金庫(個人)', 'https://www.miyasin.co.jp/netbanking/'], ['miyagin', '宮崎銀行(法人)', 'https://www.miyagin.co.jp/hojin/settlement/banking/']];
+const bankAll = () => BANKS.flatMap(([, l]) => l).concat(BANKS_REG.flatMap(([, l]) => l), BANKS_OLD);
 function payBank() {
   const si = D.shopInfo || {};
   if (si.payBank === 'other' && si.payBankUrl) return { id: 'other', name: si.payBankName || '登録した銀行', url: si.payBankUrl };
-  for (const [, list] of BANKS) for (const [id, name, url] of list) if (id === si.payBank) return { id, name, url };
+  for (const [id, name, url] of bankAll()) if (id === si.payBank) return { id, name, url };
   return null;
 }
 // LINEの中から、標準のブラウザで開く(LIFFを始めていなければ始めてから)
@@ -927,7 +979,7 @@ async function openBank(url) {
 }
 async function goPay(p) {
   const b = payBank();
-  if (!b) { chat('先に「設定」で、振込に使う銀行を選んでください', 'think'); show('set'); setTimeout(() => $('bank-box') && $('bank-box').scrollIntoView({ block: 'start', behavior: 'smooth' }), 120); return; }
+  if (!b) { chat('先に「設定」の振込先一覧で、銀行を選んでください', 'think'); show('set'); setTimeout(() => $('bank-box') && $('bank-box').scrollIntoView({ block: 'start', behavior: 'smooth' }), 120); return; }
   const txt = `${p.supplier} ${p.total}円`;
   let copied = false; try { await navigator.clipboard.writeText(txt); copied = true; } catch (e) {}
   chat(`${copied ? `「${p.supplier} ${p.total.toLocaleString('ja-JP')}円」をコピーしました。` : ''}${b.name}を開きます。振り込んだら「払った」を押してください。`, 'heart');
@@ -936,13 +988,34 @@ async function goPay(p) {
 function renderBanks() {
   const box = $('bank-box'); if (!box) return;
   const cur = payBank(), si = D.shopInfo || {};
-  box.innerHTML = `<p class="k" style="margin:0 0 8px">帳簿の「振込へ」を押すと、ここで選んだ銀行のページが開きます(業者名と金額はコピーされます)。お金を動かすのは銀行のページで、お店の人がします。名前を押すと選べて、↗ でそのまま開きます。</p>` +
-    BANKS.map(([g, list]) => `<p class="k" style="margin:12px 0 4px"><b>${g}</b></p><div class="banks">${list.map(([id, name, url]) => `<div class="bank${cur && cur.id === id ? ' on' : ''}"><button type="button" data-bank="${id}" aria-pressed="${!!(cur && cur.id === id)}">${cur && cur.id === id ? '✓ ' : ''}${esc(name)}</button><a href="${esc(url)}" target="_blank" rel="noopener" data-open="${esc(url)}" aria-label="${esc(name)}を開く">↗</a></div>`).join('')}</div>`).join('') +
-    `<p class="k" style="margin:12px 0 4px"><b>その他の銀行</b></p><div class="fld"><span class="k">銀行名</span><input id="bk-name" value="${esc(si.payBank === 'other' ? si.payBankName : '')}" placeholder="例: 〇〇信用金庫"><span class="k">ページのURL</span><input id="bk-url" inputmode="url" value="${esc(si.payBank === 'other' ? si.payBankUrl : '')}" placeholder="https://"></div>
+  const btn = ([id, name, url]) => `<div class="bank${cur && cur.id === id ? ' on' : ''}"><button type="button" data-bank="${id}" aria-pressed="${!!(cur && cur.id === id)}">${cur && cur.id === id ? '✓ ' : ''}${esc(name)}</button><a href="${esc(url)}" target="_blank" rel="noopener" data-open="${esc(url)}" aria-label="${esc(name)}を開く">↗</a></div>`;
+  const prefOf = () => { const a = si.addr || ''; const hit = BANKS_REG.find(([pf]) => a.includes(pf) || a.includes(pf.replace(/[都府県]$/, ''))); return hit ? hit[0] : ''; };
+  let pref = renderBanks.pref || (cur && (BANKS_REG.find(([, l]) => l.some(x => x[0] === cur.id)) || [])[0]) || prefOf();
+  box.innerHTML = `<p class="k" style="margin:0 0 8px">帳簿の「振込へ」を押すと、ここで選んだ銀行の公式サイトが開きます(仕入先名と金額はコピーされます)。振込の操作は銀行のサイトで行います。銀行名を押すと選択でき、↗ で公式サイトを開きます。</p>
+    ${cur ? `<p style="margin:0 0 4px"><b>選択中:</b> ${esc(cur.name)}</p>` : '<p class="k" style="margin:0 0 4px"><b>まだ選んでいません</b></p>'}` +
+    BANKS.map(([g, list]) => `<p class="k" style="margin:12px 0 4px"><b>${g}</b></p><div class="banks">${list.map(btn).join('')}</div>`).join('') +
+    `<p class="k" style="margin:12px 0 4px"><b>地方銀行</b></p><select id="bk-pref" aria-label="都道府県" style="font:inherit;font-size:15px;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink)"><option value="">都道府県を選ぶ</option>${BANKS_REG.map(([pf]) => `<option${pf === pref ? ' selected' : ''}>${pf}</option>`).join('')}</select>
+    <div class="banks" style="margin-top:8px">${pref ? (BANKS_REG.find(([pf]) => pf === pref) || [, []])[1].map(btn).join('') : ''}</div>
+    <p class="k" style="margin:12px 0 4px"><b>その他(信用金庫・信用組合など)</b></p>
+    <div class="fld"><span class="k">銀行名</span><input id="bk-name" list="bk-names" value="${esc(si.payBank === 'other' ? si.payBankName : '')}" placeholder="例: 〇〇信用金庫" autocomplete="off"><datalist id="bk-names">${bankAll().map(([, n]) => `<option value="${esc(n)}">`).join('')}</datalist></div>
+    <div id="bk-hit"></div>
+    <div id="bk-urlrow" class="fld" hidden><span class="k">公式サイトのURL</span><input id="bk-url" inputmode="url" value="${esc(si.payBank === 'other' ? si.payBankUrl : '')}" placeholder="https://"></div>
     <div class="ask"><button class="btn ghost" type="button" id="bk-save">この銀行にする</button></div>`;
   box.querySelectorAll('[data-bank]').forEach(b => b.onclick = () => setValueX({ field: 'paybank', value: { id: b.dataset.bank } }));
   box.querySelectorAll('[data-open]').forEach(a => a.onclick = e => { e.preventDefault(); openBank(a.dataset.open); });
-  $('bk-save').onclick = () => { const url = $('bk-url').value.trim(); if (!/^https:\/\//.test(url)) { chat('URLは https:// から入れてください'); return; } setValueX({ field: 'paybank', value: { id: 'other', name: $('bk-name').value.trim(), url } }); };
+  $('bk-pref').onchange = () => { renderBanks.pref = $('bk-pref').value; renderBanks(); };
+  // その他: 一覧にある銀行名なら公式サイトを自動で出す。ない名前のときだけURLを入力する
+  const hitOf = () => { const n = $('bk-name').value.trim(); return n ? bankAll().find(x => x[1] === n) : null; };
+  const show2 = () => { const h = hitOf(), n = $('bk-name').value.trim(); $('bk-hit').innerHTML = h ? `<p class="k" style="margin:4px 0 0">公式サイト: <a href="${esc(h[2])}" target="_blank" rel="noopener">${esc(h[2])}</a></p>` : ''; $('bk-urlrow').hidden = !!h || !n; };
+  $('bk-name').oninput = show2; show2();
+  if (si.payBank === 'other' && si.payBankUrl) $('bk-urlrow').hidden = false;
+  $('bk-save').onclick = () => {
+    const h = hitOf(); if (h) { setValueX({ field: 'paybank', value: { id: h[0] } }); return; }
+    const name = $('bk-name').value.trim(), url = $('bk-url').value.trim();
+    if (!name) { $('bk-name').focus(); return; }
+    if (!/^https:\/\//.test(url)) { $('bk-urlrow').hidden = false; chat('一覧にない銀行は、公式サイトのURL(https://〜)を入力してください'); $('bk-url').focus(); return; }
+    setValueX({ field: 'paybank', value: { id: 'other', name, url } });
+  };
 }
 function renderPays() {
   const box = $('pays');
@@ -985,7 +1058,7 @@ function guideHtml(p, i) {
   const head = `<div class="set"><span class="k">目標の原価率</span><input id="sptg-${i}" inputmode="decimal" style="width:4.5em" value="${g.own ? g.target : ''}" placeholder="${g.target}"><span class="k">%</span><button class="btn ghost" type="button" data-ptg="${i}">決定</button></div>`;
   if (!g.inc) return head + `<p class="k" style="margin:0 0 8px">1${U}の原価が出ると、売値の目安が出ます。</p>`;
   const now = p.price ? (p.price >= g.inc ? `いまの売価${p.price}円は目安以上です。` : `いまの売価${p.price}円は目安より${g.inc - p.price}円低めです。`) : '';
-  return head + `<p style="margin:0 0 8px"><b>売値の目安 税込${g.inc.toLocaleString('ja-JP')}円</b> <span class="k">(目標${g.target}%${g.own ? '・この商品だけ' : '・お店の目標'}、税抜${g.ex.toLocaleString('ja-JP')}円、${g.rate}%込み、10円単位で切り上げ)</span><br><span class="k">${now}</span></p>`;
+  return head + `<p style="margin:0 0 8px"><b>売値の目安 税込${g.inc.toLocaleString('ja-JP')}円</b> <span class="k">(目標${g.target}%${g.own ? '・この商品だけ' : '・店舗の目標'}、税抜${g.ex.toLocaleString('ja-JP')}円、${g.rate}%込み、10円単位で切り上げ)</span><br><span class="k">${now}</span></p>`;
 }
 // 税込の売価から、出し方ごとの税抜と原価率(税抜)を出す
 function taxHtml2(p) {
@@ -1048,7 +1121,7 @@ function renderCost() {
     return `<tr data-p="${esc(p.name)}" class="${p.name === prodSel ? 'sel' : ''} ${p.kind === 'part' ? 'part' : ''}">${cols.map(([k]) => {
       if (k === 'name') return `<td><span class="th"><i>${img ? `<img class="stimg" data-img="${esc(img)}" alt="">` : esc(p.name.slice(0, 1))}</i><b>${esc(p.name)}</b>${p.label && p.label.check.length ? ' <span class="k">※</span>' : ''}</span></td>`;
       if (k === 'cat') return `<td>${p.kind === 'part' ? '<span class="k">半製品</span>' : esc(p.cat || '—')}</td>`;
-      if (k === 'cost') return `<td class="n">${v.cost != null ? `<b>${v.cost.toFixed(1)}</b><span class="k">円</span>` : `<span class="k">${p.kind === 'part' ? yen(p.batch_cost) + '/仕込み' : '1' + U + 'の重さ待ち'}</span>`}</td>`;
+      if (k === 'cost') return `<td class="n">${v.cost != null ? `<b>${v.cost.toFixed(1)}</b><span class="k">円${PU(p) !== U ? '/' + esc(PU(p)) : ''}</span>` : `<span class="k">${p.kind === 'part' ? yen(p.batch_cost) + '/仕込み' : '1' + esc(PU(p)) + 'の重さ待ち'}</span>`}</td>`;
       if (k === 'diff') return `<td class="n ${v.diff > 0 ? 'up' : v.diff < 0 ? 'dn' : ''}">${fmtDiff(v.diff)}</td>`;
       if (k === 'price') return `<td class="n">${v.price ? yen(v.price) : '<span class="k">未設定</span>'}</td>`;
       if (k === 'rate') return `<td class="n ${v.rate != null && v.rate > tg(p) ? 'up' : ''}">${v.rate != null ? v.rate + '%' : '—'}</td>`;
@@ -1108,11 +1181,11 @@ function pdetClose() {
 }
 // まとめて編集: 材料と分量・作り方・1個の重さ・取れる数・売価・分類を1つの画面で直し、「保存する」で一度に反映する
 function renderPdetEdit(p, box) {
-  const E = pdetEdit, UNITS = ['g', '個', 'kg', 'cc', 'ml', '枚', '本', '袋'];
+  const U = PU(p), E = pdetEdit, UNITS = ['g', '個', 'kg', 'cc', 'ml', '枚', '本', '袋'];
   const grab = () => {
     E.rows = [...box.querySelectorAll('[data-er]')].map(tr => ({ name: tr.querySelector('.er-n').value.trim(), q: parseFloat(tr.querySelector('.er-q').value) || 0, u: tr.querySelector('.er-u').value }));
     E.steps = [...box.querySelectorAll('[data-es2]')].map(x => x.value.trim());
-    ['pw', 'pieces', 'price', 'cat'].forEach(k => { const e = $('rx-' + k); if (e) E[k] = e.value.trim(); });
+    ['pw', 'pieces', 'price', 'cat', 'unit'].forEach(k => { const e = $('rx-' + k); if (e) E[k] = e.value.trim(); });
   };
   box.innerHTML = `<div class="hd2"><h2>${esc(p.name)} を編集</h2><button class="pdx" type="button" id="rx-x" aria-label="閉じる">×</button></div>
     <div class="pe">
@@ -1123,6 +1196,7 @@ function renderPdetEdit(p, box) {
         <datalist id="mat-names2">${D.materials.map(m => `<option value="${esc(m.name)}">`).join('')}</datalist></section>
       <section><h3>作り方</h3><ol class="pe-s">${E.steps.map((t, i) => `<li><input data-es2="${i}" value="${esc(t)}" maxlength="300" aria-label="手順${i + 1}"><button class="pe-mv" type="button" data-esu="${i}" aria-label="上へ"${i ? '' : ' disabled'}>↑</button><button class="pe-mv" type="button" data-esd="${i}" aria-label="下へ"${i < E.steps.length - 1 ? '' : ' disabled'}>↓</button><button class="pe-del" type="button" data-esx="${i}">削除</button></li>`).join('')}</ol><button class="btn ghost sm" type="button" id="rx-adds">＋ 手順を追加</button></section>
       <section><h3>商品の情報</h3><div class="pe-g">
+        <label>数え方<span><input id="rx-unit" list="unit-list" value="${esc(E.unit)}" maxlength="4" placeholder="例 個" style="width:6em"></span><small>原価や分量の「1${esc(U)}あたり」に使います(例: 個・人前・杯・皿)</small><datalist id="unit-list">${['個', '人前', '杯', '皿', '本', '枚', '切れ', '台', '袋', '箱', 'g'].map(u => `<option value="${u}">`).join('')}</datalist></label>
         <label>1${U}の重さ<span><input id="rx-pw" type="number" step="0.1" min="0" inputmode="decimal" value="${esc(E.pw)}" placeholder="例 40"> g</span></label>
         ${p.composed ? '' : `<label>1仕込みで取れる数<span><input id="rx-pieces" type="number" min="0" inputmode="numeric" value="${esc(E.pieces)}" placeholder="例 8"> ${U}</span><small>入力すると、重さより数を優先します。空にすると重さに戻ります</small></label>`}
         ${noMoney() ? '' : `<label>売価(税込)<span><input id="rx-price" type="number" min="0" inputmode="decimal" value="${esc(E.price)}" placeholder="例 250"> 円</span></label>`}
@@ -1155,6 +1229,7 @@ function renderPdetEdit(p, box) {
     if (!p.composed && (num(E.pieces) || 0) !== (p.piecesN || 0)) calls.push({ field: 'pieces', value: num(E.pieces) || 0 });
     if (!noMoney() && num(E.price) != null && num(E.price) > 0 && num(E.price) !== (p.price || null)) calls.push({ field: 'price', value: num(E.price) });
     if (p.kind !== 'part' && (E.cat || '') !== (p.cat || '')) calls.push({ field: 'pcat', value: E.cat });
+    if ((E.unit || '') !== PU(p)) calls.push({ field: 'punit', value: E.unit === U && !p.unitw ? '' : E.unit });
     if (!calls.length) { back(); return; }
     const sv = $('rx-save'); sv.disabled = true; sv.textContent = '保存しています…';
     for (const c of calls) {
@@ -1167,9 +1242,10 @@ function renderPdetEdit(p, box) {
 }
 function renderPdet() {
   const p = D.products.find(x => x.name === prodSel), box = $('pdet'); if (!p) return;
+  const U = PU(p);
   const costs0 = costsEl(); box.after(costs0);
   pdetOpen(box);
-  if (pdetEdit && pdetEdit.name === p.name) { renderPdetEdit(p, box); return; }
+  if (pdetEdit && pdetEdit.name === p.name) { costs0.innerHTML = ''; renderPdetEdit(p, box); return; }
   pdetEdit = null;
   const per = p.pieces || null, base = per || 1, n = prodN == null ? (per || 1) : prodN, f = per ? n / per : 1;
   const fq = v => (v >= 20 ? Math.round(v).toLocaleString() : Math.round(v * 10) / 10) + 'g';
@@ -1216,7 +1292,7 @@ function renderPdet() {
   $('pdet-photo').onclick = () => { const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*'; inp.onchange = async () => { const fl = inp.files[0]; if (!fl) return; try { const img64 = await shrinkStep(fl); const r = await api({ kind: 'app_img', product: p.name, idx: 0, image: img64, type: 'image/jpeg' }); if (!r.ok) throw new Error(r.error); D = r.data; renderAll(); toast('写真を付けました', 'ok'); } catch (e) { toast(e.message || '写真を送れませんでした'); } }; inp.click(); };
   box.querySelectorAll('[data-qn]').forEach(b => b.onclick = () => { prodN = +b.dataset.qn; renderPdet(); });
   if ($('qn-in')) $('qn-in').onchange = () => { prodN = Math.max(1, Math.min(9999, parseInt($('qn-in').value) || 1)); renderPdet(); };
-  if ($('pdet-edit')) $('pdet-edit').onclick = () => { pdetEdit = { name: p.name, rows: p.rows.map(r => ({ name: r.name, q: r.q != null ? r.q : r.qty, u: r.u || r.unit || 'g' })), steps: (p.steps || []).slice(), pw: p.pw || '', pieces: p.piecesN || '', price: p.price || '', cat: p.cat || '' }; renderPdet(); };
+  if ($('pdet-edit')) $('pdet-edit').onclick = () => { pdetEdit = { name: p.name, rows: p.rows.map(r => ({ name: r.name, q: r.q != null ? r.q : r.qty, u: r.u || r.unit || 'g' })), steps: (p.steps || []).slice(), pw: p.pw || '', pieces: p.piecesN || '', price: p.price || '', cat: p.cat || '', unit: PU(p) }; renderPdet(); };
   // 設定は今までのカードをそのまま、たたんで下に
   renderCostCards(p.name); const set = $('pdet-set'), costs = costs0; set.appendChild(costs);
   costs.querySelectorAll('.prod > .hd, .prod > .big, .prod > .bar').forEach(h => { h.hidden = true; });
@@ -1224,7 +1300,7 @@ function renderPdet() {
 }
 // レシピ票(製造モード): 紙と同じ並び。材料名と分量だけ大きく。店主は「金額も見る」で原体価格・価格・原価率
 function openMk(p) {
-  const mk = $('mk'); let mul = 1, money = false;
+  const U = PU(p), mk = $('mk'); let mul = 1, money = false;
   const per = p.pieces || null, fq = v => (v >= 20 ? Math.round(v).toLocaleString() : Math.round(v * 10) / 10) + 'g';
   const draw = () => {
     const rows = p.rows, tot = (p.batch_cost || 0) * mul, pp = p.per_piece, price = p.price, ex = price ? price / (1 + (p.serve === 'eatin' ? 10 : 8) / 100) : null;
@@ -1250,6 +1326,7 @@ function renderCostCards(only) {
   if (only) open.add(only);
   let partHead = false;
   box.innerHTML = ordered.map(([p, i]) => {
+    const U = PU(p);
     const head = p.per_piece != null ? `<div class="big">${yen1(p.per_piece)}<span class="k" style="font-weight:400"> / 1${U}</span></div>` : '<div class="big" style="font-size:18px;color:var(--ink-2)">1個の重さ待ち</div>';
     const meta = [p.composed ? `<span class="pill gray">組み合わせ ${p.rows.length}つ</span>` : `<span class="pill gray">1仕込み ${yen(p.batch_cost)}</span>`];
     if (p.pieces && !p.composed) meta.push(`<span class="pill gray">約${p.pieces}個</span>`);
@@ -1304,7 +1381,7 @@ function renderCostCards(only) {
   }));
   box.querySelectorAll('[data-ptg]').forEach(b => b.onclick = () => {
     const i = +b.dataset.ptg, inp = $('sptg-' + i), v = inp.value.trim() === '' ? 0 : parseFloat(inp.value);
-    if (v !== 0 && !(v >= 5 && v <= 90)) { inp.focus(); chat('目標の原価率は5〜90(%)で入れてください。空にするとお店の目標に戻ります'); return; }
+    if (v !== 0 && !(v >= 5 && v <= 90)) { inp.focus(); chat('目標の原価率は5〜90(%)で入れてください。空にすると店舗の目標に戻ります'); return; }
     setValueX({ field: 'ptarget', product: D.products[i].name, value: v });
   });
   box.querySelectorAll('[data-pgo]').forEach(b => b.onclick = () => {
@@ -1392,7 +1469,7 @@ function allergenTable(forPrint) {
   const col = a => `<th style="padding:4px 4px;font-size:12px;line-height:1.25;white-space:normal;min-width:2.6em;vertical-align:bottom">${esc(a.replace('成分', ''))}</th>`;
   return `<table class="hgrid alg"><tr><th style="text-align:left">商品</th>${must.map(col).join('')}${rec.length ? `<th style="border-left:2px solid var(--line)"></th>${rec.map(col).join('')}` : ''}</tr>` +
     goods.map(p => { const has = new Set(p.label.allergens); return `<tr><td style="text-align:left;white-space:nowrap"><b>${esc(p.name)}</b>${p.label.check.length ? ' <span class="k">※</span>' : ''}</td>${must.map(a => `<td>${has.has(a) ? '●' : ''}</td>`).join('')}${rec.length ? `<td style="border-left:2px solid var(--line)"></td>${rec.map(a => `<td>${has.has(a) ? '●' : ''}</td>`).join('')}` : ''}</tr>`; }).join('') +
-    `</table><p class="k" style="margin:8px 0 0">左が表示義務の${must.length}品目${rec.length ? '、右が表示推奨のうち使っているもの' : ''}。${D.products.some(p => p.label.check.length) ? '※は材料の確認がまだの商品で、変わることがあります。' : ''}レシピから自動で出した案です。最終確認はお店で。</p>`;
+    `</table><p class="k" style="margin:8px 0 0">左が表示義務の${must.length}品目${rec.length ? '、右が表示推奨のうち使っているもの' : ''}。${D.products.some(p => p.label.check.length) ? '※は材料の確認がまだの商品で、変わることがあります。' : ''}レシピから自動で出した案です。最終確認は店舗で。</p>`;
 }
 function priceCard(p) {
   const L = lblOf(p), alg = p.label.allergens;
@@ -1419,7 +1496,7 @@ function bindQr() {
   if (!$('qr-card')) return;
   const si = D.shopInfo || {}, u = qrDataUrl(D.pubUrl, 600), name = esc(si.name || D.shop);
   const sheet = (w, h, n) => `<style>.qg{display:grid;grid-template-columns:repeat(${n === 1 ? 1 : 2},1fr);gap:6mm}.qc{border:1px solid #999;border-radius:3mm;padding:${n === 1 ? '10mm' : '4mm'};width:${w};height:${h};display:grid;grid-template-columns:${n === 1 ? '1fr' : '28mm 1fr'};gap:${n === 1 ? '6mm' : '3mm'};align-items:center;break-inside:avoid;page-break-inside:avoid;text-align:${n === 1 ? 'center' : 'left'}}.qc img{width:${n === 1 ? '70mm' : '28mm'};height:auto;margin:0 auto}.qc b{display:block;font-size:${n === 1 ? '20pt' : '11pt'}}.qc p{margin:2mm 0 0;font-size:${n === 1 ? '13pt' : '8pt'};line-height:1.4}</style><div class="qg">` +
-    Array.from({ length: n }, () => `<div class="qc"><img src="${u}" alt=""><div><b>${name}</b><p>アレルゲン一覧</p><p>このQRで、商品ごとのアレルゲンをスマートフォンで確認できます。</p><p style="font-size:${n === 1 ? '10pt' : '7pt'}">詳しくはお店の人に確かめてください</p></div></div>`).join('') + '</div>';
+    Array.from({ length: n }, () => `<div class="qc"><img src="${u}" alt=""><div><b>${name}</b><p>アレルゲン一覧</p><p>このQRで、商品ごとのアレルゲンをスマートフォンで確認できます。</p><p style="font-size:${n === 1 ? '10pt' : '7pt'}">詳しくは店舗のスタッフに確かめてください</p></div></div>`).join('') + '</div>';
   $('qr-a5').onclick = () => openPrint(sheet('128mm', '170mm', 1), { bare: true });
   $('qr-cards').onclick = () => openPrint(sheet('91mm', '55mm', 10), { bare: true });
   $('qr-copy').onclick = async () => { try { await navigator.clipboard.writeText(D.pubUrl); toast('住所をコピーしました'); } catch (e) { prompt('この住所をコピー', D.pubUrl); } };
@@ -1458,7 +1535,7 @@ function renderLabel() {
   if (cur === 'label' && labelName) setCrumb([labelName]);
   const p = D.products.find(x => x.name === labelName), lb = p.label, L = lblOf(p), si = D.shopInfo || {};
   const needShop = !(si.name && si.addr) && D.me && D.me.owner;
-  const shopMini = needShop ? `<div class="card" id="lbl-shop"><p style="margin:0 0 8px"><b>ラベルの「製造者」に入れる、お店の名前と住所</b></p><div class="mn-add" style="margin:0;padding:0;border:0"><input id="ls-name" placeholder="お店の名前" value="${esc(si.name || D.shop || '')}" style="flex:1 1 140px;min-width:0"><input id="ls-addr" placeholder="住所(例: 千葉県勝浦市〜)" value="${esc(si.addr || '')}" style="flex:2 1 200px;min-width:0"><button class="btn" type="button" id="ls-go">入れる</button></div></div>` : '';
+  const shopMini = needShop ? `<div class="card" id="lbl-shop"><p style="margin:0 0 8px"><b>ラベルの「製造者」に入れる、店舗名と住所</b></p><div class="mn-add" style="margin:0;padding:0;border:0"><input id="ls-name" placeholder="店舗名" value="${esc(si.name || D.shop || '')}" style="flex:1 1 140px;min-width:0"><input id="ls-addr" placeholder="住所(例: 千葉県勝浦市〜)" value="${esc(si.addr || '')}" style="flex:2 1 200px;min-width:0"><button class="btn" type="button" id="ls-go">入れる</button></div></div>` : '';
   box.innerHTML = shopMini + (face ? storeBox() + `<details class="card" style="margin-top:16px" id="face-lbl"><summary><b>包装して売る・卸す商品のラベル</b> <span class="k">持ち帰り・道の駅・スーパーに出す分だけ</span></summary><div style="margin-top:12px">` : '') + `<div class="label">
     <div class="r"><div class="h">名称</div><div class="v">${esc(L.name)}</div></div>
     <div class="r"><div class="h">原材料名</div><div class="v"><span id="ing">${esc(ingWithOrigin(lb.text, L.origin)) || '(まだ出せません)'}</span>${lb.check.length ? `、<mark>${lb.check.map(esc).join('、')}(要確認)</mark>` : ''}${esc(lb.contains)}</div></div>
@@ -1530,7 +1607,7 @@ function lblPrintCard(p, L) {
         <span class="k">プラマーク</span><label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="lb-pla"${L.pla ? ' checked' : ''}>ラベルに入れる(袋がプラスチックのとき)</label>
         <span class="k">原料原産地</span><div><input id="lb-origin" list="lb-origin-l" value="${esc(L.origin)}" placeholder="例: 国内製造、国産、アメリカ産"><datalist id="lb-origin-l"><option value="国内製造"><option value="国産"><option value="北海道産"><option value="アメリカ産"><option value="カナダ産"><option value="中国産"><option value="輸入"></datalist><p class="k" style="margin:4px 0 0">いちばん多い原材料のすぐ後ろに「(国内製造)」のように入ります。加工した材料なら「国内製造」、生鮮なら「国産」「〇〇産」</p></div>
         <span class="k">表示する者</span><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><select id="lb-mk"><option${L.makerKind === '製造者' ? ' selected' : ''}>製造者</option><option${L.makerKind === '販売者' ? ' selected' : ''}>販売者</option><option${L.makerKind === '加工者' ? ' selected' : ''}>加工者</option></select><input id="lb-fcode" value="${esc(L.fcode)}" placeholder="固有記号(あれば。例: +AB1)" style="width:12em"></div>
-        <span class="k">製造所</span><div><input id="lb-factory" value="${esc(L.factory)}" placeholder="お店と別の場所で作るときだけ(名前と住所)"><p class="k" style="margin:4px 0 0">空なら、上の「${esc(L.makerKind)}」の住所で作っている扱いです</p></div>
+        <span class="k">製造所</span><div><input id="lb-factory" value="${esc(L.factory)}" placeholder="店舗と別の場所で作るときだけ(名前と住所)"><p class="k" style="margin:4px 0 0">空なら、上の「${esc(L.makerKind)}」の住所で作っている扱いです</p></div>
         <span class="k">使用上の注意</span><input id="lb-caution" list="lb-caution-l" value="${esc(L.caution)}" placeholder="例: 開封後はお早めにお召し上がりください"><datalist id="lb-caution-l"><option value="開封後はお早めにお召し上がりください。"><option value="お早めにお召し上がりください。"><option value="小さなお子様やお年寄りの方は、のどに詰まらせないようご注意ください。"><option value="温め直すときは袋から出してください。"><option value="乾燥剤は食べられません。"></datalist>
         <span class="k">開封後</span><input id="lb-opened" list="lb-opened-l" value="${esc(L.opened)}" placeholder="例: 開封後は冷蔵庫で保存し、2日以内に"><datalist id="lb-opened-l"><option value="開封後は冷蔵庫(10℃以下)で保存し、お早めにお召し上がりください。"><option value="開封後は密封して冷蔵庫で保存してください。"><option value="開封後は当日中にお召し上がりください。"></datalist>
         <span class="k">同じ工場で</span><div><div class="chips" style="margin:0">${ALLG_ALL.map(a => `<label class="chip" style="cursor:pointer"><input type="checkbox" class="lb-ct" value="${a}"${L.contam.includes(a) ? ' checked' : ''} style="margin:0 4px 0 0">${a}</label>`).join('')}</div><p class="k" style="margin:4px 0 0">この商品には入っていないが、同じ厨房で使っているアレルゲン。「本品製造工場では、〇〇を含む製品を製造しています」と枠の外に入ります</p></div>
@@ -1820,7 +1897,7 @@ async function setValueX(extra) {
   if (!out.ok) { toast(out.error || 'うまく記録できませんでした', 'ng'); return; }
   D = out.data; renderAll();
   if ((extra.field === 'ing' || extra.field === 'steps') && (D.undo || [])[0] && D.undo[0].product === extra.product) { const u0 = D.undo[0]; toast(out.msg || '直しました', 'ok', ['元に戻す', () => setValueX({ field: 'undo', value: u0.row })]); return; }
-  if (out.msg) { chat(out.msg); return; } toast(extra.field === 'check' ? '確かめました。' : extra.field === 'restoreprod' ? 'レシピを戻しました。' : extra.field === 'hyg' ? '記録しました。' : extra.field === 'deliv' ? '納品を記録しました。' : extra.field === 'shop' ? 'お店の情報を保存しました。' : extra.field === 'lbl' ? 'ラベルの設定を保存しました。' : extra.field === 'paybank' ? `振込は「${esc((payBank() || {}).name || '')}」を開くようにしました。` : ['biz', 'sell', 'unitword', 'serve', 'closed', 'wsprice', 'regalias'].includes(extra.field) ? '変えました。' : extra.field === 'tax' ? '税率を保存しました。' : extra.field === 'target' || extra.field === 'ptarget' ? '目標の原価率を保存しました。' : extra.field === 'aicap' ? 'AI代の上限を保存しました。' : extra.field === 'mat' ? (extra.value && extra.value.alias ? `「${esc(extra.value.alias)}」を「${esc(extra.name)}」の別名にしました。原価に反映しました。` : '材料を保存しました。') : extra.field === 'hygnotice' ? (extra.value === 'off' ? '衛生記録のお知らせは送らないようにしました。' : `衛生記録のお知らせは${extra.value}時に送ります。`) : extra.field === 'sales' ? '売上を記録しました。' : extra.field === 'cycle' ? `棚卸は「${extra.value}」にしました。その前にLINEでお知らせします。` : '記録しました。在庫を計算しなおしました。', 'ok'); act('heart', 1.3);
+  if (out.msg) { chat(out.msg); return; } toast(extra.field === 'check' ? '確かめました。' : extra.field === 'restoreprod' ? 'レシピを戻しました。' : extra.field === 'hyg' ? '記録しました。' : extra.field === 'deliv' ? '納品を記録しました。' : extra.field === 'shop' ? '店舗情報を保存しました。' : extra.field === 'lbl' ? 'ラベルの設定を保存しました。' : extra.field === 'paybank' ? `振込は「${esc((payBank() || {}).name || '')}」を開くようにしました。` : ['biz', 'sell', 'unitword', 'serve', 'closed', 'wsprice', 'regalias'].includes(extra.field) ? '変えました。' : extra.field === 'tax' ? '税率を保存しました。' : extra.field === 'target' || extra.field === 'ptarget' ? '目標の原価率を保存しました。' : extra.field === 'aicap' ? 'AI代の上限を保存しました。' : extra.field === 'mat' ? (extra.value && extra.value.alias ? `「${esc(extra.value.alias)}」を「${esc(extra.name)}」の別名にしました。原価に反映しました。` : '材料を保存しました。') : extra.field === 'hygnotice' ? (extra.value === 'off' ? '衛生記録のお知らせは送らないようにしました。' : `衛生記録のお知らせは${extra.value}時に送ります。`) : extra.field === 'sales' ? '売上を記録しました。' : extra.field === 'cycle' ? `棚卸は「${extra.value}」にしました。その前にLINEでお知らせします。` : '記録しました。在庫を計算しなおしました。', 'ok'); act('heart', 1.3);
 }
 // 税理士に渡す一式(印刷用)
 function taxHtml(r) {
@@ -1857,7 +1934,7 @@ function renderJournal() {
     r.pays.forEach(x => rows.push(['支払い', x[5] || x[3], x[0], x[1] + '分の請求', '', '', '', x[2], '', '', x[4] + (x[3] ? ' 期限 ' + x[3] : '')]));
     (r.regs || []).forEach(x => rows.push(['現金の過不足', x[0], '', x[2] || '理由なし', '', '', '', Math.abs(x[1]), x[1] < 0 ? '雑損失' : '雑収入', '', x[3] || '']));
     const csv = '\ufeff' + rows.map(rw => rw.map(q).join(',')).join('\r\n');
-    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); a.download = `${r.shop || 'お店'}_${r.month}_税理士用.csv`; document.body.appendChild(a); a.click(); a.remove();
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); a.download = `${r.shop || '店舗'}_${r.month}_税理士用.csv`; document.body.appendChild(a); a.click(); a.remove();
     toast('CSVを保存しました', 'ok');
   };
   if ($('tx-jcsv')) $('tx-jcsv').onclick = async () => {
@@ -1870,7 +1947,7 @@ function renderJournal() {
     (r.regs || []).forEach(x => rows.push(x[1] < 0 ? [x[0], '雑損失', -x[1], '現金', -x[1], '現金の不足 ' + (x[2] || '')] : [x[0], '現金', x[1], '雑収入', x[1], '現金の過剰 ' + (x[2] || '')]));
     rows.splice(1, rows.length - 1, ...rows.slice(1).sort((a, b) => a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
     const csv = '\ufeff' + rows.map(rw => rw.map(q).join(',')).join('\r\n');
-    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); a.download = `${r.shop || 'お店'}_${r.month}_仕訳の案.csv`; document.body.appendChild(a); a.click(); a.remove();
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); a.download = `${r.shop || '店舗'}_${r.month}_仕訳の案.csv`; document.body.appendChild(a); a.click(); a.remove();
     toast('仕訳の案を保存しました', 'ok');
   };
 }
@@ -1909,7 +1986,7 @@ function mlockAsk(next) {
     const pinIn = (id, ph) => `<input id="${id}" type="password" inputmode="numeric" autocomplete="off" maxlength="4" placeholder="${ph}" style="font-size:28px;letter-spacing:.4em;text-align:center;width:100%;margin:6px 0">`;
     ov.innerHTML = `<div class="card" role="dialog" aria-modal="true" aria-labelledby="mlk-h" style="max-width:380px;width:100%">
       <h2 id="mlk-h" style="font-family:var(--round);margin:0 0 6px">${mode === 'set' ? '金額表示の暗証番号を設定' : mode === 'reset' ? '暗証番号を決め直す' : '金額を表示する'}</h2>
-      <p class="k" style="margin:0 0 6px">${mode === 'set' ? 'あなただけの4けたの数字です。お店の人に教えないでください(1111のような同じ数字・1234のような並びは使えません)' : mode === 'reset' ? '店主のLINEに届いた6けたの数字と、新しい4けたの暗証番号を入れてください' : 'あなたの4けたの暗証番号を入れてください'}</p>
+      <p class="k" style="margin:0 0 6px">${mode === 'set' ? 'あなただけの4けたの数字です。店舗のスタッフに教えないでください(1111のような同じ数字・1234のような並びは使えません)' : mode === 'reset' ? '店主のLINEに届いた6けたの数字と、新しい4けたの暗証番号を入れてください' : 'あなたの4けたの暗証番号を入れてください'}</p>
       ${mode === 'reset' ? `<input id="mlk-code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="6けたの数字" style="font-size:22px;text-align:center;width:100%;margin:6px 0">` : ''}
       ${pinIn('mlk-pin', '4けた')}${mode !== 'open' ? pinIn('mlk-pin2', 'もう一度') : ''}
       <p class="k" id="mlk-msg" style="margin:4px 0 8px;color:var(--warn)"></p>
@@ -1980,11 +2057,11 @@ function betaAsk() {
   const ov = document.createElement('div'); ov.id = 'beta-ov'; ov.className = 'a2ov'; ov.style.alignItems = 'center';
   ov.innerHTML = `<div class="card" role="dialog" aria-modal="true" aria-labelledby="beta-h" style="max-width:520px;width:100%;max-height:90vh;overflow:auto">
     <h2 id="beta-h" style="font-family:var(--round);margin:0 0 8px">ピタット原価はテスト提供中です</h2>
-    <p style="margin:0 0 8px">少ないお店で使っていただきながら、直しているところです。始める前に、次のことをご確認ください。</p>
+    <p style="margin:0 0 8px">少ない店舗で使っていただきながら、直しているところです。始める前に、次のことをご確認ください。</p>
     <ul style="margin:0 0 12px;padding-left:1.2em;line-height:1.8">
       <li>画面や使い方が、予告なく変わることがあります。</li>
-      <li>止まったり、計算がまちがったりすることがあります。原価や食品表示は、お店でも確かめてからお使いください。</li>
-      <li>お店のデータは毎日控えを取っていますが、すべてを戻せるとは限りません。大事な数字は「書き出し」で手元にも残してください。</li>
+      <li>止まったり、計算がまちがったりすることがあります。原価や食品表示は、店舗でも確かめてからお使いください。</li>
+      <li>店舗のデータは毎日控えを取っていますが、すべてを戻せるとは限りません。大事な数字は「書き出し」で手元にも残してください。</li>
       <li>気づいたことは「相談」から教えてください。直すときの参考にします。</li>
     </ul>
     <label style="display:flex;gap:8px;align-items:center;font-weight:700;margin:0 0 12px"><input type="checkbox" id="beta-read" style="width:22px;height:22px"> 上のことを読みました</label>
@@ -2106,11 +2183,11 @@ function renderSet() {
   const stand = matchMedia('(display-mode: standalone)').matches || navigator.standalone;
   const homeIcon = `<div class="card" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><b>${matchMedia('(pointer:coarse)').matches ? 'ホーム画面のアイコン' : 'パソコンのアイコン'}</b>${stand ? '<span class="pill">アイコンから開いています(置けています)</span>' : `<button class="btn sm" type="button" id="set-a2hs">${matchMedia('(pointer:coarse)').matches ? 'ホーム画面に置く' : 'パソコンに置く'}</button><span class="k">LINEやブラウザを通らず、アイコンから開けるようにします</span>`}</div>`;
   $('set-box').innerHTML = '<h1 class="sub">この端末</h1>' + homeIcon + (PK_OK ? '<div class="card" id="pk-set"><b>顔認証・指紋認証のログイン</b><p class="k" style="margin:6px 0 0">読み込んでいます…</p></div>' : '') + (CF ? `<h1 class="sub">使い方ガイド</h1><div class="card" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><a class="btn ghost sm" href="/guide/start" target="_blank">初期設定(店主・管理者向け)</a><a class="btn ghost sm" href="/guide/daily" target="_blank">日々の操作(すべての利用者向け)</a><a class="btn ghost sm" href="/guide/faq" target="_blank">よくあるご質問(動画付き)</a><button class="btn ghost sm" type="button" id="hint-again">使い方のヒントをもう一度</button></div>` : '') + grp('見え方', 'set', `
-    <div class="set-row"><span>キャラの大きさ</span>${seg('csize', [['s', '小'], ['m', '中'], ['l', '大']], store.get('csize', 'm'))}</div>
+    <div class="set-row"><span>AIのサイズ</span>${seg('csize', [['s', '小'], ['m', '中'], ['l', '大']], store.get('csize', 'm'))}</div>
     <div class="set-row"><span>文字の大きさ</span>${seg('size', [['normal', 'ふつう'], ['big', '大きめ']], store.get('size', 'normal'))}</div>
-    <div class="set-row"><span>画面の色</span>${seg('theme', [['auto', '自動'], ['light', '明るい'], ['dark', '暗い']], store.get('theme', 'auto'))}</div>`) + grp('お店の決まりごと', 'stock', `
-    ${SH('stock') ? '' : `<div class="set-row"><span>棚卸<br><span class="k">お店みんな共通</span></span>${seg('cycle', [['毎月', '毎月'], ['年1回', '年1回']], cyc)}</div>`}
-    <div class="set-row"><span>売り方<br><span class="k">対面・店内で出すお店は、裏表示よりアレルゲン表が主役になります</span></span>${seg('sell', [['pack', '包装して売る'], ['face', '対面・店内で出す']], (D.shopInfo || {}).sell || 'pack')}</div>
+    <div class="set-row"><span>画面の色</span>${seg('theme', [['auto', '自動'], ['light', '明るい'], ['dark', '暗い']], store.get('theme', 'auto'))}</div>`) + grp('店舗の運用設定', 'stock', `
+    ${SH('stock') ? '' : `<div class="set-row"><span>棚卸<br><span class="k">店舗全体で共通</span></span>${seg('cycle', [['毎月', '毎月'], ['年1回', '年1回']], cyc)}</div>`}
+    <div class="set-row"><span>売り方<br><span class="k">対面・店内で出す店舗は、裏表示よりアレルゲン表が主役になります</span></span>${seg('sell', [['pack', '包装して売る'], ['face', '対面・店内で出す']], (D.shopInfo || {}).sell || 'pack')}</div>
     ${noMoney() || !PL('target') ? '' : `<div class="set-row"><span>目標の原価率<br><span class="k">税抜で見ます。売値の目安はここから出します</span></span><span style="display:flex;gap:8px;align-items:center"><input id="tg-v" inputmode="decimal" style="width:4.5em" value="${(D.shopInfo || {}).targetRate || 30}"><span class="k">%</span><button class="btn ghost sm" type="button" id="tg-save">決定</button></span></div>`}
     ${D.plan ? `<div class="set-row" style="display:block"><span>プランと使える量<br><span class="k">${esc(D.plan.planName)}プラン。プランの変更は運営にご相談ください</span></span>${planUse()}</div>` : ''}
     ${D.me && D.me.owner ? `<div class="set-row" style="display:block"><span>税率<br><span class="k">売価は税込で入れます。原価率は税抜で見ます</span></span>
@@ -2119,23 +2196,22 @@ function renderSet() {
       <p class="k" style="margin:8px 0 0">税率が変わることが法律で決まったら、変わる日と税率を入れてください。その日から自動で切りかわります。</p>
       <div class="ask"><button class="btn ghost sm" type="button" id="tx-save">税率を保存</button></div></div>` : ''}
     ${D.me && D.me.owner && PL('sales') && !SH('regclose') ? `<div class="set-row" style="display:block"><span>レジ<br><span class="k">POSレジがあるかどうかで、閉店後のレジ締めの形が変わります。お釣りの準備金は、毎朝レジに入れておくお金です</span></span><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px">${seg('regmode', [['pos', 'POSレジがある'], ['none', 'POSレジはない']], (D.reg || {}).mode || '')}<span class="k">お釣りの準備金</span><input id="rg-fl" inputmode="numeric" style="width:7em" value="${(D.reg || {}).float || ''}" aria-label="お釣りの準備金"><span class="k">円</span><button class="btn ghost sm" type="button" id="rg-fls">決定</button></div></div>` : ''}
-    ${D.me && D.me.owner ? `<div class="set-row"><span>金額表示のロック<br><span class="k">お店のタブレットを置いたままにしても、売上や原価を見られないように。この時間さわらないと閉じ、開くときは人ごとの4けたの暗証番号</span></span><div class="seg" id="mlock-seg">${[[0, '使わない'], [5, '5分'], [10, '10分'], [30, '30分']].map(([v, l]) => `<button type="button" data-ml="${v}" aria-pressed="${((MLOCK || {}).min || 0) === v}">${l}</button>`).join('')}</div></div>` : ''}
-    <div class="set-row"><span>数え方<br><span class="k">原価や分量の「1個あたり」の言葉</span></span><span style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:flex-end">${seg('unitword', [['個', '個'], ['人前', '人前'], ['杯', '杯'], ['食', '食'], ['本', '本'], ['枚', '枚']], (D.words || {}).unit || '個')}<input id="uw-v" placeholder="ほか(例: 皿)" maxlength="4" style="width:7em" value="${['個', '人前', '杯', '食', '本', '枚'].includes((D.words || {}).unit || '個') ? '' : esc((D.words || {}).unit)}" aria-label="ほかの数え方"><button class="btn ghost sm" type="button" id="uw-save">決定</button></span></div>
+    ${D.me && D.me.owner ? `<div class="set-row"><span>金額表示のロック<br><span class="k">店舗のタブレットを置いたままにしても、売上や原価を見られないように。この時間さわらないと閉じ、開くときは人ごとの4けたの暗証番号</span></span><div class="seg" id="mlock-seg">${[[0, '使わない'], [5, '5分'], [10, '10分'], [30, '30分']].map(([v, l]) => `<button type="button" data-ml="${v}" aria-pressed="${((MLOCK || {}).min || 0) === v}">${l}</button>`).join('')}</div></div>` : ''}
     ${D.me && D.me.owner && (D.jobList || []).length ? `<div class="set-row" style="display:block"><span>利用する業務<br><span class="k">印をつけた仕事の入口が、メニューの前に出ます。撮る・取り込み一覧・原価・表示・衛生・帳簿はいつも前にあります。ほかは「その他の機能」から開けます(消えません)</span></span><div class="seg" id="jobs" style="flex-wrap:wrap;margin-top:8px">${D.jobList.map(([k, l]) => `<button type="button" data-k="${k}" aria-pressed="${jobsNow().includes(k)}">${l}</button>`).join('')}</div></div>` : ''}
-    ${D.me && D.me.owner && CF ? `<div class="set-row" style="display:block"><span>お店のデータを書き出す<br><span class="k">お店の記録を丸ごと、いつでも自分で持ち出せます(やめるときも)。表ごとのCSVはExcelで開けます。店主だけ</span></span><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button class="btn sm" type="button" id="exp-all">丸ごと書き出す</button></div><div id="exp-list" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px"></div></div>` : ''}
+    ${D.me && D.me.owner && CF ? `<div class="set-row" style="display:block"><span>店舗のデータを書き出す<br><span class="k">店舗の記録を丸ごと、いつでも自分で持ち出せます(やめるときも)。表ごとのCSVはExcelで開けます。店主だけ</span></span><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button class="btn sm" type="button" id="exp-all">丸ごと書き出す</button></div><div id="exp-list" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px"></div></div>` : ''}
     ${D.me && D.me.owner && (D.hideable || []).length ? `<div class="set-row" style="display:block"><span>使う画面<br><span class="k">使わない画面を隠すと、メニューに出なくなります。データは消えず、いつでも戻せます</span></span><div class="seg" id="hide-tabs" style="flex-wrap:wrap;margin-top:8px">${D.hideable.map(([k, l]) => `<button type="button" data-k="${k}" aria-pressed="${!(D.hidden || []).includes(k)}">${l}</button>`).join('')}</div></div>` : ''}
     <div class="set-row"><span>業種<br><span class="k">AIに伝えるためのメモ。画面や機能は変わりません</span>${(D.words || {}).biz ? '' : '<br><span class="pill">未記入</span>'}</span>${seg('biz', ((D.words || {}).list || []).map(b => [b, b]), (D.words || {}).biz)}</div>
     `) + grp('お知らせ', 'hyg', `
     <div class="set-row"><span>衛生記録のお知らせ<br><span class="k">記録がまだのとき、LINEで念押しする時刻</span></span><div class="seg" id="hygnotice" style="flex-wrap:wrap;justify-content:flex-end">${[['off', '送らない'], ['9', '9時'], ['12', '12時'], ['15', '15時'], ['17', '17時'], ['19', '19時'], ['21', '21時']].map(([v, l]) => `<button type="button" data-v="${v}" aria-pressed="${String((D.shopInfo || {}).hygNotice || '17') === v}">${l}</button>`).join('')}</div></div>
     <div class="set-row"><span>定休日<br><span class="k">衛生の念押しを休む</span></span><div class="seg" id="closed">${['月', '火', '水', '木', '金', '土', '日'].map(w => `<button type="button" data-w="${w}" aria-pressed="${((D.shopInfo || {}).closed || '').includes(w)}">${w}</button>`).join('')}</div></div>
-    `) + grp('仕入先・卸先', 'book', '<p class="k" style="margin:0 0 8px">電話・担当・振込先の一覧は、メニューの「仕入先・卸先」にあります</p><button class="btn ghost" type="button" id="set-ct">仕入先・卸先の一覧を開く</button>') + grp('お店の情報', 'ws', `<p class="k" style="margin:0 0 8px">卸の請求書とラベルの製造者欄に入ります</p>
+    `) + grp('仕入先・卸先', 'book', '<p class="k" style="margin:0 0 8px">電話・担当・振込先の一覧は、メニューの「仕入先・卸先」にあります</p><button class="btn ghost" type="button" id="set-ct">仕入先・卸先の一覧を開く</button>') + grp('店舗情報', 'ws', `<p class="k" style="margin:0 0 8px">卸の請求書とラベルの製造者欄に入ります</p>
     <div class="set-row" style="display:block;padding-top:0">
       <div class="fld" style="margin-top:8px">${[['name', '店名'], ['rep', '代表者'], ['addr', '住所'], ['tel', '電話'], ['reg', '登録番号(T〜)'], ['bank', '振込先']].map(([k, l]) => `<span class="k">${l}</span><input data-shop="${k}" value="${esc((D.shopInfo || {})[k] || '')}">`).join('')}</div>
-      <div class="ask"><button class="btn" type="button" id="shop-save">お店の情報を保存</button></div></div>`) + grp('データの約束', 'label', `
+      <div class="ask"><button class="btn" type="button" id="shop-save">店舗情報を保存</button></div></div>`) + grp('データの約束', 'label', `
     <ul class="k" style="margin:0;padding-left:1.2em;line-height:1.9">
-      <li>撮った写真や記録は、お店のデータを作るためだけに使います。</li>
+      <li>撮った写真や記録は、店舗のデータを作るためだけに使います。</li>
       <li>読み取りに使うAI(Anthropic社)の商用サービスには、お客さまの内容をAIの学習に使わない決まりがあります。</li>
-      <li>データはお店ごとに分けて預かり、見られるのは招待した人だけです。</li>
+      <li>データは店舗ごとに分けて預かり、見られるのは招待した人だけです。</li>
       <li>やめるときは、記録をまとめて書き出してお渡しし、残るデータは消します。</li>
     </ul>`) + `
     <div class="set-row" style="padding:8px 4px"><span class="k">${esc(D.shop)} · ${new Date(D.at).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} 時点</span><span class="seg"><button type="button" id="reload">読み込み直す</button></span></div>`;
@@ -2172,7 +2248,7 @@ function renderSet() {
   if ($('exp-all')) $('exp-all').onclick = async () => {
     const b = $('exp-all'); b.disabled = true; const r = await api({ kind: 'app_export_all' }).catch(() => ({ ok: false, error: 'つながりませんでした' })); b.disabled = false;
     if (!r.ok) { toast(r.error || '書き出せませんでした', 'ng'); return; }
-    const day = new Date().toISOString().slice(0, 10), nm = String(r.shop || 'お店').replace(/[\\/:*?"<>|]/g, '');
+    const day = new Date().toISOString().slice(0, 10), nm = String(r.shop || '店舗').replace(/[\\/:*?"<>|]/g, '');
     const save = (blob, name) => { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove(); };
     save(new Blob([JSON.stringify({ shop: r.shop, at: new Date(r.at).toISOString(), sheets: r.sheets }, null, 1)], { type: 'application/json' }), `${nm}_全データ_${day}.json`);
     const csv = rows => '\ufeff' + rows.map(row => row.map(v => { const t = v == null ? '' : typeof v === 'object' ? JSON.stringify(v) : String(v); return /[",\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t; }).join(',')).join('\r\n');
@@ -2249,7 +2325,7 @@ function renderHygPlan(own) {
   const box = $('hyg-plan'), P = D.hyg && D.hyg.plan; if (!box) return;
   if (!P) { box.innerHTML = '<p class="k" style="margin:0">読み込めませんでした</p>'; return; }
   const goods = D.products.filter(p => p.kind !== 'part');
-  box.innerHTML = `<p class="k" style="margin:0 0 8px">保健所は「計画」と「記録」の両方を見ます。下の計画には、ひな形の文が入っています。お店のやり方に合わせて編集し、印刷して記録表と一緒に保管してください。${P.made ? `(最終更新日 ${esc(P.made)})` : ''}</p>
+  box.innerHTML = `<p class="k" style="margin:0 0 8px">保健所は「計画」と「記録」の両方を見ます。下の計画には、ひな形の文が入っています。店舗のやり方に合わせて編集し、印刷して記録表と一緒に保管してください。${P.made ? `(最終更新日 ${esc(P.made)})` : ''}</p>
     <div class="row" style="gap:8px;flex-wrap:wrap"><span class="k">衛生の責任者</span>${own ? `<input id="hp-resp" value="${esc(P.resp)}" placeholder="例: 税所" maxlength="30" style="width:10em"><button class="btn ghost sm" type="button" id="hp-resp-go">決定</button>` : `<b>${esc(P.resp || '未記入')}</b>`}</div>
     <h2 class="ch" style="margin-top:14px">一般衛生管理</h2>
     <div class="scroll"><table class="hp-tbl"><thead><tr><th>項目</th><th>いつ</th><th>どのように</th><th>問題があったとき</th>${own ? '<th></th>' : ''}</tr></thead><tbody>
@@ -2467,7 +2543,7 @@ let moneyMo = null;
 function renderMoney() {
   const box = $('money-box'); if (!box) return;
   const mm = D.money || {}, ms = Object.keys(mm).sort();
-  if (noMoney() || !ms.length) { box.innerHTML = noMoney() ? '' : `<div class="card"><h2 class="ch">入出金</h2><p class="k" style="margin:0">売上(レジの精算レシート)と、仕入れの請求書やお店で買ったもののレシートを撮ると、月の「入金・出金・残り」がここに出ます。</p>${expForm()}</div>`; bindExp(); return; }
+  if (noMoney() || !ms.length) { box.innerHTML = noMoney() ? '' : `<div class="card"><h2 class="ch">入出金</h2><p class="k" style="margin:0">売上(レジの精算レシート)と、仕入れの請求書や店舗で買ったもののレシートを撮ると、月の「入金・出金・残り」がここに出ます。</p>${expForm()}</div>`; bindExp(); return; }
   const sel = ms.includes(moneyMo) ? moneyMo : ms[ms.length - 1], o = mm[sel], mx = Math.max(1, ...ms.map(k => Math.max(mm[k].in, mm[k].out)));
   box.innerHTML = `<div class="card"><div class="row"><h2 class="ch">入出金</h2>${ms.length > 1 ? `<select id="mn-mo" aria-label="月">${ms.slice().reverse().map(k => `<option value="${k}"${k === sel ? ' selected' : ''}>${k.replace('-', '年')}月</option>`).join('')}</select>` : `<span class="k">${sel.replace('-', '年')}月</span>`}</div>
     <div class="mn-sum"><div><b>${yen(o.in)}</b><span>入金</span></div><div><b>${yen(o.out)}</b><span>出金</span></div><div class="${o.left < 0 ? 'neg' : ''}"><b>${yen(o.left)}</b><span>残り</span></div></div>
@@ -2547,7 +2623,7 @@ function expForm() {
     ${(D.fixedExps || []).map((x, i) => `<div class="row" style="padding:4px 0"><span>${esc(x.item)} ${yen(x.amount)} ・ 毎月${x.day}日${x.acct ? ' ・ ' + esc(x.acct) : ''}</span><button class="btn ghost sm" type="button" data-fxx="${i}">外す</button></div>`).join('')}
     <div class="mn-add"><input id="fx-item" placeholder="内容(例: 家賃)" maxlength="40"><input id="fx-amt" inputmode="numeric" placeholder="金額(円)"><input id="fx-day" inputmode="numeric" placeholder="日(1〜28)" style="width:100px"><select id="fx-acct" aria-label="科目"><option value="">科目はおまかせ</option>${(D.expAccts || []).map(a => `<option>${esc(a)}</option>`).join('')}</select><button class="btn" type="button" id="fx-go">入れる</button></div></details>`}
   <details style="margin-top:12px"><summary class="k" style="cursor:pointer">経費の科目を足す${(D.expExtra || []).length ? ': ' + D.expExtra.map(esc).join('・') : ''}</summary>
-    <p class="k" style="margin:8px 0">決まった科目のほかに、お店で使う科目を足せます(例: 荷造運賃、支払手数料)。</p>
+    <p class="k" style="margin:8px 0">決まった科目のほかに、店舗で使う科目を足せます(例: 荷造運賃、支払手数料)。</p>
     ${(D.expExtra || []).map((x, i) => `<div class="row" style="padding:4px 0"><span>${esc(x)}</span><button class="btn ghost sm" type="button" data-eax="${i}">外す</button></div>`).join('')}
     <div class="mn-add"><input id="ea-name" placeholder="科目の名前" maxlength="20" style="flex:1 1 160px;min-width:0"><button class="btn" type="button" id="ea-go">足す</button></div></details>`;
 }
@@ -2825,13 +2901,13 @@ function renderPost() {
   if (SH('insta')) { const ld = document.querySelector('#t-post .lead'); if (ld) ld.textContent = '値上げのお知らせ文と、店に置くポップ・値札・貼り紙を作ります。'; if ($('post-free')) $('post-free').placeholder = '例: 11月1日からの値上げのお知らせ'; }
   // お店の型
   const bb = $('post-brand');
-  if (bb && !(D.me && D.me.owner)) bb.innerHTML = `<div class="row"><b>お店の型</b></div><p class="k" style="margin:4px 0 0">ロゴ・お店の色・書体は、店主が決めます。${b.color || b.logo ? '登録済みの型が、画像と印刷物に入ります。' : ''}</p>`;
+  if (bb && !(D.me && D.me.owner)) bb.innerHTML = `<div class="row"><b>店舗の型</b></div><p class="k" style="margin:4px 0 0">ロゴ・店舗の色・書体は、店主が決めます。${b.color || b.logo ? '登録済みの型が、画像と印刷物に入ります。' : ''}</p>`;
   else if (bb) {
-    bb.innerHTML = `<div class="row"><b>お店の型</b><span class="k">${b.color || b.font || b.logo ? '登録済み' : 'まだ'}</span></div>
-      <p class="k" style="margin:4px 0 12px">ロゴ・お店の色・書体を一度入れると、画像・ポップ・値札・貼り紙のすべてに入ります。ほかのお店と同じ見た目になりません。</p>
+    bb.innerHTML = `<div class="row"><b>店舗の型</b><span class="k">${b.color || b.font || b.logo ? '登録済み' : 'まだ'}</span></div>
+      <p class="k" style="margin:4px 0 12px">ロゴ・店舗の色・書体を一度入れると、画像・ポップ・値札・貼り紙のすべてに入ります。ほかの店舗と同じ見た目になりません。</p>
       <div class="brand-row"><div class="brand-logo">${b.logo ? `<img src="${b.logo}" alt="ロゴ">` : '<span class="k">ロゴなし</span>'}</div>
         <div class="ps-ctl"><label class="btn ghost ps-photo">ロゴを入れる<input type="file" id="br-logo" accept="image/*" hidden></label>${b.logo ? '<button class="btn ghost" type="button" id="br-nologo">ロゴを外す</button>' : ''}
-        <span class="k">お店の色</span><div class="brand-colors">${['', '#a8322a', '#b5541c', '#8a4b1c', '#2f7d6d', '#1d7fb3', '#1f2a44', '#d6577a', '#5a4fcf'].map(c => `<button type="button" class="sw2" data-bc="${c}" aria-pressed="${(b.color || '') === c}" style="background:${c || 'conic-gradient(#a8322a,#2f7d6d,#1d7fb3,#d6577a,#a8322a)'}" title="${c ? c : '型の色のまま'}"></button>`).join('')}<input type="color" id="br-color" value="${b.color || '#a8322a'}" aria-label="ほかの色"></div>
+        <span class="k">店舗の色</span><div class="brand-colors">${['', '#a8322a', '#b5541c', '#8a4b1c', '#2f7d6d', '#1d7fb3', '#1f2a44', '#d6577a', '#5a4fcf'].map(c => `<button type="button" class="sw2" data-bc="${c}" aria-pressed="${(b.color || '') === c}" style="background:${c || 'conic-gradient(#a8322a,#2f7d6d,#1d7fb3,#d6577a,#a8322a)'}" title="${c ? c : '型の色のまま'}"></button>`).join('')}<input type="color" id="br-color" value="${b.color || '#a8322a'}" aria-label="ほかの色"></div>
         <span class="k">書体</span><div class="seg" id="br-font">${[['', '型のまま']].concat(Object.keys(FONTS).map(k => [k, FONTS[k].label])).map(([k, l]) => `<button type="button" data-v="${k}" aria-pressed="${(b.font || '') === k}">${l}</button>`).join('')}</div></div></div>`;
     const saveB = v => setValueX({ field: 'shop', value: v });
     bb.querySelectorAll('[data-bc]').forEach(x => x.onclick = () => saveB({ brandColor: x.dataset.bc }));
@@ -2847,7 +2923,7 @@ function renderPost() {
   const box = $('post-shop');
   if (box) {
     box.innerHTML = `<div class="row"><b>店に置くもの</b></div>
-      <p class="k" style="margin:4px 0 12px">印刷して店頭に。${SH('insta') ? '色と書体は下の「お店の型」で決めたものになります。' : '色と模様は下の「SNSに上げる画像」で選んだ型になります。'}</p>
+      <p class="k" style="margin:4px 0 12px">印刷して店頭に。${SH('insta') ? '色と書体は下の「店舗の型」で決めたものになります。' : '色と模様は下の「SNSに上げる画像」で選んだ型になります。'}</p>
       <div class="ps-acts"><button class="btn ghost" type="button" id="ps-cards">値札カード(全商品・A4に8枚)</button>${sellFace() ? '<button class="btn ghost" type="button" id="ps-al">アレルゲン表</button>' : ''}
       <button class="btn ghost" type="button" id="ps-pop">ポップ(A5)</button><button class="btn ghost" type="button" id="ps-notice">お知らせの貼り紙(A4)</button></div>`;
     $('ps-cards').onclick = () => { if (!goods.length) { chat('商品がまだありません'); return; } priceCards(goods); };
@@ -2859,7 +2935,7 @@ function renderPost() {
   const pl = $('post-plan');
   if (pl) {
     const plan = postPlan(), md = d => `${d.getMonth() + 1}/${d.getDate()}`;
-    pl.innerHTML = `<div class="row"><b>投稿の予定表</b><span class="k">これから45日</span></div><p class="k" style="margin:4px 0 8px">行事の1週間前に出すと、お客様が予定に入れやすくなります。お店の予定(休み・催事)も入ります。</p>
+    pl.innerHTML = `<div class="row"><b>投稿の予定表</b><span class="k">これから45日</span></div><p class="k" style="margin:4px 0 8px">行事の1週間前に出すと、お客様が予定に入れやすくなります。店舗の予定(休み・催事)も入ります。</p>
       ${plan.length ? plan.map((e, i) => `<div class="plan-row"><span class="plan-d">${md(e.post)}<small>に出す</small></span><span><b>${esc(e.t)}</b>${e.own ? '' : `<span class="k">(${md(e.date)})</span>`}<br><span class="k">${esc(e.theme)}</span></span><button class="btn ghost sm" type="button" data-plan="${i}">これで作る</button></div>`).join('') : '<p class="k">近い行事はありません。</p>'}`;
     pl.querySelectorAll('[data-plan]').forEach(x => x.onclick = () => { const e = plan[x.dataset.plan]; PS.tpl = e.tpl; store.set('pTpl', PS.tpl); PS.c = null; PS.s = null; $('post-free').value = e.theme; renderPost(); $('post-free').scrollIntoView({ block: 'center', behavior: 'smooth' }); chat('型を選びました。「案を作る」で言葉を作れます。型の一言のままでも使えます'); });
   }
@@ -2986,7 +3062,7 @@ function faces() { const el = $('sface'); if (STILL) { el.style.backgroundImage 
 if (STILL) faces(); else (() => { const s = document.createElement('script'); s.src = 'emoji.js?v=18'; s.async = true; s.onload = faces; document.body.appendChild(s); })();
 function addMsg(html, me) { const d = document.createElement('div'); d.className = 'm' + (me ? ' me' : ''); d.innerHTML = html; msgs.appendChild(d); d.scrollIntoView({ block: 'end', behavior: 'smooth' }); return d; }
 function botSay(html, role) { const d = addMsg('…'); setTimeout(() => { d.innerHTML = html; d.scrollIntoView({ block: 'end', behavior: 'smooth' }); }, 120); if (role) chat(null, role); }
-function openAsk() { if (!D) return; sheet.hidden = false; if (!msgs.children.length) botSay('何でも聞いてください。使い方も、お店のことも答えます。'); renderChips(); setTimeout(() => qIn.focus(), 100); }
+function openAsk() { if (!D) return; sheet.hidden = false; if (!msgs.children.length) botSay('何でも聞いてください。使い方も、店舗のことも答えます。'); renderChips(); setTimeout(() => qIn.focus(), 100); }
 $('sclose').onclick = () => sheet.hidden = true; sheet.onclick = e => { if (e.target === sheet) sheet.hidden = true; };
 ch.onclick = openAsk; ch.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openAsk(); } };
 $('cam').onclick = openCamera;
@@ -3047,7 +3123,7 @@ async function ask(s) {
   } finally { asking = false; }
 }
 // 返事の [[open:〜]] を「〇〇を開く」ボタンにする
-const OPEN_TO = { today: ['ホーム'], cost: ['原価'], howto: ['作り方', '手順'], label: ['食品表示'], labelprint: ['ラベルを印刷', 'label', '.lpc'], mat: ['材料'], hyg: ['衛生'], book: ['帳簿'], ws: ['卸'], ct: ['仕入先・卸先'], post: ['発信'], brand: ['お店の型', 'post', '#post-brand'], cal: ['予定'], sales: ['売上'], set: ['設定'], members: ['メンバー', 'set', '#members-box'], a2hs: ['ホーム画面に置く案内'], guide: ['使い方ガイド'] };
+const OPEN_TO = { today: ['ホーム'], cost: ['原価'], howto: ['作り方', '手順'], label: ['食品表示'], labelprint: ['ラベルを印刷', 'label', '.lpc'], mat: ['材料'], hyg: ['衛生'], book: ['帳簿'], ws: ['卸'], ct: ['仕入先・卸先'], post: ['発信'], brand: ['店舗の型', 'post', '#post-brand'], cal: ['予定'], sales: ['売上'], set: ['設定'], members: ['メンバー', 'set', '#members-box'], a2hs: ['ホーム画面に置く案内'], guide: ['使い方ガイド'] };
 function openBtns(h) { return h.replace(/\n?\[\[open:([a-z0-9]+)\]\]/g, (m, k) => OPEN_TO[k] ? `<br><button class="btn ghost sm" type="button" data-open="${k}">「${OPEN_TO[k][0]}」を開く</button>` : ''); }
 function openTo(k) {
   const o = OPEN_TO[k]; if (!o) return; sheet.hidden = true;
@@ -3300,7 +3376,7 @@ async function renderAccount() {
     <p class="k" style="margin:0 0 12px">メール: ${a.email ? esc(a.email) : 'まだ'} ・ LINE: ${a.line ? 'つながっています' : 'まだ'}</p>
     ${a.email ? '' : '<div class="ask" style="margin-top:0"><input id="ac-mail" type="email" placeholder="メールアドレス" style="flex:1" aria-label="メールアドレス"><button class="btn ghost" type="button" id="ac-mail-go">メールでも入れるように</button></div><p class="k" id="ac-mail-msg" style="margin:4px 0 0"></p>'}
     ${a.line || IN_LINE || !a.lineLogin ? '' : '<div class="ask"><a class="btn ghost" href="/auth/line?link=1&next=/app/">LINEとつなぐ</a></div>'}
-    ${(a.shops || []).length > 1 ? `<div class="ask"><select id="ac-shop" aria-label="お店を切り替える" style="flex:1">${a.shops.map(x => `<option value="${esc(x.id)}"${a.shop && a.shop.id === x.id ? ' selected' : ''}>${esc(x.name || x.id)}</option>`).join('')}</select><button class="btn ghost" type="button" id="ac-shop-go">切り替える</button></div>` : ''}
+    ${(a.shops || []).length > 1 ? `<div class="ask"><select id="ac-shop" aria-label="店舗を切り替える" style="flex:1">${a.shops.map(x => `<option value="${esc(x.id)}"${a.shop && a.shop.id === x.id ? ' selected' : ''}>${esc(x.name || x.id)}</option>`).join('')}</select><button class="btn ghost" type="button" id="ac-shop-go">切り替える</button></div>` : ''}
     <div class="ask"><button class="btn ghost" type="button" id="ac-inv">スタッフを招待するリンク</button></div><p class="k" id="ac-inv-out" style="margin:4px 0 0;word-break:break-all"></p>
 
     ${IN_LINE ? '' : '<div class="ask"><a class="btn ghost" href="/password">パスワードを決めなおす</a></div>'}
@@ -3325,7 +3401,7 @@ async function renderAccount() {
   if ($('ac-start')) $('ac-start').onclick = async () => {
     const r = await api({ kind: 'app_start_link' });
     if (!r.ok) { $('ac-start-out').textContent = r.error || '作れませんでした'; return; }
-    linkOut($('ac-start-out'), r.link, '新しく使い始めるお店に送るリンクです(1回だけ・7日間有効)。開いた人が店主になり、空のお店から始まります。');
+    linkOut($('ac-start-out'), r.link, '新しく使い始める店舗に送るリンクです(1回だけ・7日間有効)。開いた人が店主になり、空の店舗から始まります。');
   };
   $('ac-inv').onclick = async () => {
     const r = await api({ kind: 'app_new_invite' });
@@ -3362,7 +3438,7 @@ async function renderAccount() {
     cols.append(L, R); sec.appendChild(cols);
   }
 })();
-if (CF) { $('words-h').textContent = '話しかけられる言葉'; $('ct-via').textContent = '「問い合わせ 〜」と話しかけてもOK'; }
+if (CF) { $('ct-via').textContent = '「問い合わせ 〜」とAIに送っても受け付けます'; }
 rest();
 // 前に読んだ内容をすぐ出して、裏で新しいものを読み直す(電波が弱くても待たない)
 (() => { const c = cache.get(); if (c && c.products) { try { D = c; MLOCK = D.mlock || null; state(''); renderAll(); show(store.get('tab', 'today'), true); setTimeout(() => chat(hello(), 'greet'), 250); } catch (e) { D = null; } } })();
