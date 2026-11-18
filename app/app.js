@@ -1017,7 +1017,7 @@ function renderCats(rate) {
   box.querySelectorAll('[data-cs]').forEach(b => b.onclick = () => { catSel = b.dataset.cs; renderCost(); });
 }
 // ---------- 原価: 表(表計算の密度) → 行を押すと下に商品(写真・材料と量・作り方) → レシピ票(製造モード) ----------
-let prodSel = null, prodN = null, prodEditI = -1, prodEditS = -1, costQ = '', costFilt = 'all';
+let prodSel = null, prodN = null, prodEditI = -1, prodEditS = -1, costQ = '', costFilt = 'all', pdetEdit = null;
 const COST_COLS = [['name', '商品'], ['cat', '分類'], ['cost', `1${'個'}の原価`], ['diff', '先月比'], ['price', '売価(税込)'], ['rate', '原価率'], ['gp', '粗利/個'], ['sold', '今月の販売数'], ['sure', '確かめた割合'], ['upd', '更新']];
 function prodSold(p) { const mo = (D.status || {}).month || new Date().toISOString().slice(0, 7), m = (D.menu || {})[mo]; const it = m && (m.items || []).find(x => x.name === p.name); return it ? it.qty : null; }
 function prodVals(p) {
@@ -1058,12 +1058,12 @@ function renderCost() {
       return `<td><span class="k">${p.updated ? new Date(p.updated).toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' }) : '—'}</span></td>`;
     }).join('')}</tr>`; }).join('')}</tbody>`;
   tb.querySelectorAll('th[data-k]').forEach(th => th.onclick = () => { const k = th.dataset.k; if (key === k) store.set('costDir', -dir); else { store.set('costSort', k === 'upd' ? 'new' : k); store.set('costDir', ['name', 'cat'].includes(k) ? 1 : -1); } renderCost(); });
-  tb.querySelectorAll('tbody tr').forEach(tr => tr.onclick = () => { prodSel = tr.dataset.p === prodSel ? null : tr.dataset.p; prodN = null; prodEditI = -1; prodEditS = -1; renderCost(); if (prodSel) setTimeout(() => $('pdet').scrollIntoView({ block: 'start', behavior: 'smooth' }), 50); });
+  tb.querySelectorAll('tbody tr').forEach(tr => tr.onclick = () => { prodSel = tr.dataset.p; prodN = null; pdetEdit = null; renderCost(); });
   bindStepImgs(tb);
   const gl = list.filter(p => p.kind !== 'part' && prodVals(p).rate != null), avg = gl.length ? Math.round(gl.reduce((a, p) => a + prodVals(p).rate, 0) / gl.length) : null;
-  foot.innerHTML = `<span>${list.length} / ${D.products.length} 品${avg != null && money ? ` ・ 原価率の平均 ${avg}%` : ''}</span><span>行を押すと、下に商品の詳細(写真・材料と量・作り方)が表示されます</span>`;
+  foot.innerHTML = `<span>${list.length} / ${D.products.length} 品${avg != null && money ? ` ・ 原価率の平均 ${avg}%` : ''}</span><span>行を押すと、商品の詳細(写真・材料と分量・作り方)が開きます</span>`;
   if (prodSel && !D.products.find(p => p.name === prodSel)) prodSel = null;
-  if (prodSel) renderPdet(); else { $('pdet').hidden = true; costsEl().innerHTML = ''; }
+  if (prodSel) renderPdet(); else { $('pdet').hidden = true; $('pdet').classList.remove('modal'); const ov = $('pdet-ov'); if (ov) ov.hidden = true; document.body.classList.remove('pdet-on'); costsEl().innerHTML = ''; }
   renderCostBack();
 }
 // 戻す: 消したレシピ(戻す・完全に消す)と、材料・作り方を直す前の控え
@@ -1081,10 +1081,84 @@ function renderCostBack() {
 }
 // 商品: 左に写真、右に材料と量(個数を変えられる・1つずつ直せる)、下に作り方(1つずつ直せる)。設定はたたんで下に
 function costsEl() { let c = $('costs'); if (!c) { c = document.createElement('div'); c.id = 'costs'; c.className = 'stack'; $('pdet').after(c); } return c; }
+// 商品の詳細は、画面の手前に開く窓。閉じると原価の表に戻る
+function pdetOpen(box) {
+  box.hidden = false; box.classList.add('modal'); box.setAttribute('role', 'dialog'); box.setAttribute('aria-modal', 'true');
+  let ov = $('pdet-ov'); if (!ov) { ov = document.createElement('div'); ov.id = 'pdet-ov'; ov.className = 'pdet-ov'; document.body.appendChild(ov); ov.onclick = () => pdetClose(); }
+  ov.hidden = false; document.body.classList.add('pdet-on');
+  if (!pdetOpen.key) { pdetOpen.key = 1; document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('pdet').hidden) pdetClose(); }); }
+}
+function pdetClose() {
+  if (pdetEdit && pdetEdit.dirty && !pdetClose.ok) { pdetClose.ok = 1; toast('保存していない変更があります。もう一度閉じると、変更を破棄します。'); setTimeout(() => { pdetClose.ok = 0; }, 4000); return; }
+  pdetClose.ok = 0; pdetEdit = null; prodSel = null;
+  const box = $('pdet'); box.hidden = true; box.classList.remove('modal'); const ov = $('pdet-ov'); if (ov) ov.hidden = true; document.body.classList.remove('pdet-on');
+  renderCost();
+}
+// まとめて編集: 材料と分量・作り方・1個の重さ・取れる数・売価・分類を1つの画面で直し、「保存する」で一度に反映する
+function renderPdetEdit(p, box) {
+  const E = pdetEdit, UNITS = ['g', '個', 'kg', 'cc', 'ml', '枚', '本', '袋'];
+  const grab = () => {
+    E.rows = [...box.querySelectorAll('[data-er]')].map(tr => ({ name: tr.querySelector('.er-n').value.trim(), q: parseFloat(tr.querySelector('.er-q').value) || 0, u: tr.querySelector('.er-u').value }));
+    E.steps = [...box.querySelectorAll('[data-es2]')].map(x => x.value.trim());
+    ['pw', 'pieces', 'price', 'cat'].forEach(k => { const e = $('pe-' + k); if (e) E[k] = e.value.trim(); });
+  };
+  box.innerHTML = `<div class="hd2"><h2>${esc(p.name)} を編集</h2><button class="pdx" type="button" id="pe-x" aria-label="閉じる">×</button></div>
+    <div class="pe">
+      <section><h3>材料と分量 <span class="k">1回の仕込み(${p.pieces ? p.pieces + U : '1仕込み'})の量で入力します</span></h3>
+        <table class="pe-t"><thead><tr><th>材料名</th><th class="n">分量</th><th>単位</th><th></th></tr></thead><tbody>
+        ${E.rows.map((r, i) => `<tr data-er="${i}"><td><input class="er-n" value="${esc(r.name)}" list="mat-names2" aria-label="材料名" placeholder="例 薄力粉"></td><td class="n"><input class="er-q" type="number" step="0.1" min="0" inputmode="decimal" value="${r.q || ''}" aria-label="分量"></td><td><select class="er-u" aria-label="単位">${UNITS.concat(UNITS.includes(r.u) ? [] : [r.u]).map(u => `<option${r.u === u ? ' selected' : ''}>${esc(u)}</option>`).join('')}</select></td><td><button class="pe-del" type="button" data-erd="${i}" aria-label="${esc(r.name || '材料')}を削除">削除</button></td></tr>`).join('')}
+        </tbody></table><button class="btn ghost sm" type="button" id="pe-addr">＋ 材料を追加</button>
+        <datalist id="mat-names2">${D.materials.map(m => `<option value="${esc(m.name)}">`).join('')}</datalist></section>
+      <section><h3>作り方</h3><ol class="pe-s">${E.steps.map((t, i) => `<li><input data-es2="${i}" value="${esc(t)}" maxlength="300" aria-label="手順${i + 1}"><button class="pe-mv" type="button" data-esu="${i}" aria-label="上へ"${i ? '' : ' disabled'}>↑</button><button class="pe-mv" type="button" data-esd="${i}" aria-label="下へ"${i < E.steps.length - 1 ? '' : ' disabled'}>↓</button><button class="pe-del" type="button" data-esx="${i}">削除</button></li>`).join('')}</ol><button class="btn ghost sm" type="button" id="pe-adds">＋ 手順を追加</button></section>
+      <section><h3>商品の情報</h3><div class="pe-g">
+        <label>1${U}の重さ<span><input id="pe-pw" type="number" step="0.1" min="0" inputmode="decimal" value="${esc(E.pw)}" placeholder="例 40"> g</span></label>
+        ${p.composed ? '' : `<label>1仕込みで取れる数<span><input id="pe-pieces" type="number" min="0" inputmode="numeric" value="${esc(E.pieces)}" placeholder="例 8"> ${U}</span><small>入力すると、重さより数を優先します。空にすると重さに戻ります</small></label>`}
+        ${noMoney() ? '' : `<label>売価(税込)<span><input id="pe-price" type="number" min="0" inputmode="decimal" value="${esc(E.price)}" placeholder="例 250"> 円</span></label>`}
+        ${p.kind === 'part' ? '' : `<label>分類<span><input id="pe-cat" list="cat-list" value="${esc(E.cat)}" placeholder="例 焼き菓子" maxlength="16"></span></label>`}
+      </div></section>
+    </div>
+    <div class="pe-foot"><span class="k" id="pe-msg">保存すると、原価と食品表示を計算し直します。保存前の状態は「戻す」から戻せます。</span><button class="btn ghost" type="button" id="pe-cancel">キャンセル</button><button class="btn" type="button" id="pe-save">保存する</button></div>`;
+  box.oninput = () => { E.dirty = true; };
+  const re = () => { grab(); E.dirty = true; renderPdetEdit(p, box); };
+  $('pe-addr').onclick = () => { grab(); E.rows.push({ name: '', q: 0, u: 'g' }); E.dirty = true; renderPdetEdit(p, box); const n = box.querySelectorAll('.er-n'); n[n.length - 1].focus(); };
+  $('pe-adds').onclick = () => { grab(); E.steps.push(''); E.dirty = true; renderPdetEdit(p, box); const n = box.querySelectorAll('[data-es2]'); n[n.length - 1].focus(); };
+  box.querySelectorAll('[data-erd]').forEach(b => b.onclick = () => { grab(); E.rows.splice(+b.dataset.erd, 1); re(); });
+  box.querySelectorAll('[data-esx]').forEach(b => b.onclick = () => { grab(); E.steps.splice(+b.dataset.esx, 1); re(); });
+  box.querySelectorAll('[data-esu]').forEach(b => b.onclick = () => { grab(); const i = +b.dataset.esu; if (i > 0) [E.steps[i - 1], E.steps[i]] = [E.steps[i], E.steps[i - 1]]; re(); });
+  box.querySelectorAll('[data-esd]').forEach(b => b.onclick = () => { grab(); const i = +b.dataset.esd; if (i < E.steps.length - 1) [E.steps[i + 1], E.steps[i]] = [E.steps[i], E.steps[i + 1]]; re(); });
+  const back = () => { pdetEdit = null; renderPdet(); };
+  $('pe-cancel').onclick = back;
+  $('pe-x').onclick = pdetClose;
+  $('pe-save').onclick = async () => {
+    grab();
+    const rows = E.rows.filter(r => r.name), steps = E.steps.filter(Boolean), msg = $('pe-msg');
+    if (!rows.length) { msg.innerHTML = '<mark>材料を1つ以上入力してください。</mark>'; return; }
+    if (rows.some(r => !(r.q > 0))) { msg.innerHTML = '<mark>分量が空欄か0の材料があります。分量を入力するか、その行を削除してください。</mark>'; return; }
+    const sameRows = JSON.stringify(rows.map(r => [r.name, +r.q, r.u])) === JSON.stringify(p.rows.map(r => [r.name, +(r.q != null ? r.q : r.qty), r.u || r.unit || 'g']));
+    const calls = [];
+    if (!sameRows) calls.push({ field: 'ing', value: rows.map(r => [r.name, r.q, r.u]) });
+    if (JSON.stringify(steps) !== JSON.stringify(p.steps || [])) calls.push({ field: 'steps', value: steps });
+    const num = v => v === '' ? null : parseFloat(v);
+    if (num(E.pw) != null && num(E.pw) > 0 && num(E.pw) !== (p.pw || null)) calls.push({ field: 'pw', value: num(E.pw) });
+    if (!p.composed && (num(E.pieces) || 0) !== (p.piecesN || 0)) calls.push({ field: 'pieces', value: num(E.pieces) || 0 });
+    if (!noMoney() && num(E.price) != null && num(E.price) > 0 && num(E.price) !== (p.price || null)) calls.push({ field: 'price', value: num(E.price) });
+    if (p.kind !== 'part' && (E.cat || '') !== (p.cat || '')) calls.push({ field: 'pcat', value: E.cat });
+    if (!calls.length) { back(); return; }
+    const sv = $('pe-save'); sv.disabled = true; sv.textContent = '保存しています…';
+    for (const c of calls) {
+      const out = await api(Object.assign({ kind: 'app_set', product: p.name }, c));
+      if (!out.ok) { sv.disabled = false; sv.textContent = '保存する'; msg.innerHTML = `<mark>${esc(out.error || '保存できませんでした')}</mark>`; if (out.data) D = out.data; return; }
+      D = out.data;
+    }
+    pdetEdit = null; renderAll(); toast(`「${p.name}」を保存しました。`, 'ok');
+  };
+}
 function renderPdet() {
   const p = D.products.find(x => x.name === prodSel), box = $('pdet'); if (!p) return;
   const costs0 = costsEl(); box.after(costs0);
-  box.hidden = false;
+  pdetOpen(box);
+  if (pdetEdit && pdetEdit.name === p.name) { renderPdetEdit(p, box); return; }
+  pdetEdit = null;
   const per = p.pieces || null, base = per || 1, n = prodN == null ? (per || 1) : prodN, f = per ? n / per : 1;
   const fq = v => (v >= 20 ? Math.round(v).toLocaleString() : Math.round(v * 10) / 10) + 'g';
   const canEdit = perm('recipe'), img = (p.simgs || [])[0];
@@ -1092,21 +1166,20 @@ function renderPdet() {
   const matOf = r => D.materials.find(m => m.name === (r.which || r.name) || m.name === r.name || (m.aliases || []).includes(r.name));
   const qn = per ? `<span class="qn">${[1, per, 50, 100, 200].filter((v, i, a) => a.indexOf(v) === i).sort((a, b) => a - b).map(v => `<button type="button" data-qn="${v}" class="${v === n ? 'on' : ''}">${v}${U}</button>`).join('')}<label><input type="number" id="qn-in" min="1" max="9999" inputmode="numeric" value="${n}" aria-label="個数">${U}分</label></span>` : `<span class="k">1仕込み分 ${p.batch_grams ? fq(p.batch_grams) : ''}<br>(「1${U}の重さ」を入れると個数で出せます)</span>`;
   const rows = p.rows.map((r, i) => {
-    if (i === prodEditI) return `<div class="row editing"><div class="ef"><input id="ef-n" value="${esc(r.name)}" aria-label="材料名" list="mat-names"><input id="ef-q" type="number" step="0.1" value="${r.q || ''}" aria-label="量"><select id="ef-u" aria-label="単位">${['g', '個', 'kg', 'cc', 'ml', '枚', '本', '袋'].map(u => `<option${(r.u || 'g') === u ? ' selected' : ''}>${u}</option>`).join('')}</select><button class="btn sm" type="button" id="ef-ok">決定</button><button class="btn ghost sm" type="button" id="ef-del">消す</button></div><p class="k" style="margin:6px 0 0">量は1回の仕込み(${per ? per + U : '1仕込み'})で入れます。ほかの個数は自動です</p></div>`;
     const m = matOf(r), al = m ? (m.allergens || []) : [];
     const amt = r.grams == null ? `<b>${(Math.round(r.qty * f * 10) / 10)}<small>${esc(r.unit)}</small></b>` : `<b>${fq(r.grams * f).replace(/(kg|g)$/, '<small>$1</small>')}</b>`;
-    return `<div class="row"><span>${esc(r.name)}${r.src === 'part' ? ' <span class="k">半製品</span>' : ''}${al.length ? `<span class="alg">${al.map(esc).join('・')}</span>` : ''}${r.src === 'est' ? '<span class="est">仮</span>' : r.src === 'unknown' ? '<span class="est" style="color:var(--warn)">材料未登録</span>' : ''}</span>${amt}${canEdit ? `<button class="ed" type="button" data-ed="${i}" aria-label="${esc(r.name)}を直す">✎</button>` : '<span></span>'}</div>`;
+    return `<div class="row"><span>${esc(r.name)}${r.src === 'part' ? ' <span class="k">半製品</span>' : ''}${al.length ? `<span class="alg">${al.map(esc).join('・')}</span>` : ''}${r.src === 'est' ? '<span class="est">仮</span>' : r.src === 'unknown' ? '<span class="est" style="color:var(--warn)">材料未登録</span>' : ''}</span>${amt}<span></span></div>`;
   }).join('');
   const total = p.batch_grams ? fq(p.batch_grams * f) : '';
-  const steps = (p.steps || []).map((t, i) => i === prodEditS ? `<li class="editing"><div class="ef"><input id="es-t" value="${esc(t)}" aria-label="手順"><button class="btn sm" type="button" id="es-ok">決定</button><button class="btn ghost sm" type="button" id="es-up" aria-label="ひとつ上へ">↑</button><button class="btn ghost sm" type="button" id="es-del">消す</button></div></li>` : `<li><span>${esc(t)}${(p.simgs || [])[i] ? `<div><img class="stimg" data-img="${esc(p.simgs[i])}" alt="手順${i + 1}の写真" style="max-width:220px;border-radius:10px;margin-top:6px"></div>` : ''}</span>${canEdit ? `<button class="ed" type="button" data-es="${i}" aria-label="手順を直す">✎</button>` : '<span></span>'}</li>`).join('');
-  box.innerHTML = `<div class="hd2"><h2>${esc(p.name)} <span class="k">${esc(p.part || p.cat || '')}</span></h2><div class="row" style="gap:8px"><button class="btn" type="button" id="mk-open">レシピ票を開く(製造モード)</button><button class="btn ghost sm" type="button" id="pdet-x">閉じる</button></div></div>
+  const steps = (p.steps || []).map((t, i) => `<li><span>${esc(t)}${(p.simgs || [])[i] ? `<div><img class="stimg" data-img="${esc(p.simgs[i])}" alt="手順${i + 1}の写真" style="max-width:220px;border-radius:8px;margin-top:6px"></div>` : ''}</span><span></span></li>`).join('');
+  box.innerHTML = `<div class="hd2"><h2>${esc(p.name)} <span class="k">${esc(p.part || p.cat || '')}</span></h2><div class="row" style="gap:8px;flex-wrap:wrap">${canEdit ? '<button class="btn" type="button" id="pdet-edit">編集する</button>' : ''}<button class="btn ghost" type="button" id="mk-open">レシピ票(製造モード)</button><button class="pdx" type="button" id="pdet-x" aria-label="閉じる">×</button></div></div>
     <div class="rv"><div class="pic"><div class="img">${img ? `<img class="stimg" data-img="${esc(img)}" alt="${esc(p.name)}">` : esc(p.name)}</div><div class="cap">${p.kind === 'part' ? '半製品' : esc(p.cat || '分類なし')} ・ 1回の仕込み ${per ? per + U : (p.batch_grams ? fq(p.batch_grams) : '—')}${p.pw ? ` ・ 1${U} ${p.pw}g` : ''}</div><div class="btns"><button class="btn ghost sm" type="button" id="pdet-photo">写真を撮る・付ける</button>${p.kind !== 'part' ? `<button class="btn ghost sm" type="button" id="pdet-label">食品表示</button>` : ''}</div></div>
-    <div class="ml"><div class="mh"><span>材料</span>${qn}</div>${rows}${total ? `<div class="row sub"><span>合計(${per ? n + U : '1仕込み'}分)</span><b style="font-size:16px">${total}</b><span></span></div>` : ''}<div class="row sub"><span>アレルゲン</span><span style="font-weight:500;font-size:13px">${algs.length ? algs.map(esc).join('・') : 'なし'}</span><span></span></div>${canEdit ? `<div class="add"><button class="btn ghost sm" type="button" id="ef-add">＋ 材料を足す</button></div>` : ''}</div></div>
+    <div class="ml"><div class="mh"><span>材料</span>${qn}</div>${rows}${total ? `<div class="row sub"><span>合計(${per ? n + U : '1仕込み'}分)</span><b style="font-size:16px">${total}</b><span></span></div>` : ''}<div class="row sub"><span>アレルゲン</span><span style="font-weight:500;font-size:13px">${algs.length ? algs.map(esc).join('・') : 'なし'}</span><span></span></div></div></div>
     <datalist id="mat-names">${D.materials.map(m => `<option value="${esc(m.name)}">`).join('')}</datalist>
-    <div class="steps2"><h3>作り方</h3>${(p.steps || []).length ? `<ol>${steps}</ol>` : '<p class="k" style="margin:0">まだ手順がありません。</p>'}${canEdit ? `<div class="add"><input id="es-new" placeholder="手順を足す(例: 粗熱を取って袋に入れる)" maxlength="120"><button class="btn ghost sm" type="button" id="es-add">足す</button></div>` : ''}</div>
-    <details class="setd"><summary>設定(1${U}の重さ・売価・分類・出し方・値段のない材料・消す)</summary>${canEdit ? `<div class="ask" style="justify-content:space-between;flex-wrap:wrap;margin:8px 0"><span>材料や作り方を消してしまったら: 毎朝4時の控えと見比べて戻せます</span><button class="btn ghost sm" type="button" id="pdet-bk">控えと見比べる</button></div><div id="pdet-bkout"></div>` : ''}<div id="pdet-set"></div></details>`;
+    <div class="steps2"><h3>作り方</h3>${(p.steps || []).length ? `<ol>${steps}</ol>` : '<p class="k" style="margin:0">まだ手順がありません。</p>'}</div>
+    <details class="setd"><summary>その他の設定(出し方・税率・値段のない材料・組み合わせ・削除)</summary>${canEdit ? `<div class="ask" style="justify-content:space-between;flex-wrap:wrap;margin:8px 0"><span>材料や作り方を消してしまったら: 毎朝4時の控えと見比べて戻せます</span><button class="btn ghost sm" type="button" id="pdet-bk">控えと見比べる</button></div><div id="pdet-bkout"></div>` : ''}<div id="pdet-set"></div></details>`;
   bindStepImgs(box);
-  $('pdet-x').onclick = () => { prodSel = null; renderCost(); };
+  $('pdet-x').onclick = pdetClose;
   if ($('pdet-bk')) $('pdet-bk').onclick = async () => {
     const out = $('pdet-bkout'); out.innerHTML = '<p class="k">控えを読んでいます…</p>';
     const r = await api({ kind: 'app_backup_recipe', product: p.name });
@@ -1130,18 +1203,11 @@ function renderPdet() {
   $('pdet-photo').onclick = () => { const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*'; inp.onchange = async () => { const fl = inp.files[0]; if (!fl) return; try { const img64 = await shrinkStep(fl); const r = await api({ kind: 'app_img', product: p.name, idx: 0, image: img64, type: 'image/jpeg' }); if (!r.ok) throw new Error(r.error); D = r.data; renderAll(); toast('写真を付けました', 'ok'); } catch (e) { toast(e.message || '写真を送れませんでした'); } }; inp.click(); };
   box.querySelectorAll('[data-qn]').forEach(b => b.onclick = () => { prodN = +b.dataset.qn; renderPdet(); });
   if ($('qn-in')) $('qn-in').onchange = () => { prodN = Math.max(1, Math.min(9999, parseInt($('qn-in').value) || 1)); renderPdet(); };
-  const saveIng = rows2 => setValueX({ field: 'ing', product: p.name, value: rows2.map(r => [r.name, r.q, r.u]) });
-  box.querySelectorAll('[data-ed]').forEach(b => b.onclick = () => { prodEditI = +b.dataset.ed; renderPdet(); const e = $('ef-q'); e && e.focus(); });
-  if ($('ef-ok')) { $('ef-ok').onclick = () => { const rows2 = p.rows.map(r => ({ name: r.name, q: r.q, u: r.u })); const r = rows2[prodEditI]; r.name = $('ef-n').value.trim() || r.name; r.q = parseFloat($('ef-q').value) || 0; r.u = $('ef-u').value; prodEditI = -1; saveIng(rows2); }; twice($('ef-del'), 'もう一度押すと消えます', () => { const rows2 = p.rows.map(r => ({ name: r.name, q: r.q, u: r.u })); rows2.splice(prodEditI, 1); prodEditI = -1; saveIng(rows2); }); }
-  if ($('ef-add')) $('ef-add').onclick = () => { p.rows.push({ name: '', q: 0, u: 'g', qty: 0, unit: 'g', grams: null, src: 'unknown' }); prodEditI = p.rows.length - 1; renderPdet(); const e = $('ef-n'); e && e.focus(); };
-  box.querySelectorAll('[data-es]').forEach(b => b.onclick = () => { prodEditS = +b.dataset.es; renderPdet(); const e = $('es-t'); e && e.focus(); });
-  const saveSteps = st => setValueX({ field: 'steps', product: p.name, value: st });
-  if ($('es-ok')) { $('es-ok').onclick = () => { const st = p.steps.slice(); st[prodEditS] = $('es-t').value.trim() || st[prodEditS]; prodEditS = -1; saveSteps(st); }; twice($('es-del'), 'もう一度押すと消えます', () => { const st = p.steps.slice(); st.splice(prodEditS, 1); prodEditS = -1; saveSteps(st); }); $('es-up').onclick = () => { if (prodEditS > 0) { const st = p.steps.slice(); [st[prodEditS - 1], st[prodEditS]] = [st[prodEditS], st[prodEditS - 1]]; prodEditS = -1; saveSteps(st); } }; }
-  if ($('es-add')) { $('es-add').onclick = () => { const v = $('es-new').value.trim(); if (!v) return; saveSteps((p.steps || []).concat([v])); }; $('es-new').onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); $('es-add').click(); } }; }
+  if ($('pdet-edit')) $('pdet-edit').onclick = () => { pdetEdit = { name: p.name, rows: p.rows.map(r => ({ name: r.name, q: r.q != null ? r.q : r.qty, u: r.u || r.unit || 'g' })), steps: (p.steps || []).slice(), pw: p.pw || '', pieces: p.piecesN || '', price: p.price || '', cat: p.cat || '' }; renderPdet(); };
   // 設定は今までのカードをそのまま、たたんで下に
   renderCostCards(p.name); const set = $('pdet-set'), costs = costs0; set.appendChild(costs);
   costs.querySelectorAll('.prod > .hd, .prod > .big, .prod > .bar').forEach(h => { h.hidden = true; });
-  costs.querySelectorAll('.prod .detail').forEach(d => { d.hidden = false; d.querySelectorAll(':scope > table, :scope > details').forEach(x => { x.hidden = true; }); d.querySelectorAll(':scope > div').forEach(x => { if (/^<b>作り方<\/b>/.test(x.innerHTML)) x.hidden = true; }); });
+  costs.querySelectorAll('.prod .detail').forEach(d => { d.hidden = false; d.querySelectorAll(':scope > table, :scope > details').forEach(x => { x.hidden = true; }); d.querySelectorAll(':scope > div').forEach(x => { if (/^<b>作り方<\/b>/.test(x.innerHTML)) x.hidden = true; }); d.querySelectorAll(':scope > .set').forEach(x => { if (x.querySelector('[data-set],[data-cat],[data-scale]')) x.hidden = true; }); d.querySelectorAll(':scope > p.k').forEach(x => { if (/ホールケーキ/.test(x.textContent)) x.hidden = true; }); d.querySelectorAll('[id^=sqout-]').forEach(x => { x.hidden = true; }); });
 }
 // レシピ票(製造モード): 紙と同じ並び。材料名と分量だけ大きく。店主は「金額も見る」で原体価格・価格・原価率
 function openMk(p) {
