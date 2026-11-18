@@ -839,7 +839,6 @@ function renderMenu(q) {
   side.innerHTML = `<div class="sname"><i></i>${esc(D.shop)}<small>${esc($('date').textContent)}</small></div>` + all.map(([k, l, , b, w, t], i) => tabLocked(k) || SH(k) ? '' : `<button type="button" data-i="${i}" data-tab="${t}" class="${w === 'p' ? 'p' : k === 'more' ? 'more' : ''}" style="--c:var(--c-${k})"${t && t === cur ? ' aria-current="page"' : ''}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[k]}</svg>${l}${b ? `<span class="badge">${b}</span>` : ''}</button>`).join('');
   side.insertAdjacentHTML('beforeend', `<div class="gap"></div><div class="who">${esc(profileName || '')}${profileName ? ' · ' : ''}${esc(D.shop)}</div>`);
   side.querySelectorAll('button').forEach(b => b.onclick = () => all[b.dataset.i][2]());
-  opsMark();
 }
 // ---------- 作り方(スタッフも見られる。書く・直すのは原価のカード) ----------
 function bindStepImgs(box) {
