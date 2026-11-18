@@ -1548,7 +1548,8 @@ function labelCsv() {
 let confirmKey = '';
 function confirmOnce(k, msg) { if (confirmKey === k) { confirmKey = ''; return true; } confirmKey = k; chat(esc(msg), 'think'); setTimeout(() => { if (confirmKey === k) confirmKey = ''; }, 8000); return false; }
 
-// JANコード(EAN-13)を線で描く
+// JANコード(EAN-13)を線で描く。大きさは決まり(GS1)の最小の0.8倍(横29.83mm)より小さくしない
+const JAN_W = 29.83, JAN_H = JAN_W * 79 / 113;
 function janSvg(code, wmm) {
   const Lc = ['0001101', '0011001', '0010011', '0111101', '0100011', '0110001', '0101111', '0111011', '0110111', '0001011'];
   const Rc = Lc.map(s => s.replace(/./g, c => c === '0' ? '1' : '0')), Gc = Rc.map(s => s.split('').reverse().join(''));
@@ -1565,7 +1566,7 @@ function openLabelSheet(p, L, S, n, skip, day, test) {
   let date = '';
   if (L.exp && /^\d{4}-\d\d-\d\d$/.test(L.exp)) date = L.exp.replace(/-/g, '.');
   else if (L.days !== '' && /^\d{4}-\d\d-\d\d$/.test(day)) { const d = new Date(day + 'T00:00:00'); d.setDate(d.getDate() + Number(L.days)); date = `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`; }
-  const j = janCheck(L.jan);
+  const j = janCheck(L.jan), hasJan = j.ok && !!j.code, noJan = !!L.noJan && !L.janOnly;
   // 栄養: 手で入れた値があればそれ(100g当たり/1個当たり)、なければ計算した1個当たり
   const nm = L.nut ? (L.nutMan ? { v: L.nutMan.v.map(Number), base: L.nutMan.base === '1個' ? `1${U}当たり` : '100g当たり', est: true } : (p.nutr && p.nutr.per ? { v: p.nutr.per, base: `1${U}当たり`, est: true } : null)) : null;
   const saltOf = x => x > 0 && x < 0.1 ? (Math.round(x * 100) / 100).toFixed(2) : r1(x);
@@ -1584,8 +1585,10 @@ function openLabelSheet(p, L, S, n, skip, day, test) {
   const stack = S.lay === 'stack' || ((S.lay || 'auto') === 'auto' && chh > cw * 1.1);
   const bcw = Math.min(37.29 * 0.8, cw * 0.4);
   const foot = S.datePos === 'foot' && date ? `${esc(L.dtype)} ${date}` : '';
-  const side = nutBox || pla || (j.ok && j.code) ? `<div class="lside">${nutBox}<div class="lsrow">${pla}${j.ok && j.code ? janSvg(j.code, Math.min(20, cw * 0.24)) : ''}</div></div>` : '';
-  const cell = test ? `<div class="ltest"><span>${cw}×${chh}</span></div>` : `<div class="lbody"><table><tr class="lhrow"><th>品名</th><td><b>${esc(p.name)}</b></td></tr>${rowsH.map(([a, b]) => `<tr><th>${a}</th><td>${b}</td></tr>`).join('')}</table>${side}</div>
+  const janIn = hasJan && !noJan;
+  const side = nutBox || pla || janIn ? `<div class="lside">${nutBox}<div class="lsrow">${pla}${janIn ? janSvg(j.code, JAN_W) : ''}</div></div>` : '';
+  const janCell = `<div class="ljan">${hasJan ? janSvg(j.code, JAN_W) : ''}${chh >= JAN_H + 6 ? `<span>${esc(p.name)}${L.pack ? ' ' + esc(L.pack) : ''}</span>` : ''}</div>`;
+  const cell = test ? `<div class="ltest"><span>${cw}×${chh}</span></div>` : L.janOnly ? janCell : `<div class="lbody"><table><tr class="lhrow"><th>品名</th><td><b>${esc(p.name)}</b></td></tr>${rowsH.map(([a, b]) => `<tr><th>${a}</th><td>${b}</td></tr>`).join('')}</table>${side}</div>
     ${notes.length ? `<div class="lnotes">${notes.map(esc).join(' ')}</div>` : ''}<div class="lfoot">${foot}</div>`;
   const box = (x, y) => {
     const st = `width:${cw}mm;height:${chh}mm;font-size:${S.pt}pt`;
@@ -1606,8 +1609,9 @@ function openLabelSheet(p, L, S, n, skip, day, test) {
     pageCount = n; pageCss = `@page{size:${w}mm ${h}mm;margin:0}`;
   }
   const v = $('inv');
+  const close0 = () => { v.hidden = true; v.classList.remove('lprint'); window.removeEventListener('resize', fit); };
   v.innerHTML = `<div class="bar3" style="margin-top:0"><button class="btn" type="button" id="inv-print">印刷する</button><button class="btn ghost" type="button" id="inv-close">閉じる</button></div>
-    <p class="k lnote">${test ? '合わせ用の試し刷り(枠と真ん中の十字だけ)。普通の紙に刷って、ラベルに重ねて見てください。' : `${esc(p.name)}${L.pack ? ' ' + esc(L.pack) : ''} ${n}枚`} · ${sheet ? esc(sh[0]) + `(${pageCount}ページ)。印刷の画面で、用紙はA4、倍率は「100%」、余白は「なし」に。` : `ラベル ${w}×${h}ミリ(${pageCount}枚)。印刷の画面で、ラベルプリンターと同じ大きさの用紙を選んでください。`}<span id="lb-over"></span></p>
+    <p class="k lnote">${test ? '合わせ用の試し刷り(枠と真ん中の十字だけ)。普通の紙に刷って、ラベルに重ねて見てください。' : `${esc(p.name)}${L.pack ? ' ' + esc(L.pack) : ''}${L.janOnly ? ' のバーコード' : ''} ${n}枚`} · ${sheet ? esc(sh[0]) + `(${pageCount}ページ)。印刷の画面で、用紙はA4、倍率は「100%」、余白は「なし」に。` : `ラベル ${w}×${h}ミリ(${pageCount}枚)。印刷の画面で、ラベルプリンターと同じ大きさの用紙を選んでください。`}<span id="lb-over"></span></p>
     <div class="lwrap" id="lwrap">${pages}</div>`;
   v.hidden = false; v.classList.add('lprint');
   let st = document.getElementById('lb-page'); if (!st) { st = document.createElement('style'); st.id = 'lb-page'; document.head.appendChild(st); }
@@ -1615,9 +1619,15 @@ function openLabelSheet(p, L, S, n, skip, day, test) {
   const pw = sheet ? 210 : w;
   const fit = () => { const wr = $('lwrap'); if (!wr) return; const kk = Math.min(sheet ? 1 : 3, (wr.clientWidth || 360) / (pw * 96 / 25.4)); wr.style.setProperty('--k', kk); };
   fit(); window.addEventListener('resize', fit);
-  const c0 = v.querySelector('.lcell'); if (!test && c0 && c0.scrollHeight > c0.clientHeight + 1) $('lb-over').innerHTML = '<br><mark>文字がラベルからはみ出しています。文字を小さくするか、大きいラベルにしてください。</mark>';
+  const c0 = v.querySelector('.lcell'), over = c0 && (c0.scrollHeight > c0.clientHeight + 1 || c0.scrollWidth > c0.clientWidth + 1);
+  // バーコードが入りきらないときは縮めずに外して、バーコードだけ別のシールに刷れるようにする
+  if (!test && !L.janOnly && hasJan && !noJan && over) { close0(); return openLabelSheet(p, Object.assign({}, L, { noJan: true }), S, n, skip, day, test); }
+  if (!test && L.janOnly) { if (cw < JAN_W + 3 || chh < JAN_H + 3) $('lb-over').innerHTML = `<br><mark>この用紙は小さくて、バーコードが決まりの大きさで入りません。横${Math.ceil(JAN_W + 3)}×縦${Math.ceil(JAN_H + 3)}ミリ以上の用紙にしてください。</mark>`; }
+  else if (!test && over) $('lb-over').innerHTML = '<br><mark>文字がラベルからはみ出しています。文字を小さくするか、大きいラベルにしてください。</mark>';
+  if (!test && noJan && hasJan) $('lb-over').insertAdjacentHTML('beforeend', `<br><mark>このラベルの大きさでは、バーコードを決まりの大きさ(横約30ミリ)で入れられないため、外しました。</mark> 大きいラベルにするか、バーコードだけ別のシールに刷ってください。<br><button class="btn ghost" type="button" id="lb-janonly">バーコードだけ刷る(${n}枚)</button>`);
   const close = () => { v.hidden = true; v.classList.remove('lprint'); st.textContent = ''; window.removeEventListener('resize', fit); };
   $('inv-print').onclick = () => window.print(); $('inv-close').onclick = close;
+  const jb = $('lb-janonly'); if (jb) jb.onclick = () => { close(); openLabelSheet(p, Object.assign({}, L, { noJan: false, janOnly: true }), S, n, 0, day, false); };
 }
 
 // 栄養成分表示(日本食品標準成分表の計算による推定値)
