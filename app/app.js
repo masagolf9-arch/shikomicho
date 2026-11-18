@@ -7,7 +7,7 @@ const CAMERA_URL = 'https://liff.line.me/' + LIFF_ID;
 const CF = location.hostname !== 'masagolf9-arch.github.io';
 const IN_LINE = /\bLine\//i.test(navigator.userAgent);
 // 画面の案内文: ホームページでは「撮る」「話す」を案内する(LINEは、お知らせが届く場所)
-const CAMTXT = CF ? '「撮る」' : 'LINEの「📷 写真を撮る」', VIA = CF ? '話しかけて' : 'LINEで', SHOT = CF ? '「撮る」で' : 'LINEで';
+const CAMTXT = CF ? '「撮影」' : 'LINEの「📷 写真を撮る」', VIA = CF ? '話しかけて' : 'LINEで', SHOT = CF ? '「撮影」で' : 'LINEで';
 
 const $ = id => document.getElementById(id);
 const store = { get(k, d) { try { const v = localStorage.getItem('shikomi:' + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
@@ -147,7 +147,7 @@ function bindUnk(root) {
 }
 function renderToday() {
   const list = notices();
-  $('notices').innerHTML = list.length ? list.map(n => `<div class="card notice"><span class="mark ${n.type}">${n.type === 'up' ? '↑' : '?'}</span><div style="flex:1;min-width:0">${n.html}${n.cam ? '<div class="ask"><button class="btn ghost" type="button" data-cam>写真を撮る</button></div>' : ''}</div></div>`).join('')
+  $('notices').innerHTML = list.length ? list.map(n => `<div class="card notice"><span class="mark ${n.type}">${n.type === 'up' ? '↑' : '?'}</span><div style="flex:1;min-width:0">${n.html}${n.cam ? '<div class="ask"><button class="btn ghost" type="button" data-cam>撮影する</button></div>' : ''}</div></div>`).join('')
     : '<div class="card notice"><span class="mark done">✓</span><div><p>確認待ちはありません。</p></div></div>';
   const needPw = D.products.filter(p => !p.pw);
   $('notices').querySelectorAll('[data-pw]').forEach(b => b.onclick = () => {
@@ -279,15 +279,15 @@ function renderStart() {
   // 最初の3分で、強み(写真1枚から原価→袋の裏でアレルゲン→店の外に出すラベル→衛生→AI)に触れる順番
   const mats = D.materials || [];
   const steps = [
-    ['レシピの写真を1枚撮る(1個の原価が出ます)', goods.length > 0, openCamera, '撮る'],
-    ['材料の袋の裏を1枚撮る(原材料名とアレルゲンが入ります)', mats.some(m => !m.fromKind && ((m.allergens || []).length || (m.display && m.display !== m.name))), openCamera, '撮る'],
-    ['裏表示のラベルを見て、印刷してみる(お店の名前と住所もここで)', !!(si.name && si.addr) && !!store.get('labelSeen'), () => { store.set('labelSeen', 1); show('label'); }, '裏表示へ'],
-    ['今日の衛生記録をつける', !!(D.hyg && D.hyg.today && D.hyg.today.missing.length < (D.hyg.today.items || []).length) || !!(D.hyg && D.hyg.months && Object.keys(D.hyg.months).length), () => show('hyg'), '衛生へ'],
-    ['キャラに話しかけてみる(「この商品の原価率は?」など)', !!store.get('chatTried'), () => openAsk(), '話す']];
+    ['レシピを1枚撮影する(1個あたりの原価が表示されます)', goods.length > 0, openCamera, '撮影'],
+    ['材料の裏面表示を1枚撮影する(原材料名とアレルゲンが登録されます)', mats.some(m => !m.fromKind && ((m.allergens || []).length || (m.display && m.display !== m.name))), openCamera, '撮影'],
+    ['食品表示ラベルを確認して印刷する(店名と住所もここで登録)', !!(si.name && si.addr) && !!store.get('labelSeen'), () => { store.set('labelSeen', 1); show('label'); }, '食品表示へ'],
+    ['本日の衛生記録を付ける', !!(D.hyg && D.hyg.today && D.hyg.today.missing.length < (D.hyg.today.items || []).length) || !!(D.hyg && D.hyg.months && Object.keys(D.hyg.months).length), () => show('hyg'), '衛生へ'],
+    ['AIに質問してみる(「この商品の原価率は?」など)', !!store.get('chatTried'), () => openAsk(), '質問する']];
   const done = steps.filter(x => x[1]).length, box = $('start');
   if (done === steps.length || store.get('startHide') || !(D.me && D.me.owner)) { box.hidden = true; return; }
   box.hidden = false;
-  box.innerHTML = `<div class="sh"><b>初期設定</b><span class="k">${done}/${steps.length} 済</span></div><div class="pg"><i style="width:${done / steps.length * 100}%"></i></div><ol>${steps.map((x, i) => `<li class="${x[1] ? 'ok' : ''}" data-i="${i}"><span class="n">${x[1] ? '✓' : i + 1}</span><span>${esc(x[0])}</span>${x[1] ? '' : `<span class="go">${esc(x[3])} ›</span>`}</li>`).join('')}</ol><p class="k" style="margin:8px 0 0">5つ終わると、この箱は消えます。<a href="#" id="start-hide" style="color:var(--accent)">今は隠す</a></p>`;
+  box.innerHTML = `<div class="sh"><b>初期設定</b><span class="k">${done}/${steps.length} 済</span></div><div class="pg"><i style="width:${done / steps.length * 100}%"></i></div><ol>${steps.map((x, i) => `<li class="${x[1] ? 'ok' : ''}" data-i="${i}"><span class="n">${x[1] ? '✓' : i + 1}</span><span>${esc(x[0])}</span>${x[1] ? '' : `<span class="go">${esc(x[3])} ›</span>`}</li>`).join('')}</ol><p class="k" style="margin:8px 0 0">5つすべて完了すると、この欄は表示されなくなります。<a href="#" id="start-hide" style="color:var(--accent)">今は隠す</a></p>`;
   box.querySelectorAll('li').forEach(li => li.onclick = () => { const x = steps[li.dataset.i]; if (!x[1]) x[2](); });
   $('start-hide').onclick = e => { e.preventDefault(); store.set('startHide', 1); box.hidden = true; };
 }
@@ -321,7 +321,7 @@ function renderIntake() {
     ${intakeQ.length ? `<ul class="q">${intakeQ.map(x => `<li class="${x.st === 'ok' ? 'ok' : x.st === 'ng' ? 'ng' : ''}"><span>${esc(x.kind)} ${esc(x.name)}</span><span class="st">${x.st === 'wait' ? '待ち' : x.st === 'run' ? '読んでいます…' : x.st === 'ok' ? '入りました' : esc(x.err || '読めませんでした')}</span></li>`).join('')}</ul>${left ? `<p class="k" style="margin:6px 0 0">残り${left}枚。待つ間も、ほかの画面を使えます(この画面を閉じると、残りは送られません)。</p>` : ''}` : ''}
     ${!left && lost.length ? `<p class="k" style="margin:8px 0 0">前に送りきれなかった写真が${lost.length}枚あります(${lost.slice(0, 3).map(esc).join('、')}${lost.length > 3 ? ' ほか' : ''})。もう一度選んでください。<a href="#" id="in-lostx">消す</a></p>` : ''}
     ${intakeMsgs.length ? `<details style="margin-top:8px"><summary class="k" style="cursor:pointer">読み取りの結果(${intakeMsgs.length})</summary><div class="k" style="margin-top:6px;white-space:pre-wrap">${intakeMsgs.slice(-12).map(esc).join('\n\n')}</div></details>` : ''}
-    <p class="k" style="margin:10px 0 0">${S.ready.length >= INTAKE_GOAL ? `${INTAKE_GOAL}品そろいました。` : ''}<a href="#" id="in-hide">この箱を閉じる</a></p>`;
+    <p class="k" style="margin:10px 0 0">${S.ready.length >= INTAKE_GOAL ? `${INTAKE_GOAL}品そろいました。` : ''}<a href="#" id="in-hide">この欄を閉じる</a></p>`;
   const pick = (id, kind) => { const f = $(id); f.onchange = () => { intakeAdd([...f.files], kind); f.value = ''; }; };
   pick('in-rec', 'レシピ'); pick('in-inv', '請求書');
   $('in-txt').onclick = () => { $('in-txtbox').hidden = !$('in-txtbox').hidden; if (!$('in-txtbox').hidden) $('in-text').focus(); };

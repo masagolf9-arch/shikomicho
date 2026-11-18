@@ -918,6 +918,12 @@ section.locked>:not(.ph):not(.lockcard):not(h1){display:none!important}
 #t-today .stack>.card+.card{margin-top:0}
 .seg button,.chip{border-radius:6px}
 .intake .acts{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px}.intake .acts .btn{white-space:normal;text-align:center;line-height:1.35;padding:8px 14px;margin:0}
+.menu{grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:14px 8px}.menu button{font-size:13px;gap:6px}.menu button{white-space:nowrap}.menu .ic{width:52px;height:52px;border-radius:12px}.menu .ic svg{width:26px;height:26px}.menu .badge{right:calc(50% - 32px)}
+#hyg-plan{container-type:inline-size}
+@container (max-width:600px){.hp-tbl thead{display:none}.hp-tbl,.hp-tbl tbody,.hp-tbl tr,.hp-tbl td{display:block;width:100%}.hp-tbl tr{border-bottom:1px solid var(--line);padding:8px 0}.hp-tbl td{border:0;padding:2px 0}.hp-tbl td[data-l]::before{content:attr(data-l);display:block;font-size:12px;color:var(--ink-2)}}
+.hp-tbl td:last-child .btn{white-space:nowrap}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .hc.main{background:color-mix(in srgb,var(--accent) 20%,var(--card));color:var(--ink);border:1px solid color-mix(in srgb,var(--accent) 50%,transparent)}}
+:root[data-theme="dark"] .hc.main{background:color-mix(in srgb,var(--accent) 20%,var(--card));color:var(--ink);border:1px solid color-mix(in srgb,var(--accent) 50%,transparent)}
 .pwrow .pwn{flex:0 0 9em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.pwrow input{width:6em;flex:none}
 @media (max-width:640px){.updbar>*:not(b):not(span){order:3}}
 </style>
@@ -1131,6 +1137,6 @@ section.locked>:not(.ph):not(.lockcard):not(h1){display:none!important}
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-<script src="app.js?v=182"></script>
+<script src="app.js?v=183"></script>
 </body>
 </html>
