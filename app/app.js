@@ -2257,10 +2257,10 @@ function renderHygPlan(own) {
       ${own ? `<tr id="hp-ed-${i}" hidden><td colspan="5"><div class="fld"><span class="k">いつ</span><input id="hp-w-${i}" value="${esc(g.when)}" maxlength="40"><span class="k">どのように</span><input id="hp-h-${i}" value="${esc(g.how)}" maxlength="120"><span class="k">問題があったとき</span><input id="hp-n-${i}" value="${esc(g.ng)}" maxlength="120"></div><div class="ask"><button class="btn sm" type="button" data-hps="${i}">保存</button></div></td></tr>` : ''}`).join('')}
     </tbody></table></div>
     <h2 class="ch" style="margin-top:16px">重要管理(商品の分け方)</h2>
-    <p class="k" style="margin:0">商品を3つに分け、分けごとの確かめ方を決めます。商品を押すと分けを変えられます。</p>
-    ${P.groups.map(g => `<div class="hp-grp"><b>第${g.key}グループ ${esc(g.name)}</b><div class="k">${esc(g.ex)}</div><div style="margin-top:4px">確かめ方: ${esc(g.how)}</div>
+    <p class="k" style="margin:0">商品を3つのグループに分け、グループごとの確認方法を決めます。商品を押すと、グループを変更できます。</p>
+    ${P.groups.map(g => `<div class="hp-grp"><b>第${g.key}グループ ${esc(g.name)}</b><div class="k">${esc(g.ex)}</div><div style="margin-top:4px">確認方法: ${esc(g.how)}</div>
       <div class="chips">${g.items.length ? g.items.map(n => `<button class="chip" type="button" data-hgp="${esc(n)}" data-g="${g.key}" aria-pressed="true">${esc(n)}</button>`).join('') : '<span class="k">まだありません</span>'}</div></div>`).join('')}
-    ${P.none.length ? `<div class="hp-grp"><b>まだ分けていない商品 ${P.none.length}品</b><div class="k">押して、第1〜第3のどれかを選んでください</div><div class="chips">${P.none.slice(0, 60).map(n => `<button class="chip" type="button" data-hgp="${esc(n)}" data-g="">${esc(n)}</button>`).join('')}</div></div>` : ''}
+
     <div id="hp-pick" hidden style="margin-top:10px"></div>
     <div class="ask" style="margin-top:12px"><button class="btn" type="button" id="hp-print">衛生管理計画を印刷・PDF</button></div>`;
   if ($('hp-resp-go')) $('hp-resp-go').onclick = () => setValueX({ field: 'hygplan', value: { resp: $('hp-resp').value.trim() } });
