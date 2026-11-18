@@ -92,19 +92,19 @@ function notices() {
   if (D.opsNotice) list.push({ type: 'q', html: `<p><b>お支払いについて</b></p><p class="k">${esc(D.opsNotice)}</p>` });   // 運営からのお知らせ(店主だけ)
   for (const u of D.ups) list.push({ type: 'up', html: `<p><b>${esc(u.item)}が値上がり</b></p><p class="k">${esc(u.supplier)} ${esc(u.spec)} ${u.old.toLocaleString()}円 → ${u.now.toLocaleString()}円(+${u.pct}%)</p><div class="ask"><button class="btn ghost" type="button" data-go-mat="up">材料の値段を見る</button><button class="btn ghost" type="button" data-go-cost>原価を見る</button></div>` });
   const needPw = D.products.filter(p => !p.pw);
-  if (needPw.length) list.push({ type: 'q', html: `<p><b>1${U}は何g?(${needPw.length}品)</b></p><p class="k">数えなくても、重さから個数と1個の原価を出します。分かるものだけで大丈夫</p>` +
-    needPw.map((p, i) => `<div class="ask"><span style="min-width:6em">${esc(p.name)}</span><input id="pw-${i}" inputmode="decimal" placeholder="例 40" aria-label="${esc(p.name)}の1${U}の重さ"><span class="k">g</span><button class="btn" data-pw="${i}" type="button">決定</button></div>`).join('') });
+  if (needPw.length) list.push({ type: 'q', html: `<p><b>1${U}は何g?(${needPw.length}品)</b></p><p class="k">重さが分かれば、1仕込みの個数と1個あたりの原価を計算します。分かる商品だけ入力してください。</p>` +
+    needPw.map((p, i) => `<div class="ask pwrow"><span class="pwn" title="${esc(p.name)}">${esc(p.name)}</span><input id="pw-${i}" inputmode="decimal" placeholder="例 40" aria-label="${esc(p.name)}の1${U}の重さ"><span class="k">g</span><button class="btn ghost" data-pw="${i}" type="button">決定</button></div>`).join('') });
   const unknown = new Set(); D.products.forEach(p => p.unknown.forEach(n => unknown.add(n)));
   const matNames = D.materials.filter(m => !m.packaging).map(m => m.name);
   (D.checks || []).forEach(c => list.push({ type: 'q', html: `<p><b>これで合っていますか?</b> <span class="k">${esc(c.what)}</span></p><p style="margin:4px 0">${esc(c.text)}</p><div class="ask"><button class="btn" type="button" data-chk-ok="${c.row}">合っている</button><button class="btn ghost" type="button" data-chk-re="${c.row}">撮り直す</button></div>` }));
   // 手書きの読みちがい(デトラップ/テトラップ)や、かっこ書き(薄力粉(ロマン))でも、似た材料を先に選んでおく
   const loose = x => String(x || '').normalize('NFD').replace(/[\u3099\u309A]/g, '').normalize('NFC').replace(/[（(【\[][^）)】\]]*[）)】\]]/g, '').replace(/[\s・]/g, '').replace(/[ァ-ヶ]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60)).toLowerCase();
   const guess = n => { const k = loose(n); if (!k) return ''; const m = D.materials.find(m => !m.packaging && [m.name].concat(m.aliases || []).some(a => loose(a) === k)); return m ? m.name : ''; };
-  [...unknown].forEach((n, i) => { const g = guess(n); list.push({ type: 'q', html: `<p><b>「${esc(n)}」って何の材料ですか?</b></p>${g ? `<p style="margin:4px 0"><b>候補「${esc(g)}」?</b> 同じなら、そのまま「同じ」を押してください</p>` : ''}<p class="k">まだ材料の表にありません。表にある材料と同じなら選んで「同じ」を、新しい材料なら、買った値段と量を入れるだけで原価に入ります</p>
-    <div class="ask"><select id="unk-${i}" style="font:inherit;font-size:15px;padding:8px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);max-width:12em"><option value="">表の材料から選ぶ…</option>${matNames.map(m => `<option${m === g ? ' selected' : ''}>${esc(m)}</option>`).join('')}</select><button class="btn" type="button" data-unk-same="${i}" data-n="${esc(n)}">同じ</button><button class="btn ghost" type="button" data-unk-new="${esc(n)}">詳しく登録する</button></div>${unkForm(n)}` }); });
+  [...unknown].forEach((n, i) => { const g = guess(n); list.push({ type: 'q', html: `<p><b>「${esc(n)}」はどの材料ですか?</b></p>${g ? `<p style="margin:4px 0"><b>候補: 「${esc(g)}」</b> 同じ材料であれば、そのまま「同じ」を押してください</p>` : ''}<p class="k">材料の一覧に登録されていません。登録済みの材料と同じ場合は選んで「同じ」を、新しい材料の場合は購入金額と量を入力すると原価に反映されます</p>
+    <div class="ask"><select id="unk-${i}" style="font:inherit;font-size:15px;padding:8px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);max-width:12em"><option value="">登録済みの材料から選ぶ…</option>${matNames.map(m => `<option${m === g ? ' selected' : ''}>${esc(m)}</option>`).join('')}</select><button class="btn ghost" type="button" data-unk-same="${i}" data-n="${esc(n)}">同じ</button><button class="btn ghost" type="button" data-unk-new="${esc(n)}">詳しく登録する</button></div>${unkForm(n)}` }); });
   const check = new Set(); D.products.forEach(p => p.label.check.forEach(n => { if (!unknown.has(n)) check.add(n); }));
-  for (const n of check) list.push({ type: 'q', cam: true, html: `<p><b>「${esc(n)}」の袋の裏を写真で</b></p><p class="k">名称欄が分かれば、裏表示が確定します</p>` });
-  if (!D.products.length) list.push({ type: 'q', cam: true, html: '<p><b>まずはレシピの写真を1枚</b></p><p class="k">' + CAMTXT + 'で手書きのレシピを撮ると、ここに原価と裏表示の案が出ます</p>' });
+  for (const n of check) list.push({ type: 'q', cam: true, html: `<p><b>「${esc(n)}」の裏面表示を撮影してください</b></p><p class="k">裏面の名称欄が分かると、食品表示が確定します</p>` });
+  if (!D.products.length) list.push({ type: 'q', cam: true, html: '<p><b>まずはレシピを1枚撮影してください</b></p><p class="k">' + CAMTXT + 'で手書きのレシピを撮影すると、ここに原価と食品表示の案が表示されます</p>' });
   return list;
 }
 // 組み合わせて1個にする(生ドラ = 生地 + 生クリーム + 餡)。撮った配合は「〇〇の生地」(半製品)になる
@@ -135,7 +135,7 @@ function bindCompose(root) {
   });
 }
 // まだ表にない材料の値段を、その場で入れる(種類などは後で)。入れるとすぐ原価に入る
-const unkForm = n => `<div class="ask unkf" data-n="${esc(n)}"><span class="k" style="min-width:auto">値段が分かれば</span><input class="uq-yen" inputmode="numeric" placeholder="800" aria-label="「${esc(n)}」の値段" style="width:5.5em"><span class="k">円で</span><input class="uq-q" inputmode="decimal" placeholder="1" aria-label="買った量" style="width:4em"><select class="uq-u" aria-label="量の単位" style="font:inherit;font-size:15px;padding:8px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)"><option>kg</option><option>g</option></select><button class="btn" type="button" data-uq>入れる</button></div>`;
+const unkForm = n => `<div class="ask unkf" data-n="${esc(n)}"><span class="k" style="min-width:auto">購入金額</span><input class="uq-yen" inputmode="numeric" placeholder="800" aria-label="「${esc(n)}」の値段" style="width:5.5em"><span class="k">円 ／ 量</span><input class="uq-q" inputmode="decimal" placeholder="1" aria-label="買った量" style="width:4em"><select class="uq-u" aria-label="量の単位" style="font:inherit;font-size:15px;padding:8px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)"><option>kg</option><option>g</option></select><button class="btn ghost" type="button" data-uq>入れる</button></div>`;
 function bindUnk(root) {
   root.querySelectorAll('[data-uq]').forEach(b => b.onclick = () => {
     const f = b.closest('.unkf'), y = parseFloat(f.querySelector('.uq-yen').value), q = parseFloat(f.querySelector('.uq-q').value), u = f.querySelector('.uq-u').value;
@@ -1061,7 +1061,7 @@ function renderCost() {
   tb.querySelectorAll('tbody tr').forEach(tr => tr.onclick = () => { prodSel = tr.dataset.p === prodSel ? null : tr.dataset.p; prodN = null; prodEditI = -1; prodEditS = -1; renderCost(); if (prodSel) setTimeout(() => $('pdet').scrollIntoView({ block: 'start', behavior: 'smooth' }), 50); });
   bindStepImgs(tb);
   const gl = list.filter(p => p.kind !== 'part' && prodVals(p).rate != null), avg = gl.length ? Math.round(gl.reduce((a, p) => a + prodVals(p).rate, 0) / gl.length) : null;
-  foot.innerHTML = `<span>${list.length} / ${D.products.length} 品${avg != null && money ? ` ・ 原価率の平均 ${avg}%` : ''}</span><span>行を押すと、下にその商品(写真・材料と量・作り方)が出ます</span>`;
+  foot.innerHTML = `<span>${list.length} / ${D.products.length} 品${avg != null && money ? ` ・ 原価率の平均 ${avg}%` : ''}</span><span>行を押すと、下に商品の詳細(写真・材料と量・作り方)が表示されます</span>`;
   if (prodSel && !D.products.find(p => p.name === prodSel)) prodSel = null;
   if (prodSel) renderPdet(); else { $('pdet').hidden = true; costsEl().innerHTML = ''; }
   renderCostBack();
@@ -1351,7 +1351,7 @@ function bindQr() {
 function storeBox() {
   if (!D.products.length) return '';
   const sel = D.products.find(x => x.name === labelName) || D.products[0];
-  return `<div class="card" id="alg-card"><p style="margin:0 0 8px"><b>アレルゲン一覧表</b> <span class="k">店頭やメニューのそばに。聞かれたら見せる</span></p><div class="scroll">${allergenTable()}</div>
+  return `<div class="card" id="alg-card"><p style="margin:0 0 8px"><b>アレルゲン一覧表</b> <span class="k">店頭やメニューの近くに置き、お客様からお問い合わせがあった際に提示します</span></p><div class="scroll">${allergenTable()}</div>
       <div class="ask"><button class="btn ghost" type="button" id="alg-print">一覧表を印刷・PDF</button></div></div>
     <div class="card" style="margin-top:12px"><p style="margin:0 0 8px"><b>プライスカード</b> <span class="k">${esc(sel.name)} · 名前・値段・アレルゲン</span></p>${priceCard(sel)}
       <div class="ask"><button class="btn ghost" type="button" id="pc-print">この商品を印刷</button><button class="btn ghost" type="button" id="pc-print-all">全部の商品を印刷</button></div></div>` + qrBox();
@@ -1369,7 +1369,7 @@ document.addEventListener('click', e => { if (e.target && e.target.id === 'ls-go
 function renderLabel() {
   const chips = $('label-chips'), box = $('label-box'), face = sellFace();
   $('label-h').textContent = face ? 'アレルゲン' : '食品表示';
-  $('label-lead').innerHTML = face ? '対面や店内で出す分に裏表示は要りません。お客さまに聞かれたら見せるアレルゲン一覧表と、値段のカードを出せます。包装して売る・卸す商品だけ、下でラベルを作れます。' : '一括表示の原案とラベル印刷。<mark>色つき</mark>は要確認。最終確認と表示の責任はお店にあります。<a href="/law" target="_blank" rel="noopener">食品表示の改正と対応の記録</a>';
+  $('label-lead').innerHTML = face ? '対面販売・店内飲食の商品には、食品表示ラベルは不要です。お客様に提示するアレルゲン一覧表とプライスカードを作成できます。包装して販売する商品や卸す商品は、下の「ラベルを印刷」から食品表示ラベルを作成できます。' : '一括表示の案とラベルの印刷。<mark>色の付いた箇所</mark>はご確認ください。最終確認と表示の責任は事業者様にあります。<a href="/law" target="_blank" rel="noopener">食品表示の改正と対応の記録</a>';
   if (!D.products.length) { chips.innerHTML = ''; box.innerHTML = emptyBox('label', 'まだレシピがありません', 'レシピを撮ると、ここに' + (face ? 'アレルゲン一覧表' : '裏表示の案') + 'が出ます。', ['レシピを撮る', 'cam']); return; }
   if (!D.products.find(p => p.name === labelName)) labelName = D.products[0].name;
   const goods = D.products.filter(p => p.kind !== 'part');
