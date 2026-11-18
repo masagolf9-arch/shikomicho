@@ -169,7 +169,7 @@ function renderToday() {
   const hm0 = hygMissing().length, bh = $('badge-hyg'); bh.textContent = hm0; bh.hidden = !hm0;
   renderHero(q); renderMenu(q); renderGreet(); renderHomeProds();
   renderA2hs(); renderTodo(list); renderStart(); renderMemos(); renderPromises(); renderInspect(); renderHomeEvents(); renderBar(); renderCal(); renderReg(); renderCt();
-  $('made').innerHTML = D.made.length ? `<ul class="tl">${D.made.map(m => `<li><span class="tt">${new Date(m.t).toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' })}</span><span>${esc(m.text)}</span></li>`).join('')}</ul>`
+  if ($('made')) $('made').innerHTML = D.made.length ? `<ul class="tl">${D.made.map(m => `<li><span class="tt">${new Date(m.t).toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' })}</span><span>${esc(m.text)}</span></li>`).join('')}</ul>`
     : '<p class="k" style="margin:0">まだありません。作った数を話しかけると、ここに出ます</p>';
 }
 
@@ -397,7 +397,7 @@ const prDue = p => { if (!p.date) return ''; const dd = dayDiff(p.date); return 
 function renderPromises() {
   const box = $('promises'), ps = D.promises || [];
   box.innerHTML = ps.length ? `<div class="card" style="padding:0">${ps.map(p => { const dd = p.date ? dayDiff(p.date) : null; return `<div class="memo" style="--c:var(--c-${PRK[p.kind] || 'set'})"><div class="mb"><p><span class="prk">${esc(p.kind)}</span>${esc(p.text)}</p><span class="k">${p.who ? esc(p.who) + ' ' : ''}${p.tel ? `<a href="tel:${esc(p.tel.replace(/[^\d+]/g, ''))}">☎ ${esc(p.tel)}</a> ` : ''}· ${p.date ? `<b class="${dd != null && dd <= 0 ? 'prdue' : ''}">${esc(prDue(p))}</b>` : '期限なし'} · ${esc(p.src)}で${esc(p.by)}が受けた</span></div><span class="acts"><button class="btn ghost sm" type="button" data-pedit="${p.row}">直す</button><button class="btn sm" type="button" data-pdone="${p.row}">済</button></span></div>`; }).join('')}</div>`
-    : `<div class="card"><p class="k" style="margin:0">未対応の申し送りはありません。電話や店頭で受けた予約・注文・折り返しは「＋ 受けた」で、聞いたとおりに入れてください。</p></div>`;
+    : `<div class="card"><p class="k" style="margin:0">未対応のメモはありません。電話や店頭で受けた予約・注文・折り返しは「＋ 追加」から、聞いた内容をそのまま入力してください。</p></div>`;
   box.querySelectorAll('[data-pdone]').forEach(b => b.onclick = () => setValueX({ field: 'promise', value: { row: +b.dataset.pdone, done: true } }));
   box.querySelectorAll('[data-pedit]').forEach(b => b.onclick = () => editPromise(ps.find(p => p.row === +b.dataset.pedit), b.closest('.memo')));
 }
@@ -1103,7 +1103,7 @@ function pdetOpen(box) {
 function pdetClose() {
   if (pdetEdit && pdetEdit.dirty && !pdetClose.ok) { pdetClose.ok = 1; toast('保存していない変更があります。もう一度閉じると、変更を破棄します。'); setTimeout(() => { pdetClose.ok = 0; }, 4000); return; }
   pdetClose.ok = 0; pdetEdit = null; prodSel = null;
-  const box = $('pdet'); box.hidden = true; box.classList.remove('modal'); const ov = $('pdet-ov'); if (ov) ov.hidden = true; document.body.classList.remove('pdet-on');
+  const box = $('pdet'); box.hidden = true; box.innerHTML = ''; box.classList.remove('modal'); const ov = $('pdet-ov'); if (ov) ov.hidden = true; document.body.classList.remove('pdet-on');
   renderCost();
 }
 // まとめて編集: 材料と分量・作り方・1個の重さ・取れる数・売価・分類を1つの画面で直し、「保存する」で一度に反映する
@@ -1112,38 +1112,38 @@ function renderPdetEdit(p, box) {
   const grab = () => {
     E.rows = [...box.querySelectorAll('[data-er]')].map(tr => ({ name: tr.querySelector('.er-n').value.trim(), q: parseFloat(tr.querySelector('.er-q').value) || 0, u: tr.querySelector('.er-u').value }));
     E.steps = [...box.querySelectorAll('[data-es2]')].map(x => x.value.trim());
-    ['pw', 'pieces', 'price', 'cat'].forEach(k => { const e = $('pe-' + k); if (e) E[k] = e.value.trim(); });
+    ['pw', 'pieces', 'price', 'cat'].forEach(k => { const e = $('rx-' + k); if (e) E[k] = e.value.trim(); });
   };
-  box.innerHTML = `<div class="hd2"><h2>${esc(p.name)} を編集</h2><button class="pdx" type="button" id="pe-x" aria-label="閉じる">×</button></div>
+  box.innerHTML = `<div class="hd2"><h2>${esc(p.name)} を編集</h2><button class="pdx" type="button" id="rx-x" aria-label="閉じる">×</button></div>
     <div class="pe">
       <section><h3>材料と分量 <span class="k">1回の仕込み(${p.pieces ? p.pieces + U : '1仕込み'})の量で入力します</span></h3>
         <table class="pe-t"><thead><tr><th>材料名</th><th class="n">分量</th><th>単位</th><th></th></tr></thead><tbody>
         ${E.rows.map((r, i) => `<tr data-er="${i}"><td><input class="er-n" value="${esc(r.name)}" list="mat-names2" aria-label="材料名" placeholder="例 薄力粉"></td><td class="n"><input class="er-q" type="number" step="0.1" min="0" inputmode="decimal" value="${r.q || ''}" aria-label="分量"></td><td><select class="er-u" aria-label="単位">${UNITS.concat(UNITS.includes(r.u) ? [] : [r.u]).map(u => `<option${r.u === u ? ' selected' : ''}>${esc(u)}</option>`).join('')}</select></td><td><button class="pe-del" type="button" data-erd="${i}" aria-label="${esc(r.name || '材料')}を削除">削除</button></td></tr>`).join('')}
-        </tbody></table><button class="btn ghost sm" type="button" id="pe-addr">＋ 材料を追加</button>
+        </tbody></table><button class="btn ghost sm" type="button" id="rx-addr">＋ 材料を追加</button>
         <datalist id="mat-names2">${D.materials.map(m => `<option value="${esc(m.name)}">`).join('')}</datalist></section>
-      <section><h3>作り方</h3><ol class="pe-s">${E.steps.map((t, i) => `<li><input data-es2="${i}" value="${esc(t)}" maxlength="300" aria-label="手順${i + 1}"><button class="pe-mv" type="button" data-esu="${i}" aria-label="上へ"${i ? '' : ' disabled'}>↑</button><button class="pe-mv" type="button" data-esd="${i}" aria-label="下へ"${i < E.steps.length - 1 ? '' : ' disabled'}>↓</button><button class="pe-del" type="button" data-esx="${i}">削除</button></li>`).join('')}</ol><button class="btn ghost sm" type="button" id="pe-adds">＋ 手順を追加</button></section>
+      <section><h3>作り方</h3><ol class="pe-s">${E.steps.map((t, i) => `<li><input data-es2="${i}" value="${esc(t)}" maxlength="300" aria-label="手順${i + 1}"><button class="pe-mv" type="button" data-esu="${i}" aria-label="上へ"${i ? '' : ' disabled'}>↑</button><button class="pe-mv" type="button" data-esd="${i}" aria-label="下へ"${i < E.steps.length - 1 ? '' : ' disabled'}>↓</button><button class="pe-del" type="button" data-esx="${i}">削除</button></li>`).join('')}</ol><button class="btn ghost sm" type="button" id="rx-adds">＋ 手順を追加</button></section>
       <section><h3>商品の情報</h3><div class="pe-g">
-        <label>1${U}の重さ<span><input id="pe-pw" type="number" step="0.1" min="0" inputmode="decimal" value="${esc(E.pw)}" placeholder="例 40"> g</span></label>
-        ${p.composed ? '' : `<label>1仕込みで取れる数<span><input id="pe-pieces" type="number" min="0" inputmode="numeric" value="${esc(E.pieces)}" placeholder="例 8"> ${U}</span><small>入力すると、重さより数を優先します。空にすると重さに戻ります</small></label>`}
-        ${noMoney() ? '' : `<label>売価(税込)<span><input id="pe-price" type="number" min="0" inputmode="decimal" value="${esc(E.price)}" placeholder="例 250"> 円</span></label>`}
-        ${p.kind === 'part' ? '' : `<label>分類<span><input id="pe-cat" list="cat-list" value="${esc(E.cat)}" placeholder="例 焼き菓子" maxlength="16"></span></label>`}
+        <label>1${U}の重さ<span><input id="rx-pw" type="number" step="0.1" min="0" inputmode="decimal" value="${esc(E.pw)}" placeholder="例 40"> g</span></label>
+        ${p.composed ? '' : `<label>1仕込みで取れる数<span><input id="rx-pieces" type="number" min="0" inputmode="numeric" value="${esc(E.pieces)}" placeholder="例 8"> ${U}</span><small>入力すると、重さより数を優先します。空にすると重さに戻ります</small></label>`}
+        ${noMoney() ? '' : `<label>売価(税込)<span><input id="rx-price" type="number" min="0" inputmode="decimal" value="${esc(E.price)}" placeholder="例 250"> 円</span></label>`}
+        ${p.kind === 'part' ? '' : `<label>分類<span><input id="rx-cat" list="cat-list" value="${esc(E.cat)}" placeholder="例 焼き菓子" maxlength="16"></span></label>`}
       </div></section>
     </div>
-    <div class="pe-foot"><span class="k" id="pe-msg">保存すると、原価と食品表示を計算し直します。材料と作り方は、保存後に「↶ 元に戻す」で保存前に戻せます。</span><button class="btn ghost" type="button" id="pe-cancel">キャンセル</button><button class="btn" type="button" id="pe-save">保存する</button></div>`;
+    <div class="pe-foot"><span class="k" id="rx-msg">保存すると、原価と食品表示を計算し直します。材料と作り方は、保存後に「↶ 元に戻す」で保存前に戻せます。</span><button class="btn ghost" type="button" id="rx-cancel">キャンセル</button><button class="btn" type="button" id="rx-save">保存する</button></div>`;
   box.oninput = () => { E.dirty = true; };
   const re = () => { grab(); E.dirty = true; renderPdetEdit(p, box); };
-  $('pe-addr').onclick = () => { grab(); E.rows.push({ name: '', q: 0, u: 'g' }); E.dirty = true; renderPdetEdit(p, box); const n = box.querySelectorAll('.er-n'); n[n.length - 1].focus(); };
-  $('pe-adds').onclick = () => { grab(); E.steps.push(''); E.dirty = true; renderPdetEdit(p, box); const n = box.querySelectorAll('[data-es2]'); n[n.length - 1].focus(); };
+  $('rx-addr').onclick = () => { grab(); E.rows.push({ name: '', q: 0, u: 'g' }); E.dirty = true; renderPdetEdit(p, box); const n = box.querySelectorAll('.er-n'); n[n.length - 1].focus(); };
+  $('rx-adds').onclick = () => { grab(); E.steps.push(''); E.dirty = true; renderPdetEdit(p, box); const n = box.querySelectorAll('[data-es2]'); n[n.length - 1].focus(); };
   box.querySelectorAll('[data-erd]').forEach(b => b.onclick = () => { grab(); E.rows.splice(+b.dataset.erd, 1); re(); });
   box.querySelectorAll('[data-esx]').forEach(b => b.onclick = () => { grab(); E.steps.splice(+b.dataset.esx, 1); re(); });
   box.querySelectorAll('[data-esu]').forEach(b => b.onclick = () => { grab(); const i = +b.dataset.esu; if (i > 0) [E.steps[i - 1], E.steps[i]] = [E.steps[i], E.steps[i - 1]]; re(); });
   box.querySelectorAll('[data-esd]').forEach(b => b.onclick = () => { grab(); const i = +b.dataset.esd; if (i < E.steps.length - 1) [E.steps[i + 1], E.steps[i]] = [E.steps[i], E.steps[i + 1]]; re(); });
   const back = () => { pdetEdit = null; renderPdet(); };
-  $('pe-cancel').onclick = back;
-  $('pe-x').onclick = pdetClose;
-  $('pe-save').onclick = async () => {
+  $('rx-cancel').onclick = back;
+  $('rx-x').onclick = pdetClose;
+  $('rx-save').onclick = async () => {
     grab();
-    const rows = E.rows.filter(r => r.name), steps = E.steps.filter(Boolean), msg = $('pe-msg');
+    const rows = E.rows.filter(r => r.name), steps = E.steps.filter(Boolean), msg = $('rx-msg');
     if (!rows.length) { msg.innerHTML = '<mark>材料を1つ以上入力してください。</mark>'; return; }
     if (rows.some(r => !(r.q > 0))) { msg.innerHTML = '<mark>分量が空欄か0の材料があります。分量を入力するか、その行を削除してください。</mark>'; return; }
     const sameRows = JSON.stringify(rows.map(r => [r.name, +r.q, r.u])) === JSON.stringify(p.rows.map(r => [r.name, +(r.q != null ? r.q : r.qty), r.u || r.unit || 'g']));
@@ -1156,7 +1156,7 @@ function renderPdetEdit(p, box) {
     if (!noMoney() && num(E.price) != null && num(E.price) > 0 && num(E.price) !== (p.price || null)) calls.push({ field: 'price', value: num(E.price) });
     if (p.kind !== 'part' && (E.cat || '') !== (p.cat || '')) calls.push({ field: 'pcat', value: E.cat });
     if (!calls.length) { back(); return; }
-    const sv = $('pe-save'); sv.disabled = true; sv.textContent = '保存しています…';
+    const sv = $('rx-save'); sv.disabled = true; sv.textContent = '保存しています…';
     for (const c of calls) {
       const out = await api(Object.assign({ kind: 'app_set', product: p.name }, c));
       if (!out.ok) { sv.disabled = false; sv.textContent = '保存する'; msg.innerHTML = `<mark>${esc(out.error || '保存できませんでした')}</mark>`; if (out.data) D = out.data; return; }
