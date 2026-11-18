@@ -900,6 +900,24 @@ section.locked>:not(.ph):not(.lockcard):not(h1){display:none!important}
   h1.sub{font-size:20px}
   .card{padding:16px 18px}
 }
+
+/* ---- 見た目の整理(B案 2026-11-18): 箱は数字のまとまりだけ、一覧は見出しと線、影なし、角は小さく、ボタンは角の少し丸い四角 ---- */
+.card,.status,.hc,.pc,.calg{box-shadow:none}
+.card,.hc,.pc,.calg,.tw,.ml,.steps2,.gapc,.crs,.mq>div,.lmode button,.tile,.hp-grp,.empty .ic,.av{border-radius:8px}
+.status{border-radius:10px}
+.btn{border-radius:8px}
+.btn.sm{border-radius:6px}
+.btn.ghost{background:var(--soft);border-color:transparent}
+.btn.ghost:hover{border-color:var(--accent)}
+.hint-ring{outline-width:2px;outline-offset:3px;box-shadow:none;border-radius:10px}
+.updbar{background:transparent;border:0;border-bottom:1px solid var(--line);border-radius:0;padding:6px 0 10px}
+@media (max-width:640px){.updbar{flex-wrap:wrap;row-gap:4px}.updbar span{flex:1 1 100%;order:2}.updbar a{order:3}}
+#t-today h1.sub{padding-bottom:8px;border-bottom:2px solid var(--ink);margin-bottom:0}
+#t-today .colL .card,#t-today #home-events,#t-today #made{background:transparent;border:0;border-top:1px solid var(--line);border-radius:0;box-shadow:none;padding-left:0;padding-right:0;margin-top:0}
+#t-today h1.sub+.card,#t-today h1.sub+div>.card:first-child,#t-today h1.sub+p+.card,#t-today h1.sub+p+.stack>.card:first-child{border-top:0}
+#t-today .stack>.card+.card{margin-top:0}
+.seg button,.chip{border-radius:6px}
+@media (max-width:640px){.updbar>*:not(b):not(span){order:3}}
 </style>
 </head>
 <body>
@@ -969,7 +987,7 @@ section.locked>:not(.ph):not(.lockcard):not(h1){display:none!important}
   </section>
 
   <section id="t-cost" hidden>
-    <div class="ph"><div><h1>原価</h1><p class="lead">1個あたりの材料費。下の線は、請求書で確かめた割合。カードを押すと中身と入力欄が出ます。</p></div><div class="acts"><label class="srch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="cost-q" type="search" placeholder="商品をさがす" autocomplete="off"></label><select id="cost-sort" class="sel" aria-label="並び順"><option value="rate">原価率が高い順</option><option value="name">名前順</option><option value="new">新しい順</option><option value="est">仮が多い順</option></select></div></div>
+    <div class="ph"><div><h1>原価</h1><p class="lead">商品ごとの1個あたりの原価の一覧です。行を押すと、その商品の材料と量・作り方が表示されます。</p></div><div class="acts"><label class="srch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="cost-q" type="search" placeholder="商品をさがす" autocomplete="off"></label><select id="cost-sort" class="sel" aria-label="並び順"><option value="rate">原価率が高い順</option><option value="name">名前順</option><option value="new">新しい順</option><option value="est">仮が多い順</option></select></div></div>
     <div id="cat-box"></div>
     <div class="chips" id="cost-chips"></div>
     <div class="tw" id="cost-tw"><table class="ctab" id="cost-table"></table></div>
@@ -1006,7 +1024,7 @@ section.locked>:not(.ph):not(.lockcard):not(h1){display:none!important}
     <div id="journal"></div>
   </section>
   <section id="t-hyg" hidden>
-    <div class="ph"><div><h1>衛生記録</h1><p class="lead">毎日の温度と点検。目安を外れたら、お店のみんなにLINEで知らせます。</p></div><div class="acts"><button class="btn ghost" type="button" id="hyg-print-top">記録表を印刷</button></div></div>
+    <div class="ph"><div><h1>衛生記録</h1><p class="lead">毎日の温度と点検。基準を外れた場合は、スタッフ全員にLINEでお知らせします。</p></div><div class="acts"><button class="btn ghost" type="button" id="hyg-print-top">記録表を印刷</button></div></div>
     <div class="card" id="hyg-fix" hidden></div>
     <div class="card" id="hyg-today"></div>
     <div class="card" id="hyg-health"></div>
@@ -1111,6 +1129,6 @@ section.locked>:not(.ph):not(.lockcard):not(h1){display:none!important}
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-<script src="app.js?v=180"></script>
+<script src="app.js?v=181"></script>
 </body>
 </html>
