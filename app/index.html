@@ -983,6 +983,13 @@ body.pdet-on{overflow:hidden}
 #t-set .card .btn{margin-left:0}
 #t-set .set-row+.set-row{border-top-color:var(--line)}
 #t-set .colL>h1.sub:first-child,#t-set #set-box>h1.sub:first-child{margin-top:8px}
+
+/* 残りの画面もホームと同じ形(見出し+線、箱なし)。入力のまとまりは太線で区切って見出しのように */
+:is(#t-book,#t-label,#t-mat,#t-ws,#t-ct,#t-sales,#t-howto,#t-cal,#t-post,#t-sort) h1.sub{padding-bottom:8px;border-bottom:2px solid var(--ink);margin-bottom:0}
+:is(#t-book,#t-label,#t-mat,#t-ws,#t-ct,#t-sales,#t-howto,#t-cal,#t-post,#t-sort) .card:not(.lpc):not(.memo):not(#pdet){background:transparent;border:0;border-radius:0;box-shadow:none;padding:14px 0 12px;margin-top:0}
+:is(#t-book,#t-label,#t-mat,#t-ws,#t-ct,#t-sales,#t-howto,#t-cal,#t-post,#t-sort) .card:not(.lpc):not(.memo):not(#pdet)+.card:not(.lpc):not(.memo){border-top:1px solid var(--line)}
+:is(#t-book,#t-label,#t-mat,#t-ws,#t-ct,#t-sales,#t-howto,#t-cal,#t-post,#t-sort) .ph+.card,:is(#t-book,#t-label,#t-mat,#t-ws,#t-ct,#t-sales,#t-howto,#t-cal,#t-post,#t-sort) .ph+.cols .colL>.card:first-child,:is(#t-book,#t-label,#t-mat,#t-ws,#t-ct,#t-sales,#t-howto,#t-cal,#t-post,#t-sort) .ph+.cols .colR>.card:first-child,:is(#t-book,#t-label,#t-mat,#t-ws,#t-ct,#t-sales,#t-howto,#t-cal,#t-post,#t-sort) .chips+.card,:is(#t-book,#t-label,#t-mat,#t-ws,#t-ct,#t-sales,#t-howto,#t-cal,#t-post,#t-sort) .ph+div>.card:first-child{border-top:2px solid var(--ink)!important;margin-top:12px}
+:is(#t-book,#t-label,#t-mat,#t-ws,#t-ct,#t-sales,#t-howto,#t-cal,#t-post,#t-sort) .card>b:first-child,:is(#t-book,#t-label,#t-mat,#t-ws,#t-ct,#t-sales,#t-howto,#t-cal,#t-post,#t-sort) .card>p:first-child>b:first-child,:is(#t-book,#t-label,#t-mat,#t-ws,#t-ct,#t-sales,#t-howto,#t-cal,#t-post,#t-sort) .card>.sh>b:first-child{font-size:16px}
 </style>
 </head>
 <body>
@@ -1019,10 +1026,10 @@ body.pdet-on{overflow:hidden}
         <h1 class="sub">連絡事項 <button class="btn ghost sm" type="button" id="memo-add">＋ 書く</button></h1>
         <div id="memos"></div>
         <div id="insp-wrap" hidden><h1 class="sub">点検 <span class="k" id="insp-n" style="font-size:13px;font-weight:400"></span></h1>
-        <p class="lead">ピタット原価がデータを見回って、おかしいかもしれない所を出しています。押すと直す場所が開きます。</p>
+        <p class="lead">登録データを自動で点検し、確認が必要な箇所を表示しています。項目を押すと、該当する画面が開きます。</p>
         <div class="card" id="insp"></div></div>
         <h1 class="sub">確認待ち・お知らせ</h1>
-        <p class="lead">答えるとすぐ原価に反映されます。</p>
+        <p class="lead">回答した内容は、すぐに原価へ反映されます。</p>
         <div class="stack" id="notices"></div>
       </div>
       <div class="colR">
@@ -1040,17 +1047,17 @@ body.pdet-on{overflow:hidden}
   </section>
 
   <section id="t-ct" hidden>
-    <div class="ph"><div><h1>仕入先・卸先</h1><p class="lead">仕入れ先と卸先の電話・担当・住所・振込先。請求書を撮ると自動で入ります。☎を押すと電話がかかります。</p></div></div>
+    <div class="ph"><div><h1>仕入先・卸先</h1><p class="lead">仕入先・卸先の電話番号、担当者、住所、振込先を管理します。請求書を撮影すると自動で登録されます。</p></div></div>
     <div class="card" id="ct-box"></div>
   </section>
   <section id="t-cal" hidden>
-    <div class="ph"><div><h1>予定</h1><p class="lead">納品・催事・休み。話しかけても入ります。</p></div><div class="acts"><button class="btn" type="button" id="ev-add-top">＋ 予定を足す</button></div></div>
+    <div class="ph"><div><h1>予定</h1><p class="lead">納品・催事・休業日などの予定を管理します。LINEで送った予定も自動で登録されます。</p></div><div class="acts"><button class="btn" type="button" id="ev-add-top">＋ 予定を足す</button></div></div>
     <div class="card" id="ev-form" hidden></div>
     <div id="cal"></div>
   </section>
 
   <section id="t-cost" hidden>
-    <div class="ph"><div><h1>原価</h1><p class="lead">商品ごとの1個あたりの原価の一覧です。行を押すと、その商品の材料と量・作り方が表示されます。</p></div><div class="acts"><label class="srch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="cost-q" type="search" placeholder="商品をさがす" autocomplete="off"></label><select id="cost-sort" class="sel" aria-label="並び順"><option value="rate">原価率が高い順</option><option value="name">名前順</option><option value="new">新しい順</option><option value="est">仮が多い順</option></select></div></div>
+    <div class="ph"><div><h1>原価</h1><p class="lead">商品ごとの原価と原価率の一覧です。商品を押すと、材料・分量・作り方の確認と編集ができます。</p></div><div class="acts"><label class="srch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="cost-q" type="search" placeholder="商品をさがす" autocomplete="off"></label><select id="cost-sort" class="sel" aria-label="並び順"><option value="rate">原価率が高い順</option><option value="name">名前順</option><option value="new">新しい順</option><option value="est">仮が多い順</option></select></div></div>
     <div id="cat-box"></div>
     <div class="chips" id="cost-chips"></div>
     <div class="tw" id="cost-tw"><table class="ctab" id="cost-table"></table></div>
@@ -1061,24 +1068,24 @@ body.pdet-on{overflow:hidden}
   </section>
 
   <section id="t-howto" hidden>
-    <div class="ph"><div><h1>作り方</h1><p class="lead">商品を押すと、手順と写真が出ます。手順を書く・直すのは「原価」のカードです。</p></div></div>
+    <div class="ph"><div><h1>作り方</h1><p class="lead">商品ごとの製造手順と写真を確認できます。手順の編集は「原価」の商品画面から行います。</p></div></div>
     <div class="stack" id="howto-box"></div>
   </section>
 
   <section id="t-label" hidden>
-    <div class="ph"><div><h1 id="label-h">裏表示</h1><p class="lead" id="label-lead">一括表示の原案とラベル印刷。<mark>色つき</mark>は要確認。最終確認と表示の責任は店舗にあります。</p></div><div class="acts"><button class="btn ghost" type="button" id="label-print-top">ラベルを印刷</button></div></div>
+    <div class="ph"><div><h1 id="label-h">裏表示</h1><p class="lead" id="label-lead">一括表示の原案作成とラベル印刷を行います。<mark>色付き</mark>の項目は要確認です。表示内容の最終確認は店舗の責任で行ってください。</p></div><div class="acts"><button class="btn ghost" type="button" id="label-print-top">ラベルを印刷</button></div></div>
     <div class="chips" id="label-chips"></div>
     <div id="label-box"></div>
   </section>
 
   <section id="t-mat" hidden>
-    <div class="ph"><div><h1>材料</h1><p class="lead">請求書から読んだ単価。「仮」は請求書が来たら置き換わります。</p></div><div class="acts"><label class="srch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="mat-q" type="search" placeholder="材料をさがす" autocomplete="off"></label><button class="btn" type="button" id="mat-add-top">＋ 材料を足す</button></div></div>
+    <div class="ph"><div><h1>材料</h1><p class="lead">請求書から読み取った材料の単価を管理します。「仮」の単価は、請求書の登録時に自動で更新されます。</p></div><div class="acts"><label class="srch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="mat-q" type="search" placeholder="材料をさがす" autocomplete="off"></label><button class="btn" type="button" id="mat-add-top">＋ 材料を足す</button></div></div>
     <div class="filter" id="mat-filter"></div>
     <div class="card scroll"><table class="mat" id="mats"></table></div>
     <p class="foot" id="mat-sum"></p>
   </section>
   <section id="t-book" hidden>
-    <div class="ph"><div><h1>帳簿</h1><p class="lead">請求書を撮ると、業者ごと・月ごとに仕分けて、科目の案もつけます。PDFや、受発注システムから書き出したCSVもまとめて入ります。</p></div><div class="acts"><label class="btn ghost">PDF・CSVを取り込む<input type="file" id="book-doc" accept=".pdf,.csv,.txt,.tsv,application/pdf,text/csv,text/plain" multiple hidden></label><button class="btn ghost" type="button" id="book-copy-top">この月をコピー</button></div></div>
+    <div class="ph"><div><h1>帳簿</h1><p class="lead">請求書を撮影すると、仕入先別・月別に仕分け、勘定科目の候補を付けます。PDFや受発注システムのCSVもまとめて取り込めます。</p></div><div class="acts"><label class="btn ghost">PDF・CSVを取り込む<input type="file" id="book-doc" accept=".pdf,.csv,.txt,.tsv,application/pdf,text/csv,text/plain" multiple hidden></label><button class="btn ghost" type="button" id="book-copy-top">この月をコピー</button></div></div>
     <div id="book-doc-out" hidden></div>
     <div class="stack" id="pays"></div>
     <h1 class="sub">請求書の仕分け</h1>
@@ -1087,7 +1094,7 @@ body.pdet-on{overflow:hidden}
     <div id="journal"></div>
   </section>
   <section id="t-hyg" hidden>
-    <div class="ph"><div><h1>衛生記録</h1><p class="lead">毎日の温度と点検。基準を外れた場合は、スタッフ全員にLINEでお知らせします。</p></div><div class="acts"><button class="btn ghost" type="button" id="hyg-print-top">記録表を印刷</button></div></div>
+    <div class="ph"><div><h1>衛生記録</h1><p class="lead">毎日の温度管理と衛生点検を記録します。基準を外れた場合は、スタッフ全員にLINEで通知します。</p></div><div class="acts"><button class="btn ghost" type="button" id="hyg-print-top">記録表を印刷</button></div></div>
     <div class="card" id="hyg-fix" hidden></div>
     <h1 class="sub hy-sh">本日の記録 <span class="k" id="hyg-st"></span></h1>
     <div class="card" id="hyg-today"></div>
@@ -1111,14 +1118,14 @@ body.pdet-on{overflow:hidden}
       </ul></div>
   </section>
   <section id="t-sales" hidden>
-    <div class="ph"><div><h1>商品分析</h1><p class="lead">レジの精算レシートを撮ると、売上を記録して、原価が分かる商品は粗利を出します。</p></div></div>
+    <div class="ph"><div><h1>商品分析</h1><p class="lead">レジの精算レシートを撮影すると売上を記録し、原価が登録済みの商品は粗利を算出します。</p></div></div>
     <div id="money-box"></div>
-    <div id="gap-wrap" hidden><h1 class="sub">理論と実際の差</h1><p class="lead">レシピどおりに使ったはずの材料費と、請求書で実際に買った材料費を月ごとに並べます。差は、ロス・量のぶれ・値段の違い・在庫の増減が混ざった目安です。</p><div class="card" id="gap"></div></div>
-    <div id="course-wrap"><h1 class="sub">コース・セット・飲み放題の売値</h1><p class="lead">料理(商品)を組んで1人前の原価を出し、目標の原価率で売値を提案します。飲み会の料金もここで決められます。</p><div class="card" id="courses"></div><div class="card" id="party" style="margin-top:12px"></div></div>
+    <div id="gap-wrap" hidden><h1 class="sub">理論と実際の差</h1><p class="lead">レシピ上の材料費(理論値)と、請求書の仕入額(実際値)を月別に比較します。差額にはロス・分量のぶれ・単価差・在庫の増減が含まれるため、目安としてご確認ください。</p><div class="card" id="gap"></div></div>
+    <div id="course-wrap"><h1 class="sub">コース・セット・飲み放題の売値</h1><p class="lead">商品を組み合わせて1人前の原価を算出し、目標原価率に合わせた売価を提案します。宴会料金の設定もこちらで行います。</p><div class="card" id="courses"></div><div class="card" id="party" style="margin-top:12px"></div></div>
     <div class="chips" id="sales-chips"></div>
     <div class="stack" id="sales-box"></div>
     <h1 class="sub" style="margin-top:24px">メニューの分析</h1>
-    <p class="lead">売れた数と1個の粗利で、商品を4つに分けます。品目別の精算レシートと卸の納品から出します。</p>
+    <p class="lead">販売数と1個あたりの粗利から、商品を4つのグループに分類します。品目別の精算レシートと卸の納品記録をもとに算出します。</p>
     <div id="menu-box"></div>
     <div class="card" id="sales-add" style="margin-top:12px"></div>
     <details class="card" id="sales-bulk" style="margin-top:12px"><summary><b>売上をまとめて取り込む</b> <span class="k">道の駅・直売所のメール、レジやPOSの日報(CSV・PDF)。何日分でも</span></summary>
@@ -1129,13 +1136,13 @@ body.pdet-on{overflow:hidden}
       <div id="sb-out"></div></details>
   </section>
   <section id="t-ws" hidden>
-    <div class="ph"><div><h1>卸</h1><p class="lead">納品を記録すると、月末に卸先ごとの請求書になります。</p></div><div class="acts"><button class="btn" type="button" id="ws-add-top">＋ 納品を記録</button></div></div>
+    <div class="ph"><div><h1>卸</h1><p class="lead">納品を記録すると、月末に卸先ごとの請求書を作成します。</p></div><div class="acts"><button class="btn" type="button" id="ws-add-top">＋ 納品を記録</button></div></div>
     <div class="card" id="ws-add"></div>
     <div class="chips" id="ws-chips" style="margin-top:16px"></div>
     <div class="stack" id="ws-list"></div>
   </section>
   <section id="t-post" hidden>
-    <div class="ph"><div><h1>発信</h1><p class="lead">SNSに上げる画像と投稿文、店に置くポップ・値札・貼り紙を作ります。そのまま使っても、直しても大丈夫です。</p></div></div>
+    <div class="ph"><div><h1>発信</h1><p class="lead">SNS用の画像・投稿文と、店頭用のPOP・値札・貼り紙を作成します。作成後に内容を編集することもできます。</p></div></div>
     <div class="card" id="post-plan" style="margin-bottom:12px"></div>
     <div class="card" id="post-sns" style="margin-bottom:12px"></div>
     <div class="card post-in"><div class="row" style="margin-bottom:8px"><b>言葉の案をAIに作ってもらう</b></div><div class="ask" style="margin-top:0"><select id="post-p" style="flex:1"></select></div>
@@ -1194,6 +1201,6 @@ body.pdet-on{overflow:hidden}
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-<script src="app.js?v=193"></script>
+<script src="app.js?v=194"></script>
 </body>
 </html>

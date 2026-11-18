@@ -562,9 +562,9 @@ function renderCt() { const b = $('ct-box'); if (!b) return; b.innerHTML = conta
 function contactsBox() {
   const cs = D.contacts || [], sup = Object.keys(Object.assign({}, ...Object.values(D.months || {}).map(m => m.by))), tos = Object.keys(Object.assign({}, ...Object.values(D.ws || {})));
   const cand = [...new Set(sup.concat(tos))].filter(n => !cs.find(c => c.name === n));
-  return `${cs.length ? '' : '<p class="k" style="margin:0 0 8px">まだありません。請求書を撮ると業者が自動で入ります。下から手で足すこともできます</p>'}
+  return `${cs.length ? '' : '<p class="k" style="margin:0 0 8px">まだありません。請求書を撮影すると仕入先が自動で登録されます。手入力で追加することもできます</p>'}
     ${cs.map(c => `<div class="contact-row"><b>${esc(c.name)}</b><span class="k">${esc(c.kind)}</span><span class="tel">${c.tel ? `<a href="tel:${esc(c.tel.replace(/[^\\d+]/g, ''))}">☎ ${esc(c.tel)}</a>` : '<span class="k">電話なし</span>'}</span><span class="k">${esc(c.person)}${c.regno ? ` · ${esc(c.regno)}` : ''}</span><button class="btn ghost sm" type="button" data-ct-edit="${esc(c.name)}">直す</button>${c.addr ? `<div class="k" style="grid-column:1/-1;margin-top:-4px">住所: ${esc(c.addr)}</div>` : ''}${c.bank || c.number ? `<div class="k" style="grid-column:1/-1;margin-top:-4px">振込先: ${esc([c.bank, c.branch, c.type, c.number, c.holder].filter(Boolean).join(' '))}</div>` : ''}</div>`).join('')}
-    ${cs.length ? '<div class="ask"><button class="btn ghost" type="button" id="ct-add">＋ 仕入先・卸先を足す</button></div>' : ''}<div id="ct-form" style="margin-top:12px"${cs.length ? ' hidden' : ''}><div class="fld"><span class="k">名前</span><input id="ct-name" list="ct-cand" placeholder="仕入先・卸先の名前"><datalist id="ct-cand">${cand.map(n => `<option value="${esc(n)}">`).join('')}</datalist><span class="k">種類</span><div class="seg" id="ct-kind">${['業者', '卸先', 'その他'].map((k, i) => `<button type="button" data-v="${k}" aria-pressed="${i === 0}">${k}</button>`).join('')}</div><span class="k">電話</span><input id="ct-tel" inputmode="tel" placeholder="電話番号"><span class="k">担当</span><input id="ct-person" placeholder="担当者"><span class="k">住所</span><input id="ct-addr" placeholder="住所"><span class="k">登録番号</span><input id="ct-regno" placeholder="T から始まる13桁(インボイス)" autocomplete="off">${noMoney() ? '<span class="k">振込先</span><span class="k">店主と、金額の閲覧権限がある人だけに見えます</span>' : `<span class="k">振込先</span><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><input id="ct-bank" placeholder="銀行"><input id="ct-branch" placeholder="支店"><select id="ct-type" class="sel"><option value="">種別</option><option>普通</option><option>当座</option></select><input id="ct-number" inputmode="numeric" placeholder="口座番号"><input id="ct-holder" placeholder="名義(カナ)" style="grid-column:1/-1"></div>`}</div><p class="k" style="margin:4px 0 0">請求書を撮ると、電話・担当・住所・振込先は自動で入ります(読めなかったところだけ空のまま)</p><div class="ask"><button class="btn" type="button" id="ct-save">連絡先を保存</button><button class="btn ghost" type="button" id="ct-del" hidden>消す</button></div></div>`;
+    ${cs.length ? '<div class="ask"><button class="btn ghost" type="button" id="ct-add">＋ 仕入先・卸先を足す</button></div>' : ''}<div id="ct-form" style="margin-top:12px"${cs.length ? ' hidden' : ''}><div class="fld"><span class="k">名前</span><input id="ct-name" list="ct-cand" placeholder="仕入先・卸先の名前"><datalist id="ct-cand">${cand.map(n => `<option value="${esc(n)}">`).join('')}</datalist><span class="k">種類</span><div class="seg" id="ct-kind">${['業者', '卸先', 'その他'].map((k, i) => `<button type="button" data-v="${k}" aria-pressed="${i === 0}">${k === '業者' ? '仕入先' : k}</button>`).join('')}</div><span class="k">電話</span><input id="ct-tel" inputmode="tel" placeholder="電話番号"><span class="k">担当</span><input id="ct-person" placeholder="担当者"><span class="k">住所</span><input id="ct-addr" placeholder="住所"><span class="k">登録番号</span><input id="ct-regno" placeholder="T から始まる13桁(インボイス)" autocomplete="off">${noMoney() ? '<span class="k">振込先</span><span class="k">店主と、金額の閲覧権限がある人だけに見えます</span>' : `<span class="k">振込先</span><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><input id="ct-bank" placeholder="銀行"><input id="ct-branch" placeholder="支店"><select id="ct-type" class="sel"><option value="">種別</option><option>普通</option><option>当座</option></select><input id="ct-number" inputmode="numeric" placeholder="口座番号"><input id="ct-holder" placeholder="名義(カナ)" style="grid-column:1/-1"></div>`}</div><p class="k" style="margin:4px 0 0">請求書を撮ると、電話・担当・住所・振込先は自動で入ります(読めなかったところだけ空のまま)</p><div class="ask"><button class="btn" type="button" id="ct-save">連絡先を保存</button><button class="btn ghost" type="button" id="ct-del" hidden>消す</button></div></div>`;
 }
 const ctv = id => { const e = $(id); return e ? e.value.trim() : ''; }, ctset = (id, v) => { const e = $(id); if (e) e.value = v; };
 function bindContacts(root) {
@@ -667,7 +667,7 @@ function drawMembers(ms, plan, count) {
   box.querySelectorAll('[data-remove]').forEach(b => b.onclick = () => { if (confirmOnce('mem' + b.dataset.remove, `もう一度押すと、${b.dataset.n}さんを外します(その場で入れなくなります)`)) act(+b.dataset.remove, 'remove'); });
 }
 // パンくず(パソコン): ホーム › 原価 › 栗万十
-const TABNAME = { today: 'ホーム', cost: '原価', label: '食品表示', mat: '材料', book: '帳簿', hyg: '衛生記録', ws: '卸', ct: '仕入先・卸先', post: '発信', sales: '商品分析', set: '設定', cal: '予定' };
+const TABNAME = { today: 'ホーム', cost: '原価', label: '食品表示', mat: '材料', book: '帳簿', hyg: '衛生記録', ws: '卸', ct: '仕入先・卸先', post: '発信', sales: '商品分析', set: '設定', cal: '予定', howto: '作り方' };
 function setCrumb(parts) {
   const c = $('crumb'); if (!c) return;
   if (cur === 'today' && !parts) { c.hidden = true; return; }
@@ -882,7 +882,7 @@ const PILL = { '未払い': 'warn', '済': '', '現金済': '', '請求待ち': 
 function renderSort() {
   const all = D.pays || [], ms = [...new Set(all.map(p => p.month))].sort().reverse();
   const chips = $('sort-chips'), box = $('sort-box');
-  if (!ms.length) { chips.innerHTML = ''; box.innerHTML = '<p class="k" style="margin:0">まだ請求書がありません。撮ると、ここに月ごとに並びます</p>'; return; }
+  if (!ms.length) { chips.innerHTML = ''; box.innerHTML = '<p class="k" style="margin:0">まだ請求書がありません。撮影すると、ここに月別で表示されます</p>'; return; }
   const sel = chips.dataset.m && ms.includes(chips.dataset.m) ? chips.dataset.m : ms[0];
   chips.innerHTML = ms.map(m => `<button class="chip" type="button" data-m="${esc(m)}" aria-pressed="${m === sel}">${esc(m.replace('-', '年'))}月分</button>`).join('');
   chips.querySelectorAll('[data-m]').forEach(b => b.onclick = () => { chips.dataset.m = b.dataset.m; renderSort(); });
@@ -892,7 +892,7 @@ function renderSort() {
   const bySup = Object.entries((D.months || {})[sel] ? D.months[sel].by : {}).map(([l, v]) => ({ l, v })).sort((a, b) => b.v - a.v);
   box.innerHTML = `<div class="chgrid"><div><p class="ct">月ごとの仕入れ</p>${barsV(msAsc.map(k => ({ l: +k.slice(5) + '月', v: D.months[k].total })), 'var(--c-book)', { label: '月ごとの仕入れ', w: 320, h: 170 })}</div>
     ${Object.keys(jr).length ? `<div><p class="ct">${esc(sel.replace('-', '年'))}月の科目(案)</p>${donut(Object.entries(jr).map(([l, v]) => ({ l, v })), 'var(--c-book)', { center: '合計', label: '科目の内訳' })}</div>` : ''}
-    ${bySup.length ? `<div class="wide"><p class="ct">業者ごと</p>${barsH(bySup.slice(0, 8), 'var(--c-book)')}</div>` : ''}</div>
+    ${bySup.length ? `<div class="wide"><p class="ct">仕入先別</p>${barsH(bySup.slice(0, 8), 'var(--c-book)')}</div>` : ''}</div>
     <table>${rows.map(p => `<tr><td><b>${esc(p.supplier)}</b><br><span class="k">${esc(p.doc)}${p.paidOn ? ' · ' + esc(p.paidOn.slice(5).replace('-', '/')) + '払い' : p.due ? ' · 期限 ' + esc(p.due.slice(5).replace('-', '/')) : ''}</span></td><td class="n">${yen(p.total)}<br><span class="pill ${PILL[p.status] ?? 'gray'}">${esc(p.status)}</span></td></tr>`).join('')}
     <tr><td><b>合計 ${rows.length}件</b></td><td class="n"><b>${yen(tot)}</b><br><span class="k">払い済み ${yen(done)}</span></td></tr></table>
     <div class="ask" style="margin-top:8px"><button class="btn ghost" type="button" id="sort-copy">この月をコピー</button></div>
@@ -1032,11 +1032,11 @@ function renderPays() {
     }
   }; }
   const up = unpaid();
-  if (!(D.pays || []).length) { box.innerHTML = emptyBox('book', 'まだ請求書がありません', '請求書を撮ると、業者ごと・月ごとに仕分けて、未払いがここに並びます。', ['請求書を撮る', 'cam']); return; }
+  if (!(D.pays || []).length) { box.innerHTML = emptyBox('book', 'まだ請求書がありません', '請求書を撮影すると、仕入先別・月別に仕分け、未払いの請求がここに表示されます。', ['請求書を撮る', 'cam']); return; }
   const sum = up.reduce((a, p) => a + p.total, 0);
   box.innerHTML = `<div class="card"><div class="row"><span>${up.length ? `未払い ${up.length}件` : '未払いはありません'}</span>${up.length ? `<span class="big" style="font-size:20px">${yen(sum)}</span>` : ''}</div>` +
     up.map(p => `<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--line)"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span>${esc(p.supplier)} <span class="k">${+p.month.slice(5) || esc(p.month)}月分${p.due ? ' · 期限 ' + esc(p.due.slice(5).replace('-', '/')) : ''}</span></span>${callBtn(p.supplier)}</div>${bankOf(p.supplier) ? `<div class="bkline"><span class="k">振込先</span> <span class="bk">${esc(bankOf(p.supplier))}</span><button class="btn ghost sm" type="button" data-copy="${esc(bankOf(p.supplier))}">コピー</button></div>` : `<div class="bkline k">振込先: まだ(次の請求書を撮ると自動で入ります)</div>`}<div class="row" style="align-items:center;margin-top:8px"><b style="white-space:nowrap;font-size:16px">${yen(p.total)}</b><span style="display:flex;gap:8px;align-items:center;flex:0 0 auto"><button class="btn" style="white-space:nowrap" type="button" data-go="${p.row}">振込へ</button><button class="btn ghost" style="white-space:nowrap" type="button" data-paid="${p.row}">払った</button></span></div>`).join('') +
-    `<p class="k" style="margin:8px 0 0">${payBank() ? `振込は ${esc(payBank().name)} を開きます(<a href="#" id="bank-change" style="color:var(--accent)">変える</a>)。` : '「振込へ」を使うには、<a href="#" id="bank-change" style="color:var(--accent)">設定で銀行を選んでください</a>。'}${VIA}「業者名 払った」でも済にできます</p></div>`;
+    `<p class="k" style="margin:8px 0 0">${payBank() ? `振込は ${esc(payBank().name)} を開きます(<a href="#" id="bank-change" style="color:var(--accent)">変更</a>)。` : '「振込へ」を使うには、<a href="#" id="bank-change" style="color:var(--accent)">設定で銀行を選んでください</a>。'}${VIA}「仕入先名 払った」でも済にできます</p></div>`;
   box.querySelectorAll('[data-paid]').forEach(b => b.onclick = () => setValue('', 'paid', +b.dataset.paid));
   box.querySelectorAll('[data-copy]').forEach(b => b.onclick = async () => { try { await navigator.clipboard.writeText(b.dataset.copy); toast('振込先をコピーしました', 'ok'); } catch (e) { chat(b.dataset.copy); } });
   box.querySelectorAll('[data-go]').forEach(b => b.onclick = () => goPay(up.find(p => p.row === +b.dataset.go)));
@@ -1151,18 +1151,27 @@ function renderCostBack() {
   bt.setAttribute('aria-label', bt.title);
   if (!renderCostBack.key) { renderCostBack.key = 1; document.addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && !e.shiftKey && (e.key === 'z' || e.key === 'Z') && cur === 'cost' && !/^(INPUT|TEXTAREA|SELECT)$/.test((document.activeElement || {}).tagName || '') && !(pdetEdit)) { e.preventDefault(); costUndo(); } }); }
 }
-// 最後の操作(材料・作り方の変更、または商品の削除)を1つ取り出す
+// 最後の操作(編集の窓でまとめて保存した変更・材料や作り方の変更・商品の削除)を1つ取り出す
+const UNDO_NAME = { ing: '材料', steps: '作り方', pw: '重さ', pieces: '取れる数', baked: '焼き上がりの重さ', price: '売価', pcat: '分類', punit: '数え方' };
 function lastUndo() {
   const tr = noMoney() ? [] : (D.trash || []), un = perm('recipe') ? (D.undo || []) : [];
   const when = t => t ? new Date(t).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
-  const a = un[0] ? { kind: 'undo', row: un[0].row, at: un[0].at || 0, product: un[0].product, label: `「${un[0].product}」の${un[0].field === 'steps' ? '作り方' : '材料'}の変更 ${when(un[0].at)}` } : null;
+  let a = null;
+  if (un[0]) {
+    const g = un[0].grp, rows = g ? un.filter(u => u.grp === g && u.product === un[0].product) : [un[0]];
+    const ord = Object.keys(UNDO_NAME), names = [...new Set(rows.slice().sort((x, y) => ord.indexOf(x.field) - ord.indexOf(y.field)).map(u => UNDO_NAME[u.field] || '変更'))];
+    a = { kind: 'undo', rows: rows.map(u => u.row).sort((x, y) => y - x), at: un[0].at || 0, product: un[0].product, label: `「${un[0].product}」の${rows.length > 1 ? '編集(' + names.join('・') + ')' : names[0] + 'の変更'} ${when(un[0].at)}` };
+  }
   const b = tr[0] ? { kind: 'restore', row: tr[0].row, at: tr[0].at || 0, product: tr[0].name, label: `「${tr[0].name}」の削除 ${when(tr[0].at)}` } : null;
   return a && b ? (b.at > a.at ? b : a) : (a || b);
 }
-function costUndo() {
+async function costUndo() {
   const u = lastUndo(); if (!u) { toast('元に戻せる操作はありません'); return; }
-  if (u.kind === 'restore') { prodSel = null; setValueX({ field: 'restoreprod', value: u.row }); }
-  else setValueX({ field: 'undo', value: u.row });
+  if (u.kind === 'restore') { prodSel = null; setValueX({ field: 'restoreprod', value: u.row }); return; }
+  if (u.rows.length === 1) { setValueX({ field: 'undo', value: u.rows[0] }); return; }
+  // まとめて保存した変更は、行の大きい(新しい)順に戻す。戻すと行が消えるので、大きい順なら番号はずれない
+  for (const row of u.rows) { const out = await api({ kind: 'app_set', field: 'undo', value: row }); if (!out.ok) { toast(out.error || '元に戻せませんでした', 'ng'); if (out.data) { D = out.data; renderAll(); } return; } D = out.data; }
+  renderAll(); toast(`「${u.product}」の編集を元に戻しました。`, 'ok');
 }
 // 商品: 左に写真、右に材料と量(個数を変えられる・1つずつ直せる)、下に作り方(1つずつ直せる)。設定はたたんで下に
 function costsEl() { let c = $('costs'); if (!c) { c = document.createElement('div'); c.id = 'costs'; c.className = 'stack'; $('pdet').after(c); } return c; }
@@ -1185,7 +1194,7 @@ function renderPdetEdit(p, box) {
   const grab = () => {
     E.rows = [...box.querySelectorAll('[data-er]')].map(tr => ({ name: tr.querySelector('.er-n').value.trim(), q: parseFloat(tr.querySelector('.er-q').value) || 0, u: tr.querySelector('.er-u').value }));
     E.steps = [...box.querySelectorAll('[data-es2]')].map(x => x.value.trim());
-    ['pw', 'pieces', 'price', 'cat', 'unit'].forEach(k => { const e = $('rx-' + k); if (e) E[k] = e.value.trim(); });
+    ['pw', 'pieces', 'price', 'cat', 'unit', 'name'].forEach(k => { const e = $('rx-' + k); if (e) E[k === 'name' ? 'name2' : k] = e.value.trim(); });
   };
   box.innerHTML = `<div class="hd2"><h2>${esc(p.name)} を編集</h2><button class="pdx" type="button" id="rx-x" aria-label="閉じる">×</button></div>
     <div class="pe">
@@ -1196,6 +1205,7 @@ function renderPdetEdit(p, box) {
         <datalist id="mat-names2">${D.materials.map(m => `<option value="${esc(m.name)}">`).join('')}</datalist></section>
       <section><h3>作り方</h3><ol class="pe-s">${E.steps.map((t, i) => `<li><input data-es2="${i}" value="${esc(t)}" maxlength="300" aria-label="手順${i + 1}"><button class="pe-mv" type="button" data-esu="${i}" aria-label="上へ"${i ? '' : ' disabled'}>↑</button><button class="pe-mv" type="button" data-esd="${i}" aria-label="下へ"${i < E.steps.length - 1 ? '' : ' disabled'}>↓</button><button class="pe-del" type="button" data-esx="${i}">削除</button></li>`).join('')}</ol><button class="btn ghost sm" type="button" id="rx-adds">＋ 手順を追加</button></section>
       <section><h3>商品の情報</h3><div class="pe-g">
+        <label style="grid-column:1/-1">商品名<span><input id="rx-name" value="${esc(E.name2)}" maxlength="30" placeholder="例 どら焼き"></span><small>変更すると、卸値・納品・コース・レジの呼び方など、この名前でつながる記録もまとめて新しい名前に付け替えます</small></label>
         <label>数え方<span><input id="rx-unit" list="unit-list" value="${esc(E.unit)}" maxlength="4" placeholder="例 個" style="width:6em"></span><small>原価や分量の「1${esc(U)}あたり」に使います(例: 個・人前・杯・皿)</small><datalist id="unit-list">${['個', '人前', '杯', '皿', '本', '枚', '切れ', '台', '袋', '箱', 'g'].map(u => `<option value="${u}">`).join('')}</datalist></label>
         <label>1${U}の重さ<span><input id="rx-pw" type="number" step="0.1" min="0" inputmode="decimal" value="${esc(E.pw)}" placeholder="例 40"> g</span></label>
         ${p.composed ? '' : `<label>1仕込みで取れる数<span><input id="rx-pieces" type="number" min="0" inputmode="numeric" value="${esc(E.pieces)}" placeholder="例 8"> ${U}</span><small>入力すると、重さより数を優先します。空にすると重さに戻ります</small></label>`}
@@ -1203,7 +1213,7 @@ function renderPdetEdit(p, box) {
         ${p.kind === 'part' ? '' : `<label>分類<span><input id="rx-cat" list="cat-list" value="${esc(E.cat)}" placeholder="例 焼き菓子" maxlength="16"></span></label>`}
       </div></section>
     </div>
-    <div class="pe-foot"><span class="k" id="rx-msg">保存すると、原価と食品表示を計算し直します。材料と作り方は、保存後に「↶ 元に戻す」で保存前に戻せます。</span><button class="btn ghost" type="button" id="rx-cancel">キャンセル</button><button class="btn" type="button" id="rx-save">保存する</button></div>`;
+    <div class="pe-foot"><span class="k" id="rx-msg">保存すると、原価と食品表示を計算し直します。保存後に「↶ 元に戻す」を押すと、この保存の前に戻せます。</span><button class="btn ghost" type="button" id="rx-cancel">キャンセル</button><button class="btn" type="button" id="rx-save">保存する</button></div>`;
   box.oninput = () => { E.dirty = true; };
   const re = () => { grab(); E.dirty = true; renderPdetEdit(p, box); };
   $('rx-addr').onclick = () => { grab(); E.rows.push({ name: '', q: 0, u: 'g' }); E.dirty = true; renderPdetEdit(p, box); const n = box.querySelectorAll('.er-n'); n[n.length - 1].focus(); };
@@ -1230,14 +1240,17 @@ function renderPdetEdit(p, box) {
     if (!noMoney() && num(E.price) != null && num(E.price) > 0 && num(E.price) !== (p.price || null)) calls.push({ field: 'price', value: num(E.price) });
     if (p.kind !== 'part' && (E.cat || '') !== (p.cat || '')) calls.push({ field: 'pcat', value: E.cat });
     if ((E.unit || '') !== PU(p)) calls.push({ field: 'punit', value: E.unit === U && !p.unitw ? '' : E.unit });
+    if (!E.name2) { msg.innerHTML = '<mark>商品名を入力してください。</mark>'; return; }
+    if (E.name2 !== p.name) { if (D.products.some(x => x.name === E.name2)) { msg.innerHTML = `<mark>「${esc(E.name2)}」という商品はすでにあります。別の名前にしてください。</mark>`; return; } calls.push({ field: 'pname', value: E.name2 }); }
     if (!calls.length) { back(); return; }
-    const sv = $('rx-save'); sv.disabled = true; sv.textContent = '保存しています…';
+    const sv = $('rx-save'), grp = 'g' + Date.now().toString(36); sv.disabled = true; sv.textContent = '保存しています…';
     for (const c of calls) {
-      const out = await api(Object.assign({ kind: 'app_set', product: p.name }, c));
+      const out = await api(Object.assign({ kind: 'app_set', product: p.name, grp }, c));
       if (!out.ok) { sv.disabled = false; sv.textContent = '保存する'; msg.innerHTML = `<mark>${esc(out.error || '保存できませんでした')}</mark>`; if (out.data) D = out.data; return; }
       D = out.data;
     }
-    pdetEdit = null; renderAll(); toast(`「${p.name}」を保存しました。`, 'ok');
+    if (E.name2 && E.name2 !== p.name) prodSel = E.name2;
+    pdetEdit = null; renderAll(); toast(`「${prodSel || p.name}」を保存しました。`, 'ok');
   };
 }
 function renderPdet() {
@@ -1292,7 +1305,7 @@ function renderPdet() {
   $('pdet-photo').onclick = () => { const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*'; inp.onchange = async () => { const fl = inp.files[0]; if (!fl) return; try { const img64 = await shrinkStep(fl); const r = await api({ kind: 'app_img', product: p.name, idx: 0, image: img64, type: 'image/jpeg' }); if (!r.ok) throw new Error(r.error); D = r.data; renderAll(); toast('写真を付けました', 'ok'); } catch (e) { toast(e.message || '写真を送れませんでした'); } }; inp.click(); };
   box.querySelectorAll('[data-qn]').forEach(b => b.onclick = () => { prodN = +b.dataset.qn; renderPdet(); });
   if ($('qn-in')) $('qn-in').onchange = () => { prodN = Math.max(1, Math.min(9999, parseInt($('qn-in').value) || 1)); renderPdet(); };
-  if ($('pdet-edit')) $('pdet-edit').onclick = () => { pdetEdit = { name: p.name, rows: p.rows.map(r => ({ name: r.name, q: r.q != null ? r.q : r.qty, u: r.u || r.unit || 'g' })), steps: (p.steps || []).slice(), pw: p.pw || '', pieces: p.piecesN || '', price: p.price || '', cat: p.cat || '', unit: PU(p) }; renderPdet(); };
+  if ($('pdet-edit')) $('pdet-edit').onclick = () => { pdetEdit = { name: p.name, rows: p.rows.map(r => ({ name: r.name, q: r.q != null ? r.q : r.qty, u: r.u || r.unit || 'g' })), steps: (p.steps || []).slice(), pw: p.pw || '', pieces: p.piecesN || '', price: p.price || '', cat: p.cat || '', unit: PU(p), name2: p.name }; renderPdet(); };
   // 設定は今までのカードをそのまま、たたんで下に
   renderCostCards(p.name); const set = $('pdet-set'), costs = costs0; set.appendChild(costs);
   costs.querySelectorAll('.prod > .hd, .prod > .big, .prod > .bar').forEach(h => { h.hidden = true; });
@@ -1859,7 +1872,7 @@ function matEdit(name, preset) {
     ${name ? '' : `<label>名前(袋に書いてある商品名)${inp('me-name', m.name, '商品名')}</label>`}
     <label>種類${inp('me-kind', m.kind, '例 マーガリン・強力粉・生クリーム')}</label>
     <label>規格${inp('me-spec', m.spec, '例 25kg・500g×20')}</label>
-    <label>業者${inp('me-sup', m.supplier, '業者名')}</label>
+    <label>仕入先${inp('me-sup', m.supplier, '仕入先名')}</label>
     <label>中身${inp('me-attrs', m.attrs, '例 乳脂肪分47%・発酵・無塩・植物性')}</label>
     ${m.packaging ? '' : `<label>1つの重さ${inp('me-pg', m.pieceG || '', '例 200', '6em')} g<br><span class="k">1個・1玉・1尾・1杯・1本など、数で使うときの重さ。入れると、レシピに数で書けます。</span>${m.pieceG && m.spec && parseSpecG(m.spec) ? `<br><span class="k">規格 ${esc(m.spec)} なら、1袋から約${Math.floor(parseSpecG(m.spec) / m.pieceG)}つ取れます。</span>` : ''}</label>`}
     ${m.packaging || !name ? '' : `<label style="display:flex;gap:8px;align-items:flex-start"><input type="checkbox" id="me-avg"${m.avg ? ' checked' : ''} style="margin-top:4px"><span>値段は直近3回の平均で見る<br><span class="k">野菜・魚など、相場で値段が変わる材料に。請求書を撮るたびに、直近3回(90日以内)の平均で原価を出します。</span></span></label>`}
@@ -1906,8 +1919,8 @@ function taxHtml(r) {
   return `<h2>${esc(r.month.replace('-', '年'))}月分 税理士用</h2>
     <h3>科目ごとの合計(仕入れ・案)</h3><table class="ptab">${sk.map(k => `<tr><td>${esc(k)}</td><td class="n">${yen0(r.sums[k])}円</td></tr>`).join('')}<tr><td><b>合計</b></td><td class="n"><b>${yen0(st)}円</b></td></tr></table>
     <h3>売上(レジの精算・税込)</h3>${r.sales.length ? `<table class="ptab"><tr><th>日付</th><th class="n">売上</th><th class="n">客数</th></tr>${r.sales.map(x => `<tr><td>${esc(x[0])}</td><td class="n">${yen0(x[1])}円</td><td class="n">${x[2] || ''}</td></tr>`).join('')}<tr><td><b>合計</b></td><td class="n"><b>${yen0(sl)}円</b></td><td></td></tr></table>` : '<p>この月の売上の記録はありません。</p>'}
-    <h3>支払い</h3>${r.pays.length ? `<table class="ptab"><tr><th>業者</th><th class="n">金額</th><th>期限</th><th>状態</th><th>支払日</th></tr>${r.pays.map(x => `<tr><td>${esc(x[0])}</td><td class="n">${yen0(x[2])}円</td><td>${esc(x[3])}</td><td>${esc(x[4])}</td><td>${esc(x[5])}</td></tr>`).join('')}</table>` : '<p>この月の支払いの記録はありません。</p>'}
-    <h3>仕入れの明細</h3>${r.buys.length ? `<table class="ptab"><tr><th>日付</th><th>業者</th><th>品名</th><th class="n">金額</th><th>科目(案)</th><th>税率</th></tr>${r.buys.map(b => `<tr><td>${esc(b[0])}</td><td>${esc(b[1])}</td><td>${esc(b[2])}${b[3] ? ' ' + esc(b[3]) : ''}</td><td class="n">${yen0(b[6])}</td><td>${esc(b[7])}</td><td>${esc(b[8])}</td></tr>`).join('')}<tr><td colspan="3"><b>合計</b></td><td class="n"><b>${yen0(bt)}</b></td><td colspan="2"></td></tr></table>` : '<p>この月の仕入れの記録はありません。</p>'}
+    <h3>支払い</h3>${r.pays.length ? `<table class="ptab"><tr><th>仕入先</th><th class="n">金額</th><th>期限</th><th>状態</th><th>支払日</th></tr>${r.pays.map(x => `<tr><td>${esc(x[0])}</td><td class="n">${yen0(x[2])}円</td><td>${esc(x[3])}</td><td>${esc(x[4])}</td><td>${esc(x[5])}</td></tr>`).join('')}</table>` : '<p>この月の支払いの記録はありません。</p>'}
+    <h3>仕入れの明細</h3>${r.buys.length ? `<table class="ptab"><tr><th>日付</th><th>仕入先</th><th>品名</th><th class="n">金額</th><th>科目(案)</th><th>税率</th></tr>${r.buys.map(b => `<tr><td>${esc(b[0])}</td><td>${esc(b[1])}</td><td>${esc(b[2])}${b[3] ? ' ' + esc(b[3]) : ''}</td><td class="n">${yen0(b[6])}</td><td>${esc(b[7])}</td><td>${esc(b[8])}</td></tr>`).join('')}<tr><td colspan="3"><b>合計</b></td><td class="n"><b>${yen0(bt)}</b></td><td colspan="2"></td></tr></table>` : '<p>この月の仕入れの記録はありません。</p>'}
     <p class="k">科目はピタット原価の案です。請求書の原本と合わせてご確認ください。</p>`;
 }
 function renderJournal() {
@@ -2090,7 +2103,7 @@ function renderAllInner() {
   betaAsk(); mlockBar(); if (PK_KEYS) pkBanner(); else if (PK_OK && !window.__pkl) { window.__pkl = 1; pkLoad(); }
   stuckBind(); if (SORT) sortCard(); else if (CF && !window.__sortl) { window.__sortl = 1; sortLoad(); }
   $('shop').textContent = D.shop; if ($('shop2')) { $('shop2').textContent = D.shop; $('date2').textContent = $('date').textContent; }
-  $('foot').textContent = `${new Date(D.at).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} 時点。開き直すと新しくなります。キャラの絵はAtelier SAISPEのLINE絵文字。`;
+  $('foot').textContent = `${new Date(D.at).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} 時点。画面を開き直すと最新になります。キャラの絵はAtelier SAISPEのLINE絵文字。`;
 }
 
 // ---------- タブ ----------
@@ -3063,7 +3076,7 @@ ch.onclick = openAsk; ch.onkeydown = e => { if (e.key === 'Enter' || e.key === '
 $('cam').onclick = openCamera;
 function renderChips(quick) {
   const p0 = D.products[0] ? D.products[0].name : '看板商品';
-  const c = quick && quick.length ? quick : (noMoney() ? ['今日の衛生でまだのは?', 'ラベルの印刷がずれる', '業者の電話はどこ?', 'インスタの画像を作りたい', '賞味期限と消費期限のちがいは?', `${p0}の栄養成分は?`] : ['今月儲かってる?', `${p0}の原価は?`, '値上げしたほうがいい?', 'ラベルの印刷がずれる', '業者の電話はどこ?', 'インスタの画像を作りたい', '払っていないのは?', '賞味期限と消費期限のちがいは?']);
+  const c = quick && quick.length ? quick : (noMoney() ? ['今日の衛生でまだのは?', 'ラベルの印刷がずれる', '仕入先の電話番号はどこ?', 'インスタの画像を作りたい', '賞味期限と消費期限のちがいは?', `${p0}の栄養成分は?`] : ['今月儲かってる?', `${p0}の原価は?`, '値上げしたほうがいい?', 'ラベルの印刷がずれる', '仕入先の電話番号はどこ?', 'インスタの画像を作りたい', '払っていないのは?', '賞味期限と消費期限のちがいは?']);
   const box = $('qchips'); box.innerHTML = c.map(s => `<button type="button">${esc(s)}</button>`).join('');
   box.querySelectorAll('button').forEach(b => b.onclick = () => ask(b.textContent));
 }
