@@ -1068,16 +1068,28 @@ function renderCost() {
 }
 // 戻す: 消したレシピ(戻す・完全に消す)と、材料・作り方を直す前の控え
 function renderCostBack() {
-  let box = $('cost-back'); if (!box) { box = document.createElement('div'); box.id = 'cost-back'; $('t-cost').appendChild(box); }
+  const old = $('cost-back'); if (old) old.remove();
+  const acts = document.querySelector('#t-cost .ph .acts'); if (!acts) return;
+  let bt = $('cost-undo');
+  if (!bt) { bt = document.createElement('button'); bt.id = 'cost-undo'; bt.type = 'button'; bt.className = 'undo-btn'; acts.prepend(bt); bt.onclick = () => costUndo(); }
+  const u = lastUndo(), ic = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>';
+  bt.innerHTML = ic + '<span>元に戻す</span>';
+  bt.disabled = !u; bt.title = u ? '元に戻す: ' + u.label + (/Mac/.test(navigator.platform) ? '(⌘Z)' : '(Ctrl+Z)') : '元に戻せる操作はありません';
+  bt.setAttribute('aria-label', bt.title);
+  if (!renderCostBack.key) { renderCostBack.key = 1; document.addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && !e.shiftKey && (e.key === 'z' || e.key === 'Z') && cur === 'cost' && !/^(INPUT|TEXTAREA|SELECT)$/.test((document.activeElement || {}).tagName || '') && !(pdetEdit)) { e.preventDefault(); costUndo(); } }); }
+}
+// 最後の操作(材料・作り方の変更、または商品の削除)を1つ取り出す
+function lastUndo() {
   const tr = noMoney() ? [] : (D.trash || []), un = perm('recipe') ? (D.undo || []) : [];
-  if (!tr.length && !un.length) { box.innerHTML = ''; return; }
   const when = t => t ? new Date(t).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
-  box.innerHTML = `<div class="card" style="margin-top:12px"><p style="margin:0 0 8px"><b>戻す</b> <span class="k">間違えて消した・直したときは、ここから戻せます</span></p>
-    ${tr.length ? `<p class="k" style="margin:8px 0 4px">消したレシピ(「完全に消す」はもう戻せません)</p>${tr.map(t => `<div class="ask" style="justify-content:space-between;flex-wrap:wrap"><span>${esc(t.name)} <span class="k">${when(t.at)}${t.by ? ' ' + esc(t.by) : ''}</span></span><span style="display:flex;gap:8px"><button class="btn sm" type="button" data-restore="${t.row}">戻す</button><button class="btn ghost sm" type="button" data-purge="${t.row}" style="color:var(--warn);border-color:var(--warn)">完全に消す</button></span></div>`).join('')}` : ''}
-    ${un.length ? `<p class="k" style="margin:8px 0 4px">材料・作り方を直す前(新しい順)</p>${un.map(u => `<div class="ask" style="justify-content:space-between;flex-wrap:wrap"><span>${esc(u.product)} <span class="k">${u.field === 'steps' ? '作り方' : '材料'} ・ ${when(u.at)}${u.by ? ' ' + esc(u.by) : ''}</span></span><button class="btn sm" type="button" data-undo="${u.row}">直す前に戻す</button></div>`).join('')}` : ''}</div>`;
-  box.querySelectorAll('[data-restore]').forEach(b => b.onclick = () => setValueX({ field: 'restoreprod', value: +b.dataset.restore }));
-  box.querySelectorAll('[data-purge]').forEach(b => twice(b, '完全に消す(もう戻せません)', () => setValueX({ field: 'purgetrash', value: +b.dataset.purge })));
-  box.querySelectorAll('[data-undo]').forEach(b => b.onclick = () => setValueX({ field: 'undo', value: +b.dataset.undo }));
+  const a = un[0] ? { kind: 'undo', row: un[0].row, at: un[0].at || 0, product: un[0].product, label: `「${un[0].product}」の${un[0].field === 'steps' ? '作り方' : '材料'}の変更 ${when(un[0].at)}` } : null;
+  const b = tr[0] ? { kind: 'restore', row: tr[0].row, at: tr[0].at || 0, product: tr[0].name, label: `「${tr[0].name}」の削除 ${when(tr[0].at)}` } : null;
+  return a && b ? (b.at > a.at ? b : a) : (a || b);
+}
+function costUndo() {
+  const u = lastUndo(); if (!u) { toast('元に戻せる操作はありません'); return; }
+  if (u.kind === 'restore') { prodSel = null; setValueX({ field: 'restoreprod', value: u.row }); }
+  else setValueX({ field: 'undo', value: u.row });
 }
 // 商品: 左に写真、右に材料と量(個数を変えられる・1つずつ直せる)、下に作り方(1つずつ直せる)。設定はたたんで下に
 function costsEl() { let c = $('costs'); if (!c) { c = document.createElement('div'); c.id = 'costs'; c.className = 'stack'; $('pdet').after(c); } return c; }
@@ -1117,7 +1129,7 @@ function renderPdetEdit(p, box) {
         ${p.kind === 'part' ? '' : `<label>分類<span><input id="pe-cat" list="cat-list" value="${esc(E.cat)}" placeholder="例 焼き菓子" maxlength="16"></span></label>`}
       </div></section>
     </div>
-    <div class="pe-foot"><span class="k" id="pe-msg">保存すると、原価と食品表示を計算し直します。保存前の状態は「戻す」から戻せます。</span><button class="btn ghost" type="button" id="pe-cancel">キャンセル</button><button class="btn" type="button" id="pe-save">保存する</button></div>`;
+    <div class="pe-foot"><span class="k" id="pe-msg">保存すると、原価と食品表示を計算し直します。材料と作り方は、保存後に「↶ 元に戻す」で保存前に戻せます。</span><button class="btn ghost" type="button" id="pe-cancel">キャンセル</button><button class="btn" type="button" id="pe-save">保存する</button></div>`;
   box.oninput = () => { E.dirty = true; };
   const re = () => { grab(); E.dirty = true; renderPdetEdit(p, box); };
   $('pe-addr').onclick = () => { grab(); E.rows.push({ name: '', q: 0, u: 'g' }); E.dirty = true; renderPdetEdit(p, box); const n = box.querySelectorAll('.er-n'); n[n.length - 1].focus(); };
@@ -1172,14 +1184,15 @@ function renderPdet() {
   }).join('');
   const total = p.batch_grams ? fq(p.batch_grams * f) : '';
   const steps = (p.steps || []).map((t, i) => `<li><span>${esc(t)}${(p.simgs || [])[i] ? `<div><img class="stimg" data-img="${esc(p.simgs[i])}" alt="手順${i + 1}の写真" style="max-width:220px;border-radius:8px;margin-top:6px"></div>` : ''}</span><span></span></li>`).join('');
-  box.innerHTML = `<div class="hd2"><h2>${esc(p.name)} <span class="k">${esc(p.part || p.cat || '')}</span></h2><div class="row" style="gap:8px;flex-wrap:wrap">${canEdit ? '<button class="btn" type="button" id="pdet-edit">編集する</button>' : ''}<button class="btn ghost" type="button" id="mk-open">レシピ票(製造モード)</button><button class="pdx" type="button" id="pdet-x" aria-label="閉じる">×</button></div></div>
+  box.innerHTML = `<div class="hd2"><h2>${esc(p.name)} <span class="k">${esc(p.part || p.cat || '')}</span></h2><div class="row" style="gap:8px;flex-wrap:wrap">${(() => { const u = lastUndo(); return u && u.kind === 'undo' && u.product === p.name ? `<button class="undo-btn" type="button" id="pdet-undo" title="元に戻す: ${esc(u.label)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg><span>元に戻す</span></button>` : ''; })()}${canEdit ? '<button class="btn" type="button" id="pdet-edit">編集する</button>' : ''}<button class="btn ghost" type="button" id="mk-open">レシピ票<span class="mkx">(製造モード)</span></button><button class="pdx" type="button" id="pdet-x" aria-label="閉じる">×</button></div></div>
     <div class="rv"><div class="pic"><div class="img">${img ? `<img class="stimg" data-img="${esc(img)}" alt="${esc(p.name)}">` : esc(p.name)}</div><div class="cap">${p.kind === 'part' ? '半製品' : esc(p.cat || '分類なし')} ・ 1回の仕込み ${per ? per + U : (p.batch_grams ? fq(p.batch_grams) : '—')}${p.pw ? ` ・ 1${U} ${p.pw}g` : ''}</div><div class="btns"><button class="btn ghost sm" type="button" id="pdet-photo">写真を撮る・付ける</button>${p.kind !== 'part' ? `<button class="btn ghost sm" type="button" id="pdet-label">食品表示</button>` : ''}</div></div>
     <div class="ml"><div class="mh"><span>材料</span>${qn}</div>${rows}${total ? `<div class="row sub"><span>合計(${per ? n + U : '1仕込み'}分)</span><b style="font-size:16px">${total}</b><span></span></div>` : ''}<div class="row sub"><span>アレルゲン</span><span style="font-weight:500;font-size:13px">${algs.length ? algs.map(esc).join('・') : 'なし'}</span><span></span></div></div></div>
     <datalist id="mat-names">${D.materials.map(m => `<option value="${esc(m.name)}">`).join('')}</datalist>
     <div class="steps2"><h3>作り方</h3>${(p.steps || []).length ? `<ol>${steps}</ol>` : '<p class="k" style="margin:0">まだ手順がありません。</p>'}</div>
-    <details class="setd"><summary>その他の設定(出し方・税率・値段のない材料・組み合わせ・削除)</summary>${canEdit ? `<div class="ask" style="justify-content:space-between;flex-wrap:wrap;margin:8px 0"><span>材料や作り方を消してしまったら: 毎朝4時の控えと見比べて戻せます</span><button class="btn ghost sm" type="button" id="pdet-bk">控えと見比べる</button></div><div id="pdet-bkout"></div>` : ''}<div id="pdet-set"></div></details>`;
+    <details class="setd"><summary>その他の設定(出し方・税率・値段のない材料・組み合わせ・削除)</summary><div id="pdet-set"></div></details>`;
   bindStepImgs(box);
   $('pdet-x').onclick = pdetClose;
+  if ($('pdet-undo')) $('pdet-undo').onclick = () => costUndo();
   if ($('pdet-bk')) $('pdet-bk').onclick = async () => {
     const out = $('pdet-bkout'); out.innerHTML = '<p class="k">控えを読んでいます…</p>';
     const r = await api({ kind: 'app_backup_recipe', product: p.name });
