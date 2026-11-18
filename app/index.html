@@ -10,10 +10,10 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="ピタット原価">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@500;700&family=Shippori+Mincho+B1:wght@700&family=Zen+Maru+Gothic:wght@500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Shippori+Mincho+B1:wght@700&display=swap" rel="stylesheet">
 <style>
 [hidden]{display:none!important}
-/* ピタット原価 お店の画面 v16
+/* ピタット原価 管理画面 v16
    参考: Canva(大きな「何をしますか?」と色つきの丸いボタン)と STORES(白くすっきりした管理画面と数字の札)。
    青1色を軸に、機能ごとに色を1つ持つ。角は大きめの丸。影はごく薄く。キャラは右下に座っていて、押すと会話が開く。 */
 :root{
@@ -23,8 +23,8 @@
   --nav:#ffffff; --nav-ink:#6b7280; --nav-on:#185fa5;
   --c-cam:#185fa5; --c-sort:#c2410c; --c-more:#6b7280; --c-cost:#d98a12; --c-label:#0f8c85; --c-mat:#2f9a4e; --c-stock:#e26a1a; --c-hyg:#1a9ad6; --c-book:#5a4fcf; --c-ws:#8a5a2b; --c-ct:#2f7d6d; --c-post:#d63f78; --c-sales:#8a3fc2; --c-set:#6b7280; --c-home:#185fa5; --c-howto:#b5541c;
   --mix:#ffffff; --shadow:0 1px 2px rgba(20,40,70,.05),0 8px 24px rgba(20,40,70,.06);
-  --font:"Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic UI","Yu Gothic","Meiryo","Noto Sans JP",sans-serif;
-  --round:"Zen Maru Gothic",var(--font);
+  --font:"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic UI","Meiryo",sans-serif;
+  --round:var(--font);
 }
 @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
   --bg:#111418; --card:#1a1e24; --ink:#eceef2; --ink-2:#a3aab5; --line:#2c323b; --line-2:#232830;
@@ -36,6 +36,11 @@
   --nav:#1a1e24; --nav-ink:#8a919c; --nav-on:#8dbdf0; --mix:#1a1e24; --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.25); --logo-f:invert(.92); color-scheme:dark }
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);font-size:16px;line-height:1.65;-webkit-text-size-adjust:100%}
+/* 日本語の組版(業務ソフトの見た目): 見出しは文字を詰めて文節で改行、数字は桁をそろえる、禁則を厳しく */
+html{line-break:strict;overflow-wrap:anywhere}
+h1,h2,h3,.sh b,.btn{font-feature-settings:"palt"}
+h1,h2,h3{word-break:auto-phrase;letter-spacing:.03em}
+.num,.big,td,.pr,b{font-variant-numeric:tabular-nums}
 .wrap{max-width:560px;margin:0 auto;padding-inline:16px;padding-block:0 calc(84px + var(--cs,72px) + env(safe-area-inset-bottom,0px))}
 
 /* 上の帯(ケイタイ): 店名と日付 */
@@ -204,7 +209,7 @@ section[hidden]{display:none}
 .publ label{display:flex;gap:8px;align-items:center;font-size:14px;min-height:36px}
 .publ label.off{color:var(--ink-3)}
 @media (max-width:560px){.qrbox{grid-template-columns:1fr}.qrbox .qr{margin:0 auto}}
-/* よくなったことの1行(大きな変更のときだけ) */
+/* 更新情報の1行(大きな変更のときだけ) */
 .updbar{display:flex;align-items:center;gap:10px;background:var(--sun-soft,#fff4d6);border:1px solid var(--sun,#f2b632);border-radius:12px;padding:8px 12px;margin-bottom:10px;font-size:14px}
 .updbar b{font-size:12px;background:var(--sun,#f2b632);color:var(--sun-ink,#3d2a00);border-radius:999px;padding:1px 8px;white-space:nowrap}
 .updbar span{flex:1;min-width:0}
@@ -572,7 +577,7 @@ section>h1:first-child{margin-top:24px}
 .hp-grp .chips{margin-top:6px}
 .fx-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
 .fx-chips button{font:inherit;font-size:13px;border:1px solid var(--line);background:var(--card,#fff);color:inherit;border-radius:999px;padding:6px 12px;min-height:36px;cursor:pointer}
-/* 最初の取り込み */
+/* 初期登録 */
 .intake .sh{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
 .intake .goal{font-family:var(--round,inherit);font-size:28px;font-weight:700;line-height:1.2;font-variant-numeric:tabular-nums}
 .intake .goal small{font-size:14px;color:var(--ink-2);font-weight:500}
@@ -903,7 +908,7 @@ section.locked>:not(.ph):not(.lockcard):not(h1){display:none!important}
     <div class="shop"><img src="logo_mark.webp?v=1" alt="" onerror="this.remove()"><span id="shop">お店</span></div>
     <div class="date" id="date"></div>
   </div>
-  <div class="appbar"><div><span class="sname" id="shop2"></span><span class="date" id="date2"></span><form class="askbar" id="askbar-top" autocomplete="off"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6.5h16M4 12h16M4 17.5h10"/></svg><input id="ask-top" placeholder="話しかける" aria-label="相談する"><button class="btn" type="submit">送る</button></form></div></div>
+  <div class="appbar"><div><span class="sname" id="shop2"></span><span class="date" id="date2"></span><form class="askbar" id="askbar-top" autocomplete="off"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6.5h16M4 12h16M4 17.5h10"/></svg><input id="ask-top" placeholder="AIに質問・記録の入力" aria-label="AIに質問する"><button class="btn" type="submit">送る</button></form></div></div>
 
   <div class="bar" id="bar" hidden role="status"></div>
   <div class="crumb" id="crumb" hidden aria-label="今いる場所"></div>
@@ -937,7 +942,7 @@ section.locked>:not(.ph):not(.lockcard):not(h1){display:none!important}
         <div class="stack" id="notices"></div>
       </div>
       <div class="colR">
-        <h1 class="sub">お金の動き</h1>
+        <h1 class="sub">入出金</h1>
         <div class="hero" id="hero"></div>
         <div class="dots" id="hero-dots"></div>
         <h1 class="sub" id="prods-h">商品</h1>
@@ -953,7 +958,7 @@ section.locked>:not(.ph):not(.lockcard):not(h1){display:none!important}
   </section>
 
   <section id="t-ct" hidden>
-    <div class="ph"><div><h1>業者・卸先</h1><p class="lead">仕入れ先と卸先の電話・担当・住所・振込先。請求書を撮ると自動で入ります。☎を押すと電話がかかります。</p></div></div>
+    <div class="ph"><div><h1>仕入先・卸先</h1><p class="lead">仕入れ先と卸先の電話・担当・住所・振込先。請求書を撮ると自動で入ります。☎を押すと電話がかかります。</p></div></div>
     <div class="card" id="ct-box"></div>
   </section>
   <section id="t-cal" hidden>
@@ -1064,7 +1069,7 @@ section.locked>:not(.ph):not(.lockcard):not(h1){display:none!important}
     <div class="card" id="bank-box"></div>
     <h1 class="sub">問い合わせ</h1>
     <div class="card contact">
-      <p class="k" style="margin:0 0 8px"><a href="/guide/faq" target="_blank" rel="noopener">よくある質問(動画つき)</a>に、多い質問の答えと動画があります。<a href="/guide/updates" target="_blank" rel="noopener">よくなったこと</a>(毎月の直したこと・足したこと)もここから。<br>分からないこと・うまく動かないことを書いてください。まずAIがすぐにお答えし、解決しなければ、そのまま担当におつなぎします。</p>
+      <p class="k" style="margin:0 0 8px"><a href="/guide/faq" target="_blank" rel="noopener">よくある質問(動画つき)</a>に、多い質問の答えと動画があります。<a href="/guide/updates" target="_blank" rel="noopener">更新情報</a>(毎月の直したこと・足したこと)もここから。<br>分からないこと・うまく動かないことを書いてください。まずAIがすぐにお答えし、解決しなければ、そのまま担当におつなぎします。</p>
       <div class="seg" id="ct-cat" style="flex-wrap:wrap;justify-content:flex-start"><button type="button" data-v="使い方" aria-pressed="true">使い方</button><button type="button" data-v="うまく動かない" aria-pressed="false">うまく動かない</button><button type="button" data-v="プラン・お支払い" aria-pressed="false">プラン・お支払い</button><button type="button" data-v="こうしてほしい" aria-pressed="false">こうしてほしい</button><button type="button" data-v="その他" aria-pressed="false">その他</button></div>
       <textarea id="ct-text" rows="4" maxlength="2000" placeholder="例: 請求書の写真がうまく読めません" aria-label="問い合わせの内容"></textarea>
       <div class="ask"><button class="btn" type="button" id="ct-go">聞く</button><span class="k" id="ct-via">お店の名前・プラン・最近のエラーは自動で添えます</span></div>
@@ -1074,7 +1079,7 @@ section.locked>:not(.ph):not(.lockcard):not(h1){display:none!important}
     <h1 class="sub" id="words-h">話しかけられる言葉</h1>
     <div class="card"><p style="margin:0">決まった言い方はありません。ふだんの言葉で話しかけてください。</p><p class="k" style="margin:8px 0 0">作った数、払ったこと、冷蔵庫の温度、納品、予定、「今月どう?」のような相談まで、話しかけるだけで大丈夫です。</p><p class="k" style="margin:8px 0 0">記録の前には「〜として記録しますか?」と確かめます。「はい」で確定した言い方は覚えて、次からは同じ意味に取ります。分からないときは聞き返します。</p></div>
   </section>
-  <div class="stuck" id="stuck" hidden><button class="btn ghost sm" type="button" id="stuck-b">この画面で迷ったら、知らせる</button><div id="stuck-f" hidden><textarea id="stuck-t" rows="2" placeholder="ひと言(なくても大丈夫です。例: 1個の重さをどこで入れるか分からない)"></textarea><div style="display:flex;gap:8px;margin-top:6px"><button class="btn sm" type="button" id="stuck-go">知らせる</button><button class="btn ghost sm" type="button" id="stuck-x">やめる</button></div><p class="k" style="margin:6px 0 0">どの画面だったかと、このひと言だけが作る人に届きます。帳面の中身は届きません。</p></div></div>
+  <div class="stuck" id="stuck" hidden><button class="btn ghost sm" type="button" id="stuck-b">この画面についてご意見を送る</button><div id="stuck-f" hidden><textarea id="stuck-t" rows="2" placeholder="ひと言(なくても大丈夫です。例: 1個の重さをどこで入れるか分からない)"></textarea><div style="display:flex;gap:8px;margin-top:6px"><button class="btn sm" type="button" id="stuck-go">知らせる</button><button class="btn ghost sm" type="button" id="stuck-x">やめる</button></div><p class="k" style="margin:6px 0 0">どの画面だったかと、このひと言だけが作る人に届きます。帳面の中身は届きません。</p></div></div>
   <p class="foot" id="foot">試作。キャラの絵はAtelier SAISPEのLINE絵文字。</p>
 </div>
 
@@ -1085,7 +1090,7 @@ section.locked>:not(.ph):not(.lockcard):not(h1){display:none!important}
     <div class="qchips" id="qchips"></div>
     <form class="composer" id="composer">
       <button class="cam" type="button" id="cam" title="写真を撮る" aria-label="写真を撮る"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 8.5h3.3l1.7-2.5h7l1.7 2.5h3.3v10.5h-17z"/><circle cx="12" cy="13.4" r="3.6"/></svg></button>
-      <input type="text" id="q" placeholder="ふつうの言葉でどうぞ" autocomplete="off" aria-label="聞きたいこと">
+      <input type="text" id="q" placeholder="質問や記録したい内容を入力してください" autocomplete="off" aria-label="AIへの質問">
       <button class="btn send" type="submit">送る</button>
     </form>
   </div>
@@ -1097,7 +1102,7 @@ section.locked>:not(.ph):not(.lockcard):not(h1){display:none!important}
 <div class="chara" id="chara" role="button" tabindex="0" aria-label="相談する"></div>
 <nav aria-label="画面の切り替え"><div class="in">
   <button type="button" data-t="today"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11.2 12 4l9 7.2"/><path d="M5.5 10v10h13V10"/><path d="M10 20v-6h4v6"/></svg></span><span>ホーム</span><span class="badge" id="badge" hidden></span></button>
-  <button type="button" id="nav-cam"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 8.5h3.3l1.7-2.5h7l1.7 2.5h3.3v10.5h-17z"/><circle cx="12" cy="13.4" r="3.4"/></svg></span><span>撮る</span></button>
+  <button type="button" id="nav-cam"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 8.5h3.3l1.7-2.5h7l1.7 2.5h3.3v10.5h-17z"/><circle cx="12" cy="13.4" r="3.4"/></svg></span><span>撮影</span></button>
   <button type="button" data-t="book"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4.5" y="3.5" width="15" height="17" rx="2"/><path d="M8.5 8h7M8.5 12h7M8.5 16h4"/></svg></span><span>帳簿</span><span class="badge" id="badge-book" hidden></span></button>
   <button type="button" data-t="hyg"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 4.5a2 2 0 0 1 4 0v9.2a4 4 0 1 1-4 0z"/><path d="M12 10v7"/><path d="M17 6h2.5M17 9.5h2.5"/></svg></span><span>衛生</span><span class="badge" id="badge-hyg" hidden></span></button>
   <button type="button" data-t="set"><span class="badge" id="badge-set" hidden>!</span><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8"/></svg></span><span>設定</span></button>
@@ -1105,6 +1110,6 @@ section.locked>:not(.ph):not(.lockcard):not(h1){display:none!important}
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-<script src="app.js?v=178"></script>
+<script src="app.js?v=179"></script>
 </body>
 </html>

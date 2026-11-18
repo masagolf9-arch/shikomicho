@@ -281,7 +281,7 @@ async function send() {
       if (out.error === 'login') { location.href = '/login?next=' + encodeURIComponent(location.pathname + location.search); return; }
       if (!out.ok) throw new Error(out.error || '受け取れませんでした');
       try { sessionStorage.setItem('shikomi:shot', JSON.stringify({ msgs: out.msgs || [], quick: out.quick || null })); } catch (e) {}
-      $('busyText').textContent = '読めました! お店の画面で答えます';
+      $('busyText').textContent = '読めました! 管理画面で答えます';
       location.href = BACK; return;
     }
     if (!inLiff) throw new Error('LINEの中で開いたときだけ送れます(いまは試し表示です)');
@@ -319,8 +319,8 @@ function chipOf(x) {
   if (x.st === 'ng') return ['ng', '送れません。押すともう一度'];
   const s = x.sort || {};
   if (s.state === '同じ写真') return ['done', '同じ写真(入れていません)'];
-  if (s.state === '聞く') return ['ask', '聞きたいこと'];
-  if (s.state === '確かめ') return ['hold', (s.kind || '') + ' 確かめ待ち'];
+  if (s.state === '聞く') return ['ask', '回答が必要なもの'];
+  if (s.state === '確かめ') return ['hold', (s.kind || '') + ' 確認待ち'];
   if (x.private) return ['done', '大事な書類は読みません'];
   return ['done', (s.kind || '済') + ' ✓'];
 }
@@ -343,7 +343,7 @@ async function runQ() {
       } catch (e) { x.st = 'ng'; x.err = String(e.message || e); }
       drawQ();
     }
-  } finally { qBusy = false; const n = Q.filter(x => x.sort && x.sort.state === '聞く').length; say(n ? '聞きたいことが' + n + '枚あります' : '次の紙を撮れます', n ? 'オレンジの写真を押して答えてください(あとで、お店の画面でも答えられます)' : '撮り終わったら「閉じる」'); }
+  } finally { qBusy = false; const n = Q.filter(x => x.sort && x.sort.state === '聞く').length; say(n ? '回答が必要なものが' + n + '枚あります' : '次の紙を撮れます', n ? 'オレンジの写真を押して答えてください(あとで、管理画面でも答えられます)' : '撮り終わったら「閉じる」'); }
 }
 function openQ(i) {
   const x = Q[i], sh = $('qsheet'); if (!x) return;
@@ -358,7 +358,7 @@ function openQ(i) {
     sh.innerHTML = `<h2>この写真は何に使いますか?</h2><p>答えると、その答えでもう一度読みます。次からは覚えます。</p><div class="ch">${CH.map(c => `<button type="button" data-c="${c[0]}">${c[1]}</button>`).join('')}</div><button class="x" type="button" id="qx">あとで答える</button>`;
     sh.querySelectorAll('[data-c]').forEach(b => b.onclick = () => act(x, { act: 'answer', choice: b.dataset.c }));
   } else {
-    sh.innerHTML = `<h2>${esc(s.kind || '')} ${esc(s.title || '')}</h2><p style="white-space:pre-wrap">${esc(msg)}</p>${s.state === '確かめ' ? '<p>お店の画面の「仕分けの箱」で、確かめてから入れます。</p>' : ''}<button class="x" type="button" id="qx">閉じる</button>`;
+    sh.innerHTML = `<h2>${esc(s.kind || '')} ${esc(s.title || '')}</h2><p style="white-space:pre-wrap">${esc(msg)}</p>${s.state === '確かめ' ? '<p>管理画面の「取り込み一覧」で、確かめてから入れます。</p>' : ''}<button class="x" type="button" id="qx">閉じる</button>`;
   }
   $('qx').onclick = close; sh.style.display = 'block';
 }
