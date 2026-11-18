@@ -974,6 +974,15 @@ body.pdet-on{overflow:hidden}
 #t-hyg .hy-row{border-top-color:var(--line)}
 #t-hyg .hpx{border-top-color:var(--line)}
 #t-hyg #hyg-chips{margin-top:12px}
+
+/* 設定: ホームと同じ形(見出し+線、箱なし) */
+#t-set h1.sub{padding-bottom:8px;border-bottom:2px solid var(--ink);margin-bottom:0}
+#t-set .card{background:transparent;border:0;border-radius:0;box-shadow:none;padding:10px 0 12px;margin-top:0}
+#t-set .card+.card{border-top:1px solid var(--line)}
+#t-set .sgrp{margin-bottom:0}
+#t-set .card .btn{margin-left:0}
+#t-set .set-row+.set-row{border-top-color:var(--line)}
+#t-set .colL>h1.sub:first-child,#t-set #set-box>h1.sub:first-child{margin-top:8px}
 </style>
 </head>
 <body>
@@ -1187,6 +1196,6 @@ body.pdet-on{overflow:hidden}
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-<script src="app.js?v=190"></script>
+<script src="app.js?v=191"></script>
 </body>
 </html>
