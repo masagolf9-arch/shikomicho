@@ -1985,14 +1985,14 @@ function zipStore(files) {
 }
 const xe = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '');
 const colL = n => { let s = ''; n++; while (n) { const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); } return s; };
-// sheets: [{ name, cols:[幅], rows:[[{v,s,span}]], heights:{行:高さ} }]  s: 0ふつう 1題 2見出し 3中身 4区切り 5中央 6小さい注記
+// sheets: [{ name, cols:[幅], rows:[[{v,s,span}]], heights:{行:高さ} }]  s: 0ふつう 1題 2見出し 3中身 4区切り 5中央 6小さい注記 7下線だけ(右寄せ) 8見出し(中央)
 function xlsxBlob(sheets) {
   const styles = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
-<fonts count="4"><font><sz val="10.5"/><name val="游ゴシック"/></font><font><b/><sz val="16"/><name val="游ゴシック"/></font><font><b/><sz val="10.5"/><name val="游ゴシック"/></font><font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="游ゴシック"/></font></fonts>
+<fonts count="5"><font><sz val="10.5"/><name val="游ゴシック"/></font><font><b/><sz val="18"/><name val="游ゴシック"/></font><font><b/><sz val="10.5"/><name val="游ゴシック"/></font><font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="游ゴシック"/></font><font><sz val="9"/><color rgb="FF555555"/><name val="游ゴシック"/></font></fonts>
 <fills count="4"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFEEF2F6"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FF1A5FA0"/></patternFill></fill></fills>
-<borders count="2"><border/><border><left style="thin"><color rgb="FF8A94A6"/></left><right style="thin"><color rgb="FF8A94A6"/></right><top style="thin"><color rgb="FF8A94A6"/></top><bottom style="thin"><color rgb="FF8A94A6"/></bottom></border></borders>
+<borders count="3"><border/><border><left style="thin"><color rgb="FF8A94A6"/></left><right style="thin"><color rgb="FF8A94A6"/></right><top style="thin"><color rgb="FF8A94A6"/></top><bottom style="thin"><color rgb="FF8A94A6"/></bottom></border><border><bottom style="thin"><color rgb="FF333333"/></bottom></border></borders>
 <cellStyleXfs count="1"><xf/></cellStyleXfs>
-<cellXfs count="7"><xf/><xf fontId="1" applyFont="1"><alignment vertical="center"/></xf><xf fontId="2" fillId="2" borderId="1" applyFont="1" applyFill="1" applyBorder="1"><alignment vertical="center" wrapText="1"/></xf><xf borderId="1" applyBorder="1"><alignment vertical="center" wrapText="1"/></xf><xf fontId="3" fillId="3" applyFont="1" applyFill="1"><alignment vertical="center"/></xf><xf borderId="1" applyBorder="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf><xf><alignment vertical="top" wrapText="1"/></xf></cellXfs><cellStyles count="1"><cellStyle name="標準" xfId="0" builtinId="0"/></cellStyles>
+<cellXfs count="9"><xf/><xf fontId="1" applyFont="1"><alignment horizontal="center" vertical="center"/></xf><xf fontId="2" fillId="2" borderId="1" applyFont="1" applyFill="1" applyBorder="1"><alignment vertical="center" wrapText="1"/></xf><xf borderId="1" applyBorder="1"><alignment vertical="center" wrapText="1"/></xf><xf fontId="3" fillId="3" applyFont="1" applyFill="1"><alignment vertical="center"/></xf><xf borderId="1" applyBorder="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf><xf fontId="4" applyFont="1"><alignment vertical="center" wrapText="1"/></xf><xf borderId="2" applyBorder="1"><alignment horizontal="right" vertical="center"/></xf><xf fontId="2" fillId="2" borderId="1" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center"/></xf></cellXfs><cellStyles count="1"><cellStyle name="標準" xfId="0" builtinId="0"/></cellStyles>
 </styleSheet>`;
   const files = [
     { name: '[Content_Types].xml', data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>${sheets.map((_, i) => `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')}</Types>` },
@@ -2010,7 +2010,7 @@ function xlsxBlob(sheets) {
         if (span > 1) merges.push(`${ref}:${colL(ci + span - 1)}${ri + 1}`); ci += span; });
       const h = (sh.heights || {})[ri]; return `<row r="${ri + 1}"${h ? ` ht="${h}" customHeight="1"` : ''}>${cells.join('')}</row>`;
     });
-    files.push({ name: `xl/worksheets/sheet${si + 1}.xml`, data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetPr><pageSetUpPr fitToPage="1"/></sheetPr><sheetViews><sheetView workbookViewId="0" showGridLines="0"/></sheetViews><cols>${sh.cols.map((w, i) => `<col min="${i + 1}" max="${i + 1}" width="${w}" customWidth="1"/>`).join('')}</cols><sheetData>${rows.join('')}</sheetData>${merges.length ? `<mergeCells count="${merges.length}">${merges.map(m => `<mergeCell ref="${m}"/>`).join('')}</mergeCells>` : ''}<pageMargins left="0.5" right="0.5" top="0.6" bottom="0.6" header="0.3" footer="0.3"/><pageSetup paperSize="9" orientation="portrait" fitToWidth="1" fitToHeight="0"/></worksheet>` });
+    files.push({ name: `xl/worksheets/sheet${si + 1}.xml`, data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetPr><pageSetUpPr fitToPage="1"/></sheetPr><sheetViews><sheetView workbookViewId="0" showGridLines="0"/></sheetViews><cols>${sh.cols.map((w, i) => `<col min="${i + 1}" max="${i + 1}" width="${w}" customWidth="1"/>`).join('')}</cols><sheetData>${rows.join('')}</sheetData>${merges.length ? `<mergeCells count="${merges.length}">${merges.map(m => `<mergeCell ref="${m}"/>`).join('')}</mergeCells>` : ''}<printOptions horizontalCentered="1"/><pageMargins left="0.5" right="0.5" top="0.5" bottom="0.5" header="0.3" footer="0.3"/><pageSetup paperSize="9" orientation="portrait" fitToWidth="1" fitToHeight="1"/></worksheet>` });
   });
   return zipStore(files);
 }
@@ -2026,39 +2026,49 @@ function specOf(p) {
     nut: nm, nutEst: !L.nutMan, maker: { kind: L.makerKind, name: si.name || D.shop, addr: si.addr || '', tel: si.tel || '', fax: si.fax || '', factory: L.factory, fcode: L.fcode }, caution: L.caution, opened: L.opened, check: (lb.check || []).length };
 }
 const specSig = S => { const s = JSON.stringify(S); let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; return (h >>> 0).toString(36) + s.length.toString(36); };
+// 12列の方眼で組む(項目名3列・中身9列。アレルゲンは「名前2列+印1列」を4組)。A4縦1枚に収める
 function specSheet(S, ver) {
-  const R = [], H = {}, row = (...c) => { R.push(c); return R.length - 1; };
-  const kv = (k, v, h) => { const i = row({ v: k, s: 2, span: 2 }, { v, s: 3, span: 6 }); if (h) H[i] = h; };
-  const sec = t => { const i = row({ v: t, s: 4, span: 8 }); H[i] = 20; };
+  const R = [], H = {}, row = (...c) => { R.push(c); H[R.length - 1] = H[R.length - 1] || 21; return R.length - 1; };
+  const gap = () => { const i = row(); H[i] = 9; };
+  const kv = (k, v, lines) => { const i = row({ v: k, s: 2, span: 3 }, { v, s: 3, span: 9 }); if (lines > 1) H[i] = 6 + lines * 15; };
+  const sec = t => { const i = row({ v: t, s: 4, span: 12 }); H[i] = 22; };
   const r1n = x => Math.round(x * 10) / 10;
-  H[row({ v: '商品規格書', s: 1, span: 8 })] = 28;
   const jd = x => x ? x.replace(/^(\d+)-0?(\d+)-0?(\d+)$/, '$1年$2月$3日') : '';
-  row({ v: `作成日 ${jd(ver.first)}　改訂日 ${jd(ver.at)}　第${ver.v || 1}版`, s: 0, span: 8 });
-  row();
-  sec('1. 基本情報');
+  const lines = (t, w) => Math.max(1, Math.ceil(String(t || '').length / w));
+  H[row({ v: '商　品　規　格　書', s: 1, span: 12 })] = 34;
+  gap();
+  row({ v: '提出先', s: 2, span: 2 }, { v: '御中', s: 7, span: 4 }, null, { v: '作成日', s: 2, span: 2 }, { v: jd(ver.first), s: 5, span: 3 });
+  row({ v: '提出日', s: 2, span: 2 }, { v: '年　　月　　日', s: 7, span: 4 }, null, { v: '改訂日', s: 2, span: 2 }, { v: jd(ver.at), s: 5, span: 3 });
+  row(null, null, null, null, null, null, null, { v: '版', s: 2, span: 2 }, { v: `第${ver.v || 1}版`, s: 5, span: 3 });
+  gap();
+  sec('１．基本情報');
   kv('商品名', S.name); kv('名称', S.kind);
-  S.packs.forEach((k, i) => { kv(S.packs.length > 1 ? `内容量・JAN(${k.name || i + 1})` : '内容量・JANコード', `${k.content || ''}${k.jan ? '　JAN ' + k.jan : ''}`); });
-  kv(S.dtype || '期限', S.days === '' || S.days == null ? '' : `製造日から${S.days}日`); kv('保存方法', S.storage);
-  row();
-  sec('2. 原材料');
-  kv('原材料名', S.ing, Math.max(30, Math.ceil(S.ing.length / 40) * 16)); kv('添加物', S.add || 'なし'); kv('原料原産地', S.origin || '');
-  row();
-  sec('3. アレルゲン(●=含む)');
-  const grid = (title, list) => { row({ v: title, s: 2, span: 8 }); for (let i = 0; i < list.length; i += 4) { const c = []; list.slice(i, i + 4).forEach(([a, on]) => c.push({ v: a, s: 3 }, { v: on ? '●' : '', s: 5 })); while (c.length < 8) c.push({ v: '', s: 3 }); row(...c); } };
-  grid('特定原材料(表示の義務)', S.must); grid('特定原材料に準ずるもの(表示の推奨)', S.rec);
+  const pk = S.packs.map(k => `${k.name ? k.name + '：' : ''}${k.content || ''}${k.jan ? '　JAN ' + k.jan : ''}`);
+  kv('内容量・JANコード', pk.join('\n'), pk.length);
+  kv(S.dtype || '期限', S.days === '' || S.days == null ? '' : `製造日から${S.days}日`); kv('保存方法', S.storage, lines(S.storage, 42));
+  gap();
+  sec('２．原材料');
+  kv('原材料名', S.ing, lines(S.ing, 42)); kv('添加物', S.add || 'なし', lines(S.add, 42)); kv('原料原産地', S.origin || '');
+  gap();
+  sec('３．アレルゲン（●＝含む）');
+  const grid = (title, list) => { row({ v: title, s: 8, span: 12 }); for (let i = 0; i < list.length; i += 4) { const c = []; list.slice(i, i + 4).forEach(([a, on]) => c.push({ v: a, s: 3, span: 2 }, { v: on ? '●' : '', s: 5 })); while (c.length < 8) c.push({ v: '', s: 3, span: 2 }, { v: '', s: 5 }); row(...c); } };
+  grid('特定原材料（表示義務）', S.must); grid('特定原材料に準ずるもの（表示推奨）', S.rec);
   kv('同じ工場で扱うアレルゲン', S.contam.length ? S.contam.join('・') : 'なし');
-  row();
-  sec('4. 栄養成分表示');
-  if (S.nut) { const v = S.nut.v; row({ v: S.nut.base + '当たり', s: 2, span: 8 }); [['熱量', Math.round(v[0]) + 'kcal'], ['たんぱく質', r1n(v[1]) + 'g'], ['脂質', r1n(v[2]) + 'g'], ['炭水化物', r1n(v[3]) + 'g'], ['食塩相当量', (v[4] > 0 && v[4] < 0.1 ? Math.round(v[4] * 100) / 100 : r1n(v[4])) + 'g']].forEach(([k, x]) => kv(k, x)); if (S.nutEst) row({ v: 'この表示値は、目安です。(日本食品標準成分表の計算による推定値)', s: 6, span: 8 }); }
-  else kv('栄養成分', '(未設定)');
-  row();
-  sec('5. 製造者等');
+  gap();
+  sec('４．栄養成分表示');
+  if (S.nut) { const v = S.nut.v;
+    row({ v: '', s: 8, span: 2 }, ...['熱量', 'たんぱく質', '脂質', '炭水化物', '食塩相当量'].map(x => ({ v: x, s: 8, span: 2 })));
+    row({ v: S.nut.base + '当たり', s: 2, span: 2 }, ...[Math.round(v[0]) + 'kcal', r1n(v[1]) + 'g', r1n(v[2]) + 'g', r1n(v[3]) + 'g', (v[4] > 0 && v[4] < 0.1 ? Math.round(v[4] * 100) / 100 : r1n(v[4])) + 'g'].map(x => ({ v: x, s: 5, span: 2 })));
+    if (S.nutEst) row({ v: 'この表示値は、目安です。（日本食品標準成分表の計算による推定値）', s: 6, span: 12 }); }
+  else kv('栄養成分', '（未設定）');
+  gap();
+  sec('５．製造者等');
   kv(S.maker.kind || '製造者', S.maker.name); kv('所在地', S.maker.addr); kv('電話・FAX', `${S.maker.tel ? 'TEL ' + S.maker.tel : ''}${S.maker.fax ? '　FAX ' + S.maker.fax : ''}`);
   if (S.maker.factory || S.maker.fcode) kv('製造所・固有記号', `${S.maker.factory || ''}${S.maker.fcode ? '　' + S.maker.fcode : ''}`);
-  if (S.caution || S.opened) { row(); sec('6. 注意事項'); if (S.caution) kv('使用上の注意', S.caution); if (S.opened) kv('開封後の取り扱い', S.opened); }
-  row();
-  H[row({ v: 'この規格書は、ピタット原価の食品表示データから作成しました。内容の最終確認は、製造者が行ってください。', s: 6, span: 8 })] = 30;
-  return { name: S.name.replace(/[\[\]:*?\/\\]/g, '').slice(0, 31) || '商品', cols: [15, 5, 15, 5, 15, 5, 15, 5], rows: R, heights: H };
+  if (S.caution || S.opened) { gap(); sec('６．注意事項'); if (S.caution) kv('使用上の注意', S.caution, lines(S.caution, 42)); if (S.opened) kv('開封後の取り扱い', S.opened, lines(S.opened, 42)); }
+  gap();
+  H[row({ v: '本書は、ピタット原価の食品表示データから作成しています。内容の最終確認は、製造者が行ってください。', s: 6, span: 12 })] = 20;
+  return { name: S.name.replace(/[\[\]:*?\/\\]/g, '').slice(0, 31) || '商品', cols: Array(12).fill(7.6), rows: R, heights: H };
 }
 async function specExport(products) {
   const list = products.filter(p => p.kind !== 'part'); if (!list.length) { toast('商品がありません'); return; }
