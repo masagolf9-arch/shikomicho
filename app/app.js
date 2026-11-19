@@ -1933,6 +1933,26 @@ async function setValueX(extra) {
   if ((extra.field === 'ing' || extra.field === 'steps') && (D.undo || [])[0] && D.undo[0].product === extra.product) { const u0 = D.undo[0]; toast(out.msg || '直しました', 'ok', ['元に戻す', () => setValueX({ field: 'undo', value: u0.row })]); return; }
   if (out.msg) { chat(out.msg); return; } toast(extra.field === 'check' ? '確かめました。' : extra.field === 'restoreprod' ? 'レシピを戻しました。' : extra.field === 'hyg' ? '記録しました。' : extra.field === 'deliv' ? '納品を記録しました。' : extra.field === 'shop' ? '店舗情報を保存しました。' : extra.field === 'lbl' ? 'ラベルの設定を保存しました。' : extra.field === 'paybank' ? `振込は「${esc((payBank() || {}).name || '')}」を開くようにしました。` : ['biz', 'sell', 'unitword', 'serve', 'closed', 'wsprice', 'regalias'].includes(extra.field) ? '変えました。' : extra.field === 'tax' ? '税率を保存しました。' : extra.field === 'target' || extra.field === 'ptarget' ? '目標の原価率を保存しました。' : extra.field === 'aicap' ? 'AI代の上限を保存しました。' : extra.field === 'mat' ? (extra.value && extra.value.alias ? `「${esc(extra.value.alias)}」を「${esc(extra.name)}」の別名にしました。原価に反映しました。` : '材料を保存しました。') : extra.field === 'hygnotice' ? (extra.value === 'off' ? '衛生記録のお知らせは送らないようにしました。' : `衛生記録のお知らせは${extra.value}時に送ります。`) : extra.field === 'sales' ? '売上を記録しました。' : extra.field === 'cycle' ? `棚卸は「${extra.value}」にしました。その前にLINEでお知らせします。` : '記録しました。在庫を計算しなおしました。', 'ok'); act('heart', 1.3);
 }
+// 小さな確認の窓(画面の手前)。閉じるボタン・外側・Escで閉じる
+function openSheet(html) {
+  closeSheet(); const ov = document.createElement('div'); ov.id = 'mini-ov'; ov.className = 'a2ov'; ov.style.alignItems = 'center';
+  ov.innerHTML = `<div class="card" role="dialog" aria-modal="true" style="max-width:520px;width:100%;max-height:90vh;overflow:auto;position:relative"><button class="btn ghost sm" type="button" id="mini-x" style="position:absolute;top:10px;right:10px">閉じる</button>${html}</div>`;
+  document.body.appendChild(ov); $('mini-x').onclick = closeSheet; ov.onclick = e => { if (e.target === ov) closeSheet(); };
+  ov._esc = e => { if (e.key === 'Escape') closeSheet(); }; document.addEventListener('keydown', ov._esc);
+}
+function closeSheet() { const ov = $('mini-ov'); if (ov) { document.removeEventListener('keydown', ov._esc); ov.remove(); } }
+// 会計ソフトの取り込みはShift_JISが多い。ブラウザに書き出しの仕組みがないので、読み取りの仕組み(TextDecoder)から対応表を一度だけ作る
+let SJIS_MAP = null;
+function sjisBytes(text) {
+  if (!SJIS_MAP) {
+    SJIS_MAP = new Map(); const dec = new TextDecoder('shift_jis');
+    for (let b = 0xA1; b <= 0xDF; b++) SJIS_MAP.set(dec.decode(new Uint8Array([b])), [b]);
+    for (let h = 0x81; h <= 0xFC; h++) { if (h > 0x9F && h < 0xE0) continue; for (let l = 0x40; l <= 0xFC; l++) { if (l === 0x7F) continue; const c = dec.decode(new Uint8Array([h, l])); if (c.length === 1 && c !== '\ufffd' && !SJIS_MAP.has(c)) SJIS_MAP.set(c, [h, l]); } }
+  }
+  const out = []; const t = String(text).normalize('NFC');
+  for (const ch of t) { const c = ch.codePointAt(0); if (c < 0x80) { out.push(c); continue; } const m = SJIS_MAP.get(ch); if (m) out.push(...m); else out.push(0x3F); }
+  return new Uint8Array(out);
+}
 // 税理士に渡す一式(印刷用)
 function taxHtml(r) {
   const yen0 = n => Math.round(n).toLocaleString('ja-JP');
@@ -1954,8 +1974,27 @@ function renderJournal() {
     <div class="card"><table>${keys.map(k => `<tr><td>${k === '要確認' ? '<mark>要確認</mark>' : esc(k)}</td><td class="n">${yen(sums[k])}</td></tr>`).join('')}<tr><td><b>合計</b></td><td class="n"><b>${yen(tot)}</b></td></tr></table>
     <p class="k" style="margin:8px 0 0">科目は案です。表の「仕入れ」で直すか、「科目」シートに決まりを足すと次から自動で分けます</p></div>
     <div class="card" style="margin-top:12px"><p style="margin:0 0 4px"><b>税理士に渡す(${esc(sel.replace('-', '年'))}月分)</b></p><p class="k" style="margin:0 0 8px">仕入れの明細・支払い・売上・科目ごとの合計を1つにまとめます。印刷して渡すか、CSV(表計算ソフトや会計ソフトで開ける形)で送ってください。</p>
-    <div class="ask"><button class="btn" type="button" id="tx-print">印刷・PDFにする</button><button class="btn ghost" type="button" id="tx-csv">CSVで保存</button>${SH('journal') ? '' : '<button class="btn ghost" type="button" id="tx-jcsv">仕訳の案(会計ソフト用CSV)</button>'}</div>${SH('journal') ? '' : '<p class="k" style="margin:8px 0 0">仕訳の案は「日付・借方・貸方・金額・摘要」の形です。支払いはすべて現金としています。掛けで払ったものや口座から落ちたものは、会計ソフトで直してください。</p>'}</div>`;
+    <div class="ask"><button class="btn" type="button" id="tx-print">印刷・PDFにする</button><button class="btn ghost" type="button" id="tx-csv">CSVで保存</button><button class="btn ghost" type="button" id="tx-acct">会計ソフト用に書き出す</button>${SH('journal') ? '' : '<button class="btn ghost" type="button" id="tx-jcsv">仕訳の案(会計ソフト用CSV)</button>'}</div>${SH('journal') ? '' : '<p class="k" style="margin:8px 0 0">仕訳の案は「日付・借方・貸方・金額・摘要」の形です。支払いはすべて現金としています。掛けで払ったものや口座から落ちたものは、会計ソフトで直してください。</p>'}</div>`;
   box.querySelectorAll('[data-m]').forEach(b => b.onclick = () => { box.dataset.m = b.dataset.m; renderJournal(); });
+  // 会計ソフト向けの書き出し(連携): freee・マネーフォワード・弥生の取り込みの形。売上の税率は選ぶ(持ち帰り・菓子は軽減8%、店内飲食は10%)
+  $('tx-acct').onclick = () => {
+    let rate = '8'; try { rate = localStorage.getItem('shikomi:salesRate') || '8'; } catch (e) {}
+    openSheet(`<h2 style="margin:0 70px 8px 0;font-size:19px">会計ソフト用に書き出す(${esc(sel.replace('-', '年'))}月分)</h2>
+      <p class="k">お使いの会計ソフトの取り込みの形で保存します。会計ソフトの「インポート」から読み込んでください。</p>
+      <label class="k" for="ax-fmt">会計ソフト</label><select id="ax-fmt" class="mq-sel" style="max-width:none;width:100%"><option value="freee">freee会計(取引のインポート)</option><option value="mf">マネーフォワード クラウド会計(仕訳帳のインポート)</option><option value="yayoi">弥生会計(仕訳データのインポート)</option></select>
+      <label class="k" for="ax-rate" style="display:block;margin-top:10px">売上の消費税率</label><select id="ax-rate" class="mq-sel" style="max-width:none;width:100%"><option value="8"${rate === '8' ? ' selected' : ''}>8%(軽減税率。持ち帰り・菓子・パンなど)</option><option value="10"${rate === '10' ? ' selected' : ''}>10%(店内での飲食など)</option></select>
+      <p class="k" style="margin-top:10px">仕入れの科目と税率は、ピタット原価の案のまま出します。科目が「要確認」のものは仕入高、税率が分からないものは8%で出し、摘要に「要確認」と書きます。取り込んだあと、会計ソフトで確かめてください。</p>
+      <div class="ask" style="margin-top:12px"><button class="btn" type="button" id="ax-go">保存する</button></div>`);
+    $('ax-go').onclick = async () => {
+      if (IN_LINE) { chat('LINEの中からはファイルを保存できません。パソコンかスマホのブラウザで開いてください。', 'point'); return; }
+      const fmt = $('ax-fmt').value, sr = $('ax-rate').value; try { localStorage.setItem('shikomi:salesRate', sr); } catch (e) {}
+      const r = await api({ kind: 'app_export', month: sel, fmt, salesRate: sr }); if (!r.ok) { toast(r.error || '出せませんでした', 'ng'); return; }
+      const bytes = sjisBytes(r.csv.text);
+      const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([bytes], { type: 'text/csv' })); a.download = r.csv.name; document.body.appendChild(a); a.click(); a.remove();
+      const w = r.csv.warn || {}; closeSheet();
+      toast(r.csv.n + '件を保存しました' + (w.acct || w.rate ? '(要確認 ' + ((w.acct || 0) + (w.rate || 0)) + '件)' : ''), 'ok');
+    };
+  };
   const getX = async () => { const r = await api({ kind: 'app_export', month: sel }); if (!r.ok) { toast(r.error || '出せませんでした', 'ng'); return null; } return r; };
   $('tx-print').onclick = async () => { const r = await getX(); if (r) openPrint(taxHtml(r)); };
   $('tx-csv').onclick = async () => {
@@ -2539,7 +2578,7 @@ if ($('sb-check')) {
     if (!r.ok) { $('sb-out').innerHTML = `<p class="k">${esc(r.error || '読み取れませんでした')}</p>`; return; }
     sbReports = r.reports || null;
     const p = r.preview, its = Object.entries(p.items).sort((a, b) => b[1] - a[1]);
-    $('sb-out').innerHTML = `<p style="margin:8px 0 4px"><b>${p.days}日分・合計 ${yen(p.total)}</b> <span class="k">${esc(p.from)} 〜 ${esc(p.to)}${p.byAI ? '・AIが読み取りました。数字を確かめてください' : ''}</span></p><div class="scroll"><table>${its.map(([n, q]) => `<tr><td>${esc(n)}</td><td class="n">${q}点</td></tr>`).join('')}</table></div>`;
+    $('sb-out').innerHTML = `<p style="margin:8px 0 4px"><b>${p.days}日分・合計 ${yen(p.total)}</b> <span class="k">${esc(p.from)} 〜 ${esc(p.to)}${p.conn ? '・' + esc(p.conn) + 'のCSVとして読み取りました' : ''}${p.byAI ? '・AIが読み取りました。数字を確かめてください' : ''}</span></p>${p.note ? `<p class="k" style="margin:0 0 6px">${esc(p.note)}</p>` : ''}<div class="scroll"><table>${its.map(([n, q]) => `<tr><td>${esc(n)}</td><td class="n">${q}点</td></tr>`).join('')}</table></div>`;
     $('sb-go').hidden = false;
   };
   $('sb-go').onclick = async () => {
