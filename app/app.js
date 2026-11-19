@@ -816,6 +816,7 @@ const IC = {
   label: '<path d="M6 3.5h12v17H6z"/><path d="M9.5 9h5M9.5 12.5h5M9.5 16h3"/>',
   mat: '<path d="M7 9c-1.6 2.3-2.2 5.2-1.6 8.3.3 1.5 1.4 2.4 2.9 2.4h7.4c1.5 0 2.6-.9 2.9-2.4.6-3.1 0-6-1.6-8.3z"/><path d="M8.5 9 7.5 5M15.5 9l1-4M7.5 5c1.4.7 2.9 1 4.5 1s3.1-.3 4.5-1"/>',
   stock: '<path d="M3 9.5 12 4.5l9 5"/><path d="M5 8.5V20h14V8.5"/><path d="M10 20v-5h4v5"/>',
+  order: '<path d="M6 9V3h9l3 3v3"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M7 17v4h10v-4"/><path d="M7 13h4"/>',
   hyg: '<path d="M10 4.5a2 2 0 0 1 4 0v9.2a4 4 0 1 1-4 0z"/><path d="M12 10v7"/><path d="M17 6h2.5M17 9.5h2.5"/>',
   book: '<rect x="4.5" y="3.5" width="15" height="17" rx="2"/><path d="M8.5 8h7M8.5 12h7M8.5 16h4"/>',
   ws: '<path d="M3.5 9h11v10h-11z"/><path d="M14.5 12h3.5l2.5 3v4h-6z"/><circle cx="7" cy="19.5" r="1.6"/><circle cx="17.5" cy="19.5" r="1.6"/>',
@@ -838,6 +839,7 @@ function jobsNow() { return D && Array.isArray(D.jobs) ? D.jobs : jobSignals(); 
 function frontKeys() {
   if (noMoney()) return ['cam', 'sort', 'hyg', 'howto'];
   const f = ['cam', 'sort', 'cost', 'label', 'hyg', 'book'];
+  if (orderOn()) f.push('order');   // 発注書(オプション)を使うお店は、前に出す
   jobsNow().forEach(j => (JOB_TABS[j] || []).forEach(k => f.includes(k) || f.push(k)));
   return f;
 }
@@ -845,7 +847,7 @@ function renderMenu(q) {
   const low = ((D.stock || {}).items || []).filter(x => x.low).length, up = unpaid().length;
   const items0 = [
     ['cam', '撮影', openCamera, 0, 'p'], ...(CF ? [['sort', '取り込み一覧', sortOpen, (SORT || []).filter(x => x.state === '聞く' || x.state === '確かめ').length, (SORT || []).filter(x => x.state === '聞く').length]] : []), ['cost', '原価', () => show('cost')], ['label', sellFace() ? 'アレルゲン' : '食品表示', () => show('label')], ['howto', '作り方', () => show('howto')], ['mat', '材料', () => { matF = 'all'; show('mat'); }],
-    ...(SH('stock') ? [] : [['stock', '在庫', () => { matF = 'low'; show('mat'); }, low]]), ['hyg', '衛生', () => show('hyg'), hygMissing().length, hygMissing().length], ['book', '帳簿', () => show('book'), up], ['ws', '卸', () => show('ws')], ['ct', '仕入先・卸先', () => show('ct')], ...(SH('post') ? [] : [['post', '発信', () => show('post')]]), ['sales', '商品分析', () => show('sales')], ...(SH('cal') ? [] : [['cal', '予定', () => show('cal'), (D.events || []).filter(e => dayDiff(e.date) === 0).length]])];
+    ...(SH('stock') ? [] : [['stock', '在庫', () => { matF = 'low'; show('mat'); }, low]]), ['hyg', '衛生', () => show('hyg'), hygMissing().length, hygMissing().length], ['book', '帳簿', () => show('book'), up], ['ws', '卸', () => show('ws')], ...(orderOn() ? [['order', '発注書', () => openOrder(), ((D.order || {}).sups || []).reduce((a, x) => a + (x.lowN || 0), 0)]] : []), ['ct', '仕入先・卸先', () => show('ct')], ...(SH('post') ? [] : [['post', '発信', () => show('post')]]), ['sales', '商品分析', () => show('sales')], ...(SH('cal') ? [] : [['cal', '予定', () => show('cal'), (D.events || []).filter(e => dayDiff(e.date) === 0).length]])];
   // 前に出すのは、よく使う入口だけ。ほかは「その他の機能」にしまう(消さない)。スタッフは4つ
   const F = new Set(frontKeys()), vis = x => !(tabLocked(x[0]) || SH(x[0]));
   const restAll = items0.filter(x => !F.has(x[0]) && vis(x)), TAB0 = { stock: 'mat', mat: 'mat' };
@@ -1946,6 +1948,11 @@ async function setValueX(extra) {
 // 小さなお店は、仕事終わりに作る人が自分でFAXで発注する。仕入先を選ぶ → いつもの品に数を入れる(前回と同じ も1回で)→ FAXに向く白黒のA4
 const orderOn = () => !!(D && D.connOpts && D.connOpts.order && D.order);
 const jpDay = t => { const d = new Date(t); return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`; };
+// 設定の「オプション」: このお店で使っているオプションと、使っていないもの(申し込み方)を並べる
+function optBox() {
+  const c = D.connOpts || {}, L = [['order', '発注書(FAXで送る)', '仕入先ごとの発注書を作り、印刷・PDFにしてFAXで送れます。いつもの品と前回の数がすぐ入ります', true], ['spec', '商品規格書の書き出し', '取引先に渡す商品規格書を、食品表示のデータから作ります', false]];
+  return L.filter(x => x[3] || c[x[0]]).map(([k, n, w]) => `<div class="opt-row"><div><b>${n}</b> ${c[k] ? '<span class="pill">お使いいただけます</span>' : '<span class="pill gray">お申し込みがあれば使えます</span>'}<div class="k">${w}</div></div>${c[k] ? (k === 'order' ? '<button class="btn" type="button" data-optgo="order">発注書をつくる</button>' : '') : '<button class="btn ghost" type="button" data-optask="' + k + '">申し込む</button>'}</div>`).join('') + '<p class="k" style="margin:8px 0 0">オプションのお申し込み・おやめになるときは「申し込む」か、相談からお知らせください。</p>';
+}
 function openOrder(supName) {
   const O = D.order || { sups: [] };
   if (supName == null) {
@@ -2351,7 +2358,7 @@ function renderSet() {
     `) + grp('お知らせ', 'hyg', `
     <div class="set-row"><span>衛生記録のお知らせ<br><span class="k">記録がまだのとき、LINEで念押しする時刻</span></span><div class="seg" id="hygnotice" style="flex-wrap:wrap;justify-content:flex-end">${[['off', '送らない'], ['9', '9時'], ['12', '12時'], ['15', '15時'], ['17', '17時'], ['19', '19時'], ['21', '21時']].map(([v, l]) => `<button type="button" data-v="${v}" aria-pressed="${String((D.shopInfo || {}).hygNotice || '17') === v}">${l}</button>`).join('')}</div></div>
     <div class="set-row"><span>定休日<br><span class="k">衛生の念押しを休む</span></span><div class="seg" id="closed">${['月', '火', '水', '木', '金', '土', '日'].map(w => `<button type="button" data-w="${w}" aria-pressed="${((D.shopInfo || {}).closed || '').includes(w)}">${w}</button>`).join('')}</div></div>
-    `) + grp('仕入先・卸先', 'book', '<p class="k" style="margin:0 0 8px">電話・担当・振込先の一覧は、メニューの「仕入先・卸先」にあります</p><button class="btn ghost" type="button" id="set-ct">仕入先・卸先の一覧を開く</button>') + grp('店舗情報', 'ws', `<p class="k" style="margin:0 0 8px">卸の請求書とラベルの製造者欄に入ります</p>
+    `) + (D.me && D.me.owner ? grp('オプション', 'set', optBox()) : '') + grp('仕入先・卸先', 'book', '<p class="k" style="margin:0 0 8px">電話・担当・振込先の一覧は、メニューの「仕入先・卸先」にあります</p><button class="btn ghost" type="button" id="set-ct">仕入先・卸先の一覧を開く</button>') + grp('店舗情報', 'ws', `<p class="k" style="margin:0 0 8px">卸の請求書とラベルの製造者欄に入ります</p>
     <div class="set-row" style="display:block;padding-top:0">
       <div class="fld" style="margin-top:8px">${[['name', '店名'], ['rep', '代表者'], ['addr', '住所'], ['tel', '電話'], ['fax', 'FAX'], ['reg', '登録番号(T〜)'], ['bank', '振込先']].map(([k, l]) => `<span class="k">${l}</span><input data-shop="${k}" value="${esc((D.shopInfo || {})[k] || '')}">`).join('')}</div>
       <div class="ask"><button class="btn" type="button" id="shop-save">店舗情報を保存</button></div></div>`) + grp('データの約束', 'label', `
@@ -2386,6 +2393,12 @@ function renderSet() {
     a2hsHelp();
   };
   $('set-ct').onclick = () => show('ct');
+  document.querySelectorAll('[data-optgo]').forEach(b => b.onclick = () => openOrder());
+  document.querySelectorAll('[data-optask]').forEach(b => b.onclick = async () => {
+    const nm = { order: '発注書(FAXで送る)', spec: '商品規格書の書き出し' }[b.dataset.optask]; b.disabled = true;
+    const r = await api({ kind: 'app_contact', cat: 'その他', text: `オプション「${nm}」を使いたいです。` }).catch(() => ({ ok: false }));
+    b.disabled = false; toast(r.ok ? `「${nm}」のお申し込みを送りました。運営からご連絡します` : (r.error || '送れませんでした'), r.ok ? 'ok' : undefined);
+  });
   renderMembers();
   const nb = document.querySelector('nav button[data-t="book"]'); if (nb) nb.style.display = noMoney() ? 'none' : '';
   $('hygnotice').querySelectorAll('button').forEach(b => b.onclick = () => setValueX({ field: 'hygnotice', value: b.dataset.v }));

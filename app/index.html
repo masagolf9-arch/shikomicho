@@ -21,7 +21,7 @@
   --accent:#185fa5; --accent-ink:#fff; --soft:#e6f0fb; --ok:#1b7a4a; --ok-soft:#e3f3ea;
   --warn:#c43a2e; --warn-soft:#fdecea; --sun:#f2b632; --sun-ink:#3d2a00; --sun-soft:#fff3d6;
   --nav:#ffffff; --nav-ink:#6b7280; --nav-on:#185fa5;
-  --c-cam:#185fa5; --c-sort:#c2410c; --c-more:#6b7280; --c-cost:#d98a12; --c-label:#0f8c85; --c-mat:#2f9a4e; --c-stock:#e26a1a; --c-hyg:#1a9ad6; --c-book:#5a4fcf; --c-ws:#8a5a2b; --c-ct:#2f7d6d; --c-post:#d63f78; --c-sales:#8a3fc2; --c-set:#6b7280; --c-home:#185fa5; --c-howto:#b5541c;
+  --c-cam:#185fa5; --c-sort:#c2410c; --c-more:#6b7280; --c-cost:#d98a12; --c-label:#0f8c85; --c-mat:#2f9a4e; --c-stock:#e26a1a; --c-order:#b4531a; --c-hyg:#1a9ad6; --c-book:#5a4fcf; --c-ws:#8a5a2b; --c-ct:#2f7d6d; --c-post:#d63f78; --c-sales:#8a3fc2; --c-set:#6b7280; --c-home:#185fa5; --c-howto:#b5541c;
   --mix:#ffffff; --shadow:0 1px 2px rgba(20,40,70,.05),0 8px 24px rgba(20,40,70,.06);
   --font:"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic UI","Meiryo",sans-serif;
   --round:var(--font);
@@ -993,6 +993,7 @@ body.pdet-on{overflow:hidden}
 :is(#t-book,#t-label,#t-mat,#t-ws,#t-ct,#t-sales,#t-howto,#t-cal,#t-post,#t-sort) .card>b:first-child,:is(#t-book,#t-label,#t-mat,#t-ws,#t-ct,#t-sales,#t-howto,#t-cal,#t-post,#t-sort) .card>p:first-child>b:first-child,:is(#t-book,#t-label,#t-mat,#t-ws,#t-ct,#t-sales,#t-howto,#t-cal,#t-post,#t-sort) .card>.sh>b:first-child{font-size:16px}
 
 /* 発注書(オプション) */
+.opt-row{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 0;border-bottom:1px solid var(--line)}.opt-row>div{flex:1 1 240px;min-width:0}
 .od-entry{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:12px 14px;margin:0 0 14px;border:1px solid var(--line);border-radius:10px;background:var(--bg2,transparent)}
 .od-entry>div{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1 1 220px}
 .od-sup{display:flex;justify-content:space-between;align-items:center;gap:8px;width:100%;padding:12px 14px;margin-top:8px;border:1px solid var(--line);border-radius:10px;background:transparent;color:inherit;font:inherit;text-align:left;cursor:pointer}
@@ -1237,6 +1238,6 @@ body.pdet-on{overflow:hidden}
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-<script src="app.js?v=204"></script>
+<script src="app.js?v=205"></script>
 </body>
 </html>
