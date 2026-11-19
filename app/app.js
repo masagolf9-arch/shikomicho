@@ -1557,7 +1557,10 @@ function bindStore() {
 }
 document.addEventListener('click', e => { if (e.target && e.target.id === 'hint-again') { store.set('hintsOff', false); store.set('hintSeen', {}); toast('次に画面を開いたとき、ヒントが出ます'); show('today'); } });
 document.addEventListener('click', e => { if (e.target && e.target.id === 'ls-go') { const name = $('ls-name').value.trim(), addr = $('ls-addr').value.trim(); if (!addr) { $('ls-addr').focus(); return; } setValueX({ field: 'shop', value: { name, addr } }); } });
+// 表示の画面は作るのに時間がかかる(ラベル・QR・栄養)ので、開いている時だけ作り直す
+let labelStale = true;
 function renderLabel() {
+  labelStale = false;
   const chips = $('label-chips'), box = $('label-box'), face = sellFace();
   $('label-h').textContent = face ? 'アレルゲン' : '食品表示';
   $('label-lead').innerHTML = face ? '対面販売・店内飲食の商品には、食品表示ラベルは不要です。お客様に提示するアレルゲン一覧表とプライスカードを作成できます。包装して販売する商品や卸す商品は、下の「ラベルを印刷」から食品表示ラベルを作成できます。' : '一括表示の案とラベルの印刷。<mark>色の付いた箇所</mark>はご確認ください。最終確認と表示の責任は事業者様にあります。<a href="/law" target="_blank" rel="noopener">食品表示の改正と対応の記録</a>';
@@ -2163,7 +2166,7 @@ function renderAll() {
 }
 function renderAllInner() {
   U = (D.words || {}).unit || '個';
-  renderToday(); renderIntake(); renderRegClose(); renderCost(); renderHowto(); renderLabel(); renderMat(); renderBook(); renderHyg(); renderSales(); renderWs(); renderPost(); renderSet(); applyPlanLocks();
+  renderToday(); renderIntake(); renderRegClose(); renderCost(); renderHowto(); if (cur === 'label') renderLabel(); else labelStale = true; renderMat(); renderBook(); renderHyg(); renderSales(); renderWs(); renderPost(); renderSet(); applyPlanLocks();
   betaAsk(); mlockBar(); if (PK_KEYS) pkBanner(); else if (PK_OK && !window.__pkl) { window.__pkl = 1; pkLoad(); }
   stuckBind(); if (SORT) sortCard(); else if (CF && !window.__sortl) { window.__sortl = 1; sortLoad(); }
   $('shop').textContent = D.shop; if ($('shop2')) { $('shop2').textContent = D.shop; $('date2').textContent = $('date').textContent; }
@@ -2198,6 +2201,7 @@ function show(t, quiet, keep) {
   if (t !== 'today' && t !== 'set' && SH(t)) t = 'today';
   const dir = tabs.indexOf(t) - tabs.indexOf(cur); if (t === 'set' && cur !== 'set') { supPrev = cur; loadSup(); } cur = t;
   if (t === 'mat') renderMat();
+  if (t === 'label' && labelStale) renderLabel();
   tabs.forEach(x => { const el = $('t-' + x); el.hidden = x !== t; el.classList.remove('inR', 'inL'); });
   if (dir) { const el = $('t-' + t); void el.offsetWidth; el.classList.add(dir > 0 ? 'inR' : 'inL'); }
   document.querySelectorAll('nav button[data-t]').forEach(b => b.dataset.t === t ? b.setAttribute('aria-current', 'page') : b.removeAttribute('aria-current'));
