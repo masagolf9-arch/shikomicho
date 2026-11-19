@@ -96,16 +96,27 @@ function notices() {
   const needPw = D.products.filter(p => !p.pw);
   if (needPw.length) list.push({ type: 'q', html: `<p><b>1${U}は何g?(${needPw.length}品)</b></p><p class="k">重さが分かれば、1仕込みの個数と1個あたりの原価を計算します。分かる商品だけ入力してください。</p>` +
     needPw.map((p, i) => `<div class="ask pwrow"><span class="pwn" title="${esc(p.name)}">${esc(p.name)}</span><input id="pw-${i}" inputmode="decimal" placeholder="例 40" aria-label="${esc(p.name)}の1${U}の重さ"><span class="k">g</span><button class="btn ghost" data-pw="${i}" type="button">決定</button></div>`).join('') });
-  const unknown = new Set(); D.products.forEach(p => p.unknown.forEach(n => unknown.add(n)));
-  const matNames = D.materials.filter(m => !m.packaging).map(m => m.name);
-  (D.checks || []).forEach(c => list.push({ type: 'q', html: `<p><b>これで合っていますか?</b> <span class="k">${esc(c.what)}</span></p><p style="margin:4px 0">${esc(c.text)}</p><div class="ask"><button class="btn" type="button" data-chk-ok="${c.row}">合っている</button><button class="btn ghost" type="button" data-chk-re="${c.row}">撮り直す</button></div>` }));
+  // 材料の確認は、1件ずつの札にせず、種類ごとに1枚のカードにまとめる(11/19 確認の手間を減らす)
+  const noPrice = new Set(), unknown = new Set(); D.products.forEach(p => { const np = p.noPrice || []; p.unknown.forEach(n => (np.includes(n) || D.materials.some(m => m.name === n) ? noPrice : unknown).add(n)); });
+  const matNames = D.materials.filter(m => !m.packaging).map(m => m.name), SH0 = D.starterHints || {};
   // 手書きの読みちがい(デトラップ/テトラップ)や、かっこ書き(薄力粉(ロマン))でも、似た材料を先に選んでおく
-  const loose = x => String(x || '').normalize('NFD').replace(/[\u3099\u309A]/g, '').normalize('NFC').replace(/[（(【\[][^）)】\]]*[）)】\]]/g, '').replace(/[\s・]/g, '').replace(/[ァ-ヶ]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60)).toLowerCase();
+  const loose = x => String(x || '').normalize('NFD').replace(/[゙゚]/g, '').normalize('NFC').replace(/[（(【\[][^）)】\]]*[）)】\]]/g, '').replace(/[\s・]/g, '').replace(/[ァ-ヶ]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60)).toLowerCase();
   const guess = n => { const k = loose(n); if (!k) return ''; const m = D.materials.find(m => !m.packaging && [m.name].concat(m.aliases || []).some(a => loose(a) === k)); return m ? m.name : ''; };
-  [...unknown].forEach((n, i) => { const g = guess(n); list.push({ type: 'q', html: `<p><b>「${esc(n)}」はどの材料ですか?</b></p>${g ? `<p style="margin:4px 0"><b>候補: 「${esc(g)}」</b> 同じ材料であれば、そのまま「同じ」を押してください</p>` : ''}<p class="k">材料の一覧に登録されていません。登録済みの材料と同じ場合は選んで「同じ」を、新しい材料の場合は購入金額と量を入力すると原価に反映されます</p>
-    <div class="ask"><select id="unk-${i}" style="font:inherit;font-size:15px;padding:8px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);max-width:12em"><option value="">登録済みの材料から選ぶ…</option>${matNames.map(m => `<option${m === g ? ' selected' : ''}>${esc(m)}</option>`).join('')}</select><button class="btn ghost" type="button" data-unk-same="${i}" data-n="${esc(n)}">同じ</button><button class="btn ghost" type="button" data-unk-new="${esc(n)}">詳しく登録する</button></div>${unkForm(n)}` }); });
+  const usedIn = n => D.products.filter(p => p.unknown.includes(n) || (p.label.check || []).includes(n)).map(p => p.name);
+  const forTxt = n => { const u = usedIn(n); return u.length ? `<span class="k">${esc(u.slice(0, 3).join('・'))}${u.length > 3 ? ' ほか' : ''}</span>` : ''; };
+  if (unknown.size) {
+    const rows = [...unknown].map((n, i) => { const g = guess(n), st = SH0[n];
+      return `<div class="mq-row"><div class="mq-h"><b>${esc(n)}</b>${forTxt(n)}</div>
+      ${st ? `<div class="ask"><button class="btn sm" type="button" data-unk-st="${esc(n)}">「${esc(st[0])}」として登録</button><span class="k">表示: ${esc(st[1])}${st[2] ? '・アレルゲン: ' + esc(st[2]) : ''}</span></div>` : ''}
+      <div class="ask"><select id="unk-${i}" class="mq-sel" aria-label="「${esc(n)}」と同じ材料"><option value="">登録済みの材料から選ぶ…</option>${matNames.map(m => `<option${m === g ? ' selected' : ''}>${esc(m)}</option>`).join('')}</select><button class="btn ghost sm" type="button" data-unk-same="${i}" data-n="${esc(n)}">同じ</button><button class="btn ghost sm" type="button" data-unk-new="${esc(n)}">新しく登録</button></div></div>`; }).join('');
+    list.push({ type: 'q', html: `<p><b>登録されていない材料が${unknown.size}種</b></p><p class="k">レシピの名前が材料の一覧と合っていません。まず「まとめて名前を合わせる」を押すと、書き方のちがう材料(Soft Mix とソフトMix など)をAIが一度に合わせます。残ったものだけ選んでください。</p>
+      <div class="ask"><button class="btn" type="button" id="unk-ai">まとめて名前を合わせる</button></div><div class="mq">${rows}</div>` });
+  }
+  if (noPrice.size) list.push({ type: 'q', html: `<p><b>値段のない材料が${noPrice.size}種</b></p><p class="k">請求書を撮影すると自動で入ります。分かるものは、ここで購入金額と量を入れてください。</p>
+    <div class="mq">${[...noPrice].map(n => `<div class="mq-row"><div class="mq-h"><b>${esc(n)}</b>${forTxt(n)}</div>${unkForm(n)}</div>`).join('')}</div>` });
   const check = new Set(); D.products.forEach(p => p.label.check.forEach(n => { if (!unknown.has(n)) check.add(n); }));
-  for (const n of check) list.push({ type: 'q', cam: true, html: `<p><b>「${esc(n)}」の裏面表示を撮影してください</b></p><p class="k">裏面の名称欄が分かると、食品表示が確定します</p>` });
+  if (check.size) list.push({ type: 'q', html: `<p><b>袋の裏の撮影が要る材料が${check.size}種</b></p><p class="k">業務用の商品などで、原材料とアレルゲンが分からない材料です。袋の裏(名称・原材料名の欄)を撮影すると、食品表示が確定します。続けて何枚でも撮れます。</p>
+    <div class="mq">${[...check].map(n => `<div class="mq-row mq-1"><div class="mq-h"><b>${esc(n)}</b>${forTxt(n)}</div></div>`).join('')}</div><div class="ask"><button class="btn" type="button" data-cam>袋の裏を撮影する</button></div>` });
   if (!D.products.length) list.push({ type: 'q', cam: true, html: '<p><b>まずはレシピを1枚撮影してください</b></p><p class="k">' + CAMTXT + 'で手書きのレシピを撮影すると、ここに原価と食品表示の案が表示されます</p>' });
   return list;
 }
@@ -144,7 +155,8 @@ function bindUnk(root) {
     if (!(y > 0)) { f.querySelector('.uq-yen').focus(); return; }
     if (!(q > 0)) { f.querySelector('.uq-q').focus(); return; }
     const kg = u === 'kg' ? q : q / 1000;
-    setValueX({ field: 'mat', name: f.dataset.n, create: true, value: { ppkg: Math.round(y / kg) } });
+    const has = D.materials.some(m => m.name === f.dataset.n);
+    setValueX(has ? { field: 'mat', name: f.dataset.n, value: { ppkg: Math.round(y / kg) } } : { field: 'mat', name: f.dataset.n, create: true, value: { ppkg: Math.round(y / kg) } });
   });
 }
 function renderToday() {
@@ -166,6 +178,8 @@ function renderToday() {
   $('notices').querySelectorAll('[data-go-cost]').forEach(b => b.onclick = () => show('cost'));
   $('notices').querySelectorAll('[data-unk-same]').forEach(b => b.onclick = () => { const sel = $('unk-' + b.dataset.unkSame); if (!sel.value) { sel.focus(); chat('表の材料を選んでください'); return; } setValueX({ field: 'mat', name: sel.value, value: { alias: b.dataset.n } }); });
   $('notices').querySelectorAll('[data-unk-new]').forEach(b => b.onclick = () => { show('mat', true); setTimeout(() => matEdit(null, { name: b.dataset.unkNew }), 100); });
+  $('notices').querySelectorAll('[data-unk-st]').forEach(b => b.onclick = () => setValueX({ field: 'matstarter', name: b.dataset.unkSt }));
+  if ($('unk-ai')) $('unk-ai').onclick = async () => { const b = $('unk-ai'); b.disabled = true; b.textContent = '合わせています…'; await setValueX({ field: 'matmatch' }); };
   const q = list.length; const bd = $('badge'); bd.textContent = q; bd.hidden = !q;
   const up0 = unpaid(), bb = $('badge-book'); bb.textContent = up0.length; bb.hidden = !up0.length;
   const hm0 = hygMissing().length, bh = $('badge-hyg'); bh.textContent = hm0; bh.hidden = !hm0;
@@ -452,10 +466,18 @@ function renderInspect() {
   const warn = xs.filter(x => x.lv === 'warn').length;
   $('insp-n').textContent = `${xs.length}件${warn ? '(うち要注意 ' + warn + ')' : ''}`;
   const shown = inspAll ? xs : xs.slice(0, 5);
-  box.innerHTML = shown.map((x, i) => `<div class="insp-row ${x.lv}" role="button" tabindex="0" data-insp="${i}"><span class="dot"></span><span><b>${esc(x.title)}</b><span class="k">${esc(x.why)}</span></span></div>`).join('') +
+  // その場で片づくもの(仮の値段のまとめて確定・1仕込みの個数)は、行の下に入力を開く
+  const panel = (x, i) => x.key === 'tent' ? `<div class="insp-pn" id="insp-pn-${i}" hidden><div class="chips">${x.items.map(n => `<span class="chip">${esc(n)}</span>`).join('')}</div><div class="ask"><button class="btn sm" type="button" data-tent="${i}">この値段でまとめて確定</button><button class="btn ghost sm" type="button" data-tent-go>材料の画面で見る</button></div><p class="k" style="margin:6px 0 0">確定しても、あとで請求書を撮影すれば新しい値段に置きかわります。</p></div>`
+    : x.ask && x.ask.type === 'pieces' ? `<div class="insp-pn" id="insp-pn-${i}" hidden><p class="k" style="margin:0 0 6px">「${esc(x.ask.product)}」は1仕込みで何${esc(U)}できますか?</p><div class="ask">${(x.ask.cands || []).map(c => `<button class="btn ghost sm" type="button" data-pc="${i}" data-v="${c}">約${c.toLocaleString()}${esc(U)}</button>`).join('')}<input id="insp-pc-${i}" inputmode="numeric" placeholder="数" aria-label="1仕込みの数" style="width:6em"><span class="k">${esc(U)}</span><button class="btn sm" type="button" data-pc="${i}">保存</button></div></div>` : '';
+  box.innerHTML = shown.map((x, i) => `<div class="insp-row ${x.lv}" role="button" tabindex="0" data-insp="${i}"${panel(x, i) ? ' aria-expanded="false"' : ''}><span class="dot"></span><span><b>${esc(x.title)}</b><span class="k">${esc(x.why)}</span></span></div>${panel(x, i)}`).join('') +
     (xs.length > 5 ? `<div class="ask"><button class="btn ghost sm" type="button" id="insp-more">${inspAll ? '少なく表示' : 'すべて見る(' + xs.length + '件)'}</button></div>` : '');
-  box.querySelectorAll('[data-insp]').forEach(r => { const go = () => inspGo(shown[+r.dataset.insp].go || {}); r.onclick = go; r.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } }; });
+  box.querySelectorAll('[data-insp]').forEach(r => { const i = +r.dataset.insp, x = shown[i], pn = $('insp-pn-' + i);
+    const go = () => { if (pn) { pn.hidden = !pn.hidden; r.setAttribute('aria-expanded', String(!pn.hidden)); return; } if (x.key === 'label') { show('today'); setTimeout(() => { const n = $('notices'); if (n) n.scrollIntoView({ block: 'start', behavior: 'smooth' }); }, 200); return; } inspGo(x.go || {}); }; r.onclick = go; r.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } }; });
   if ($('insp-more')) $('insp-more').onclick = () => { inspAll = !inspAll; renderInspect(); };
+  box.querySelectorAll('[data-tent]').forEach(b => b.onclick = () => setValueX({ field: 'matok', value: shown[+b.dataset.tent].items }));
+  box.querySelectorAll('[data-tent-go]').forEach(b => b.onclick = () => { matF = 'all'; show('mat'); });
+  box.querySelectorAll('[data-pc]').forEach(b => b.onclick = () => { const i = +b.dataset.pc, x = shown[i], v = b.dataset.v ? +b.dataset.v : parseFloat(($('insp-pc-' + i) || {}).value);
+    if (!(v > 0)) { const e = $('insp-pc-' + i); if (e) e.focus(); return; } setValue(x.ask.product, 'pieces', Math.round(v)); });
 }
 function inspGo(g) {
   if (g.tab === 'cost' && g.product) { prodSel = g.product; show('cost'); renderCost(); setTimeout(() => { const c = $('pdet'); if (c && !c.hidden) c.scrollIntoView({ block: 'start', behavior: 'smooth' }); }, 250); return; }

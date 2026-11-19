@@ -991,6 +991,19 @@ body.pdet-on{overflow:hidden}
 :is(#t-book,#t-label,#t-mat,#t-ws,#t-ct,#t-sales,#t-howto,#t-cal,#t-post,#t-sort) .ph+.card,:is(#t-book,#t-label,#t-mat,#t-ws,#t-ct,#t-sales,#t-howto,#t-cal,#t-post,#t-sort) .ph+.cols .colL>.card:first-child,:is(#t-book,#t-label,#t-mat,#t-ws,#t-ct,#t-sales,#t-howto,#t-cal,#t-post,#t-sort) .ph+.cols .colR>.card:first-child,:is(#t-book,#t-label,#t-mat,#t-ws,#t-ct,#t-sales,#t-howto,#t-cal,#t-post,#t-sort) .chips+.card,:is(#t-book,#t-label,#t-mat,#t-ws,#t-ct,#t-sales,#t-howto,#t-cal,#t-post,#t-sort) .ph+div>.card:first-child{border-top:2px solid var(--ink)!important;margin-top:12px}
 :is(#t-book,#t-label,#t-mat,#t-ws,#t-ct,#t-sales,#t-howto,#t-cal,#t-post,#t-sort) .card>b:first-child,:is(#t-book,#t-label,#t-mat,#t-ws,#t-ct,#t-sales,#t-howto,#t-cal,#t-post,#t-sort) .card>p:first-child>b:first-child,:is(#t-book,#t-label,#t-mat,#t-ws,#t-ct,#t-sales,#t-howto,#t-cal,#t-post,#t-sort) .card>.sh>b:first-child{font-size:16px}
 </style>
+<style>
+/* 確認の手間を減らす(11/19): 材料の確認を1枚にまとめた行、点検の行の下に開く入力 */
+.mq{margin-top:8px;border-top:1px solid var(--line)}
+#notices .mq-row{padding:10px 0;margin:0;border:0;border-bottom:1px solid var(--line);border-radius:0;background:none;box-shadow:none}
+.mq-row .ask{margin-top:6px}
+.mq-h{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px}.mq-h b{font-size:15.5px}
+.mq-sel{font:inherit;font-size:15px;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);max-width:14em}
+.mq-row .unkf{margin-top:6px}
+.insp-pn{padding:10px 12px 12px 30px;border-bottom:1px solid var(--line)}
+.insp-pn .chips{display:flex;flex-wrap:wrap;gap:6px}.insp-pn .chip{font-size:13px;padding:3px 9px;border-radius:6px;background:var(--soft);color:var(--ink)}
+.insp-pn input{font:inherit;font-size:16px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)}
+.insp-row[aria-expanded="true"]{background:var(--soft)}
+</style>
 </head>
 <body>
 <aside id="side" aria-label="メニュー"></aside>
@@ -1201,6 +1214,6 @@ body.pdet-on{overflow:hidden}
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-<script src="app.js?v=199"></script>
+<script src="app.js?v=200"></script>
 </body>
 </html>
