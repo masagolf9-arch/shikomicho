@@ -1221,9 +1221,9 @@ function renderPdetEdit(p, box) {
     <div class="pe">
       <section><h3>材料と分量 <span class="k">1回の仕込み(${p.pieces ? p.pieces + U : '1仕込み'})の量で入力します</span></h3>
         <table class="pe-t"><thead><tr><th>材料名</th><th class="n">分量</th><th>単位</th><th></th></tr></thead><tbody>
-        ${E.rows.map((r, i) => `<tr data-er="${i}"><td><input class="er-n" value="${esc(r.name)}" list="mat-names2" aria-label="材料名" placeholder="例 薄力粉"></td><td class="n"><input class="er-q" type="number" step="0.1" min="0" inputmode="decimal" value="${r.q || ''}" aria-label="分量"></td><td><select class="er-u" aria-label="単位">${UNITS.concat(UNITS.includes(r.u) ? [] : [r.u]).map(u => `<option${r.u === u ? ' selected' : ''}>${esc(u)}</option>`).join('')}</select></td><td><button class="pe-del" type="button" data-erd="${i}" aria-label="${esc(r.name || '材料')}を削除">削除</button></td></tr>`).join('')}
+        ${E.rows.map((r, i) => `<tr data-er="${i}"><td><input class="er-n" value="${esc(r.name)}" list="mat-names2" aria-label="材料名" placeholder="名前の一部を入力(例 チーズ)"><small class="er-h"${matKnown(r.name) ? ' hidden' : ''}>材料一覧にない名前です。保存すると「値段が分からない材料」として確認に出ます</small></td><td class="n"><input class="er-q" type="number" step="0.1" min="0" inputmode="decimal" value="${r.q || ''}" aria-label="分量"></td><td><select class="er-u" aria-label="単位">${UNITS.concat(UNITS.includes(r.u) ? [] : [r.u]).map(u => `<option${r.u === u ? ' selected' : ''}>${esc(u)}</option>`).join('')}</select></td><td><button class="pe-del" type="button" data-erd="${i}" aria-label="${esc(r.name || '材料')}を削除">削除</button></td></tr>`).join('')}
         </tbody></table><button class="btn ghost sm" type="button" id="rx-addr">＋ 材料を追加</button>
-        <datalist id="mat-names2">${D.materials.map(m => `<option value="${esc(m.name)}">`).join('')}</datalist></section>
+        <datalist id="mat-names2">${matOpts()}</datalist></section>
       <section><h3>作り方</h3><ol class="pe-s">${E.steps.map((t, i) => `<li><input data-es2="${i}" value="${esc(t)}" maxlength="300" aria-label="手順${i + 1}"><button class="pe-mv" type="button" data-esu="${i}" aria-label="上へ"${i ? '' : ' disabled'}>↑</button><button class="pe-mv" type="button" data-esd="${i}" aria-label="下へ"${i < E.steps.length - 1 ? '' : ' disabled'}>↓</button><button class="pe-del" type="button" data-esx="${i}">削除</button></li>`).join('')}</ol><button class="btn ghost sm" type="button" id="rx-adds">＋ 手順を追加</button></section>
       <section><h3>商品の情報</h3><div class="pe-g">
         <label style="grid-column:1/-1">商品名<span><input id="rx-name" value="${esc(E.name2)}" maxlength="30" placeholder="例 どら焼き"></span><small>変更すると、卸値・納品・コース・レジの呼び方など、この名前でつながる記録もまとめて新しい名前に付け替えます</small></label>
@@ -1237,6 +1237,7 @@ function renderPdetEdit(p, box) {
     <div class="pe-foot"><span class="k" id="rx-msg">保存すると、原価と食品表示を計算し直します。保存後に「↶ 元に戻す」を押すと、この保存の前に戻せます。</span><button class="btn ghost" type="button" id="rx-cancel">キャンセル</button><button class="btn" type="button" id="rx-save">保存する</button></div>`;
   box.oninput = () => { E.dirty = true; };
   const re = () => { grab(); E.dirty = true; renderPdetEdit(p, box); };
+  box.querySelectorAll('.er-n').forEach(inp => inp.addEventListener('input', () => { const h = inp.parentNode.querySelector('.er-h'); if (h) h.hidden = matKnown(inp.value.trim()); }));
   $('rx-addr').onclick = () => { grab(); E.rows.push({ name: '', q: 0, u: 'g' }); E.dirty = true; renderPdetEdit(p, box); const n = box.querySelectorAll('.er-n'); n[n.length - 1].focus(); };
   $('rx-adds').onclick = () => { grab(); E.steps.push(''); E.dirty = true; renderPdetEdit(p, box); const n = box.querySelectorAll('[data-es2]'); n[n.length - 1].focus(); };
   box.querySelectorAll('[data-erd]').forEach(b => b.onclick = () => { grab(); E.rows.splice(+b.dataset.erd, 1); re(); });
@@ -1297,7 +1298,7 @@ function renderPdet() {
   box.innerHTML = `<div class="hd2"><h2>${esc(p.name)} <span class="k">${esc(p.part || p.cat || '')}</span></h2><div class="row" style="gap:8px;flex-wrap:wrap">${(() => { const u = lastUndo(); return u && u.kind === 'undo' && u.product === p.name ? `<button class="undo-btn" type="button" id="pdet-undo" title="元に戻す: ${esc(u.label)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg><span>元に戻す</span></button>` : ''; })()}${canEdit ? '<button class="btn" type="button" id="pdet-edit">編集する</button>' : ''}<button class="btn ghost" type="button" id="mk-open">レシピ票<span class="mkx">(製造モード)</span></button><button class="pdx" type="button" id="pdet-x" aria-label="閉じる">×</button></div></div>
     <div class="rv"><div class="pic"><div class="img">${img ? `<img class="stimg" data-img="${esc(img)}" alt="${esc(p.name)}">` : esc(p.name)}</div><div class="cap">${p.kind === 'part' ? '半製品' : esc(p.cat || '分類なし')} ・ 1回の仕込み ${per ? per + U : (p.batch_grams ? fq(p.batch_grams) : '—')}${p.pw ? ` ・ 1${U} ${p.pw}g` : ''}</div><div class="btns"><button class="btn ghost sm" type="button" id="pdet-photo">写真を撮る・付ける</button>${p.kind !== 'part' ? `<button class="btn ghost sm" type="button" id="pdet-label">食品表示</button>` : ''}</div></div>
     <div class="ml"><div class="mh"><span>材料</span>${qn}</div>${rows}${total ? `<div class="row sub"><span>合計(${per ? n + U : '1仕込み'}分)</span><b style="font-size:16px">${total}</b><span></span></div>` : ''}<div class="row sub"><span>アレルゲン</span><span style="font-weight:500;font-size:13px">${algs.length ? algs.map(esc).join('・') : 'なし'}</span><span></span></div></div></div>
-    <datalist id="mat-names">${D.materials.map(m => `<option value="${esc(m.name)}">`).join('')}</datalist>
+    <datalist id="mat-names">${matOpts()}</datalist>
     <div class="steps2"><h3>作り方</h3>${(p.steps || []).length ? `<ol>${steps}</ol>` : '<p class="k" style="margin:0">まだ手順がありません。</p>'}</div>
     <details class="setd"><summary>その他の設定(出し方・税率・値段のない材料・組み合わせ・削除)</summary><div id="pdet-set"></div></details>`;
   bindStepImgs(box);
@@ -1864,6 +1865,9 @@ function renderMat() {
   setTimeout(renderCount, 0);
   $('mat-sum').textContent = `材料 ${all.length}種類のうち、確かめた ${all.length - est}、仮 ${est}。` + (lastM ? `${lastM.replace('-', '年')}月の仕入れ ${yen(D.months[lastM].total)}。` : '');
 }
+// 材料の候補: 五十音順。別名(クリームチーズなど)や表示名でも絞り込めるように label に入れる
+const matOpts = () => D.materials.slice().sort((a, b) => a.name.localeCompare(b.name, 'ja')).map(m => { const sub = [].concat(m.aliases || [], m.display && m.display !== m.name ? [m.display] : []).join('・').slice(0, 40); return `<option value="${esc(m.name)}"${sub ? ` label="${esc(sub)}"` : ''}>`; }).join('');
+const matKnown = n => !n || D.materials.some(m => m.name === n || (m.aliases || []).includes(n));
 const kindList = () => `<datalist id="kinds">${(D.kinds || []).map(k => `<option value="${esc(k)}">`).join('')}</datalist>`;
 const inp = (id, v, ph, w) => `<input id="${id}" value="${esc(v || '')}" placeholder="${esc(ph)}" style="width:${w || '100%'};box-sizing:border-box;font:inherit;font-size:15px;padding:8px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)">`;
 function matBox(html) {
