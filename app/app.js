@@ -1,5 +1,21 @@
 // ピタット原価 管理画面(LINEの中でも、パソコンのブラウザでも開ける)
 // データは Google の記録の表から読む。見られるのは「メンバー」シートで許可された人だけ。
+// 確かめる窓(confirm・alert)を画面の中に出す。ブラウザによっては確認の窓が出ず「キャンセル」扱いになり、押しても動かなくなるため(11/19)。
+// 確認したい操作は一度止めて画面の中で聞き、「OK」なら同じ操作をもう一度流す
+(function(){var last=null,ok={};
+function rec(e){var t=e.target;if(!t||!t.closest||t.closest('#cf-ov'))return;last={el:t,type:e.type,checked:t.checked,value:t.value,at:Date.now()}}
+document.addEventListener('click',rec,true);document.addEventListener('change',rec,true);
+function box(msg,yesNo,ev){var o=document.getElementById('cf-ov');if(o)o.remove();o=document.createElement('div');o.id='cf-ov';o.setAttribute('role','dialog');o.setAttribute('aria-modal','true');
+ o.style.cssText='position:fixed;inset:0;background:rgba(15,23,42,.45);display:flex;align-items:center;justify-content:center;z-index:2147483000;padding:16px';
+ o.innerHTML='<div style="background:#fff;color:#1f2937;border-radius:14px;max-width:440px;width:100%;padding:20px 20px 16px;box-shadow:0 10px 30px rgba(0,0,0,.25);font-size:15px;line-height:1.7"><p style="margin:0 0 16px;white-space:pre-wrap"></p><div style="display:flex;gap:8px;justify-content:flex-end">'+(yesNo?'<button type="button" data-n style="padding:10px 16px;border-radius:10px;border:1px solid #cbd5e1;background:#fff;color:#1f2937;font:inherit;cursor:pointer">キャンセル</button>':'')+'<button type="button" data-y style="padding:10px 20px;border-radius:10px;border:0;background:#1a5fa0;color:#fff;font:inherit;font-weight:700;cursor:pointer">OK</button></div></div>';
+ o.querySelector('p').textContent=msg;document.body.appendChild(o);var y=o.querySelector('[data-y]'),n=o.querySelector('[data-n]');y.focus();
+ var close=function(){o.remove();document.removeEventListener('keydown',kd)},kd=function(e){if(e.key==='Escape')close()};document.addEventListener('keydown',kd);
+ if(n)n.onclick=close;
+ y.onclick=function(){close();if(!yesNo||!ev||!document.contains(ev.el))return;ok[msg]=Date.now();var el=ev.el;
+  if(ev.type==='change'){if(el.type==='checkbox'||el.type==='radio')el.checked=ev.checked;else el.value=ev.value;el.dispatchEvent(new Event('change',{bubbles:true}))}else el.click()}}
+window.confirm=function(msg){msg=String(msg==null?'':msg);if(ok[msg]&&Date.now()-ok[msg]<30000){delete ok[msg];return true}box(msg,true,last&&Date.now()-last.at<5000?last:null);return false};
+window.alert=function(msg){box(String(msg==null?'':msg),false,null)};
+})();
 const LIFF_ID = '2012003912-ltVppjVx';
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbxShAkcy1uEzK5ZUGWgW8lzdFBcd8baDNKjHwGKCBx7ocrEUNDHmzrSFdrZDikqL2VO/exec';
 const CAMERA_URL = 'https://liff.line.me/' + LIFF_ID;
@@ -1537,7 +1553,7 @@ function bindQr() {
     Array.from({ length: n }, () => `<div class="qc"><img src="${u}" alt=""><div><b>${name}</b><p>アレルゲン一覧</p><p>このQRで、商品ごとのアレルゲンをスマートフォンで確認できます。</p><p style="font-size:${n === 1 ? '10pt' : '7pt'}">詳しくは店舗のスタッフに確かめてください</p></div></div>`).join('') + '</div>';
   $('qr-a5').onclick = () => openPrint(sheet('128mm', '170mm', 1), { bare: true });
   $('qr-cards').onclick = () => openPrint(sheet('91mm', '55mm', 10), { bare: true });
-  $('qr-copy').onclick = async () => { try { await navigator.clipboard.writeText(D.pubUrl); toast('住所をコピーしました'); } catch (e) { prompt('この住所をコピー', D.pubUrl); } };
+  $('qr-copy').onclick = async () => { try { await navigator.clipboard.writeText(D.pubUrl); toast('住所をコピーしました'); } catch (e) { alert('この住所をコピーしてください\n' + D.pubUrl); } };
   if ($('qr-renew')) $('qr-renew').onclick = () => { if (confirm('QRを作り直すと、今までのQR(印刷した紙)は使えなくなります。作り直しますか?')) setValueX({ field: 'pubqr', value: 1 }); };
   $('qr-oncard').onchange = () => { store.set('qrOnCard', $('qr-oncard').checked); renderLabel(); };
   document.querySelectorAll('[data-pub]').forEach(c => c.onchange = () => setValueX({ field: 'pubhide', product: c.dataset.pub, value: !c.checked }));
