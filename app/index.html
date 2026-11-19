@@ -991,6 +991,28 @@ body.pdet-on{overflow:hidden}
 :is(#t-book,#t-label,#t-mat,#t-ws,#t-ct,#t-sales,#t-howto,#t-cal,#t-post,#t-sort) .card:not(.lpc):not(.memo):not(#pdet)+.card:not(.lpc):not(.memo){border-top:1px solid var(--line)}
 :is(#t-book,#t-label,#t-mat,#t-ws,#t-ct,#t-sales,#t-howto,#t-cal,#t-post,#t-sort) .ph+.card,:is(#t-book,#t-label,#t-mat,#t-ws,#t-ct,#t-sales,#t-howto,#t-cal,#t-post,#t-sort) .ph+.cols .colL>.card:first-child,:is(#t-book,#t-label,#t-mat,#t-ws,#t-ct,#t-sales,#t-howto,#t-cal,#t-post,#t-sort) .ph+.cols .colR>.card:first-child,:is(#t-book,#t-label,#t-mat,#t-ws,#t-ct,#t-sales,#t-howto,#t-cal,#t-post,#t-sort) .chips+.card,:is(#t-book,#t-label,#t-mat,#t-ws,#t-ct,#t-sales,#t-howto,#t-cal,#t-post,#t-sort) .ph+div>.card:first-child{border-top:2px solid var(--ink)!important;margin-top:12px}
 :is(#t-book,#t-label,#t-mat,#t-ws,#t-ct,#t-sales,#t-howto,#t-cal,#t-post,#t-sort) .card>b:first-child,:is(#t-book,#t-label,#t-mat,#t-ws,#t-ct,#t-sales,#t-howto,#t-cal,#t-post,#t-sort) .card>p:first-child>b:first-child,:is(#t-book,#t-label,#t-mat,#t-ws,#t-ct,#t-sales,#t-howto,#t-cal,#t-post,#t-sort) .card>.sh>b:first-child{font-size:16px}
+
+/* 発注書(オプション) */
+.od-entry{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:12px 14px;margin:0 0 14px;border:1px solid var(--line);border-radius:10px;background:var(--bg2,transparent)}
+.od-entry>div{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1 1 220px}
+.od-sup{display:flex;justify-content:space-between;align-items:center;gap:8px;width:100%;padding:12px 14px;margin-top:8px;border:1px solid var(--line);border-radius:10px;background:transparent;color:inherit;font:inherit;text-align:left;cursor:pointer}
+.od-sup:hover{border-color:var(--accent,#1a5fa0)}
+.od-row{display:grid;grid-template-columns:1fr 72px 64px;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
+.od-row .od-n{display:flex;flex-direction:column;min-width:0}
+.od-row input{min-width:0;font-size:16px;padding:8px}
+.od-row.od-free .od-fn{grid-column:1}
+.od-doc{background:#fff;color:#000;padding:14mm 14mm 10mm;max-width:210mm;margin:0 auto;font-size:14px;line-height:1.6}
+.od-doc h1{text-align:center;font-size:26px;letter-spacing:.2em;margin:0 0 14px;border-bottom:3px double #000;padding-bottom:6px}
+.od-top{display:flex;justify-content:space-between;gap:16px;margin-bottom:12px}
+.od-to{flex:1}.od-big{font-size:20px;font-weight:700;border-bottom:1px solid #000;padding-bottom:2px;margin-bottom:4px}
+.od-from{text-align:right;font-size:13px}.od-shop{font-size:16px;font-weight:700;margin-top:4px}
+.od-t{width:100%;border-collapse:collapse;margin:8px 0}
+.od-t th,.od-t td{border:1px solid #000;padding:6px 8px;height:30px;color:#000}
+.od-t th{background:#eee;font-weight:700;text-align:center}
+.od-t td.c{text-align:center}.od-t td.r{text-align:right;white-space:nowrap}
+.od-f th{text-align:left}
+.od-foot{font-size:12px;margin-top:10px}
+@media print{.od-np{display:none!important}.od-doc{padding:12mm;max-width:none}.od-t th{background:#eee!important}}
 </style>
 <style>
 /* 確認の手間を減らす(11/19): 材料の確認を1枚にまとめた行、点検の行の下に開く入力 */
@@ -1215,6 +1237,6 @@ body.pdet-on{overflow:hidden}
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-<script src="app.js?v=203"></script>
+<script src="app.js?v=204"></script>
 </body>
 </html>

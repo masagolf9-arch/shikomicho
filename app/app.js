@@ -271,7 +271,7 @@ function todoItems(q) {
   (D.events || []).filter(e => { const dd = dayDiff(e.date); return dd >= 0 && dd <= 1; }).forEach(e => t.push({ c: EVK[e.kind] || 'set', ic: 'cal', b: `${e.kind === '納品' ? '納品: ' : ''}${e.text}${e.who ? '(' + e.who + ')' : ''}`, k: e.kind, d: dayDiff(e.date) === 0 ? '今日' : '明日', star: 2, go: () => show('cal') }));
   if (q) t.push({ c: 'cam', ic: 'cam', b: `確認待ちの回答 ${q}件`, k: '答えると原価と裏表示が確定します', d: '', star: 1, go: () => $('notices').scrollIntoView({ behavior: 'smooth', block: 'start' }) });
   (D.ups || []).slice(-2).forEach(u => t.push({ c: 'mat', ic: 'mat', b: `${u.item}が値上がり(+${u.pct}%)`, k: `${u.supplier} ${u.old.toLocaleString()}円→${u.now.toLocaleString()}円。原価を見直す`, d: '', star: 1, go: () => { matF = 'up'; show('mat'); } }));
-  const low = SH('stock') ? [] : ((D.stock || {}).items || []).filter(x => x.low); if (low.length) t.push({ c: 'stock', ic: 'stock', b: `そろそろ買うもの ${low.length}品`, k: low.slice(0, 4).map(x => x.key).join('・'), d: '', star: 1, go: () => { matF = 'low'; show('mat'); } });
+  const low = SH('stock') ? [] : ((D.stock || {}).items || []).filter(x => x.low); if (low.length) t.push({ c: 'stock', ic: 'stock', b: `そろそろ買うもの ${low.length}品`, k: low.slice(0, 4).map(x => x.key).join('・') + (orderOn() ? ' → 発注書をつくる' : ''), d: '', star: 1, go: () => { if (orderOn()) openOrder(); else { matF = 'low'; show('mat'); } } });
   return t.sort((a, b) => b.star - a.star);
 }
 function renderTodo(list) {
@@ -584,18 +584,19 @@ function renderCt() { const b = $('ct-box'); if (!b) return; b.innerHTML = conta
 function contactsBox() {
   const cs = D.contacts || [], sup = Object.keys(Object.assign({}, ...Object.values(D.months || {}).map(m => m.by))), tos = Object.keys(Object.assign({}, ...Object.values(D.ws || {})));
   const cand = [...new Set(sup.concat(tos))].filter(n => !cs.find(c => c.name === n));
-  return `${cs.length ? '' : '<p class="k" style="margin:0 0 8px">まだありません。請求書を撮影すると仕入先が自動で登録されます。手入力で追加することもできます</p>'}
-    ${cs.map(c => `<div class="contact-row"><b>${esc(c.name)}</b><span class="k">${esc(c.kind)}</span><span class="tel">${c.tel ? `<a href="tel:${esc(c.tel.replace(/[^\\d+]/g, ''))}">☎ ${esc(c.tel)}</a>` : '<span class="k">電話なし</span>'}</span><span class="k">${esc(c.person)}${c.regno ? ` · ${esc(c.regno)}` : ''}</span><button class="btn ghost sm" type="button" data-ct-edit="${esc(c.name)}">直す</button>${c.addr ? `<div class="k" style="grid-column:1/-1;margin-top:-4px">住所: ${esc(c.addr)}</div>` : ''}${c.bank || c.number ? `<div class="k" style="grid-column:1/-1;margin-top:-4px">振込先: ${esc([c.bank, c.branch, c.type, c.number, c.holder].filter(Boolean).join(' '))}</div>` : ''}</div>`).join('')}
-    ${cs.length ? '<div class="ask"><button class="btn ghost" type="button" id="ct-add">＋ 仕入先・卸先を足す</button></div>' : ''}<div id="ct-form" style="margin-top:12px"${cs.length ? ' hidden' : ''}><div class="fld"><span class="k">名前</span><input id="ct-name" list="ct-cand" placeholder="仕入先・卸先の名前"><datalist id="ct-cand">${cand.map(n => `<option value="${esc(n)}">`).join('')}</datalist><span class="k">種類</span><div class="seg" id="ct-kind">${['業者', '卸先', 'その他'].map((k, i) => `<button type="button" data-v="${k}" aria-pressed="${i === 0}">${k === '業者' ? '仕入先' : k}</button>`).join('')}</div><span class="k">電話</span><input id="ct-tel" inputmode="tel" placeholder="電話番号"><span class="k">担当</span><input id="ct-person" placeholder="担当者"><span class="k">住所</span><input id="ct-addr" placeholder="住所"><span class="k">登録番号</span><input id="ct-regno" placeholder="T から始まる13桁(インボイス)" autocomplete="off">${noMoney() ? '<span class="k">振込先</span><span class="k">店主と、金額の閲覧権限がある人だけに見えます</span>' : `<span class="k">振込先</span><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><input id="ct-bank" placeholder="銀行"><input id="ct-branch" placeholder="支店"><select id="ct-type" class="sel"><option value="">種別</option><option>普通</option><option>当座</option></select><input id="ct-number" inputmode="numeric" placeholder="口座番号"><input id="ct-holder" placeholder="名義(カナ)" style="grid-column:1/-1"></div>`}</div><p class="k" style="margin:4px 0 0">請求書を撮ると、電話・担当・住所・振込先は自動で入ります(読めなかったところだけ空のまま)</p><div class="ask"><button class="btn" type="button" id="ct-save">連絡先を保存</button><button class="btn ghost" type="button" id="ct-del" hidden>消す</button></div></div>`;
+  return `${orderOn() ? '<div class="od-entry"><div><b>発注書をつくる</b><span class="k">仕入先を選ぶと、いつもの品と前回の数が出ます。FAXで送れる形で印刷・PDFにします</span></div><button class="btn" type="button" id="od-open">発注書をつくる</button></div>' : ''}${cs.length ? '' : '<p class="k" style="margin:0 0 8px">まだありません。請求書を撮影すると仕入先が自動で登録されます。手入力で追加することもできます</p>'}
+    ${cs.map(c => `<div class="contact-row"><b>${esc(c.name)}</b><span class="k">${esc(c.kind)}</span><span class="tel">${c.tel ? `<a href="tel:${esc(c.tel.replace(/[^\\d+]/g, ''))}">☎ ${esc(c.tel)}</a>` : '<span class="k">電話なし</span>'}</span><span class="k">${esc(c.person)}${c.regno ? ` · ${esc(c.regno)}` : ''}${c.fax ? ` · FAX ${esc(c.fax)}` : ''}</span><button class="btn ghost sm" type="button" data-ct-edit="${esc(c.name)}">直す</button>${c.addr ? `<div class="k" style="grid-column:1/-1;margin-top:-4px">住所: ${esc(c.addr)}</div>` : ''}${c.bank || c.number ? `<div class="k" style="grid-column:1/-1;margin-top:-4px">振込先: ${esc([c.bank, c.branch, c.type, c.number, c.holder].filter(Boolean).join(' '))}</div>` : ''}</div>`).join('')}
+    ${cs.length ? '<div class="ask"><button class="btn ghost" type="button" id="ct-add">＋ 仕入先・卸先を足す</button></div>' : ''}<div id="ct-form" style="margin-top:12px"${cs.length ? ' hidden' : ''}><div class="fld"><span class="k">名前</span><input id="ct-name" list="ct-cand" placeholder="仕入先・卸先の名前"><datalist id="ct-cand">${cand.map(n => `<option value="${esc(n)}">`).join('')}</datalist><span class="k">種類</span><div class="seg" id="ct-kind">${['業者', '卸先', 'その他'].map((k, i) => `<button type="button" data-v="${k}" aria-pressed="${i === 0}">${k === '業者' ? '仕入先' : k}</button>`).join('')}</div><span class="k">電話</span><input id="ct-tel" inputmode="tel" placeholder="電話番号"><input id="ct-fax" inputmode="tel" placeholder="FAX番号(発注書を送る先)"><span class="k">担当</span><input id="ct-person" placeholder="担当者"><span class="k">住所</span><input id="ct-addr" placeholder="住所"><span class="k">登録番号</span><input id="ct-regno" placeholder="T から始まる13桁(インボイス)" autocomplete="off">${noMoney() ? '<span class="k">振込先</span><span class="k">店主と、金額の閲覧権限がある人だけに見えます</span>' : `<span class="k">振込先</span><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><input id="ct-bank" placeholder="銀行"><input id="ct-branch" placeholder="支店"><select id="ct-type" class="sel"><option value="">種別</option><option>普通</option><option>当座</option></select><input id="ct-number" inputmode="numeric" placeholder="口座番号"><input id="ct-holder" placeholder="名義(カナ)" style="grid-column:1/-1"></div>`}</div><p class="k" style="margin:4px 0 0">請求書を撮ると、電話・担当・住所・振込先は自動で入ります(読めなかったところだけ空のまま)</p><div class="ask"><button class="btn" type="button" id="ct-save">連絡先を保存</button><button class="btn ghost" type="button" id="ct-del" hidden>消す</button></div></div>`;
 }
 const ctv = id => { const e = $(id); return e ? e.value.trim() : ''; }, ctset = (id, v) => { const e = $(id); if (e) e.value = v; };
 function bindContacts(root) {
+  const odb = root.querySelector('#od-open'); if (odb) odb.onclick = () => openOrder();
   const kindSel = k => root.querySelectorAll('#ct-kind button').forEach(x => x.setAttribute('aria-pressed', x.dataset.v === k));
   root.querySelectorAll('#ct-kind button').forEach(b => b.onclick = () => kindSel(b.dataset.v));
   const open = () => { const f = root.querySelector('#ct-form'); f.hidden = false; const a = root.querySelector('#ct-add'); if (a) a.hidden = true; f.scrollIntoView({ block: 'center', behavior: 'smooth' }); };
   const ad = root.querySelector('#ct-add'); if (ad) ad.onclick = () => { open(); $('ct-name').focus(); };
-  root.querySelectorAll('[data-ct-edit]').forEach(b => b.onclick = () => { open(); const c = (D.contacts || []).find(x => x.name === b.dataset.ctEdit); if (!c) return; $('ct-name').value = c.name; $('ct-tel').value = c.tel; $('ct-person').value = c.person; $('ct-addr').value = c.addr || ''; ctset('ct-regno', c.regno || ''); ctset('ct-bank', c.bank || ''); ctset('ct-branch', c.branch || ''); ctset('ct-type', c.type || ''); ctset('ct-number', c.number || ''); ctset('ct-holder', c.holder || ''); kindSel(c.kind); $('ct-del').hidden = false; $('ct-name').scrollIntoView({ block: 'center', behavior: 'smooth' }); });
-  $('ct-save').onclick = () => { const name = $('ct-name').value.trim(); if (!name) { $('ct-name').focus(); return; } setValueX({ field: 'contact', value: { name, kind: root.querySelector('#ct-kind [aria-pressed="true"]').dataset.v, tel: $('ct-tel').value.trim(), person: $('ct-person').value.trim(), addr: $('ct-addr').value.trim(), regno: ctv('ct-regno'), bank: ctv('ct-bank'), branch: ctv('ct-branch'), type: ctv('ct-type'), number: ctv('ct-number'), holder: ctv('ct-holder') } }); };
+  root.querySelectorAll('[data-ct-edit]').forEach(b => b.onclick = () => { open(); const c = (D.contacts || []).find(x => x.name === b.dataset.ctEdit); if (!c) return; $('ct-name').value = c.name; $('ct-tel').value = c.tel; $('ct-fax').value = c.fax || ''; $('ct-person').value = c.person; $('ct-addr').value = c.addr || ''; ctset('ct-regno', c.regno || ''); ctset('ct-bank', c.bank || ''); ctset('ct-branch', c.branch || ''); ctset('ct-type', c.type || ''); ctset('ct-number', c.number || ''); ctset('ct-holder', c.holder || ''); kindSel(c.kind); $('ct-del').hidden = false; $('ct-name').scrollIntoView({ block: 'center', behavior: 'smooth' }); });
+  $('ct-save').onclick = () => { const name = $('ct-name').value.trim(); if (!name) { $('ct-name').focus(); return; } setValueX({ field: 'contact', value: { name, kind: root.querySelector('#ct-kind [aria-pressed="true"]').dataset.v, tel: $('ct-tel').value.trim(), fax: $('ct-fax').value.trim(), person: $('ct-person').value.trim(), addr: $('ct-addr').value.trim(), regno: ctv('ct-regno'), bank: ctv('ct-bank'), branch: ctv('ct-branch'), type: ctv('ct-type'), number: ctv('ct-number'), holder: ctv('ct-holder') } }); };
   $('ct-del').onclick = () => { const name = $('ct-name').value.trim(); if (name && confirmOnce('ct' + name, 'もう一度押すと、この連絡先を消します')) setValueX({ field: 'contact', value: { name, del: true } }); };
 }
 // ---------- メンバー(店主だけ): 役割・金額の表示/非表示・外す ----------
@@ -1941,6 +1942,71 @@ async function setValueX(extra) {
   if (out.msg) { chat(out.msg); return; } toast(extra.field === 'check' ? '確かめました。' : extra.field === 'restoreprod' ? 'レシピを戻しました。' : extra.field === 'hyg' ? '記録しました。' : extra.field === 'deliv' ? '納品を記録しました。' : extra.field === 'shop' ? '店舗情報を保存しました。' : extra.field === 'lbl' ? 'ラベルの設定を保存しました。' : extra.field === 'paybank' ? `振込は「${esc((payBank() || {}).name || '')}」を開くようにしました。` : ['biz', 'sell', 'unitword', 'serve', 'closed', 'wsprice', 'regalias'].includes(extra.field) ? '変えました。' : extra.field === 'tax' ? '税率を保存しました。' : extra.field === 'target' || extra.field === 'ptarget' ? '目標の原価率を保存しました。' : extra.field === 'aicap' ? 'AI代の上限を保存しました。' : extra.field === 'mat' ? (extra.value && extra.value.alias ? `「${esc(extra.value.alias)}」を「${esc(extra.name)}」の別名にしました。原価に反映しました。` : '材料を保存しました。') : extra.field === 'hygnotice' ? (extra.value === 'off' ? '衛生記録のお知らせは送らないようにしました。' : `衛生記録のお知らせは${extra.value}時に送ります。`) : extra.field === 'sales' ? '売上を記録しました。' : extra.field === 'cycle' ? `棚卸は「${extra.value}」にしました。その前にLINEでお知らせします。` : '記録しました。在庫を計算しなおしました。', 'ok'); act('heart', 1.3);
 }
 // 小さな確認の窓(画面の手前)。閉じるボタン・外側・Escで閉じる
+// ---------- 発注書(オプション・11/19) ----------
+// 小さなお店は、仕事終わりに作る人が自分でFAXで発注する。仕入先を選ぶ → いつもの品に数を入れる(前回と同じ も1回で)→ FAXに向く白黒のA4
+const orderOn = () => !!(D && D.connOpts && D.connOpts.order && D.order);
+const jpDay = t => { const d = new Date(t); return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`; };
+function openOrder(supName) {
+  const O = D.order || { sups: [] };
+  if (supName == null) {
+    openSheet(`<h2 style="margin:0 0 4px">発注書をつくる</h2><p class="k" style="margin:0 0 10px">仕入先を選んでください。そろそろ買うものがある仕入先が上に出ます</p>
+      ${O.sups.length ? O.sups.map((x, i) => `<button class="od-sup" type="button" data-os="${i}"><b>${esc(x.name)}</b><span class="k">${x.lowN ? `<mark>そろそろ ${x.lowN}品</mark> ` : ''}${x.last ? `前回 ${jpDay(x.last.at).replace(/^\d+年/, '')}` : ''}${x.fax ? '' : ' FAX番号なし'}</span></button>`).join('') : '<p class="k">まだ仕入先がありません。請求書を撮影すると、仕入先といつもの品が入ります</p>'}
+      <div class="fld" style="margin-top:12px"><span class="k">ほかの仕入先</span><input id="od-new" placeholder="仕入先の名前"></div><div class="ask"><button class="btn ghost" type="button" id="od-new-go">この仕入先で作る</button></div>`);
+    document.querySelectorAll('[data-os]').forEach(b => b.onclick = () => openOrder(O.sups[+b.dataset.os].name));
+    $('od-new-go').onclick = () => { const n = $('od-new').value.trim(); if (!n) { $('od-new').focus(); return; } openOrder(n); };
+    return;
+  }
+  const S = O.sups.find(x => x.name === supName) || { name: supName, fax: '', items: [], last: null };
+  const row = (it, i) => `<div class="od-row" data-i="${i}"><div class="od-n"><b>${esc(it.name)}</b><span class="k">${esc(it.spec || '')}${it.low ? ` <mark>残り少ない${it.left ? '(' + esc(it.left) + ')' : ''}</mark>` : ''}${it.qty !== '' ? ` 前回 ${esc(String(it.qty))}${esc(it.unit || '')}` : ''}</span></div><input class="od-q" inputmode="decimal" aria-label="${esc(it.name)}の数" value="${it.low && it.qty !== '' ? esc(String(it.qty)) : ''}" placeholder="数"><input class="od-u" aria-label="単位" value="${esc(it.unit || '')}" placeholder="単位"></div>`;
+  const free = i => `<div class="od-row od-free"><input class="od-fn" aria-label="品名" placeholder="品名(一覧にない品)"><input class="od-q" inputmode="decimal" aria-label="数" placeholder="数"><input class="od-u" aria-label="単位" placeholder="単位"></div>`;
+  openSheet(`<h2 style="margin:0 0 4px">${esc(S.name)} への発注書</h2><p class="k" style="margin:0 0 8px">頼む品に数を入れてください。空欄の品は発注書に出ません</p>
+    ${S.last ? `<div class="ask" style="margin:0 0 8px"><button class="btn ghost sm" type="button" id="od-same">前回(${jpDay(S.last.at).replace(/^\d+年/, '')})と同じにする</button></div>` : ''}
+    <div id="od-items">${S.items.map(row).join('')}${free(0)}${free(1)}${free(2)}</div>
+    <div class="fld" style="margin-top:12px"><span class="k">送り先のFAX番号</span><input id="od-fax" inputmode="tel" value="${esc(S.fax || '')}" placeholder="例 0436-00-0000(仕入先に覚えさせます)">
+    <span class="k">納品希望日</span><input id="od-day" type="date">
+    <span class="k">備考</span><input id="od-memo" placeholder="例 いつもの時間にお願いします"></div>
+    <div class="ask"><button class="btn" type="button" id="od-go">発注書をつくる</button><button class="btn ghost" type="button" id="od-back">仕入先を選び直す</button></div>`);
+  $('od-back').onclick = () => openOrder();
+  if ($('od-same')) $('od-same').onclick = () => {
+    const items = document.querySelectorAll('#od-items .od-row:not(.od-free)'), frees = [...document.querySelectorAll('#od-items .od-free')];
+    items.forEach(r => { r.querySelector('.od-q').value = ''; });
+    S.last.lines.forEach(l => {
+      const i = S.items.findIndex(it => it.name === l.name), r = i >= 0 ? items[i] : null;
+      if (r) { r.querySelector('.od-q').value = l.qty; r.querySelector('.od-u').value = l.unit || ''; return; }
+      const f = frees.find(x => !x.querySelector('.od-fn').value); if (f) { f.dataset.spec = l.spec || ''; f.querySelector('.od-fn').value = l.name; f.querySelector('.od-q').value = l.qty; f.querySelector('.od-u').value = l.unit || ''; }
+    });
+    toast('前回と同じ数を入れました。変えるところだけ直してください', 'ok');
+  };
+  $('od-go').onclick = async () => {
+    const lines = [];
+    document.querySelectorAll('#od-items .od-row').forEach(r => {
+      const q = r.querySelector('.od-q').value.trim(), u = r.querySelector('.od-u').value.trim(); if (!q) return;
+      if (r.classList.contains('od-free')) { const n = r.querySelector('.od-fn').value.trim(); if (n) lines.push({ name: n, spec: r.dataset.spec || '', qty: q, unit: u }); return; }
+      const it = S.items[+r.dataset.i]; lines.push({ name: it.name, spec: it.spec || '', qty: q, unit: u });
+    });
+    if (!lines.length) { toast('頼む品に数を入れてください'); return; }
+    const go = $('od-go'); go.disabled = true;
+    const day = $('od-day').value, memo = $('od-memo').value.trim(), fax = $('od-fax').value.trim();
+    const r = await api({ kind: 'app_order', sup: S.name, fax, lines, day, memo }).catch(() => ({ ok: false, error: 'つながりませんでした' }));
+    go.disabled = false;
+    if (!r.ok) { toast(r.error || '作れませんでした'); return; }
+    if (r.data) { D = r.data; renderAll(); }
+    closeSheet(); openPrint(orderHtml(S, { no: r.no, lines, day, memo, fax }), { bare: true });
+  };
+}
+function orderHtml(S, o) {
+  const si = D.shopInfo || {}, rows = o.lines.map((l, i) => `<tr><td class="c">${i + 1}</td><td>${esc(l.name)}</td><td>${esc(l.spec || '')}</td><td class="r"><b>${esc(String(l.qty))}</b> ${esc(l.unit || '')}</td><td>${esc(l.note || '')}</td></tr>`);
+  for (let i = rows.length; i < 10; i++) rows.push(`<tr><td class="c">${i + 1}</td><td></td><td></td><td></td><td></td></tr>`);
+  const day = o.day ? jpDay(o.day.replace(/-/g, '/')) + `(${'日月火水木金土'[new Date(o.day.replace(/-/g, '/')).getDay()]})` : 'ご相談';
+  return `<p class="k od-np">FAXで送る: スマホは「印刷・PDFにする」→ 共有からFAXのアプリへ。パソコンはPDFで保存して、お使いのFAXの仕組みで送ってください。紙に印刷して、お店のFAX機から送ることもできます</p>
+  <div class="od-doc"><h1>発　注　書</h1>
+    <div class="od-top"><div class="od-to"><div class="od-big">${esc(S.name)}　御中</div>${S.person ? `<div>ご担当　${esc(S.person)}　様</div>` : ''}<div>FAX　${esc(o.fax || '')}</div></div>
+      <div class="od-from"><div>No.　${esc(o.no || '')}</div><div>発注日　${jpDay(Date.now())}</div><div class="od-shop">${esc(si.name || D.shop)}</div>${si.addr ? `<div>${esc(si.addr)}</div>` : ''}<div>${si.tel ? 'TEL　' + esc(si.tel) : ''}${si.fax ? '　FAX　' + esc(si.fax) : ''}</div>${D.me && D.me.name ? `<div>発注者　${esc(D.me.name)}</div>` : ''}</div></div>
+    <p>いつもお世話になっております。下記のとおり発注いたします。よろしくお願いいたします。</p>
+    <table class="od-t"><tr><th style="width:8%">No.</th><th style="width:36%">品名</th><th style="width:20%">規格</th><th style="width:16%">数量</th><th>備考</th></tr>${rows.join('')}</table>
+    <table class="od-t od-f"><tr><th style="width:24%">納品希望日</th><td>${esc(day)}</td></tr><tr><th>備考</th><td>${esc(o.memo || '')}</td></tr></table>
+    <p class="od-foot">ご不明な点は、上記の電話番号までご連絡ください。</p></div>`;
+}
 function openSheet(html) {
   closeSheet(); const ov = document.createElement('div'); ov.id = 'mini-ov'; ov.className = 'a2ov'; ov.style.alignItems = 'center';
   ov.innerHTML = `<div class="card" role="dialog" aria-modal="true" style="max-width:520px;width:100%;max-height:90vh;overflow:auto;position:relative"><button class="btn ghost sm" type="button" id="mini-x" style="position:absolute;top:10px;right:10px">閉じる</button>${html}</div>`;
@@ -2287,7 +2353,7 @@ function renderSet() {
     <div class="set-row"><span>定休日<br><span class="k">衛生の念押しを休む</span></span><div class="seg" id="closed">${['月', '火', '水', '木', '金', '土', '日'].map(w => `<button type="button" data-w="${w}" aria-pressed="${((D.shopInfo || {}).closed || '').includes(w)}">${w}</button>`).join('')}</div></div>
     `) + grp('仕入先・卸先', 'book', '<p class="k" style="margin:0 0 8px">電話・担当・振込先の一覧は、メニューの「仕入先・卸先」にあります</p><button class="btn ghost" type="button" id="set-ct">仕入先・卸先の一覧を開く</button>') + grp('店舗情報', 'ws', `<p class="k" style="margin:0 0 8px">卸の請求書とラベルの製造者欄に入ります</p>
     <div class="set-row" style="display:block;padding-top:0">
-      <div class="fld" style="margin-top:8px">${[['name', '店名'], ['rep', '代表者'], ['addr', '住所'], ['tel', '電話'], ['reg', '登録番号(T〜)'], ['bank', '振込先']].map(([k, l]) => `<span class="k">${l}</span><input data-shop="${k}" value="${esc((D.shopInfo || {})[k] || '')}">`).join('')}</div>
+      <div class="fld" style="margin-top:8px">${[['name', '店名'], ['rep', '代表者'], ['addr', '住所'], ['tel', '電話'], ['fax', 'FAX'], ['reg', '登録番号(T〜)'], ['bank', '振込先']].map(([k, l]) => `<span class="k">${l}</span><input data-shop="${k}" value="${esc((D.shopInfo || {})[k] || '')}">`).join('')}</div>
       <div class="ask"><button class="btn" type="button" id="shop-save">店舗情報を保存</button></div></div>`) + grp('データの約束', 'label', `
     <ul class="k" style="margin:0;padding-left:1.2em;line-height:1.9">
       <li>撮った写真や記録は、店舗のデータを作るためだけに使います。</li>
