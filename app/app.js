@@ -1601,10 +1601,12 @@ function renderLabel() {
     <div class="r"><div class="h">保存方法</div><div class="v">${esc(L.storage)}</div></div>
     <div class="r"><div class="h">${esc(L.makerKind)}</div><div class="v">${esc(si.name || D.shop)} ${si.addr ? esc(si.addr) : '<span class="k">(住所は設定から)</span>'}${L.fcode ? ` <b>${esc(L.fcode)}</b>` : ''}</div></div>${L.factory ? `<div class="r"><div class="h">製造所</div><div class="v">${esc(L.factory)}</div></div>` : ''}</div>
     ${lblNotes(L).length ? `<div class="k" style="margin-top:8px">${lblNotes(L).map(esc).join('<br>')}</div>` : ''}
-    <div class="ask" style="margin-top:12px"><button class="btn" id="copy" type="button">原材料名をコピー</button><span class="copied" id="copied"></span></div>
+    <div class="ask" style="margin-top:12px"><button class="btn" id="copy" type="button">原材料名をコピー</button>${specOn() ? '<button class="btn ghost" id="spec-one" type="button">商品規格書(Excel)</button><button class="btn ghost" id="spec-all" type="button">全商品の規格書</button>' : ''}<span class="copied" id="copied"></span></div>
     ${lblPrintCard(p, L)}
     ${nutrBox(p)}` + (face ? '</div></details>' : '<h1 class="sub" style="margin-top:24px">店頭に置くもの</h1>' + storeBox());
   bindStore();
+  if ($('spec-one')) $('spec-one').onclick = () => specExport([p]);
+  if ($('spec-all')) $('spec-all').onclick = () => specExport(D.products);
   if ($('bk-go')) $('bk-go').onclick = () => { const v = parseFloat($('bk-v').value); if (!(v > 0)) { $('bk-v').focus(); return; } setValue(p.name, 'baked', v); };
   if ($('nu-copy')) $('nu-copy').onclick = async () => { try { await navigator.clipboard.writeText($('nu-txt').innerText); chat('コピーしました', 'heart'); } catch (e) { chat('長押しで選んでコピーしてください'); } };
   $('copy').onclick = async () => {
@@ -1960,13 +1962,122 @@ async function setValueX(extra) {
   if (out.msg) { chat(out.msg); return; } toast(extra.field === 'check' ? '確かめました。' : extra.field === 'restoreprod' ? 'レシピを戻しました。' : extra.field === 'hyg' ? '記録しました。' : extra.field === 'deliv' ? '納品を記録しました。' : extra.field === 'shop' ? '店舗情報を保存しました。' : extra.field === 'lbl' ? 'ラベルの設定を保存しました。' : extra.field === 'paybank' ? `振込は「${esc((payBank() || {}).name || '')}」を開くようにしました。` : ['biz', 'sell', 'unitword', 'serve', 'closed', 'wsprice', 'regalias'].includes(extra.field) ? '変えました。' : extra.field === 'tax' ? '税率を保存しました。' : extra.field === 'target' || extra.field === 'ptarget' ? '目標の原価率を保存しました。' : extra.field === 'aicap' ? 'AI代の上限を保存しました。' : extra.field === 'mat' ? (extra.value && extra.value.alias ? `「${esc(extra.value.alias)}」を「${esc(extra.name)}」の別名にしました。原価に反映しました。` : '材料を保存しました。') : extra.field === 'hygnotice' ? (extra.value === 'off' ? '衛生記録のお知らせは送らないようにしました。' : `衛生記録のお知らせは${extra.value}時に送ります。`) : extra.field === 'sales' ? '売上を記録しました。' : extra.field === 'cycle' ? `棚卸は「${extra.value}」にしました。その前にLINEでお知らせします。` : '記録しました。在庫を計算しなおしました。', 'ok'); act('heart', 1.3);
 }
 // 小さな確認の窓(画面の手前)。閉じるボタン・外側・Escで閉じる
+// ---------- 商品規格書(オプション・11/19) ----------
+// 取引先(道の駅・スーパー・卸先)に求められる商品規格書を、食品表示のデータから作る。新しい入力は増やさない。
+// Excel(.xlsx)はブラウザの中で組み立てる(外の部品は使わない)。版と改訂日は、中身が変わったときだけサーバーで1つ上げる
+const specOn = () => !!(D && D.connOpts && D.connOpts.spec);
+const CRC_T = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+const crc32 = b => { let c = 0xFFFFFFFF; for (let i = 0; i < b.length; i++) c = CRC_T[(c ^ b[i]) & 0xFF] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; };
+// 圧縮しないZIP(Excelはこれで開ける)
+function zipStore(files) {
+  const enc = new TextEncoder(), parts = [], cent = []; let off = 0;
+  const u16 = v => [v & 255, (v >>> 8) & 255], u32 = v => [v & 255, (v >>> 8) & 255, (v >>> 16) & 255, (v >>> 24) & 255];
+  files.forEach(f => {
+    const name = enc.encode(f.name), data = typeof f.data === 'string' ? enc.encode(f.data) : f.data, c = crc32(data);
+    const head = new Uint8Array([...u32(0x04034b50), ...u16(20), ...u16(0x0800), ...u16(0), ...u16(0), ...u16(0x21), ...u32(c), ...u32(data.length), ...u32(data.length), ...u16(name.length), ...u16(0)]);
+    parts.push(head, name, data);
+    cent.push(new Uint8Array([...u32(0x02014b50), ...u16(20), ...u16(20), ...u16(0x0800), ...u16(0), ...u16(0), ...u16(0x21), ...u32(c), ...u32(data.length), ...u32(data.length), ...u16(name.length), ...u16(0), ...u16(0), ...u16(0), ...u16(0), ...u32(0), ...u32(off)]), name);
+    off += head.length + name.length + data.length;
+  });
+  const cs = cent.reduce((a, x) => a + x.length, 0);
+  const end = new Uint8Array([...u32(0x06054b50), ...u16(0), ...u16(0), ...u16(files.length), ...u16(files.length), ...u32(cs), ...u32(off), ...u16(0)]);
+  return new Blob([...parts, ...cent, end], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+}
+const xe = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '');
+const colL = n => { let s = ''; n++; while (n) { const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); } return s; };
+// sheets: [{ name, cols:[幅], rows:[[{v,s,span}]], heights:{行:高さ} }]  s: 0ふつう 1題 2見出し 3中身 4区切り 5中央 6小さい注記
+function xlsxBlob(sheets) {
+  const styles = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+<fonts count="4"><font><sz val="10.5"/><name val="游ゴシック"/></font><font><b/><sz val="16"/><name val="游ゴシック"/></font><font><b/><sz val="10.5"/><name val="游ゴシック"/></font><font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="游ゴシック"/></font></fonts>
+<fills count="4"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFEEF2F6"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FF1A5FA0"/></patternFill></fill></fills>
+<borders count="2"><border/><border><left style="thin"><color rgb="FF8A94A6"/></left><right style="thin"><color rgb="FF8A94A6"/></right><top style="thin"><color rgb="FF8A94A6"/></top><bottom style="thin"><color rgb="FF8A94A6"/></bottom></border></borders>
+<cellStyleXfs count="1"><xf/></cellStyleXfs>
+<cellXfs count="7"><xf/><xf fontId="1" applyFont="1"><alignment vertical="center"/></xf><xf fontId="2" fillId="2" borderId="1" applyFont="1" applyFill="1" applyBorder="1"><alignment vertical="center" wrapText="1"/></xf><xf borderId="1" applyBorder="1"><alignment vertical="center" wrapText="1"/></xf><xf fontId="3" fillId="3" applyFont="1" applyFill="1"><alignment vertical="center"/></xf><xf borderId="1" applyBorder="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf><xf><alignment vertical="top" wrapText="1"/></xf></cellXfs><cellStyles count="1"><cellStyle name="標準" xfId="0" builtinId="0"/></cellStyles>
+</styleSheet>`;
+  const files = [
+    { name: '[Content_Types].xml', data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>${sheets.map((_, i) => `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')}</Types>` },
+    { name: '_rels/.rels', data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>` },
+    { name: 'xl/workbook.xml', data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${sheets.map((sh, i) => `<sheet name="${xe(sh.name)}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`).join('')}</sheets></workbook>` },
+    { name: 'xl/_rels/workbook.xml.rels', data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${sheets.map((_, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i + 1}.xml"/>`).join('')}<Relationship Id="rId${sheets.length + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>` },
+    { name: 'xl/styles.xml', data: styles }
+  ];
+  sheets.forEach((sh, si) => {
+    const merges = [], rows = sh.rows.map((r, ri) => {
+      let ci = 0; const cells = [];
+      r.forEach(c => { if (c == null) { ci++; return; } const ref = colL(ci) + (ri + 1), span = c.span || 1;
+        cells.push(c.v === '' || c.v == null ? `<c r="${ref}" s="${c.s || 0}"/>` : typeof c.v === 'number' ? `<c r="${ref}" s="${c.s || 0}"><v>${c.v}</v></c>` : `<c r="${ref}" s="${c.s || 0}" t="inlineStr"><is><t xml:space="preserve">${xe(c.v)}</t></is></c>`);
+        for (let k = 1; k < span; k++) cells.push(`<c r="${colL(ci + k)}${ri + 1}" s="${c.s || 0}"/>`);
+        if (span > 1) merges.push(`${ref}:${colL(ci + span - 1)}${ri + 1}`); ci += span; });
+      const h = (sh.heights || {})[ri]; return `<row r="${ri + 1}"${h ? ` ht="${h}" customHeight="1"` : ''}>${cells.join('')}</row>`;
+    });
+    files.push({ name: `xl/worksheets/sheet${si + 1}.xml`, data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetPr><pageSetUpPr fitToPage="1"/></sheetPr><sheetViews><sheetView workbookViewId="0" showGridLines="0"/></sheetViews><cols>${sh.cols.map((w, i) => `<col min="${i + 1}" max="${i + 1}" width="${w}" customWidth="1"/>`).join('')}</cols><sheetData>${rows.join('')}</sheetData>${merges.length ? `<mergeCells count="${merges.length}">${merges.map(m => `<mergeCell ref="${m}"/>`).join('')}</mergeCells>` : ''}<pageMargins left="0.5" right="0.5" top="0.6" bottom="0.6" header="0.3" footer="0.3"/><pageSetup paperSize="9" orientation="portrait" fitToWidth="1" fitToHeight="0"/></worksheet>` });
+  });
+  return zipStore(files);
+}
+// 1商品ぶんの中身(画面にも、Excelにも使う)
+function specOf(p) {
+  const L = lblOf(p), lb = p.label || {}, si = D.shopInfo || {}, t = String(lb.text || ''), cut = t.indexOf('/');
+  const ing = ingWithOrigin(cut >= 0 ? t.slice(0, cut) : t, L.origin), add = cut >= 0 ? t.slice(cut + 1) : '';
+  const must = ((D.allergenRules || {})['義務']) || ['卵', '乳', '小麦', 'えび', 'かに', 'くるみ', 'そば', '落花生', 'カシューナッツ'];
+  const has = new Set(lb.allergens || []);
+  const nm = L.nutMan ? { base: L.nutMan.base === '1個' ? `1${U}` : (L.nutMan.base || '100g'), v: L.nutMan.v.map(Number) } : (p.nutr && p.nutr.per ? { base: `1${U}${p.nutr.weight ? `(${p.nutr.weight}g)` : ''}`, v: p.nutr.per } : null);
+  const packs = L.packs && L.packs.length ? L.packs : [{ name: '', content: L.content, jan: L.jan }];
+  return { name: p.name, kind: L.name, packs, dtype: L.dtype, days: L.days, storage: L.storage, ing, add, origin: L.origin, must: ALLG_ALL.filter(a => must.includes(a)).concat(must.filter(a => !ALLG_ALL.includes(a))).map(a => [a, has.has(a)]), rec: ALLG_ALL.filter(a => !must.includes(a)).map(a => [a, has.has(a)]), contam: L.contam || [],
+    nut: nm, nutEst: !L.nutMan, maker: { kind: L.makerKind, name: si.name || D.shop, addr: si.addr || '', tel: si.tel || '', fax: si.fax || '', factory: L.factory, fcode: L.fcode }, caution: L.caution, opened: L.opened, check: (lb.check || []).length };
+}
+const specSig = S => { const s = JSON.stringify(S); let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; return (h >>> 0).toString(36) + s.length.toString(36); };
+function specSheet(S, ver) {
+  const R = [], H = {}, row = (...c) => { R.push(c); return R.length - 1; };
+  const kv = (k, v, h) => { const i = row({ v: k, s: 2, span: 2 }, { v, s: 3, span: 6 }); if (h) H[i] = h; };
+  const sec = t => { const i = row({ v: t, s: 4, span: 8 }); H[i] = 20; };
+  const r1n = x => Math.round(x * 10) / 10;
+  H[row({ v: '商品規格書', s: 1, span: 8 })] = 28;
+  const jd = x => x ? x.replace(/^(\d+)-0?(\d+)-0?(\d+)$/, '$1年$2月$3日') : '';
+  row({ v: `作成日 ${jd(ver.first)}　改訂日 ${jd(ver.at)}　第${ver.v || 1}版`, s: 0, span: 8 });
+  row();
+  sec('1. 基本情報');
+  kv('商品名', S.name); kv('名称', S.kind);
+  S.packs.forEach((k, i) => { kv(S.packs.length > 1 ? `内容量・JAN(${k.name || i + 1})` : '内容量・JANコード', `${k.content || ''}${k.jan ? '　JAN ' + k.jan : ''}`); });
+  kv(S.dtype || '期限', S.days === '' || S.days == null ? '' : `製造日から${S.days}日`); kv('保存方法', S.storage);
+  row();
+  sec('2. 原材料');
+  kv('原材料名', S.ing, Math.max(30, Math.ceil(S.ing.length / 40) * 16)); kv('添加物', S.add || 'なし'); kv('原料原産地', S.origin || '');
+  row();
+  sec('3. アレルゲン(●=含む)');
+  const grid = (title, list) => { row({ v: title, s: 2, span: 8 }); for (let i = 0; i < list.length; i += 4) { const c = []; list.slice(i, i + 4).forEach(([a, on]) => c.push({ v: a, s: 3 }, { v: on ? '●' : '', s: 5 })); while (c.length < 8) c.push({ v: '', s: 3 }); row(...c); } };
+  grid('特定原材料(表示の義務)', S.must); grid('特定原材料に準ずるもの(表示の推奨)', S.rec);
+  kv('同じ工場で扱うアレルゲン', S.contam.length ? S.contam.join('・') : 'なし');
+  row();
+  sec('4. 栄養成分表示');
+  if (S.nut) { const v = S.nut.v; row({ v: S.nut.base + '当たり', s: 2, span: 8 }); [['熱量', Math.round(v[0]) + 'kcal'], ['たんぱく質', r1n(v[1]) + 'g'], ['脂質', r1n(v[2]) + 'g'], ['炭水化物', r1n(v[3]) + 'g'], ['食塩相当量', (v[4] > 0 && v[4] < 0.1 ? Math.round(v[4] * 100) / 100 : r1n(v[4])) + 'g']].forEach(([k, x]) => kv(k, x)); if (S.nutEst) row({ v: 'この表示値は、目安です。(日本食品標準成分表の計算による推定値)', s: 6, span: 8 }); }
+  else kv('栄養成分', '(未設定)');
+  row();
+  sec('5. 製造者等');
+  kv(S.maker.kind || '製造者', S.maker.name); kv('所在地', S.maker.addr); kv('電話・FAX', `${S.maker.tel ? 'TEL ' + S.maker.tel : ''}${S.maker.fax ? '　FAX ' + S.maker.fax : ''}`);
+  if (S.maker.factory || S.maker.fcode) kv('製造所・固有記号', `${S.maker.factory || ''}${S.maker.fcode ? '　' + S.maker.fcode : ''}`);
+  if (S.caution || S.opened) { row(); sec('6. 注意事項'); if (S.caution) kv('使用上の注意', S.caution); if (S.opened) kv('開封後の取り扱い', S.opened); }
+  row();
+  H[row({ v: 'この規格書は、ピタット原価の食品表示データから作成しました。内容の最終確認は、製造者が行ってください。', s: 6, span: 8 })] = 30;
+  return { name: S.name.replace(/[\[\]:*?\/\\]/g, '').slice(0, 31) || '商品', cols: [15, 5, 15, 5, 15, 5, 15, 5], rows: R, heights: H };
+}
+async function specExport(products) {
+  const list = products.filter(p => p.kind !== 'part'); if (!list.length) { toast('商品がありません'); return; }
+  const specs = list.map(specOf), r = await api({ kind: 'app_spec', items: specs.map(S => ({ name: S.name, sig: specSig(S) })) }).catch(() => ({ ok: false, error: 'つながりませんでした' }));
+  if (!r.ok) { toast(r.error || '作れませんでした'); return; }
+  const used = new Set(), sheets = specs.map(S => { const sh = specSheet(S, r.vers[S.name] || {}); let n = sh.name, k = 2; while (used.has(n)) n = sh.name.slice(0, 28) + '(' + k++ + ')'; used.add(n); sh.name = n; return sh; });
+  const shop = ((D.shopInfo || {}).name || D.shop || '').replace(/[\\/:*?"<>|]/g, ''), d = new Date(), ymd = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
+  const name = list.length === 1 ? `商品規格書_${list[0].name.replace(/[\\/:*?"<>|]/g, '')}_${ymd}.xlsx` : `商品規格書_${shop}_${list.length}商品_${ymd}.xlsx`;
+  const a = document.createElement('a'); a.href = URL.createObjectURL(xlsxBlob(sheets)); a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  const warn = specs.filter(S => S.check).length;
+  toast(`商品規格書(Excel)を書き出しました${warn ? `。${warn}商品に確認が残っています` : ''}`, 'ok');
+}
 // ---------- 発注書(オプション・11/19) ----------
 // 小さなお店は、仕事終わりに作る人が自分でFAXで発注する。仕入先を選ぶ → いつもの品に数を入れる(前回と同じ も1回で)→ FAXに向く白黒のA4
 const orderOn = () => !!(D && D.connOpts && D.connOpts.order && D.order);
 const jpDay = t => { const d = new Date(t); return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`; };
 // 設定の「オプション」: このお店で使っているオプションと、使っていないもの(申し込み方)を並べる
 function optBox() {
-  const c = D.connOpts || {}, L = [['order', '発注書(FAXで送る)', '仕入先ごとの発注書を作り、印刷・PDFにしてFAXで送れます。いつもの品と前回の数がすぐ入ります', true], ['spec', '商品規格書の書き出し', '取引先に渡す商品規格書を、食品表示のデータから作ります', false]];
+  const c = D.connOpts || {}, L = [['order', '発注書(FAXで送る)', '仕入先ごとの発注書を作り、印刷・PDFにしてFAXで送れます。いつもの品と前回の数がすぐ入ります', true], ['spec', '商品規格書の書き出し', '取引先に渡す商品規格書(Excel)を、食品表示のデータから作ります。食品表示の画面から出せます', true]];
   return L.filter(x => x[3] || c[x[0]]).map(([k, n, w]) => `<div class="opt-row"><div><b>${n}</b> ${c[k] ? '<span class="pill">お使いいただけます</span>' : '<span class="pill gray">お申し込みがあれば使えます</span>'}<div class="k">${w}</div></div>${c[k] ? (k === 'order' ? '<button class="btn" type="button" data-optgo="order">発注書をつくる</button>' : '') : '<button class="btn ghost" type="button" data-optask="' + k + '">申し込む</button>'}</div>`).join('') + '<p class="k" style="margin:8px 0 0">オプションのお申し込み・おやめになるときは「申し込む」か、相談からお知らせください。</p>';
 }
 function openOrder(supName) {
