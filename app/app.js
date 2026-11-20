@@ -164,7 +164,7 @@ function bindCompose(root) {
   });
 }
 // まだ表にない材料の値段を、その場で入れる(種類などは後で)。入れるとすぐ原価に入る
-const unkForm = n => `<div class="ask unkf" data-n="${esc(n)}"><span class="k" style="min-width:auto">購入金額</span><input class="uq-yen" inputmode="numeric" placeholder="800" aria-label="「${esc(n)}」の値段" style="width:5.5em"><span class="k">円 ／ 量</span><input class="uq-q" inputmode="decimal" placeholder="1" aria-label="買った量" style="width:4em"><select class="uq-u" aria-label="量の単位" style="font:inherit;font-size:15px;padding:8px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)"><option>kg</option><option>g</option></select><button class="btn ghost" type="button" data-uq>登録</button></div>`;
+const unkForm = n => `<div class="ask unkf" data-n="${esc(n)}"><span class="k" style="min-width:auto">購入金額</span><input class="uq-yen" inputmode="numeric" placeholder="800" aria-label="「${esc(n)}」の購入金額" style="width:5.5em"><span class="k">円 ／ 量</span><input class="uq-q" inputmode="decimal" placeholder="1" aria-label="購入した量" style="width:4em"><select class="uq-u" aria-label="量の単位" style="font:inherit;font-size:15px;padding:8px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)"><option>kg</option><option>g</option></select><button class="btn ghost" type="button" data-uq>登録</button></div>`;
 function bindUnk(root) {
   root.querySelectorAll('[data-uq]').forEach(b => b.onclick = () => {
     const f = b.closest('.unkf'), y = parseFloat(f.querySelector('.uq-yen').value), q = parseFloat(f.querySelector('.uq-q').value), u = f.querySelector('.uq-u').value;
@@ -342,7 +342,7 @@ function renderIntake() {
   box.innerHTML = `<div class="sh"><b>初期登録</b><span class="k">目標: ${INTAKE_GOAL}品の原価を登録</span></div>
     <div class="goal">${S.ready.length}<small> / ${INTAKE_GOAL}品 原価算出済み</small></div>
     <div class="pg"><i style="width:${Math.min(100, S.ready.length / INTAKE_GOAL * 100)}%"></i></div>
-    <p class="k" style="margin:8px 0 0">${S.goods.length ? `登録済みの商品 ${S.goods.length}品。` : ''}${S.noPrice.length ? `単価が未登録の材料: <b>${S.noPrice.slice(0, 6).map(esc).join('、')}${S.noPrice.length > 6 ? ' ほか' + (S.noPrice.length - 6) : ''}</b> → その請求書を撮ると入ります。` : ''}${S.unknown.length ? `材料一覧にない材料: ${S.unknown.slice(0, 4).map(esc).join('、')}${S.unknown.length > 4 ? ' ほか' : ''}。` : ''}${!S.goods.length ? 'レシピの写真かテキストから登録を始めてください。請求書を撮影すると、記載された材料と単価がまとめて登録されます。' : ''}</p>
+    <p class="k" style="margin:8px 0 0">${S.goods.length ? `登録済みの商品 ${S.goods.length}品。` : ''}${S.noPrice.length ? `単価が未登録の材料: <b>${S.noPrice.slice(0, 6).map(esc).join('、')}${S.noPrice.length > 6 ? ' ほか' + (S.noPrice.length - 6) : ''}</b> → 該当する請求書を撮影すると登録されます。` : ''}${S.unknown.length ? `材料一覧にない材料: ${S.unknown.slice(0, 4).map(esc).join('、')}${S.unknown.length > 4 ? ' ほか' : ''}。` : ''}${!S.goods.length ? 'レシピの写真かテキストから登録を始めてください。請求書を撮影すると、記載された材料と単価がまとめて登録されます。' : ''}</p>
     <div class="acts">
       <label class="btn">レシピの写真を選択(複数可)<input type="file" id="in-rec" accept="image/*" multiple hidden></label>
       <label class="btn ghost">請求書の写真・PDF・CSVを選択(複数可)<input type="file" id="in-inv" accept="image/*,.pdf,.csv,.txt,.tsv,application/pdf,text/csv" multiple hidden></label>
@@ -897,7 +897,7 @@ function renderHowto() {
   if (!ps.length) { box.innerHTML = emptyBox('cam', 'レシピが登録されていません', 'レシピを撮影すると、ここに作り方が表示されます。', ['レシピを撮影', 'cam']); return; }
   const sel = ps.find(p => p.name === howtoSel);
   if (!sel) {
-    box.innerHTML = ps.map(p => `<div class="card prod" role="button" tabindex="0" data-howto="${esc(p.name)}"><div class="hd">${avatar(p.name)}<span class="nm">${esc(p.name)}</span><span class="k">${(p.steps || []).length ? p.steps.length + '手順' + ((p.simgs || []).filter(Boolean).length ? '・写真' + p.simgs.filter(Boolean).length : '') : '手順はまだ'}</span></div></div>`).join('');
+    box.innerHTML = ps.map(p => `<div class="card prod" role="button" tabindex="0" data-howto="${esc(p.name)}"><div class="hd">${avatar(p.name)}<span class="nm">${esc(p.name)}</span><span class="k">${(p.steps || []).length ? p.steps.length + '手順' + ((p.simgs || []).filter(Boolean).length ? '・写真' + p.simgs.filter(Boolean).length : '') : '手順未登録'}</span></div></div>`).join('');
     box.querySelectorAll('[data-howto]').forEach(c => { const go = () => { howtoSel = c.dataset.howto; renderHowto(); window.scrollTo(0, 0); }; c.onclick = go; c.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } }; });
     return;
   }
@@ -905,7 +905,7 @@ function renderHowto() {
   box.innerHTML = `<div class="card" style="grid-column:1/-1">
     <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap"><button class="btn ghost sm" type="button" id="howto-back">← 一覧に戻る</button><b style="font-size:18px">${esc(p.name)}</b></div>
     <div class="set" style="margin-top:12px"><span class="k">仕込み量</span><input id="hq" inputmode="numeric" placeholder="例 60"><span class="k">${U}分</span><button class="btn ghost" type="button" id="hq-go">分量を計算</button></div><div id="hq-out"></div>
-    ${(p.steps || []).length ? `<ol class="steps" style="margin-top:12px">${p.steps.map((st, si) => `<li>${esc(st)}${(p.simgs || [])[si] ? `<div><img class="stimg" data-img="${esc(p.simgs[si])}" alt="手順${si + 1}の写真"></div>` : ''}</li>`).join('')}</ol>` : '<p class="k" style="margin-top:12px">手順はまだ入っていません。' + (noMoney() ? '店主に声をかけてください。' : '「原価」のカードで書けます。') + '</p>'}
+    ${(p.steps || []).length ? `<ol class="steps" style="margin-top:12px">${p.steps.map((st, si) => `<li>${esc(st)}${(p.simgs || [])[si] ? `<div><img class="stimg" data-img="${esc(p.simgs[si])}" alt="手順${si + 1}の写真"></div>` : ''}</li>`).join('')}</ol>` : '<p class="k" style="margin-top:12px">手順は登録されていません。' + (noMoney() ? '店主にご相談ください。' : '「原価」の商品画面から登録できます。') + '</p>'}
   </div>`;
   $('howto-back').onclick = () => { howtoSel = null; renderHowto(); };
   $('hq-go').onclick = () => {
@@ -1523,7 +1523,7 @@ function allergenTable(forPrint) {
   const col = a => `<th style="padding:4px 4px;font-size:12px;line-height:1.25;white-space:normal;min-width:2.6em;vertical-align:bottom">${esc(a.replace('成分', ''))}</th>`;
   return `<table class="hgrid alg"><tr><th style="text-align:left">商品</th>${must.map(col).join('')}${rec.length ? `<th style="border-left:2px solid var(--line)"></th>${rec.map(col).join('')}` : ''}</tr>` +
     goods.map(p => { const has = new Set(p.label.allergens); return `<tr><td style="text-align:left;white-space:nowrap"><b>${esc(p.name)}</b>${p.label.check.length ? ' <span class="k">※</span>' : ''}</td>${must.map(a => `<td>${has.has(a) ? '●' : ''}</td>`).join('')}${rec.length ? `<td style="border-left:2px solid var(--line)"></td>${rec.map(a => `<td>${has.has(a) ? '●' : ''}</td>`).join('')}` : ''}</tr>`; }).join('') +
-    `</table><p class="k" style="margin:8px 0 0">左が表示義務の${must.length}品目${rec.length ? '、右が表示推奨のうち使っているもの' : ''}。${D.products.some(p => p.label.check.length) ? '※は材料の確認がまだの商品で、変わることがあります。' : ''}レシピから自動で作成した案です。最終確認は店舗で行ってください。</p>`;
+    `</table><p class="k" style="margin:8px 0 0">左が表示義務の${must.length}品目${rec.length ? '、右が表示推奨のうち使っているもの' : ''}。${D.products.some(p => p.label.check.length) ? '※は材料の確認が完了していない商品で、内容が変わる場合があります。' : ''}レシピから自動で作成した案です。最終確認は店舗で行ってください。</p>`;
 }
 function priceCard(p) {
   const L = lblOf(p), alg = p.label.allergens;
@@ -1664,12 +1664,12 @@ function lblPrintCard(p, L) {
           <details${L.nutMan ? ' open' : ''}><summary class="k">前の表示や分析の値を使う(入れなければ計算した値)</summary><div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:8px"><select id="lb-nbase"><option${!L.nutMan || L.nutMan.base === '100g' ? ' selected' : ''}>100g</option><option${L.nutMan && L.nutMan.base === '1個' ? ' selected' : ''}>1個</option></select><span class="k">当たり</span>
           ${['熱量kcal', 'たんぱく質g', '脂質g', '炭水化物g', '食塩相当量g'].map((l, i) => `<label class="k" style="display:flex;flex-direction:column">${l}<input class="lb-nv" inputmode="decimal" style="width:5.5em" value="${L.nutMan ? L.nutMan.v[i] : ''}"></label>`).join('')}</div></details></div>
         <span class="k">プラマーク</span><label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="lb-pla"${L.pla ? ' checked' : ''}>ラベルに表示する(袋がプラスチック製の場合)</label>
-        <span class="k">原料原産地</span><div><input id="lb-origin" list="lb-origin-l" value="${esc(L.origin)}" placeholder="例: 国内製造、国産、アメリカ産"><datalist id="lb-origin-l"><option value="国内製造"><option value="国産"><option value="北海道産"><option value="アメリカ産"><option value="カナダ産"><option value="中国産"><option value="輸入"></datalist><p class="k" style="margin:4px 0 0">いちばん多い原材料のすぐ後ろに「(国内製造)」のように入ります。加工した材料なら「国内製造」、生鮮なら「国産」「〇〇産」</p></div>
+        <span class="k">原料原産地</span><div><input id="lb-origin" list="lb-origin-l" value="${esc(L.origin)}" placeholder="例: 国内製造、国産、アメリカ産"><datalist id="lb-origin-l"><option value="国内製造"><option value="国産"><option value="北海道産"><option value="アメリカ産"><option value="カナダ産"><option value="中国産"><option value="輸入"></datalist><p class="k" style="margin:4px 0 0">最も多い原材料の直後に「(国内製造)」の形で表示されます。加工品は「国内製造」、生鮮品は「国産」「〇〇産」と入力します</p></div>
         <span class="k">表示する者</span><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><select id="lb-mk"><option${L.makerKind === '製造者' ? ' selected' : ''}>製造者</option><option${L.makerKind === '販売者' ? ' selected' : ''}>販売者</option><option${L.makerKind === '加工者' ? ' selected' : ''}>加工者</option></select><input id="lb-fcode" value="${esc(L.fcode)}" placeholder="固有記号(あれば。例: +AB1)" style="width:12em"></div>
         <span class="k">製造所</span><div><input id="lb-factory" value="${esc(L.factory)}" placeholder="店舗と別の場所で作るときだけ(名前と住所)"><p class="k" style="margin:4px 0 0">空なら、上の「${esc(L.makerKind)}」の住所で作っている扱いです</p></div>
         <span class="k">使用上の注意</span><input id="lb-caution" list="lb-caution-l" value="${esc(L.caution)}" placeholder="例: 開封後はお早めにお召し上がりください"><datalist id="lb-caution-l"><option value="開封後はお早めにお召し上がりください。"><option value="お早めにお召し上がりください。"><option value="小さなお子様やお年寄りの方は、のどに詰まらせないようご注意ください。"><option value="温め直すときは袋から出してください。"><option value="乾燥剤は食べられません。"></datalist>
         <span class="k">開封後</span><input id="lb-opened" list="lb-opened-l" value="${esc(L.opened)}" placeholder="例: 開封後は冷蔵庫で保存し、2日以内に"><datalist id="lb-opened-l"><option value="開封後は冷蔵庫(10℃以下)で保存し、お早めにお召し上がりください。"><option value="開封後は密封して冷蔵庫で保存してください。"><option value="開封後は当日中にお召し上がりください。"></datalist>
-        <span class="k">同じ工場で</span><div><div class="chips" style="margin:0">${ALLG_ALL.map(a => `<label class="chip" style="cursor:pointer"><input type="checkbox" class="lb-ct" value="${a}"${L.contam.includes(a) ? ' checked' : ''} style="margin:0 4px 0 0">${a}</label>`).join('')}</div><p class="k" style="margin:4px 0 0">この商品には入っていないが、同じ厨房で使っているアレルゲン。「本品製造工場では、〇〇を含む製品を製造しています」と枠の外に入ります</p></div>
+        <span class="k">同じ工場で</span><div><div class="chips" style="margin:0">${ALLG_ALL.map(a => `<label class="chip" style="cursor:pointer"><input type="checkbox" class="lb-ct" value="${a}"${L.contam.includes(a) ? ' checked' : ''} style="margin:0 4px 0 0">${a}</label>`).join('')}</div><p class="k" style="margin:4px 0 0">この商品には含まれないものの、同じ厨房で使用しているアレルゲンです。「本品製造工場では、〇〇を含む製品を製造しています」と枠外に表示されます</p></div>
         <span class="k">自由記入</span><input id="lb-free" value="${esc(L.free)}" placeholder="例: 詰め合わせの内容、原材料の一部にはちみつを使用(1歳未満の乳児には与えないでください)">
       </div><div class="ask"><button class="btn ghost" type="button" id="lb-save">設定を保存</button><span class="k" id="lb-msg"></span></div></details>
     <div class="fld" style="margin-top:8px">
@@ -1881,7 +1881,7 @@ function renderMat() {
   const row = m => `<tr data-m="${esc(m.name)}" style="cursor:pointer"><td><b>${esc(m.name)}</b>${upNames.has(m.name) ? ' <span class="up">↑</span>' : ''}${m.spec || m.supplier ? ` <span class="k">${esc([m.spec, m.supplier].filter(Boolean).join(' · '))}</span>` : ''}<br><span class="k">${esc(m.display)}${m.allergens.length ? ' · ' + m.allergens.map(esc).join('・') : ''}${m.attrs ? ' · ' + esc(m.attrs) : ''}</span>${m.fromKind ? ' <span class="pill warn">種類の標準値(仮)</span>' : ''}${m.yield && m.yield < 100 ? ` <span class="pill gray">歩留まり${m.yield}%</span>` : ''}${m.pieceG ? ` <span class="pill gray">1個${m.pieceG}g</span>` : ''}${m.avg ? ' <span class="pill gray">平均単価</span>' : ''}${stk[m.name] && stk[m.name].known ? `<br><span class="pill ${stk[m.name].low ? 'warn' : 'gray'}">残り ${amt(stk[m.name].left, stk[m.name].unit)}${stk[m.name].days != null ? ' · 約' + stk[m.name].days + '日' : ''}</span>` : ''}</td><td class="n">${noMoney() ? '' : m.ppg ? Math.round(m.ppg * 1000).toLocaleString() + '円/kg' : '-'}<br>${m.ok ? '<span class="pill">請求書</span>' : '<span class="pill warn">仮</span>'}</td></tr>`;
   const groups = {}; rows.forEach(m => (groups[m.kind || ''] = groups[m.kind || ''] || []).push(m));
   const gk = Object.keys(groups).sort((a, b) => (a === '') - (b === '') || a.localeCompare(b, 'ja'));
-  $('mats').innerHTML = (gk.length > 1 || gk[0] ? gk.map(k => `<tr><td colspan="2" style="padding-top:12px"><b class="k">${k ? '種類: ' + esc(k) : '種類をまだ決めていない材料'}</b>${k && groups[k].length > 1 ? ' <span class="k">(' + groups[k].length + '商品)</span>' : ''}</td></tr>` + groups[k].map(row).join('')).join('') : rows.map(row).join('')) || '<tr><td class="k">ありません</td></tr>';
+  $('mats').innerHTML = (gk.length > 1 || gk[0] ? gk.map(k => `<tr><td colspan="2" style="padding-top:12px"><b class="k">${k ? '種類: ' + esc(k) : '種類が未設定の材料'}</b>${k && groups[k].length > 1 ? ' <span class="k">(' + groups[k].length + '商品)</span>' : ''}</td></tr>` + groups[k].map(row).join('')).join('') : rows.map(row).join('')) || '<tr><td class="k">ありません</td></tr>';
   $('mats').querySelectorAll('tr[data-m]').forEach(tr => tr.onclick = () => matEdit(tr.dataset.m));
   matAddBtn();
   const all = D.materials.filter(m => !m.packaging), est = all.filter(m => !m.ok).length;
@@ -2683,7 +2683,7 @@ function renderHyg() {
   const mark = v => v === '×' ? '<b class="ng">×</b>' : v === '○' ? '○' : '';
   $('hyg-health').innerHTML = `<p class="k" style="margin:10px 0 4px">作業前に1人ずつ記録します。×が1つでもある場合は、店主にお知らせします。LINEで「体調OK」と送信しても記録できます。</p>
     ${ppl.map((p, i) => { const r = p.rec, mine = p.name === me, can = mine || own;
-      const st = r ? `<span class="pill ${r.j === '要注意' ? 'warn' : r.j === '休み' ? 'gray' : ''}">${r.j === 'OK' ? 'つけました' : esc(r.j)}</span>` : '<span class="pill gray">まだ</span>';
+      const st = r ? `<span class="pill ${r.j === '要注意' ? 'warn' : r.j === '休み' ? 'gray' : ''}">${r.j === 'OK' ? '記録済み' : esc(r.j)}</span>` : '<span class="pill gray">未記録</span>';
       const body = r ? (r.j === '休み' ? '' : `<div class="hc-marks">${H.cols.map((c, j) => `<span class="hc-m ${r.v[j] === '×' ? 'ng' : ''}">${esc(c)} ${r.v[j] === '×' ? '×' : '○'}</span>`).join('')}</div>`)
         : can ? `<div class="hc-marks">${H.cols.map((c, j) => `<button type="button" class="hc-t" data-hp="${i}" data-j="${j}" aria-pressed="true">${esc(c)} <b>○</b></button>`).join('')}</div>
           <div class="ask" style="margin-top:8px"><button class="btn sm" type="button" data-hgo="${i}">つける</button>${own && !mine ? `<button class="btn ghost sm" type="button" data-hoff="${i}">休み</button>` : ''}</div>` : '';
@@ -3193,9 +3193,9 @@ function renderPost() {
   if (SH('insta')) { const ld = document.querySelector('#t-post .lead'); if (ld) ld.textContent = '値上げのお知らせ文と、店頭に置くPOP・値札・貼り紙を作成します。'; if ($('post-free')) $('post-free').placeholder = '例: 11月1日からの値上げのお知らせ'; }
   // お店の型
   const bb = $('post-brand');
-  if (bb && !(D.me && D.me.owner)) bb.innerHTML = `<div class="row"><b>店舗の型</b></div><p class="k" style="margin:4px 0 0">ロゴ・店舗の色・書体は、店主が設定します。${b.color || b.logo ? '登録済みの型が、画像と印刷物に入ります。' : ''}</p>`;
+  if (bb && !(D.me && D.me.owner)) bb.innerHTML = `<div class="row"><b>店舗のデザイン</b></div><p class="k" style="margin:4px 0 0">ロゴ・店舗の色・書体は、店主が設定します。${b.color || b.logo ? '登録済みのデザインが、画像と印刷物に反映されます。' : ''}</p>`;
   else if (bb) {
-    bb.innerHTML = `<div class="row"><b>店舗の型</b><span class="k">${b.color || b.font || b.logo ? '登録済み' : 'まだ'}</span></div>
+    bb.innerHTML = `<div class="row"><b>店舗のデザイン</b><span class="k">${b.color || b.font || b.logo ? '登録済み' : '未登録'}</span></div>
       <p class="k" style="margin:4px 0 12px">ロゴ・店舗の色・書体を一度設定すると、画像・POP・値札・貼り紙のすべてに反映されます。他店と同じデザインになることはありません。</p>
       <div class="brand-row"><div class="brand-logo">${b.logo ? `<img src="${b.logo}" alt="ロゴ">` : '<span class="k">ロゴなし</span>'}</div>
         <div class="ps-ctl"><label class="btn ghost ps-photo">ロゴを設定<input type="file" id="br-logo" accept="image/*" hidden></label>${b.logo ? '<button class="btn ghost" type="button" id="br-nologo">ロゴを削除</button>' : ''}
@@ -3215,7 +3215,7 @@ function renderPost() {
   const box = $('post-shop');
   if (box) {
     box.innerHTML = `<div class="row"><b>店頭掲示物</b></div>
-      <p class="k" style="margin:4px 0 12px">印刷して店頭に掲示します。${SH('insta') ? '色と書体は下の「店舗の型」で決めたものになります。' : '色と模様は下の「SNSに投稿する画像」で選んだ型になります。'}</p>
+      <p class="k" style="margin:4px 0 12px">印刷して店頭に掲示します。${SH('insta') ? '色と書体は、下の「店舗のデザイン」で設定したものが使われます。' : '色と模様は、下の「SNSに投稿する画像」で選んだテンプレートが使われます。'}</p>
       <div class="ps-acts"><button class="btn ghost" type="button" id="ps-cards">値札カード(全商品・A4に8枚)</button>${sellFace() ? '<button class="btn ghost" type="button" id="ps-al">アレルゲン表</button>' : ''}
       <button class="btn ghost" type="button" id="ps-pop">POP(A5)</button><button class="btn ghost" type="button" id="ps-notice">お知らせの貼り紙(A4)</button></div>`;
     $('ps-cards').onclick = () => { if (!goods.length) { chat('商品が登録されていません'); return; } priceCards(goods); };
@@ -3236,7 +3236,7 @@ function renderPost() {
   if (sb) {
     const segs = (id, list, v) => `<div class="seg segw" id="${id}">${list.map(([k, l]) => `<button type="button" data-v="${k}" aria-pressed="${k === v}">${l}</button>`).join('')}</div>`;
     sb.innerHTML = `<div class="row"><b>SNSに投稿する画像</b></div>
-      <p class="k" style="margin:4px 0 12px">テンプレートを選ぶと、その文章が入ります。商品の写真を追加すると、写真の上に文字が重なります。保存した画像は、そのままInstagramやLINEに投稿できます。</p>
+      <p class="k" style="margin:4px 0 12px">テンプレートを選ぶと、文章が自動で入力されます。商品の写真を追加すると、写真の上に文字が重なります。保存した画像は、そのままInstagramやLINEに投稿できます。</p>
       <div class="ps-grid"><div><canvas id="ps-cv" class="ps-cv" width="1080" height="1080" aria-label="SNS用の画像"></canvas>${PS.photo ? '<p class="k" style="margin:8px 0 0;text-align:center">写真は指で位置を調整できます</p>' : ''}</div>
       <div class="ps-ctl"><span class="k">型</span>${segs('ps-tpl', Object.keys(TPL).map(k => [k, TPL[k].label]), PS.tpl)}
         <span class="k">大きさ</span>${segs('ps-size', Object.keys(SIZES).map(k => [k, SIZES[k][2]]), PS.size)}
@@ -3415,7 +3415,7 @@ async function ask(s) {
   } finally { asking = false; }
 }
 // 返事の [[open:〜]] を「〇〇を開く」ボタンにする
-const OPEN_TO = { today: ['ホーム'], cost: ['原価'], howto: ['作り方', '手順'], label: ['食品表示'], labelprint: ['ラベルを印刷', 'label', '.lpc'], mat: ['材料'], hyg: ['衛生'], book: ['帳簿'], ws: ['卸'], ct: ['仕入先・卸先'], post: ['発信'], brand: ['店舗の型', 'post', '#post-brand'], cal: ['予定'], sales: ['売上'], set: ['設定'], members: ['メンバー', 'set', '#members-box'], a2hs: ['ホーム画面への追加方法'], guide: ['使い方ガイド'] };
+const OPEN_TO = { today: ['ホーム'], cost: ['原価'], howto: ['作り方', '手順'], label: ['食品表示'], labelprint: ['ラベルを印刷', 'label', '.lpc'], mat: ['材料'], hyg: ['衛生'], book: ['帳簿'], ws: ['卸'], ct: ['仕入先・卸先'], post: ['発信'], brand: ['店舗のデザイン', 'post', '#post-brand'], cal: ['予定'], sales: ['売上'], set: ['設定'], members: ['メンバー', 'set', '#members-box'], a2hs: ['ホーム画面への追加方法'], guide: ['使い方ガイド'] };
 function openBtns(h) { return h.replace(/\n?\[\[open:([a-z0-9]+)\]\]/g, (m, k) => OPEN_TO[k] ? `<br><button class="btn ghost sm" type="button" data-open="${k}">「${OPEN_TO[k][0]}」を開く</button>` : ''); }
 function openTo(k) {
   const o = OPEN_TO[k]; if (!o) return; sheet.hidden = true;
@@ -3608,7 +3608,7 @@ function gapBind(box) {
     if (r.data) { D = r.data; renderAll(); }
     const p = g.t === 'pieces' ? (D.products || []).find(x => x.name === g.n) : null;
     if (b.dataset.gs === 'same') { toast(`「${g.n}」を「${b.dataset.to}」として登録しました。次回からは確認しません`, 'ok'); sortDraw(); sortCard(); return; }
-    toast(p && p.per_piece != null ? `${g.n}: 1${U} ${yen1(p.per_piece)}になりました` + ((p.unknown || []).length ? `(値段のない材料${p.unknown.length}件は、原価に含まれていません)` : '') : `「${g.n}」を登録しました。原価を再計算しました`, 'ok');
+    toast(p && p.per_piece != null ? `${g.n}: 1${U} ${yen1(p.per_piece)}になりました` + ((p.unknown || []).length ? `(単価が未登録の材料${p.unknown.length}件は、原価に含まれていません)` : '') : `「${g.n}」を登録しました。原価を再計算しました`, 'ok');
     sortDraw(); sortCard();
   });
 }
@@ -3665,7 +3665,7 @@ async function renderAccount() {
   box.parentNode.hidden = false; $('acct-h').hidden = false;
   const a = await api({ kind: 'app_account' }).catch(() => null); if (!a || !a.ok) return;
   box.innerHTML = `<p style="margin:0 0 8px"><b>${esc(a.shop ? a.shop.name || D.shop : '')}</b></p>
-    <p class="k" style="margin:0 0 12px">メール: ${a.email ? esc(a.email) : 'まだ'} ・ LINE: ${a.line ? 'つながっています' : 'まだ'}</p>
+    <p class="k" style="margin:0 0 12px">メール: ${a.email ? esc(a.email) : '未設定'} ・ LINE: ${a.line ? '連携済み' : '未連携'}</p>
     ${a.email ? '' : '<div class="ask" style="margin-top:0"><input id="ac-mail" type="email" placeholder="メールアドレス" style="flex:1" aria-label="メールアドレス"><button class="btn ghost" type="button" id="ac-mail-go">メールアドレスでもログインできるようにする</button></div><p class="k" id="ac-mail-msg" style="margin:4px 0 0"></p>'}
     ${a.line || IN_LINE || !a.lineLogin ? '' : '<div class="ask"><a class="btn ghost" href="/auth/line?link=1&next=/app/">LINEと連携</a></div>'}
     ${(a.shops || []).length > 1 ? `<div class="ask"><select id="ac-shop" aria-label="店舗を切り替える" style="flex:1">${a.shops.map(x => `<option value="${esc(x.id)}"${a.shop && a.shop.id === x.id ? ' selected' : ''}>${esc(x.name || x.id)}</option>`).join('')}</select><button class="btn ghost" type="button" id="ac-shop-go">切り替える</button></div>` : ''}
