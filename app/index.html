@@ -1057,10 +1057,10 @@ body.pdet-on{overflow:hidden}
         <div class="card intake" id="intake" hidden></div>
         <form class="askbar" id="askbar-home" autocomplete="off" hidden><input id="ask-home" aria-label="相談する"><button class="btn" type="submit">送る</button></form>
         <div id="regc-wrap" hidden><h1 class="sub">レジ締め</h1><div class="card" id="regc"></div></div>
-        <div hidden><h1 class="sub">レジに入れる値段</h1><div class="card" id="reg-box"></div></div>
+        <div hidden><h1 class="sub">レジに登録する売価</h1><div class="card" id="reg-box"></div></div>
         <h1 class="sub">メモ <button class="btn ghost sm" type="button" id="pr-add">＋ 追加</button></h1>
         <div id="promises"></div>
-        <h1 class="sub">連絡事項 <button class="btn ghost sm" type="button" id="memo-add">＋ 書く</button></h1>
+        <h1 class="sub">連絡事項 <button class="btn ghost sm" type="button" id="memo-add">＋ 追加</button></h1>
         <div id="memos"></div>
         <div id="insp-wrap" hidden><h1 class="sub">点検 <span class="k" id="insp-n" style="font-size:13px;font-weight:400"></span></h1>
         <p class="lead">登録データを自動で点検し、確認が必要な箇所を表示しています。項目を押すと、該当する画面が開きます。</p>
@@ -1088,13 +1088,13 @@ body.pdet-on{overflow:hidden}
     <div class="card" id="ct-box"></div>
   </section>
   <section id="t-cal" hidden>
-    <div class="ph"><div><h1>予定</h1><p class="lead">納品・催事・休業日などの予定を管理します。LINEで送った予定も自動で登録されます。</p></div><div class="acts"><button class="btn" type="button" id="ev-add-top">＋ 予定を足す</button></div></div>
+    <div class="ph"><div><h1>予定</h1><p class="lead">納品・催事・休業日などの予定を管理します。LINEで送った予定も自動で登録されます。</p></div><div class="acts"><button class="btn" type="button" id="ev-add-top">＋ 予定を追加</button></div></div>
     <div class="card" id="ev-form" hidden></div>
     <div id="cal"></div>
   </section>
 
   <section id="t-cost" hidden>
-    <div class="ph"><div><h1>原価</h1><p class="lead">商品ごとの原価と原価率の一覧です。商品を押すと、材料・分量・作り方の確認と編集ができます。</p></div><div class="acts"><label class="srch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="cost-q" type="search" placeholder="商品をさがす" autocomplete="off"></label><select id="cost-sort" class="sel" aria-label="並び順"><option value="rate">原価率が高い順</option><option value="name">名前順</option><option value="new">新しい順</option><option value="est">仮が多い順</option></select></div></div>
+    <div class="ph"><div><h1>原価</h1><p class="lead">商品ごとの原価と原価率の一覧です。商品を押すと、材料・分量・作り方の確認と編集ができます。</p></div><div class="acts"><label class="srch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="cost-q" type="search" placeholder="商品を検索" autocomplete="off"></label><select id="cost-sort" class="sel" aria-label="並び順"><option value="rate">原価率が高い順</option><option value="name">名前順</option><option value="new">新しい順</option><option value="est">未確定が多い順</option></select></div></div>
     <div id="cat-box"></div>
     <div class="chips" id="cost-chips"></div>
     <div class="tw" id="cost-tw"><table class="ctab" id="cost-table"></table></div>
@@ -1110,19 +1110,19 @@ body.pdet-on{overflow:hidden}
   </section>
 
   <section id="t-label" hidden>
-    <div class="ph"><div><h1 id="label-h">裏表示</h1><p class="lead" id="label-lead">一括表示の原案作成とラベル印刷を行います。<mark>色付き</mark>の項目は要確認です。表示内容の最終確認は店舗の責任で行ってください。</p></div><div class="acts"><button class="btn ghost" type="button" id="label-print-top">ラベルを印刷</button></div></div>
+    <div class="ph"><div><h1 id="label-h">食品表示</h1><p class="lead" id="label-lead">一括表示の原案作成とラベル印刷を行います。<mark>色付き</mark>の項目は要確認です。表示内容の最終確認は店舗の責任で行ってください。</p></div><div class="acts"><button class="btn ghost" type="button" id="label-print-top">ラベルを印刷</button></div></div>
     <div class="chips" id="label-chips"></div>
     <div id="label-box"></div>
   </section>
 
   <section id="t-mat" hidden>
-    <div class="ph"><div><h1>材料</h1><p class="lead">請求書から読み取った材料の単価を管理します。「仮」の単価は、請求書の登録時に自動で更新されます。</p></div><div class="acts"><label class="srch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="mat-q" type="search" placeholder="材料をさがす" autocomplete="off"></label><button class="btn" type="button" id="mat-add-top">＋ 材料を足す</button></div></div>
+    <div class="ph"><div><h1>材料</h1><p class="lead">請求書から読み取った材料の単価を管理します。「仮」の単価は、請求書の登録時に自動で更新されます。</p></div><div class="acts"><label class="srch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="mat-q" type="search" placeholder="材料を検索" autocomplete="off"></label><button class="btn" type="button" id="mat-add-top">＋ 材料を追加</button></div></div>
     <div class="filter" id="mat-filter"></div>
     <div class="card scroll"><table class="mat" id="mats"></table></div>
     <p class="foot" id="mat-sum"></p>
   </section>
   <section id="t-book" hidden>
-    <div class="ph"><div><h1>帳簿</h1><p class="lead">請求書を撮影すると、仕入先別・月別に仕分け、勘定科目の候補を付けます。PDFや受発注システムのCSVもまとめて取り込めます。</p></div><div class="acts"><label class="btn ghost">PDF・CSVを取り込む<input type="file" id="book-doc" accept=".pdf,.csv,.txt,.tsv,application/pdf,text/csv,text/plain" multiple hidden></label><button class="btn ghost" type="button" id="book-copy-top">この月をコピー</button></div></div>
+    <div class="ph"><div><h1>帳簿</h1><p class="lead">請求書を撮影すると、仕入先別・月別に整理し、勘定科目の候補を付けます。PDFや受発注システムのCSVもまとめて取り込めます。</p></div><div class="acts"><label class="btn ghost">PDF・CSVを取り込む<input type="file" id="book-doc" accept=".pdf,.csv,.txt,.tsv,application/pdf,text/csv,text/plain" multiple hidden></label><button class="btn ghost" type="button" id="book-copy-top">この月をコピー</button></div></div>
     <div id="book-doc-out" hidden></div>
     <div class="stack" id="pays"></div>
     <h1 class="sub">請求書の仕分け</h1>
@@ -1148,7 +1148,7 @@ body.pdet-on{overflow:hidden}
     <div class="ask"><button class="btn ghost" type="button" id="hyg-print">記録表を印刷・PDF</button></div>
     <h1 class="sub">手引書 <span class="k">厚生労働省が確認したもの</span></h1>
     <div class="card">
-      <p class="k" style="margin:0">記録の様式や、毎日確かめる項目はここに載っています。保健所の立入のときに見せる記録も、この手引書に合わせておくと安心です。</p>
+      <p class="k" style="margin:0">記録の様式や、毎日確認する項目が記載されています。保健所の立入検査で提示する記録も、この手引書に沿って作成しておくと安心です。</p>
       <ul class="k" style="margin:8px 0 0;padding-left:1.2em;line-height:1.9">
         <li><a href="https://www.mhlw.go.jp/content/11130500/000478404.pdf" target="_blank" rel="noopener">菓子製造業の手引書(全日本菓子協会ほか・令和6年改定)</a> ─ 別紙-3「製造に係る衛生管理記録」、別紙-4「販売に係る衛生管理記録」</li>
         <li><a href="https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/0000179028_00003.html" target="_blank" rel="noopener">業種ごとの手引書の一覧(厚生労働省)</a> ─ パン・飲食店・惣菜などはこちらから</li>
@@ -1157,17 +1157,17 @@ body.pdet-on{overflow:hidden}
   <section id="t-sales" hidden>
     <div class="ph"><div><h1>商品分析</h1><p class="lead">レジの精算レシートを撮影すると売上を記録し、原価が登録済みの商品は粗利を算出します。</p></div></div>
     <div id="money-box"></div>
-    <div id="gap-wrap" hidden><h1 class="sub">理論と実際の差</h1><p class="lead">レシピ上の材料費(理論値)と、請求書の仕入額(実際値)を月別に比較します。差額にはロス・分量のぶれ・単価差・在庫の増減が含まれるため、目安としてご確認ください。</p><div class="card" id="gap"></div></div>
-    <div id="course-wrap"><h1 class="sub">コース・セット・飲み放題の売値</h1><p class="lead">商品を組み合わせて1人前の原価を算出し、目標原価率に合わせた売価を提案します。宴会料金の設定もこちらで行います。</p><div class="card" id="courses"></div><div class="card" id="party" style="margin-top:12px"></div></div>
+    <div id="gap-wrap" hidden><h1 class="sub">理論と実際の差</h1><p class="lead">レシピ上の材料費(理論値)と、請求書の仕入額(実際値)を月別に比較します。差額にはロス・分量のばらつき・単価差・在庫の増減が含まれるため、目安としてご確認ください。</p><div class="card" id="gap"></div></div>
+    <div id="course-wrap"><h1 class="sub">コース・セット・飲み放題の売価</h1><p class="lead">商品を組み合わせて1人前の原価を算出し、目標原価率に合わせた売価を提案します。宴会料金の設定もこちらで行います。</p><div class="card" id="courses"></div><div class="card" id="party" style="margin-top:12px"></div></div>
     <div class="chips" id="sales-chips"></div>
     <div class="stack" id="sales-box"></div>
     <h1 class="sub" style="margin-top:24px">メニューの分析</h1>
     <p class="lead">販売数と1個あたりの粗利から、商品を4つのグループに分類します。品目別の精算レシートと卸の納品記録をもとに算出します。</p>
     <div id="menu-box"></div>
     <div class="card" id="sales-add" style="margin-top:12px"></div>
-    <details class="card" id="sales-bulk" style="margin-top:12px"><summary><b>売上をまとめて取り込む</b> <span class="k">道の駅・直売所のメール、レジやPOSの日報(CSV・PDF)。何日分でも</span></summary>
-      <p class="k" style="margin:8px 0 8px">メールの本文を何通分でも続けて貼り付けるか、レジ・POSのソフトから書き出したファイル(CSV・PDF・画像)を選んでください。「読み取る」で中身を確かめてから「取り込む」を押します。記録済みの日は二重にしません。</p>
-      <div class="ask" style="margin:0 0 8px"><label class="btn ghost sm" style="cursor:pointer">ファイルを選ぶ<input type="file" id="sb-file" accept=".csv,.txt,.tsv,.pdf,image/*,text/csv,text/plain,application/pdf" hidden></label><span class="k" id="sb-fname">決まった形でないものは、AIが読み取ります(写真の読み取りと同じ回数で数えます)</span></div>
+    <details class="card" id="sales-bulk" style="margin-top:12px"><summary><b>売上をまとめて取り込む</b> <span class="k">道の駅・直売所のメール、レジやPOSの日報(CSV・PDF)。複数日分をまとめて取り込めます</span></summary>
+      <p class="k" style="margin:8px 0 8px">メールの本文を何通分でも続けて貼り付けるか、レジ・POSのソフトから書き出したファイル(CSV・PDF・画像)を選んでください。「読み取る」で内容を確認してから「取り込む」を押してください。記録済みの日は重複して登録されません。</p>
+      <div class="ask" style="margin:0 0 8px"><label class="btn ghost sm" style="cursor:pointer">ファイルを選択<input type="file" id="sb-file" accept=".csv,.txt,.tsv,.pdf,image/*,text/csv,text/plain,application/pdf" hidden></label><span class="k" id="sb-fname">対応形式以外のファイルはAIが読み取ります(写真の読み取りと同じく、利用回数に含まれます)</span></div>
       <textarea id="sb-text" rows="8" style="width:100%;font:inherit;font-size:15px;padding:8px 12px;border:1.5px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)" placeholder="2026年11月12日 19時45分 現在&#10;チーズ万十４個 6点 4200円&#10;【合計】 9点 8400円"></textarea>
       <div class="ask"><button class="btn ghost" type="button" id="sb-check">読み取る</button><button class="btn" type="button" id="sb-go" hidden>取り込む</button></div>
       <div id="sb-out"></div></details>
@@ -1182,8 +1182,8 @@ body.pdet-on{overflow:hidden}
     <div class="ph"><div><h1>発信</h1><p class="lead">SNS用の画像・投稿文と、店頭用のPOP・値札・貼り紙を作成します。作成後に内容を編集することもできます。</p></div></div>
     <div class="card" id="post-plan" style="margin-bottom:12px"></div>
     <div class="card" id="post-sns" style="margin-bottom:12px"></div>
-    <div class="card post-in"><div class="row" style="margin-bottom:8px"><b>言葉の案をAIに作ってもらう</b></div><div class="ask" style="margin-top:0"><select id="post-p" style="flex:1"></select></div>
-      <div class="ask"><input id="post-free" placeholder="または自由に(例: 年末年始の営業のお知らせ)"></div>
+    <div class="card post-in"><div class="row" style="margin-bottom:8px"><b>文章の案をAIで作成</b></div><div class="ask" style="margin-top:0"><select id="post-p" style="flex:1"></select></div>
+      <div class="ask"><input id="post-free" placeholder="または自由に入力(例: 年末年始の営業のお知らせ)"></div>
       <div class="ask"><button class="btn" type="button" id="post-go">案を作る</button></div></div>
     <div class="stack" id="post-out" style="margin-top:12px"></div>
     <div class="card" id="post-shop" style="margin-top:12px"></div>
@@ -1199,16 +1199,16 @@ body.pdet-on{overflow:hidden}
     <div class="card" id="bank-box"></div>
     <h1 class="sub">問い合わせ</h1>
     <div class="card contact">
-      <p class="k" style="margin:0 0 8px"><a href="/guide/faq" target="_blank" rel="noopener">よくあるご質問(動画付き)</a>に、多い質問の答えと動画があります。<a href="/guide/updates" target="_blank" rel="noopener">更新情報</a>(毎月の直したこと・足したこと)もここから。<br>分からないこと・うまく動かないことを書いてください。まずAIがすぐにお答えし、解決しなければ、そのまま担当におつなぎします。</p>
-      <div class="seg" id="ct-cat" style="flex-wrap:wrap;justify-content:flex-start"><button type="button" data-v="使い方" aria-pressed="true">使い方</button><button type="button" data-v="うまく動かない" aria-pressed="false">うまく動かない</button><button type="button" data-v="プラン・お支払い" aria-pressed="false">プラン・お支払い</button><button type="button" data-v="こうしてほしい" aria-pressed="false">こうしてほしい</button><button type="button" data-v="その他" aria-pressed="false">その他</button></div>
-      <textarea id="ct-text" rows="4" maxlength="2000" placeholder="例: 請求書の写真がうまく読めません" aria-label="問い合わせの内容"></textarea>
-      <div class="ask"><button class="btn" type="button" id="ct-go">聞く</button><span class="k" id="ct-via">店舗名・プラン・最近のエラーは自動で添えます</span></div>
+      <p class="k" style="margin:0 0 8px"><a href="/guide/faq" target="_blank" rel="noopener">よくあるご質問(動画付き)</a>に、よくあるご質問への回答と操作動画を掲載しています。<a href="/guide/updates" target="_blank" rel="noopener">更新情報</a>(毎月の改善・追加の内容)もこちらからご覧いただけます。<br>ご不明な点や不具合の内容をご入力ください。まずAIがお答えし、解決しない場合はそのまま担当者におつなぎします。</p>
+      <div class="seg" id="ct-cat" style="flex-wrap:wrap;justify-content:flex-start"><button type="button" data-v="使い方" aria-pressed="true">使い方</button><button type="button" data-v="うまく動かない" aria-pressed="false">不具合</button><button type="button" data-v="プラン・お支払い" aria-pressed="false">プラン・お支払い</button><button type="button" data-v="こうしてほしい" aria-pressed="false">ご要望</button><button type="button" data-v="その他" aria-pressed="false">その他</button></div>
+      <textarea id="ct-text" rows="4" maxlength="2000" placeholder="例: 請求書の写真が正しく読み取れません" aria-label="問い合わせの内容"></textarea>
+      <div class="ask"><button class="btn" type="button" id="ct-go">送信</button><span class="k" id="ct-via">店舗名・プラン・直近のエラー情報は自動で添付されます</span></div>
       <div id="ct-ans" hidden></div>
     </div>
     <div class="card" id="ct-hist" hidden></div>
   </section>
-  <div class="stuck" id="stuck" hidden><button class="btn ghost sm" type="button" id="stuck-b">この画面についてご意見を送る</button><div id="stuck-f" hidden><textarea id="stuck-t" rows="2" placeholder="ひと言(なくても大丈夫です。例: 1個の重さをどこで入れるか分からない)"></textarea><div style="display:flex;gap:8px;margin-top:6px"><button class="btn sm" type="button" id="stuck-go">知らせる</button><button class="btn ghost sm" type="button" id="stuck-x">やめる</button></div><p class="k" style="margin:6px 0 0">どの画面だったかと、このひと言だけが作る人に届きます。帳面の中身は届きません。</p></div></div>
-  <p class="foot" id="foot">試作。キャラの絵はAtelier SAISPEのLINE絵文字。</p>
+  <div class="stuck" id="stuck" hidden><button class="btn ghost sm" type="button" id="stuck-b">この画面についてご意見を送る</button><div id="stuck-f" hidden><textarea id="stuck-t" rows="2" placeholder="ご意見(任意。例: 1個の重さの入力場所が分からない)"></textarea><div style="display:flex;gap:8px;margin-top:6px"><button class="btn sm" type="button" id="stuck-go">送信</button><button class="btn ghost sm" type="button" id="stuck-x">キャンセル</button></div><p class="k" style="margin:6px 0 0">画面の名前と入力した内容のみが開発者に届きます。店舗のデータは送信されません。</p></div></div>
+  <p class="foot" id="foot">試作版です。キャラクターのイラストはAtelier SAISPEのLINE絵文字です。</p>
 </div>
 
 <div class="sheet" id="sheet" hidden role="dialog" aria-label="相談する">
@@ -1238,6 +1238,6 @@ body.pdet-on{overflow:hidden}
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-<script src="app.js?v=209"></script>
+<script src="app.js?v=210"></script>
 </body>
 </html>

@@ -23,7 +23,7 @@ const CAMERA_URL = 'https://liff.line.me/' + LIFF_ID;
 const CF = location.hostname !== 'masagolf9-arch.github.io';
 const IN_LINE = /\bLine\//i.test(navigator.userAgent);
 // 画面の案内文: ホームページでは「撮る」「話す」を案内する(LINEは、お知らせが届く場所)
-const CAMTXT = CF ? '「撮影」' : 'LINEの「📷 写真を撮る」', VIA = CF ? '話しかけて' : 'LINEで', SHOT = CF ? '「撮影」で' : 'LINEで';
+const CAMTXT = CF ? '「撮影」' : 'LINEの「📷 写真を撮る」', VIA = CF ? 'AIに' : 'LINEで', SHOT = CF ? '「撮影」で' : 'LINEで';
 
 const $ = id => document.getElementById(id);
 const store = { get(k, d) { try { const v = localStorage.getItem('shikomi:' + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
@@ -68,12 +68,12 @@ async function load() {
   try {
     const out = await api({ kind: 'app_data' });
     if (!out.ok) {
-      if (out.error === 'removed') { cache.set(null); D = null; document.querySelectorAll('section').forEach(s => s.hidden = true); return state('<b>この店舗のピタット原価からは外されています。</b><br>心当たりがなければ、店主に聞いてください。' + (CF && !IN_LINE ? '<form method="post" action="/auth/logout" style="margin-top:12px"><button class="btn ghost">ログアウト</button></form>' : '')); }
+      if (out.error === 'removed') { cache.set(null); D = null; document.querySelectorAll('section').forEach(s => s.hidden = true); return state('<b>この店舗のメンバーから外れています。</b><br>お心当たりがない場合は、店主にご確認ください。' + (CF && !IN_LINE ? '<form method="post" action="/auth/logout" style="margin-top:12px"><button class="btn ghost">ログアウト</button></form>' : '')); }
       if (out.error === 'wait' || out.error === 'login') { cache.set(null); if (D) { D = null; document.querySelectorAll('section').forEach(s => s.hidden = true); } }
-      if (out.error === 'wait') return state('<b>店主の許可待ちです。</b><br>店主のLINEに「見たい」とお知らせを送りました。<br>店主が「許可」を押したら、もう一度開いてください。<br><button class="btn ghost" onclick="load()">もう一度読む</button>');
+      if (out.error === 'wait') return state('<b>店主の承認待ちです。</b><br>店主のLINEに閲覧の申請をお送りしました。<br>店主が承認した後、もう一度開いてください。<br><button class="btn ghost" onclick="load()">再読み込み</button>');
       if (out.error === 'login' && CF && !IN_LINE) { location.href = '/login?next=' + encodeURIComponent(location.pathname); return; }
       if (out.error === 'login') { liff.logout(); return state('ログインし直してください。<br><button class="btn" onclick="location.reload()">ログイン</button>'); }
-      if (out.error === 'noshop') return state('<b>まだ店舗とつながっていません。</b><br>店舗の方から届いた招待のリンクを開いてください。<br><form method="post" action="/auth/logout" style="margin-top:12px"><button class="btn ghost">別の方法でログインし直す</button></form>');
+      if (out.error === 'noshop') return state('<b>店舗に登録されていません。</b><br>店舗から届いた招待リンクを開いてください。<br><form method="post" action="/auth/logout" style="margin-top:12px"><button class="btn ghost">別の方法で再ログイン</button></form>');
       return state(esc(out.error));
     }
     const first = !D; D = out.data; MLOCK = D.mlock || null; cache.set(D); state(''); renderAll(); if (first) { show(store.get('tab', 'today'), true); setTimeout(() => showHints(cur), 800); } else show(cur, true, true);
@@ -82,13 +82,13 @@ async function load() {
     if (CF && !window.__acct) { window.__acct = 1; renderAccount(); }
     if (CF) showShot();
   } catch (e) {
-    if (D) { chat('電波が弱いので、前に読んだ内容を出しています'); return; }
-    state('読み込めませんでした。電波のよいところで<br><button class="btn ghost" onclick="load()">もう一度読む</button>');
+    if (D) { chat('通信状態が不安定なため、前回読み込んだ内容を表示しています'); return; }
+    state('読み込めませんでした。通信状態のよい場所で、もう一度お試しください。<br><button class="btn ghost" onclick="load()">再読み込み</button>');
   }
 }
 async function setValue(product, field, value) {
   const out = await api({ kind: 'app_set', product, field, value });
-  if (!out.ok) { toast(out.error || 'うまく記録できませんでした', 'ng'); return; }
+  if (!out.ok) { toast(out.error || '記録できませんでした', 'ng'); return; }
   D = out.data; renderAll(); toast('記録しました。原価に反映しました。', 'ok'); act('heart', 1.3);
 }
 function openCamera() {
@@ -98,7 +98,7 @@ function openCamera() {
     webPhoto(); return;
   }
   if (window.liff && liff.isInClient && liff.isInClient()) liff.openWindow({ url: CAMERA_URL, external: false });
-  else chat('写真はスマホのLINEで「📷 写真を撮る」から送ってください。', 'point');
+  else chat('写真は、スマートフォンのLINEで「📷 写真を撮る」から送信してください。', 'point');
 }
 
 // ---------- きょう ----------
@@ -106,11 +106,11 @@ function notices() {
   const list = [];
   // 運営からのお知らせ(「読みました」を押すまで出す。読んだものはこの端末に覚える)
   let annDone = []; try { annDone = JSON.parse(localStorage.getItem('annDone') || '[]'); } catch (e) {}
-  (D.anns || []).filter(a => !annDone.includes(a.id)).forEach(a => list.push({ type: a.important ? 'up' : 'q', html: `<p><b>${esc(a.kind)}: ${esc(a.title)}</b> <span class="k">${new Date(a.at).getMonth() + 1}/${new Date(a.at).getDate()} 運営より</span></p><p style="margin:4px 0;white-space:pre-wrap">${esc(a.body)}</p><div class="ask"><button class="btn ghost sm" type="button" data-ann-ok="${esc(a.id)}">読みました</button></div>` }));
+  (D.anns || []).filter(a => !annDone.includes(a.id)).forEach(a => list.push({ type: a.important ? 'up' : 'q', html: `<p><b>${esc(a.kind)}: ${esc(a.title)}</b> <span class="k">${new Date(a.at).getMonth() + 1}/${new Date(a.at).getDate()} 運営より</span></p><p style="margin:4px 0;white-space:pre-wrap">${esc(a.body)}</p><div class="ask"><button class="btn ghost sm" type="button" data-ann-ok="${esc(a.id)}">確認しました</button></div>` }));
   if (D.opsNotice) list.push({ type: 'q', html: `<p><b>お支払いについて</b></p><p class="k">${esc(D.opsNotice)}</p>` });   // 運営からのお知らせ(店主だけ)
-  for (const u of D.ups) list.push({ type: 'up', html: `<p><b>${esc(u.item)}が値上がり</b></p><p class="k">${esc(u.supplier)} ${esc(u.spec)} ${u.old.toLocaleString()}円 → ${u.now.toLocaleString()}円(+${u.pct}%)</p><div class="ask"><button class="btn ghost" type="button" data-go-mat="up">材料の値段を見る</button><button class="btn ghost" type="button" data-go-cost>原価を見る</button></div>` });
+  for (const u of D.ups) list.push({ type: 'up', html: `<p><b>${esc(u.item)}が値上がり</b></p><p class="k">${esc(u.supplier)} ${esc(u.spec)} ${u.old.toLocaleString()}円 → ${u.now.toLocaleString()}円(+${u.pct}%)</p><div class="ask"><button class="btn ghost" type="button" data-go-mat="up">材料の単価を見る</button><button class="btn ghost" type="button" data-go-cost>原価を見る</button></div>` });
   const needPw = D.products.filter(p => !p.pw);
-  if (needPw.length) list.push({ type: 'q', html: `<p><b>1${U}は何g?(${needPw.length}品)</b></p><p class="k">重さが分かれば、1仕込みの個数と1個あたりの原価を計算します。分かる商品だけ入力してください。</p>` +
+  if (needPw.length) list.push({ type: 'q', html: `<p><b>1${U}あたりの重さ(${needPw.length}品)</b></p><p class="k">重さを入力すると、1仕込みの個数と1個あたりの原価を計算します。分かる商品だけご入力ください。</p>` +
     needPw.map((p, i) => `<div class="ask pwrow"><span class="pwn" title="${esc(p.name)}">${esc(p.name)}</span><input id="pw-${i}" inputmode="decimal" placeholder="例 40" aria-label="${esc(p.name)}の1${U}の重さ"><span class="k">g</span><button class="btn ghost" data-pw="${i}" type="button">決定</button></div>`).join('') });
   // 材料の確認は、1件ずつの札にせず、種類ごとに1枚のカードにまとめる(11/19 確認の手間を減らす)
   const noPrice = new Set(), unknown = new Set(); D.products.forEach(p => { const np = p.noPrice || []; p.unknown.forEach(n => (np.includes(n) || D.materials.some(m => m.name === n) ? noPrice : unknown).add(n)); });
@@ -124,15 +124,15 @@ function notices() {
     const rows = [...unknown].map((n, i) => { const g = guess(n), st = SH0[n];
       return `<div class="mq-row"><div class="mq-h"><b>${esc(n)}</b>${forTxt(n)}</div>
       ${st ? `<div class="ask"><button class="btn sm" type="button" data-unk-st="${esc(n)}">「${esc(st[0])}」として登録</button><span class="k">表示: ${esc(st[1])}${st[2] ? '・アレルゲン: ' + esc(st[2]) : ''}</span></div>` : ''}
-      <div class="ask"><select id="unk-${i}" class="mq-sel" aria-label="「${esc(n)}」と同じ材料"><option value="">登録済みの材料から選ぶ…</option>${matNames.map(m => `<option${m === g ? ' selected' : ''}>${esc(m)}</option>`).join('')}</select><button class="btn ghost sm" type="button" data-unk-same="${i}" data-n="${esc(n)}">同じ</button><button class="btn ghost sm" type="button" data-unk-new="${esc(n)}">新しく登録</button></div></div>`; }).join('');
-    list.push({ type: 'q', html: `<p><b>登録されていない材料が${unknown.size}種</b></p><p class="k">レシピの名前が材料の一覧と合っていません。まず「まとめて名前を合わせる」を押すと、書き方のちがう材料(Soft Mix とソフトMix など)をAIが一度に合わせます。残ったものだけ選んでください。</p>
-      <div class="ask"><button class="btn" type="button" id="unk-ai">まとめて名前を合わせる</button></div><div class="mq">${rows}</div>` });
+      <div class="ask"><select id="unk-${i}" class="mq-sel" aria-label="「${esc(n)}」と同じ材料"><option value="">登録済みの材料から選ぶ…</option>${matNames.map(m => `<option${m === g ? ' selected' : ''}>${esc(m)}</option>`).join('')}</select><button class="btn ghost sm" type="button" data-unk-same="${i}" data-n="${esc(n)}">同じ材料にする</button><button class="btn ghost sm" type="button" data-unk-new="${esc(n)}">新しく登録</button></div></div>`; }).join('');
+    list.push({ type: 'q', html: `<p><b>未登録の材料 ${unknown.size}種</b></p><p class="k">レシピの材料名が材料一覧に見つかりません。「名前をまとめて照合」を押すと、表記の異なる材料(Soft Mix とソフトMix など)をAIがまとめて照合します。残った材料のみ選択してください。</p>
+      <div class="ask"><button class="btn" type="button" id="unk-ai">名前をまとめて照合</button></div><div class="mq">${rows}</div>` });
   }
-  if (noPrice.size) list.push({ type: 'q', html: `<p><b>値段のない材料が${noPrice.size}種</b></p><p class="k">請求書を撮影すると自動で入ります。分かるものは、ここで購入金額と量を入れてください。</p>
+  if (noPrice.size) list.push({ type: 'q', html: `<p><b>単価が未登録の材料 ${noPrice.size}種</b></p><p class="k">請求書を撮影すると自動で登録されます。分かる材料は、購入金額と量をご入力ください。</p>
     <div class="mq">${[...noPrice].map(n => `<div class="mq-row"><div class="mq-h"><b>${esc(n)}</b>${forTxt(n)}</div>${unkForm(n)}</div>`).join('')}</div>` });
   const check = new Set(); D.products.forEach(p => p.label.check.forEach(n => { if (!unknown.has(n)) check.add(n); }));
-  if (check.size) list.push({ type: 'q', html: `<p><b>袋の裏の撮影が要る材料が${check.size}種</b></p><p class="k">業務用の商品などで、原材料とアレルゲンが分からない材料です。袋の裏(名称・原材料名の欄)を撮影すると、食品表示が確定します。続けて何枚でも撮れます。</p>
-    <div class="mq">${[...check].map(n => `<div class="mq-row mq-1"><div class="mq-h"><b>${esc(n)}</b>${forTxt(n)}</div></div>`).join('')}</div><div class="ask"><button class="btn" type="button" data-cam>袋の裏を撮影する</button></div>` });
+  if (check.size) list.push({ type: 'q', html: `<p><b>裏面表示の撮影が必要な材料 ${check.size}種</b></p><p class="k">業務用の商品など、原材料とアレルゲンが不明な材料です。袋の裏面(名称・原材料名の欄)を撮影すると、食品表示が確定します。続けて複数枚撮影できます。</p>
+    <div class="mq">${[...check].map(n => `<div class="mq-row mq-1"><div class="mq-h"><b>${esc(n)}</b>${forTxt(n)}</div></div>`).join('')}</div><div class="ask"><button class="btn" type="button" data-cam>裏面表示を撮影</button></div>` });
   if (!D.products.length) list.push({ type: 'q', cam: true, html: '<p><b>まずはレシピを1枚撮影してください</b></p><p class="k">' + CAMTXT + 'で手書きのレシピを撮影すると、ここに原価と食品表示の案が表示されます</p>' });
   return list;
 }
@@ -141,13 +141,13 @@ function composeHtml(p) {
   const fromMode = !p.composed, partName = p.name + 'の生地';
   const rows = fromMode ? [[partName, ''], ['', ''], ['', '']] : p.rows.map(r => [r.name, r.grams]);
   const row = (n, g, first, ph) => `<div class="ask cmp-row" style="flex-wrap:nowrap"><input class="cmp-n" list="cmp-list" value="${esc(n)}" placeholder="${ph || '例 生クリーム'}" aria-label="使うもの"${first && fromMode ? ' readonly' : ''} style="flex:1;min-width:0"><input class="cmp-g" inputmode="decimal" value="${g || ''}" placeholder="g" aria-label="1個に使う量" style="width:4.5em"><span class="k">g</span></div>`;
-  return `<div style="margin-top:12px"><button class="btn ghost" type="button" data-cmp-open="${esc(p.name)}">${fromMode ? '生地・クリーム・餡を組み合わせて1個にする' : '組み合わせを直す'}</button>
+  return `<div style="margin-top:12px"><button class="btn ghost" type="button" data-cmp-open="${esc(p.name)}">${fromMode ? '生地・クリーム・餡を組み合わせて1個にする' : '組み合わせを編集'}</button>
     <div class="cmp card" data-cmp="${esc(p.name)}" data-from="${fromMode ? 1 : ''}" hidden style="margin-top:8px">
     <p class="k" style="margin:0 0 8px">${fromMode ? `撮った配合を「生地」として使い、1個に使う量で「${esc(p.name)}」を作り直します。生地は焼く前の重さで(皮2枚なら2枚分)。` : '1個に使うものと量を直します。'}</p>
     ${fromMode ? `<label class="k">撮った配合の新しい名前(半製品になります)<input class="cmp-part" value="${esc(partName)}" style="width:100%;box-sizing:border-box;font:inherit;font-size:16px;padding:12px 12px;border:1.5px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);margin-top:4px"></label>` : ''}
     <div class="cmp-rows">${rows.map((r, j) => row(r[0], r[1], j === 0, ['', '例 生クリーム', '例 粒あん'][j])).join('')}</div>
-    <div class="ask"><button class="btn ghost sm" type="button" data-cmp-add>＋ 行を足す</button><button class="btn" type="button" data-cmp-go>${fromMode ? 'この形で作る' : '直す'}</button></div>
-    <p class="k" style="margin:8px 0 0">餡やクリームも、配合の写真を撮れば半製品として選べます。値段のない材料は、あとで値段を入れれば原価に入ります。</p></div></div>`;
+    <div class="ask"><button class="btn ghost sm" type="button" data-cmp-add>＋ 行を追加</button><button class="btn" type="button" data-cmp-go>${fromMode ? 'この内容で作成' : '編集を保存'}</button></div>
+    <p class="k" style="margin:8px 0 0">餡やクリームも、配合を撮影すると半製品として選択できます。単価が未登録の材料は、後から単価を入力すると原価に反映されます。</p></div></div>`;
 }
 function bindCompose(root) {
   if (!document.getElementById('cmp-list')) document.body.insertAdjacentHTML('beforeend', '<datalist id="cmp-list"></datalist>');
@@ -164,7 +164,7 @@ function bindCompose(root) {
   });
 }
 // まだ表にない材料の値段を、その場で入れる(種類などは後で)。入れるとすぐ原価に入る
-const unkForm = n => `<div class="ask unkf" data-n="${esc(n)}"><span class="k" style="min-width:auto">購入金額</span><input class="uq-yen" inputmode="numeric" placeholder="800" aria-label="「${esc(n)}」の値段" style="width:5.5em"><span class="k">円 ／ 量</span><input class="uq-q" inputmode="decimal" placeholder="1" aria-label="買った量" style="width:4em"><select class="uq-u" aria-label="量の単位" style="font:inherit;font-size:15px;padding:8px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)"><option>kg</option><option>g</option></select><button class="btn ghost" type="button" data-uq>入れる</button></div>`;
+const unkForm = n => `<div class="ask unkf" data-n="${esc(n)}"><span class="k" style="min-width:auto">購入金額</span><input class="uq-yen" inputmode="numeric" placeholder="800" aria-label="「${esc(n)}」の値段" style="width:5.5em"><span class="k">円 ／ 量</span><input class="uq-q" inputmode="decimal" placeholder="1" aria-label="買った量" style="width:4em"><select class="uq-u" aria-label="量の単位" style="font:inherit;font-size:15px;padding:8px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)"><option>kg</option><option>g</option></select><button class="btn ghost" type="button" data-uq>登録</button></div>`;
 function bindUnk(root) {
   root.querySelectorAll('[data-uq]').forEach(b => b.onclick = () => {
     const f = b.closest('.unkf'), y = parseFloat(f.querySelector('.uq-yen').value), q = parseFloat(f.querySelector('.uq-q').value), u = f.querySelector('.uq-u').value;
@@ -192,17 +192,17 @@ function renderToday() {
   $('notices').querySelectorAll('[data-chk-re]').forEach(b => b.onclick = async () => { await setValueX({ field: 'check', value: { row: +b.dataset.chkRe, ok: false } }); openCamera(); });
   $('notices').querySelectorAll('[data-go-mat]').forEach(b => b.onclick = () => { matF = b.dataset.goMat; show('mat'); });
   $('notices').querySelectorAll('[data-go-cost]').forEach(b => b.onclick = () => show('cost'));
-  $('notices').querySelectorAll('[data-unk-same]').forEach(b => b.onclick = () => { const sel = $('unk-' + b.dataset.unkSame); if (!sel.value) { sel.focus(); chat('表の材料を選んでください'); return; } setValueX({ field: 'mat', name: sel.value, value: { alias: b.dataset.n } }); });
+  $('notices').querySelectorAll('[data-unk-same]').forEach(b => b.onclick = () => { const sel = $('unk-' + b.dataset.unkSame); if (!sel.value) { sel.focus(); chat('一覧から材料を選択してください'); return; } setValueX({ field: 'mat', name: sel.value, value: { alias: b.dataset.n } }); });
   $('notices').querySelectorAll('[data-unk-new]').forEach(b => b.onclick = () => { show('mat', true); setTimeout(() => matEdit(null, { name: b.dataset.unkNew }), 100); });
   $('notices').querySelectorAll('[data-unk-st]').forEach(b => b.onclick = () => setValueX({ field: 'matstarter', name: b.dataset.unkSt }));
-  if ($('unk-ai')) $('unk-ai').onclick = async () => { const b = $('unk-ai'); b.disabled = true; b.textContent = '合わせています…'; await setValueX({ field: 'matmatch' }); };
+  if ($('unk-ai')) $('unk-ai').onclick = async () => { const b = $('unk-ai'); b.disabled = true; b.textContent = '照合しています…'; await setValueX({ field: 'matmatch' }); };
   const q = list.length; const bd = $('badge'); bd.textContent = q; bd.hidden = !q;
   const up0 = unpaid(), bb = $('badge-book'); bb.textContent = up0.length; bb.hidden = !up0.length;
   const hm0 = hygMissing().length, bh = $('badge-hyg'); bh.textContent = hm0; bh.hidden = !hm0;
   renderHero(q); renderMenu(q); renderGreet(); renderHomeProds();
   renderA2hs(); renderTodo(list); renderStart(); renderMemos(); renderPromises(); renderInspect(); renderHomeEvents(); renderBar(); renderCal(); renderReg(); renderCt();
   if ($('made')) $('made').innerHTML = D.made.length ? `<ul class="tl">${D.made.map(m => `<li><span class="tt">${new Date(m.t).toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' })}</span><span>${esc(m.text)}</span></li>`).join('')}</ul>`
-    : '<p class="k" style="margin:0">まだありません。作った数を話しかけると、ここに出ます</p>';
+    : '<p class="k" style="margin:0">記録はまだありません。製造数をAIに入力すると、ここに表示されます</p>';
 }
 
 // ホーム画面にアイコンを置く案内(ケイタイだけ・1回だけ)。置けばLINEを通らず直接この画面が開く
@@ -215,14 +215,14 @@ function renderA2hs() {
   const ua = navigator.userAgent, ios = /iPhone|iPad|iPod/.test(ua), android = /Android/.test(ua);
   const ext = location.origin + location.pathname.replace(/^\/l\//, '/') + (location.search ? location.search + '&' : '?') + 'openExternalBrowser=1';
   let how;
-  if (IN_LINE) how = `<p class="k" style="margin:4px 0 8px">LINEの中からはホーム画面に置けません。下のボタンで標準のブラウザで開いてから、そこで置いてください。</p><a class="btn" id="a2hs-ext" href="${esc(ext)}" style="text-decoration:none">ブラウザで開く</a>`;
-  else if (android || ios || a2hsEvt) how = `<p style="margin:12px 0 0"><button class="btn" type="button" id="a2hs-go" style="font-size:16px;padding:12px 24px">ホーム画面に置く</button></p>`;
+  if (IN_LINE) how = `<p class="k" style="margin:4px 0 8px">LINEの画面からはホーム画面に追加できません。下のボタンで標準のブラウザを開き、そちらから追加してください。</p><a class="btn" id="a2hs-ext" href="${esc(ext)}" style="text-decoration:none">ブラウザで開く</a>`;
+  else if (android || ios || a2hsEvt) how = `<p style="margin:12px 0 0"><button class="btn" type="button" id="a2hs-go" style="font-size:16px;padding:12px 24px">ホーム画面に追加</button></p>`;
   else if (ios) how = `<ol class="k" style="margin:4px 0 0;padding-left:1.3em;line-height:1.9"><li>画面の下(または上)の <b>共有ボタン</b>(四角に上向きの矢印)を押す</li><li><b>「ホーム画面に追加」</b>を押す</li><li>右上の<b>「追加」</b>を押す</li></ol>`;
   else how = `<p class="k" style="margin:4px 0 0">ブラウザのメニューから「ホーム画面に追加」を選んでください。</p>`;
   box.hidden = false;
-  box.innerHTML = `<div style="display:flex;gap:12px;align-items:flex-start"><img src="icon-192.png" alt="" width="44" height="44" style="border-radius:10px;flex:0 0 44px"><div style="flex:1;min-width:0"><b>ホーム画面にピタット原価を置く</b><p class="k" style="margin:4px 0 0">次からはアイコンを押すだけで、LINEを通らずこの画面が開きます。</p>${how}<p style="margin:8px 0 0"><a href="#" id="a2hs-no" class="k" style="color:var(--accent)">今はいい</a></p></div></div>`;
+  box.innerHTML = `<div style="display:flex;gap:12px;align-items:flex-start"><img src="icon-192.png" alt="" width="44" height="44" style="border-radius:10px;flex:0 0 44px"><div style="flex:1;min-width:0"><b>ホーム画面にピタット原価を追加</b><p class="k" style="margin:4px 0 0">次回からはアイコンを押すだけで、LINEを経由せずにこの画面が開きます。</p>${how}<p style="margin:8px 0 0"><a href="#" id="a2hs-no" class="k" style="color:var(--accent)">後で</a></p></div></div>`;
   const go = $('a2hs-go'); if (go) go.onclick = async () => {
-    if (a2hsEvt) { const ev = a2hsEvt; ev.prompt(); const r = await ev.userChoice.catch(() => null); a2hsEvt = null; if (r && r.outcome === 'accepted') { store.set('a2hsHide', 1); box.hidden = true; toast('ホーム画面に置きました', 'ok'); } return; }
+    if (a2hsEvt) { const ev = a2hsEvt; ev.prompt(); const r = await ev.userChoice.catch(() => null); a2hsEvt = null; if (r && r.outcome === 'accepted') { store.set('a2hsHide', 1); box.hidden = true; toast('ホーム画面に追加しました', 'ok'); } return; }
     a2hsHelp();
   };
   const ex = $('a2hs-ext'); if (ex) ex.onclick = async e => {   // LINEの中(LIFF)では、リンクでは標準のブラウザに出られないので LIFF で開く(まだLIFFを始めていなければ始める)
@@ -236,20 +236,20 @@ function a2hsHelp() {
   const ov = document.createElement('div');
   ov.className = 'a2ov';
   const iosSteps = [
-    { t: 'まず、もう置いてあるか見てみましょう', b: '携帯のホーム画面(アプリが並んでいる画面)に戻って、「ピタット原価」のアイコンがないか見てください。横にめくった先にあることもあります。' },
-    { t: '無かったら: 共有のマークを押します', b: '画面の<b>いちばん下のまん中</b>にある、<b>四角から矢印が上に出ているマーク</b>を押してください。<br><span class="k">見当たらないときは、右下の「…」を押すと「共有」が出てきます。それを押してください。</span>', img: 'a2hs_ios_1.webp?v=2' },
-    { t: '「ホーム画面に追加」を押します', b: '出てきた一覧を指で少し上に動かすと<b>「ホーム画面に追加」</b>があります。それを押してください。', img: 'a2hs_ios_2.webp?v=2' },
-    { t: '最後に右上の「追加」を押します', b: '右上の<b>「追加」</b>を押します。<br>これで携帯のホーム画面に「ピタット原価」のアイコンができます。', img: 'a2hs_ios_3.webp?v=2' }];
+    { t: '追加済みかどうかをご確認ください', b: 'スマートフォンのホーム画面(アプリが並ぶ画面)に「ピタット原価」のアイコンがあるかご確認ください。別のページにある場合もあります。' },
+    { t: 'ない場合: 共有ボタンを押します', b: '画面の<b>下部中央</b>にある、<b>四角から上向きの矢印が出ているボタン</b>を押してください。<br><span class="k">見当たらない場合は、右下の「…」を押すと「共有」が表示されます。</span>', img: 'a2hs_ios_1.webp?v=2' },
+    { t: '「ホーム画面に追加」を押します', b: '表示された一覧を上にスクロールし、<b>「ホーム画面に追加」</b>を押してください。', img: 'a2hs_ios_2.webp?v=2' },
+    { t: '最後に右上の「追加」を押します', b: '右上の<b>「追加」</b>を押します。<br>スマートフォンのホーム画面に「ピタット原価」のアイコンが追加されます。', img: 'a2hs_ios_3.webp?v=2' }];
   const pcSteps = [
-    { t: 'パソコンにピタット原価を置く', b: '<b>Chrome</b>か<b>Edge</b>で開いているときにできます。アドレス欄(上の、住所が書いてある欄)の右はしにある<b>「インストール」マーク</b>(画面に下向きの矢印)を押して、出てきた確認で<b>「インストール」</b>を押してください。', img: 'a2hs_pc_1.webp?v=2' },
-    { t: 'マークが無いとき', b: '右上の <b>︙</b> を押して、<b>「キャスト、保存、共有」</b>→<b>「ページをアプリとしてインストール」</b>を押します。<br><span class="k">Edgeの場合は、右上の「…」→「アプリ」→「このサイトをアプリとしてインストール」です。Macの Safari なら、上のメニューの「ファイル」→「Dockに追加」です。</span>', img: 'a2hs_pc_2.webp?v=2' },
-    { t: 'できあがり', b: 'デスクトップやタスクバーに「ピタット原価」のアイコンができます。押すと、ピタット原価だけの画面で開きます。', img: 'a2hs_pc_3.webp?v=2' }];
+    { t: 'パソコンにピタット原価を追加', b: '<b>Chrome</b>または<b>Edge</b>で開いている場合に追加できます。アドレスバーの右端にある<b>「インストール」ボタン</b>(画面に下向きの矢印)を押し、確認画面で<b>「インストール」</b>を押してください。', img: 'a2hs_pc_1.webp?v=2' },
+    { t: 'ボタンが表示されない場合', b: '右上の <b>︙</b> を押して、<b>「キャスト、保存、共有」</b>→<b>「ページをアプリとしてインストール」</b>を押します。<br><span class="k">Edgeの場合は、右上の「…」→「アプリ」→「このサイトをアプリとしてインストール」を選びます。Macの Safari の場合は、メニューの「ファイル」→「Dockに追加」を選びます。</span>', img: 'a2hs_pc_2.webp?v=2' },
+    { t: '完了', b: 'デスクトップやタスクバーに「ピタット原価」のアイコンが追加されます。アイコンを押すと、ピタット原価が専用の画面で開きます。', img: 'a2hs_pc_3.webp?v=2' }];
   const isPc = !matchMedia('(pointer:coarse)').matches;
   const steps = isPc ? pcSteps : /iPhone|iPad|iPod/.test(navigator.userAgent) ? iosSteps : [
-    { t: 'まず、もう置いてあるか見てみましょう', b: '前に一度「インストール」を押していれば、もう置いてあります。いったん携帯のホーム画面(アプリが並んでいる画面)に戻って、「ピタット原価」のアイコンがないか見てください。横にめくった先にあることもあります。', pic: '' },
-    { t: '無かったら: 点が3つのマークを押します', b: '画面の<b>いちばん下の右はし</b>(携帯によっては<b>いちばん上の右はし</b>)にある <b style="font-size:20px">︙</b> を押してください。', img: 'a2hs_1.webp?v=2' },
-    { t: '「ショートカット作成」を押します', b: '出てきた一覧から<b>「ショートカット作成」</b>を押します。<br><span class="k">携帯によっては<b>「ホーム画面に追加」「アプリをインストール」「ページを追加」</b>と書いてあります。どれか1つがあれば、それを押してください。</span>', img: 'a2hs_2.webp?v=2' },
-    { t: '最後に「追加」を押します', b: '確認が出たら<b>「追加」</b>(または「OK」「インストール」)を押します。<br>これで携帯のホーム画面に「ピタット原価」のアイコンができます。', img: 'a2hs_3.webp?v=2' }];
+    { t: '追加済みかどうかをご確認ください', b: '以前に「インストール」を押している場合は、すでに追加されています。スマートフォンのホーム画面(アプリが並ぶ画面)に「ピタット原価」のアイコンがあるかご確認ください。別のページにある場合もあります。', pic: '' },
+    { t: 'ない場合: メニュー(縦に3つの点)を押します', b: '画面の<b>右下</b>(機種によっては<b>右上</b>)にある <b style="font-size:20px">︙</b> を押してください。', img: 'a2hs_1.webp?v=2' },
+    { t: '「ショートカット作成」を押します', b: '表示された一覧から<b>「ショートカット作成」</b>を押します。<br><span class="k">機種によっては<b>「ホーム画面に追加」「アプリをインストール」「ページを追加」</b>と書いてあります。どれか1つがあれば、それを押してください。</span>', img: 'a2hs_2.webp?v=2' },
+    { t: '最後に「追加」を押します', b: '確認画面が表示されたら<b>「追加」</b>(または「OK」「インストール」)を押します。<br>スマートフォンのホーム画面に「ピタット原価」のアイコンが追加されます。', img: 'a2hs_3.webp?v=2' }];
   let i = 0;
   const PIC = {
     dots: `<svg viewBox="0 0 240 150" width="240" height="150" aria-hidden="true"><rect x="20" y="6" width="200" height="138" rx="16" fill="#fff" stroke="#c9d3df" stroke-width="3"/><rect x="34" y="18" width="172" height="20" rx="10" fill="#eef2f7"/><circle cx="198" cy="28" r="3" fill="#555"/><circle cx="198" cy="20" r="3" fill="#555"/><circle cx="198" cy="36" r="3" fill="#555"/><rect x="34" y="112" width="172" height="20" rx="6" fill="#eef2f7"/><circle cx="196" cy="114" r="3" fill="#555"/><circle cx="196" cy="122" r="3" fill="#555"/><circle cx="196" cy="130" r="3" fill="#555"/><circle cx="198" cy="28" r="14" fill="none" stroke="#e2531c" stroke-width="4"/><circle cx="196" cy="122" r="14" fill="none" stroke="#e2531c" stroke-width="4"/><text x="120" y="80" font-size="14" text-anchor="middle" fill="#8a94a3">上か下の右はし</text></svg>`,
@@ -260,11 +260,11 @@ function a2hsHelp() {
     const s0 = steps[i];
     ov.innerHTML = `<div class="a2card" role="dialog" aria-modal="true"><div class="k" style="margin-bottom:8px">${i + 1} / ${steps.length}</div><h3 style="margin:0 0 8px;font-size:20px">${s0.t}</h3>${s0.img ? `<div style="text-align:center;margin:8px 0 12px"><img src="${s0.img}?v=1" alt="" style="max-width:100%;max-height:46vh;border-radius:10px;border:1px solid var(--line)"></div>` : s0.pic ? `<div style="text-align:center;margin:8px 0 12px">${PIC[s0.pic]}</div>` : ''}<p style="margin:0;font-size:16px;line-height:1.8">${s0.b}</p>
       <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">${i < steps.length - 1 ? `<button class="btn" type="button" data-next style="font-size:16px;padding:12px 24px">${i === 0 && !isPc ? '無かった(つぎへ)' : 'つぎへ'}</button>` : ''}${i === 0 && !isPc ? '<button class="btn ghost" type="button" data-have style="font-size:16px;padding:12px 24px">あった</button>' : ''}${i > 0 ? '<button class="btn ghost" type="button" data-back>← 戻る</button>' : ''}<button class="btn ghost" type="button" data-close>${i === steps.length - 1 ? 'できた' : '閉じる'}</button></div>
-      <p class="k" style="margin:12px 0 0">うまくいかないときは、その画面のスクリーンショットを、設定の「問い合わせ」から送ってください。</p></div>`;
+      <p class="k" style="margin:12px 0 0">うまくいかない場合は、その画面のスクリーンショットを設定の「問い合わせ」からお送りください。</p></div>`;
     const q = sel => ov.querySelector(sel);
     if (q('[data-next]')) q('[data-next]').onclick = () => { i++; draw(); };
     if (q('[data-back]')) q('[data-back]').onclick = () => { i--; draw(); };
-    if (q('[data-have]')) q('[data-have]').onclick = () => { store.set('a2hsHide', 1); ov.remove(); const b = $('a2hs'); if (b) b.hidden = true; toast('もう置いてありました。次からはアイコンから開けます', 'ok'); };
+    if (q('[data-have]')) q('[data-have]').onclick = () => { store.set('a2hsHide', 1); ov.remove(); const b = $('a2hs'); if (b) b.hidden = true; toast('すでに追加されています。次回からはアイコンから開けます', 'ok'); };
     q('[data-close]').onclick = () => { if (i === steps.length - 1) { store.set('a2hsHide', 1); const b = $('a2hs'); if (b) b.hidden = true; } ov.remove(); };
   };
   ov.onclick = e => { if (e.target === ov) ov.remove(); };
@@ -277,23 +277,23 @@ const dayDiff = s => Math.round((new Date(s.slice(0, 4), +s.slice(5, 7) - 1, +s.
 const EVK = { '納品': 'ws', '催事': 'post', '休み': 'hyg', 'その他': 'set' };
 function todoItems(q) {
   const t = [], me = profileName || '';
-  // 印をつけた仕事に入っていないのに使っているもの → メニューの前に出すか聞く(1回押したら、もう出さない)
-  if (D.me && D.me.owner && Array.isArray(D.jobs)) jobSignals().filter(j => !D.jobs.includes(j)).forEach(j => { let seen = ''; try { seen = localStorage.getItem('shikomi:jobsug:' + j) || ''; } catch (e) {} if (seen) return; const l = { ws: ['卸', '卸の納品が入っています'], stock: ['在庫', '在庫の数が入っています'], cal: ['予定', '予定が入っています'] }[j]; t.push({ c: 'more', ic: 'more', b: `「${l[0]}」をメニューの前に出しますか`, k: l[1] + '。設定の「利用する業務」で選べます', d: '', star: 1, go: () => { try { localStorage.setItem('shikomi:jobsug:' + j, '1'); } catch (e) {} show('set'); setTimeout(() => { const el = $('jobs'); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 200); } }); });
+  // 印をつけた仕事に入っていないのに使っているもの → メニューの前に出すか聞く(1回押したら、今後表示しない)
+  if (D.me && D.me.owner && Array.isArray(D.jobs)) jobSignals().filter(j => !D.jobs.includes(j)).forEach(j => { let seen = ''; try { seen = localStorage.getItem('shikomi:jobsug:' + j) || ''; } catch (e) {} if (seen) return; const l = { ws: ['卸', '卸の納品が入っています'], stock: ['在庫', '在庫の数が入っています'], cal: ['予定', '予定が入っています'] }[j]; t.push({ c: 'more', ic: 'more', b: `「${l[0]}」をメニューの上位に表示しますか`, k: l[1] + '。設定の「利用する業務」で選べます', d: '', star: 1, go: () => { try { localStorage.setItem('shikomi:jobsug:' + j, '1'); } catch (e) {} show('set'); setTimeout(() => { const el = $('jobs'); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 200); } }); });
   (D.memos || []).filter(m => !m.seen.includes(me)).slice(0, 3).forEach(m => t.push({ c: 'post', ic: 'memo', b: `連絡事項: ${m.text}`, k: `${m.by}から`, d: '', star: 3, go: () => $('memos').scrollIntoView({ behavior: 'smooth', block: 'start' }) }));
-  if (!noMoney()) unpaid().forEach(p => { const dd = p.due ? dayDiff(p.due) : null; if (dd == null || dd <= 7) t.push({ c: 'book', ic: 'book', b: `${p.supplier}に払う ${yen(p.total)}`, k: `${+p.month.slice(5) || p.month}月分`, d: dd == null ? '期限なし' : dd < 0 ? `${-dd}日すぎ` : dd === 0 ? '今日まで' : dd === 1 ? '明日まで' : md(p.due) + 'まで', due: dd != null && dd <= 1, star: dd != null && dd <= 1 ? 3 : 2, go: () => show('book') }); });
-  const regs = noMoney() ? [] : (D.priceChanges || []).filter(x => !x.done); if (regs.length) t.push({ c: 'sales', ic: 'sales', b: `レジの値段を直す ${regs.length}品`, k: regs.slice(0, 3).map(x => `${x.name} ${x.old ? x.old + '→' : ''}${x.now}円`).join('・') + (regs.length > 3 ? ' ほか' : ''), d: regs.some(x => x.at && Date.now() - x.at > DAY) ? '昨日から' : '今日', star: 3, go: () => { $('reg-box').scrollIntoView({ behavior: 'smooth', block: 'start' }); } });
-  const hm = hygMissing(); if (hm.length) t.push({ c: 'hyg', ic: 'hyg', b: `今日の衛生記録 あと${hm.length}つ`, k: hm.join('・'), d: '今日', star: new Date().getHours() >= 15 ? 3 : 2, go: () => show('hyg') });
+  if (!noMoney()) unpaid().forEach(p => { const dd = p.due ? dayDiff(p.due) : null; if (dd == null || dd <= 7) t.push({ c: 'book', ic: 'book', b: `${p.supplier}に払う ${yen(p.total)}`, k: `${+p.month.slice(5) || p.month}月分`, d: dd == null ? '期限なし' : dd < 0 ? `${-dd}日超過` : dd === 0 ? '本日まで' : dd === 1 ? '明日まで' : md(p.due) + 'まで', due: dd != null && dd <= 1, star: dd != null && dd <= 1 ? 3 : 2, go: () => show('book') }); });
+  const regs = noMoney() ? [] : (D.priceChanges || []).filter(x => !x.done); if (regs.length) t.push({ c: 'sales', ic: 'sales', b: `レジの売価の変更 ${regs.length}品`, k: regs.slice(0, 3).map(x => `${x.name} ${x.old ? x.old + '→' : ''}${x.now}円`).join('・') + (regs.length > 3 ? ' ほか' : ''), d: regs.some(x => x.at && Date.now() - x.at > DAY) ? '昨日から' : '今日', star: 3, go: () => { $('reg-box').scrollIntoView({ behavior: 'smooth', block: 'start' }); } });
+  const hm = hygMissing(); if (hm.length) t.push({ c: 'hyg', ic: 'hyg', b: `本日の衛生記録 残り${hm.length}つ`, k: hm.join('・'), d: '今日', star: new Date().getHours() >= 15 ? 3 : 2, go: () => show('hyg') });
   (D.promises || []).forEach(p => { const dd = p.date ? dayDiff(p.date) : null; if (dd != null && dd > 1) return; if (dd == null && !['折り返し', '返事'].includes(p.kind)) return; t.push({ c: PRK[p.kind] || 'set', ic: 'memo', b: `${p.kind}: ${p.text}`, k: `${p.who || ''}${p.who ? ' · ' : ''}${p.src}で受けた`, d: dd == null ? '期限なし' : prDue(p), due: dd != null && dd <= 0, star: dd != null && dd <= 0 ? 3 : 2, go: () => $('promises').scrollIntoView({ behavior: 'smooth', block: 'start' }) }); });
   (D.events || []).filter(e => { const dd = dayDiff(e.date); return dd >= 0 && dd <= 1; }).forEach(e => t.push({ c: EVK[e.kind] || 'set', ic: 'cal', b: `${e.kind === '納品' ? '納品: ' : ''}${e.text}${e.who ? '(' + e.who + ')' : ''}`, k: e.kind, d: dayDiff(e.date) === 0 ? '今日' : '明日', star: 2, go: () => show('cal') }));
-  if (q) t.push({ c: 'cam', ic: 'cam', b: `確認待ちの回答 ${q}件`, k: '答えると原価と裏表示が確定します', d: '', star: 1, go: () => $('notices').scrollIntoView({ behavior: 'smooth', block: 'start' }) });
-  (D.ups || []).slice(-2).forEach(u => t.push({ c: 'mat', ic: 'mat', b: `${u.item}が値上がり(+${u.pct}%)`, k: `${u.supplier} ${u.old.toLocaleString()}円→${u.now.toLocaleString()}円。原価を見直す`, d: '', star: 1, go: () => { matF = 'up'; show('mat'); } }));
-  const low = SH('stock') ? [] : ((D.stock || {}).items || []).filter(x => x.low); if (low.length) t.push({ c: 'stock', ic: 'stock', b: `そろそろ買うもの ${low.length}品`, k: low.slice(0, 4).map(x => x.key).join('・') + (orderOn() ? ' → 発注書をつくる' : ''), d: '', star: 1, go: () => { if (orderOn()) openOrder(); else { matF = 'low'; show('mat'); } } });
+  if (q) t.push({ c: 'cam', ic: 'cam', b: `確認待ちの回答 ${q}件`, k: '回答すると、原価と食品表示が確定します', d: '', star: 1, go: () => $('notices').scrollIntoView({ behavior: 'smooth', block: 'start' }) });
+  (D.ups || []).slice(-2).forEach(u => t.push({ c: 'mat', ic: 'mat', b: `${u.item}が値上がり(+${u.pct}%)`, k: `${u.supplier} ${u.old.toLocaleString()}円→${u.now.toLocaleString()}円。原価を見直してください`, d: '', star: 1, go: () => { matF = 'up'; show('mat'); } }));
+  const low = SH('stock') ? [] : ((D.stock || {}).items || []).filter(x => x.low); if (low.length) t.push({ c: 'stock', ic: 'stock', b: `在庫が少ない材料 ${low.length}品`, k: low.slice(0, 4).map(x => x.key).join('・') + (orderOn() ? ' → 発注書を作成' : ''), d: '', star: 1, go: () => { if (orderOn()) openOrder(); else { matF = 'low'; show('mat'); } } });
   return t.sort((a, b) => b.star - a.star);
 }
 function renderTodo(list) {
   const t = todoItems(list.length), box = $('todo');
   box.innerHTML = t.length ? t.map((x, i) => `<div class="tr" role="button" tabindex="0" data-i="${i}" style="--c:var(--c-${x.c})"><span class="ti"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[x.ic]}</svg></span><span class="tb"><b>${esc(x.b)}</b><span class="k">${esc(x.k)}</span></span><span class="td${x.due ? ' due' : ''}">${esc(x.d)}<br><span class="st">${'★'.repeat(x.star)}</span></span></div>`).join('')
-    : `<div class="none"><span class="mark">✓</span><span>今日やることは、すべて済んでいます。</span></div>`;
+    : `<div class="none"><span class="mark">✓</span><span>本日の作業はすべて完了しています。</span></div>`;
   box.querySelectorAll('.tr').forEach(el => el.onclick = () => t[el.dataset.i].go());
 }
 // 上の1行: 今いちばん大事なこと(1つだけ)
@@ -314,8 +314,8 @@ function renderStart() {
     ['レシピを1枚撮影する(1個あたりの原価が表示されます)', goods.length > 0, openCamera, '撮影'],
     ['材料の裏面表示を1枚撮影する(原材料名とアレルゲンが登録されます)', mats.some(m => !m.fromKind && ((m.allergens || []).length || (m.display && m.display !== m.name))), openCamera, '撮影'],
     ['食品表示ラベルを確認して印刷する(店名と住所もここで登録)', !!(si.name && si.addr) && !!store.get('labelSeen'), () => { store.set('labelSeen', 1); show('label'); }, '食品表示へ'],
-    ['本日の衛生記録を付ける', !!(D.hyg && D.hyg.today && D.hyg.today.missing.length < (D.hyg.today.items || []).length) || !!(D.hyg && D.hyg.months && Object.keys(D.hyg.months).length), () => show('hyg'), '衛生へ'],
-    ['AIに質問してみる(「この商品の原価率は?」など)', !!store.get('chatTried'), () => openAsk(), '質問する']];
+    ['本日の衛生記録を入力する', !!(D.hyg && D.hyg.today && D.hyg.today.missing.length < (D.hyg.today.items || []).length) || !!(D.hyg && D.hyg.months && Object.keys(D.hyg.months).length), () => show('hyg'), '衛生へ'],
+    ['AIに質問する(例:「この商品の原価率は?」)', !!store.get('chatTried'), () => openAsk(), '質問する']];
   const done = steps.filter(x => x[1]).length, box = $('start');
   if (done === steps.length || store.get('startHide') || !(D.me && D.me.owner)) { box.hidden = true; return; }
   box.hidden = false;
@@ -339,19 +339,19 @@ function renderIntake() {
   box.hidden = false;
   const left = intakeQ.filter(x => x.st === 'wait' || x.st === 'run').length, lost = (() => { try { return JSON.parse(localStorage.getItem('intakeLost') || '[]'); } catch (e) { return []; } })();
   const fewMats = (D.materials || []).length < 30;
-  box.innerHTML = `<div class="sh"><b>初期登録</b><span class="k">目標: ${INTAKE_GOAL}品を原価つきで</span></div>
-    <div class="goal">${S.ready.length}<small> / ${INTAKE_GOAL}品 原価が出ました</small></div>
+  box.innerHTML = `<div class="sh"><b>初期登録</b><span class="k">目標: ${INTAKE_GOAL}品の原価を登録</span></div>
+    <div class="goal">${S.ready.length}<small> / ${INTAKE_GOAL}品 原価算出済み</small></div>
     <div class="pg"><i style="width:${Math.min(100, S.ready.length / INTAKE_GOAL * 100)}%"></i></div>
-    <p class="k" style="margin:8px 0 0">${S.goods.length ? `入っている商品 ${S.goods.length}品。` : ''}${S.noPrice.length ? `値段がまだない材料: <b>${S.noPrice.slice(0, 6).map(esc).join('、')}${S.noPrice.length > 6 ? ' ほか' + (S.noPrice.length - 6) : ''}</b> → その請求書を撮ると入ります。` : ''}${S.unknown.length ? `辞書にない材料: ${S.unknown.slice(0, 4).map(esc).join('、')}${S.unknown.length > 4 ? ' ほか' : ''}。` : ''}${!S.goods.length ? 'レシピの写真か文字から始めてください。請求書を撮ると、載っている材料と値段が一気に入ります。' : ''}</p>
+    <p class="k" style="margin:8px 0 0">${S.goods.length ? `登録済みの商品 ${S.goods.length}品。` : ''}${S.noPrice.length ? `単価が未登録の材料: <b>${S.noPrice.slice(0, 6).map(esc).join('、')}${S.noPrice.length > 6 ? ' ほか' + (S.noPrice.length - 6) : ''}</b> → その請求書を撮ると入ります。` : ''}${S.unknown.length ? `材料一覧にない材料: ${S.unknown.slice(0, 4).map(esc).join('、')}${S.unknown.length > 4 ? ' ほか' : ''}。` : ''}${!S.goods.length ? 'レシピの写真かテキストから登録を始めてください。請求書を撮影すると、記載された材料と単価がまとめて登録されます。' : ''}</p>
     <div class="acts">
-      <label class="btn">レシピの写真をまとめて選ぶ<input type="file" id="in-rec" accept="image/*" multiple hidden></label>
-      <label class="btn ghost">請求書の写真・PDF・CSVをまとめて選ぶ<input type="file" id="in-inv" accept="image/*,.pdf,.csv,.txt,.tsv,application/pdf,text/csv" multiple hidden></label>
-      <button class="btn ghost" type="button" id="in-txt">文字で貼り付ける(紙・Excel)</button>
-      ${fewMats ? '<button class="btn ghost" type="button" id="in-st">よく使う材料を入れる</button>' : ''}
+      <label class="btn">レシピの写真を選択(複数可)<input type="file" id="in-rec" accept="image/*" multiple hidden></label>
+      <label class="btn ghost">請求書の写真・PDF・CSVを選択(複数可)<input type="file" id="in-inv" accept="image/*,.pdf,.csv,.txt,.tsv,application/pdf,text/csv" multiple hidden></label>
+      <button class="btn ghost" type="button" id="in-txt">テキストを貼り付ける(紙・Excel)</button>
+      ${fewMats ? '<button class="btn ghost" type="button" id="in-st">よく使う材料を登録</button>' : ''}
     </div>
-    <div id="in-txtbox" hidden><textarea id="in-text" placeholder="例)\nどら焼き 20個分\n薄力粉 300g\n卵 6個\n砂糖 280g\n…\n\n商品ごとに、名前と材料・分量を書いてください。何品でもまとめて貼り付けられます。"></textarea><div class="ask"><button class="btn" type="button" id="in-txtgo">取り込む</button></div></div>
+    <div id="in-txtbox" hidden><textarea id="in-text" placeholder="例)\nどら焼き 20個分\n薄力粉 300g\n卵 6個\n砂糖 280g\n…\n\n商品ごとに、商品名と材料・分量を記入してください。複数の商品をまとめて貼り付けられます。"></textarea><div class="ask"><button class="btn" type="button" id="in-txtgo">取り込む</button></div></div>
     ${intakeQ.length ? `<ul class="q">${intakeQ.map(x => `<li class="${x.st === 'ok' ? 'ok' : x.st === 'ng' ? 'ng' : ''}"><span>${esc(x.kind)} ${esc(x.name)}</span><span class="st">${x.st === 'wait' ? '待ち' : x.st === 'run' ? '読んでいます…' : x.st === 'ok' ? '入りました' : esc(x.err || '読めませんでした')}</span></li>`).join('')}</ul>${left ? `<p class="k" style="margin:6px 0 0">残り${left}枚。待つ間も、ほかの画面を使えます(この画面を閉じると、残りは送られません)。</p>` : ''}` : ''}
-    ${!left && lost.length ? `<p class="k" style="margin:8px 0 0">前に送りきれなかった写真が${lost.length}枚あります(${lost.slice(0, 3).map(esc).join('、')}${lost.length > 3 ? ' ほか' : ''})。もう一度選んでください。<a href="#" id="in-lostx">消す</a></p>` : ''}
+    ${!left && lost.length ? `<p class="k" style="margin:8px 0 0">前に送りきれなかった写真が${lost.length}枚あります(${lost.slice(0, 3).map(esc).join('、')}${lost.length > 3 ? ' ほか' : ''})。もう一度選択してください。<a href="#" id="in-lostx">閉じる</a></p>` : ''}
     ${intakeMsgs.length ? `<details style="margin-top:8px"><summary class="k" style="cursor:pointer">読み取りの結果(${intakeMsgs.length})</summary><div class="k" style="margin-top:6px;white-space:pre-wrap">${intakeMsgs.slice(-12).map(esc).join('\n\n')}</div></details>` : ''}
     <p class="k" style="margin:10px 0 0">${S.ready.length >= INTAKE_GOAL ? `${INTAKE_GOAL}品そろいました。` : ''}<a href="#" id="in-hide">この欄を閉じる</a></p>`;
   const pick = (id, kind) => { const f = $(id); f.onchange = () => { intakeAdd([...f.files], kind); f.value = ''; }; };
@@ -359,8 +359,8 @@ function renderIntake() {
   $('in-txt').onclick = () => { $('in-txtbox').hidden = !$('in-txtbox').hidden; if (!$('in-txtbox').hidden) $('in-text').focus(); };
   $('in-txtgo').onclick = async () => {
     const v = $('in-text').value.trim(); if (!v) { $('in-text').focus(); return; }
-    const b = $('in-txtgo'); b.disabled = true; b.textContent = '読んでいます…(20〜60秒)';
-    const out = await api({ kind: 'app_set', field: 'recipetext', value: v }).catch(() => ({ ok: false, error: 'つながりませんでした' }));
+    const b = $('in-txtgo'); b.disabled = true; b.textContent = '読み取っています…(20〜60秒)';
+    const out = await api({ kind: 'app_set', field: 'recipetext', value: v }).catch(() => ({ ok: false, error: '通信できませんでした' }));
     b.disabled = false; b.textContent = '取り込む';
     if (!out.ok) { toast(out.error || '取り込めませんでした', 'ng'); return; }
     $('in-text').value = ''; intakeMsgs.push(out.msg || ''); D = out.data; renderAll(); toast(out.msg || '取り込みました', 'ok');
@@ -392,7 +392,7 @@ async function intakeRun() {
 // 請求書のPDF・CSV(受発注システムの書き出し)を1つ送る。PDFはそのまま、CSV・文字は中身を送る
 const isDocFile = f => /\.(pdf|csv|txt|tsv)$/i.test(f.name) || /pdf|csv|text\/plain/.test(f.type);
 async function invoiceDoc(f) {
-  if (f.size > 8 * 1024 * 1024) return { ok: false, error: '8MBより大きいファイルは送れません' };
+  if (f.size > 8 * 1024 * 1024) return { ok: false, error: '8MBを超えるファイルは送信できません' };
   let value;
   if (/pdf/i.test(f.type) || /\.pdf$/i.test(f.name)) {
     const data = await new Promise((ok, ng) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(',')[1]); r.onerror = ng; r.readAsDataURL(f); });
@@ -402,7 +402,7 @@ async function invoiceDoc(f) {
     if (/[\ufffd]/.test(text) || !/[ぁ-んァ-ン一-龥]/.test(text)) { try { const b = await f.arrayBuffer(); const t2 = new TextDecoder('shift_jis').decode(b); if (/[ぁ-んァ-ン一-龥]/.test(t2)) text = t2; } catch (e) {} }
     value = { text };
   }
-  const out = await api({ kind: 'app_set', field: 'invoicedoc', value }).catch(() => ({ ok: false, error: 'つながりませんでした' }));
+  const out = await api({ kind: 'app_set', field: 'invoicedoc', value }).catch(() => ({ ok: false, error: '通信できませんでした' }));
   if (out.ok) out.msgs = out.msgs || [out.msg];
   return out;
 }
@@ -411,24 +411,24 @@ addEventListener('beforeunload', e => { if (intakeQ.some(x => x.st === 'wait' ||
 function renderMemos() {
   const box = $('memos'), ms = D.memos || [], me = profileName || '';
   box.hidden = SH('memo'); $('memo-add').closest('h1').hidden = SH('memo'); if (SH('memo')) return;
-  box.innerHTML = ms.length ? `<div class="card" style="padding:0">${ms.map(m => `<div class="memo"><div class="mb"><p>${esc(m.text)}</p><span class="k">${esc(m.by)} · ${m.t ? new Date(m.t).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}${m.seen.length ? ' · 見た: ' + m.seen.map(esc).join('、') : ''}</span></div><span class="acts">${m.seen.includes(me) ? '' : `<button class="btn sm" type="button" data-seen="${m.row}">見た</button>`}<button class="btn ghost sm" type="button" data-done="${m.row}">済</button></span></div>`).join('')}</div>`
-    : `<div class="card"><p class="k" style="margin:0">連絡事項はありません。「＋ 書く」で、スタッフ全員のホームに出ます。</p></div>`;
+  box.innerHTML = ms.length ? `<div class="card" style="padding:0">${ms.map(m => `<div class="memo"><div class="mb"><p>${esc(m.text)}</p><span class="k">${esc(m.by)} · ${m.t ? new Date(m.t).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}${m.seen.length ? ' · 見た: ' + m.seen.map(esc).join('、') : ''}</span></div><span class="acts">${m.seen.includes(me) ? '' : `<button class="btn sm" type="button" data-seen="${m.row}">確認</button>`}<button class="btn ghost sm" type="button" data-done="${m.row}">完了</button></span></div>`).join('')}</div>`
+    : `<div class="card"><p class="k" style="margin:0">連絡事項はありません。「＋ 追加」から登録すると、スタッフ全員のホームに表示されます。</p></div>`;
   box.querySelectorAll('[data-seen]').forEach(b => b.onclick = () => setValueX({ field: 'memo', value: { row: +b.dataset.seen } }));
   box.querySelectorAll('[data-done]').forEach(b => b.onclick = () => setValueX({ field: 'memo', value: { row: +b.dataset.done, done: true } }));
 }
 $('memo-add').onclick = () => {
   const box = $('memos'); if ($('memo-form')) { $('memo-form').remove(); return; }
-  box.insertAdjacentHTML('afterbegin', `<div class="card" id="memo-form"><textarea id="memo-text" rows="2" placeholder="連絡事項を書く" style="width:100%;box-sizing:border-box;font:inherit;font-size:15px;padding:8px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)"></textarea><div class="ask"><button class="btn" type="button" id="memo-go">残す</button><button class="btn ghost" type="button" id="memo-cancel">やめる</button><span class="k">スタッフ全員にLINEでも届きます</span></div></div>`);
+  box.insertAdjacentHTML('afterbegin', `<div class="card" id="memo-form"><textarea id="memo-text" rows="2" placeholder="連絡事項を入力" style="width:100%;box-sizing:border-box;font:inherit;font-size:15px;padding:8px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)"></textarea><div class="ask"><button class="btn" type="button" id="memo-go">残す</button><button class="btn ghost" type="button" id="memo-cancel">やめる</button><span class="k">スタッフ全員にLINEでも届きます</span></div></div>`);
   $('memo-text').focus();
   $('memo-cancel').onclick = () => $('memo-form').remove();
   $('memo-go').onclick = () => { const v = $('memo-text').value.trim(); if (!v) { $('memo-text').focus(); return; } setValueX({ field: 'memo', value: { text: v } }); };
 };
 // 約束: 電話・メール・店頭で受けた予約・注文、折り返し、返事、支払い。言ったまま入れるとAIが分ける。済で消える
 const PRK = { '予約・注文': 'ws', '折り返し': 'post', '返事': 'post', '支払い': 'book', 'その他': 'set' };
-const prDue = p => { if (!p.date) return ''; const dd = dayDiff(p.date); return (dd < 0 ? `${-dd}日すぎ` : dd === 0 ? '今日' : dd === 1 ? '明日' : md(p.date)) + (p.time ? ' ' + p.time : ''); };
+const prDue = p => { if (!p.date) return ''; const dd = dayDiff(p.date); return (dd < 0 ? `${-dd}日超過` : dd === 0 ? '今日' : dd === 1 ? '明日' : md(p.date)) + (p.time ? ' ' + p.time : ''); };
 function renderPromises() {
   const box = $('promises'), ps = D.promises || [];
-  box.innerHTML = ps.length ? `<div class="card" style="padding:0">${ps.map(p => { const dd = p.date ? dayDiff(p.date) : null; return `<div class="memo" style="--c:var(--c-${PRK[p.kind] || 'set'})"><div class="mb"><p><span class="prk">${esc(p.kind)}</span>${esc(p.text)}</p><span class="k">${p.who ? esc(p.who) + ' ' : ''}${p.tel ? `<a href="tel:${esc(p.tel.replace(/[^\d+]/g, ''))}">☎ ${esc(p.tel)}</a> ` : ''}· ${p.date ? `<b class="${dd != null && dd <= 0 ? 'prdue' : ''}">${esc(prDue(p))}</b>` : '期限なし'} · ${esc(p.src)}で${esc(p.by)}が受けた</span></div><span class="acts"><button class="btn ghost sm" type="button" data-pedit="${p.row}">直す</button><button class="btn sm" type="button" data-pdone="${p.row}">済</button></span></div>`; }).join('')}</div>`
+  box.innerHTML = ps.length ? `<div class="card" style="padding:0">${ps.map(p => { const dd = p.date ? dayDiff(p.date) : null; return `<div class="memo" style="--c:var(--c-${PRK[p.kind] || 'set'})"><div class="mb"><p><span class="prk">${esc(p.kind)}</span>${esc(p.text)}</p><span class="k">${p.who ? esc(p.who) + ' ' : ''}${p.tel ? `<a href="tel:${esc(p.tel.replace(/[^\d+]/g, ''))}">☎ ${esc(p.tel)}</a> ` : ''}· ${p.date ? `<b class="${dd != null && dd <= 0 ? 'prdue' : ''}">${esc(prDue(p))}</b>` : '期限なし'} · ${esc(p.src)}で${esc(p.by)}が受付</span></div><span class="acts"><button class="btn ghost sm" type="button" data-pedit="${p.row}">編集</button><button class="btn sm" type="button" data-pdone="${p.row}">完了</button></span></div>`; }).join('')}</div>`
     : `<div class="card"><p class="k" style="margin:0">未対応のメモはありません。電話や店頭で受けた予約・注文・折り返しは「＋ 追加」から、聞いた内容をそのまま入力してください。</p></div>`;
   box.querySelectorAll('[data-pdone]').forEach(b => b.onclick = () => setValueX({ field: 'promise', value: { row: +b.dataset.pdone, done: true } }));
   box.querySelectorAll('[data-pedit]').forEach(b => b.onclick = () => editPromise(ps.find(p => p.row === +b.dataset.pedit), b.closest('.memo')));
@@ -436,40 +436,40 @@ function renderPromises() {
 function editPromise(p, el) {
   if (!p || !el) return; if (el.nextElementSibling && el.nextElementSibling.id === 'pr-edit') { el.nextElementSibling.remove(); return; }
   const f = document.getElementById('pr-edit'); if (f) f.remove();
-  el.insertAdjacentHTML('afterend', `<div class="memo" id="pr-edit" style="display:block"><div class="prf"><label>中身<input id="pe-text" value="${esc(p.text)}"></label><label>種類<select id="pe-kind">${Object.keys(PRK).map(k => `<option${k === p.kind ? ' selected' : ''}>${k}</option>`).join('')}</select></label><label>相手<input id="pe-who" value="${esc(p.who)}"></label><label>電話<input id="pe-tel" inputmode="tel" value="${esc(p.tel)}"></label><label>期限<input id="pe-date" type="date" value="${esc(p.date)}"></label><label>時間<input id="pe-time" type="time" value="${esc(p.time)}"></label></div>${p.raw ? `<p class="k" style="margin:8px 0 0">受けたときの言葉: ${esc(p.raw)}</p>` : ''}<div class="ask"><button class="btn" type="button" id="pe-save">直す</button><button class="btn ghost" type="button" id="pe-del">消す</button></div></div>`);
+  el.insertAdjacentHTML('afterend', `<div class="memo" id="pr-edit" style="display:block"><div class="prf"><label>内容<input id="pe-text" value="${esc(p.text)}"></label><label>種類<select id="pe-kind">${Object.keys(PRK).map(k => `<option${k === p.kind ? ' selected' : ''}>${k}</option>`).join('')}</select></label><label>相手<input id="pe-who" value="${esc(p.who)}"></label><label>電話<input id="pe-tel" inputmode="tel" value="${esc(p.tel)}"></label><label>期限<input id="pe-date" type="date" value="${esc(p.date)}"></label><label>時間<input id="pe-time" type="time" value="${esc(p.time)}"></label></div>${p.raw ? `<p class="k" style="margin:8px 0 0">受けたときの言葉: ${esc(p.raw)}</p>` : ''}<div class="ask"><button class="btn" type="button" id="pe-save">保存</button><button class="btn ghost" type="button" id="pe-del">削除</button></div></div>`);
   $('pe-save').onclick = () => setValueX({ field: 'promise', value: { row: p.row, text: $('pe-text').value, kind: $('pe-kind').value, who: $('pe-who').value, tel: $('pe-tel').value, date: $('pe-date').value, time: $('pe-time').value } });
-  twice($('pe-del'), '本当に消す(もう一度押す)', () => setValueX({ field: 'promise', value: { row: p.row, del: true } }));
+  twice($('pe-del'), '削除する(もう一度押すと確定)', () => setValueX({ field: 'promise', value: { row: p.row, del: true } }));
 }
 let prRec = null;
 $('pr-add').onclick = () => {
   const box = $('promises'); if ($('pr-form')) { $('pr-form').remove(); return; }
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   box.insertAdjacentHTML('afterbegin', `<div class="card" id="pr-form"><div class="seg segw" id="pr-src">${['電話', 'メール', '店頭', 'LINE'].map((s, i) => `<button type="button" data-s="${s}" aria-pressed="${i === 0}">${s}</button>`).join('')}</div>
-    <textarea id="pr-text" rows="3" placeholder="聞いたことをそのまま。例: 山田さん 土曜の10時 チーズ饅頭8個 箱で 取りに来る 090-xxxx" style="width:100%;box-sizing:border-box;font:inherit;font-size:15px;padding:8px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);margin-top:8px"></textarea>
-    <div class="ask">${SR ? '<button class="btn ghost" type="button" id="pr-mic">🎤 話して入れる</button>' : ''}<button class="btn" type="button" id="pr-go">約束に入れる</button><button class="btn ghost" type="button" id="pr-cancel">やめる</button></div>
-    <p class="k" style="margin:8px 0 0">順番はバラバラで大丈夫。AIが相手・中身・期限に分けて、足りないことがあれば教えます。${SR ? '' : 'キーボードのマイクで話して入れることもできます。'}</p></div>`);
+    <textarea id="pr-text" rows="3" placeholder="伺った内容をそのまま入力してください。例: 山田さん 土曜の10時 チーズ饅頭8個 箱で 取りに来る 090-xxxx" style="width:100%;box-sizing:border-box;font:inherit;font-size:15px;padding:8px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);margin-top:8px"></textarea>
+    <div class="ask">${SR ? '<button class="btn ghost" type="button" id="pr-mic">🎤 音声で入力</button>' : ''}<button class="btn" type="button" id="pr-go">メモに登録</button><button class="btn ghost" type="button" id="pr-cancel">キャンセル</button></div>
+    <p class="k" style="margin:8px 0 0">順番は問いません。AIが相手・内容・期限に分け、不足している情報があればお知らせします。${SR ? '' : 'キーボードの音声入力も利用できます。'}</p></div>`);
   let src = '電話';
   $('pr-src').querySelectorAll('button').forEach(b => b.onclick = () => { src = b.dataset.s; $('pr-src').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b)); });
-  const stop = () => { if (prRec) { try { prRec.stop(); } catch (e) {} prRec = null; } const m = $('pr-mic'); if (m) m.textContent = '🎤 話して入れる'; };
+  const stop = () => { if (prRec) { try { prRec.stop(); } catch (e) {} prRec = null; } const m = $('pr-mic'); if (m) m.textContent = '🎤 音声で入力'; };
   if (SR) $('pr-mic').onclick = () => {
     if (prRec) { stop(); return; }
     const r = new SR(), ta = $('pr-text'), base = ta.value ? ta.value + ' ' : ''; r.lang = 'ja-JP'; r.continuous = true; r.interimResults = true;
     r.onresult = e => { ta.value = base + [...e.results].map(x => x[0].transcript).join(''); };
-    r.onerror = e => { stop(); if (e.error === 'not-allowed') toast('マイクが使えません。ブラウザでマイクを許可するか、キーボードのマイクで入れてください', 'ng'); };
+    r.onerror = e => { stop(); if (e.error === 'not-allowed') toast('マイクを利用できません。ブラウザでマイクの使用を許可するか、キーボードの音声入力をご利用ください', 'ng'); };
     r.onend = () => { if (prRec === r) stop(); };
-    try { r.start(); prRec = r; $('pr-mic').textContent = '■ 止める'; } catch (e) { toast('マイクを始められませんでした', 'ng'); }
+    try { r.start(); prRec = r; $('pr-mic').textContent = '■ 停止'; } catch (e) { toast('マイクを起動できませんでした', 'ng'); }
   };
   $('pr-text').focus();
   $('pr-cancel').onclick = () => { stop(); $('pr-form').remove(); };
-  $('pr-go').onclick = async () => { stop(); const v = $('pr-text').value.trim(); if (!v) { $('pr-text').focus(); return; } const b = $('pr-go'); b.disabled = true; b.textContent = '分けています…'; await setValueX({ field: 'promise', value: { raw: v, src } }); if ($('pr-go')) { b.disabled = false; b.textContent = '約束に入れる'; } };
+  $('pr-go').onclick = async () => { stop(); const v = $('pr-text').value.trim(); if (!v) { $('pr-text').focus(); return; } const b = $('pr-go'); b.disabled = true; b.textContent = '整理しています…'; await setValueX({ field: 'promise', value: { raw: v, src } }); if ($('pr-go')) { b.disabled = false; b.textContent = 'メモに登録'; } };
 };
 // 予定: ホームにはこれからの5件、予定の画面には月の表と一覧
-const evRow = (e, del) => `<li style="--c:var(--c-${EVK[e.kind] || 'set'})"${e.src === 'gcal' ? ' title="Googleカレンダーの予定"' : ''}><span class="ed"><b>${+e.date.slice(8)}</b><small>${+e.date.slice(5, 7)}月 ${['日', '月', '火', '水', '木', '金', '土'][new Date(e.date.slice(0, 4), +e.date.slice(5, 7) - 1, +e.date.slice(8)).getDay()]}</small></span><span class="ek">${esc(e.kind)}</span><span class="et">${esc(e.text)}${e.who ? `<span class="k">${esc(e.who)}</span>` : ''}${e.src === 'gcal' ? '<span class="k">Googleカレンダーから</span>' : e.by ? `<span class="k">${avatar(e.by, true)} ${esc(e.by)}</span>` : ''}${(e.notes || []).length ? `<ul class="notes">${e.notes.map(n => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}${del && e.src !== 'gcal' ? `<span class="ask" style="margin-top:8px"><input class="note-in" data-row="${e.row}" placeholder="ひと言" style="flex:1;min-width:0;font-size:13px;padding:4px 8px"><button class="btn ghost sm" type="button" data-note="${e.row}">足す</button></span>` : ''}</span>${del && e.src !== 'gcal' ? `<button class="x" type="button" data-del="${e.row}" aria-label="消す">✕</button>` : ''}</li>`;
+const evRow = (e, del) => `<li style="--c:var(--c-${EVK[e.kind] || 'set'})"${e.src === 'gcal' ? ' title="Googleカレンダーの予定"' : ''}><span class="ed"><b>${+e.date.slice(8)}</b><small>${+e.date.slice(5, 7)}月 ${['日', '月', '火', '水', '木', '金', '土'][new Date(e.date.slice(0, 4), +e.date.slice(5, 7) - 1, +e.date.slice(8)).getDay()]}</small></span><span class="ek">${esc(e.kind)}</span><span class="et">${esc(e.text)}${e.who ? `<span class="k">${esc(e.who)}</span>` : ''}${e.src === 'gcal' ? '<span class="k">Googleカレンダーから</span>' : e.by ? `<span class="k">${avatar(e.by, true)} ${esc(e.by)}</span>` : ''}${(e.notes || []).length ? `<ul class="notes">${e.notes.map(n => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}${del && e.src !== 'gcal' ? `<span class="ask" style="margin-top:8px"><input class="note-in" data-row="${e.row}" placeholder="補足" style="flex:1;min-width:0;font-size:13px;padding:4px 8px"><button class="btn ghost sm" type="button" data-note="${e.row}">追加</button></span>` : ''}</span>${del && e.src !== 'gcal' ? `<button class="x" type="button" data-del="${e.row}" aria-label="削除">✕</button>` : ''}</li>`;
 function renderHomeEvents() {
   if ($('home-ev-wrap')) $('home-ev-wrap').hidden = SH('cal');
   if (SH('cal')) return;
   const box = $('home-events'), t = todayS(), evs = (D.events || []).filter(e => e.date >= t).slice(0, 5);
-  box.innerHTML = evs.length ? `<ul class="evl">${evs.map(e => evRow(e)).join('')}</ul>` : `<p class="k" style="margin:0">これからの予定はありません。予定の画面で足せます。</p>`;
+  box.innerHTML = evs.length ? `<ul class="evl">${evs.map(e => evRow(e)).join('')}</ul>` : `<p class="k" style="margin:0">今後の予定はありません。予定の画面から追加できます。</p>`;
   box.style.padding = evs.length ? '0' : '';
 }
 $('ev-more').onclick = () => show('cal');
@@ -483,7 +483,7 @@ function renderInspect() {
   $('insp-n').textContent = `${xs.length}件${warn ? '(うち要注意 ' + warn + ')' : ''}`;
   const shown = inspAll ? xs : xs.slice(0, 5);
   // その場で片づくもの(仮の値段のまとめて確定・1仕込みの個数)は、行の下に入力を開く
-  const panel = (x, i) => x.key === 'tent' ? `<div class="insp-pn" id="insp-pn-${i}" hidden><div class="chips">${x.items.map(n => `<span class="chip">${esc(n)}</span>`).join('')}</div><div class="ask"><button class="btn sm" type="button" data-tent="${i}">この値段でまとめて確定</button><button class="btn ghost sm" type="button" data-tent-go>材料の画面で見る</button></div><p class="k" style="margin:6px 0 0">確定しても、あとで請求書を撮影すれば新しい値段に置きかわります。</p></div>`
+  const panel = (x, i) => x.key === 'tent' ? `<div class="insp-pn" id="insp-pn-${i}" hidden><div class="chips">${x.items.map(n => `<span class="chip">${esc(n)}</span>`).join('')}</div><div class="ask"><button class="btn sm" type="button" data-tent="${i}">この単価で一括確定</button><button class="btn ghost sm" type="button" data-tent-go>材料の画面で確認</button></div><p class="k" style="margin:6px 0 0">確定した後でも、請求書を撮影すると新しい単価に置き換わります。</p></div>`
     : x.ask && x.ask.type === 'pieces' ? `<div class="insp-pn" id="insp-pn-${i}" hidden><p class="k" style="margin:0 0 6px">「${esc(x.ask.product)}」は1仕込みで何${esc(U)}できますか?</p><div class="ask">${(x.ask.cands || []).map(c => `<button class="btn ghost sm" type="button" data-pc="${i}" data-v="${c}">約${c.toLocaleString()}${esc(U)}</button>`).join('')}<input id="insp-pc-${i}" inputmode="numeric" placeholder="数" aria-label="1仕込みの数" style="width:6em"><span class="k">${esc(U)}</span><button class="btn sm" type="button" data-pc="${i}">保存</button></div></div>` : '';
   box.innerHTML = shown.map((x, i) => `<div class="insp-row ${x.lv}" role="button" tabindex="0" data-insp="${i}"${panel(x, i) ? ' aria-expanded="false"' : ''}><span class="dot"></span><span><b>${esc(x.title)}</b><span class="k">${esc(x.why)}</span></span></div>${panel(x, i)}`).join('') +
     (xs.length > 5 ? `<div class="ask"><button class="btn ghost sm" type="button" id="insp-more">${inspAll ? '少なく表示' : 'すべて見る(' + xs.length + '件)'}</button></div>` : '');
@@ -507,23 +507,23 @@ function renderReg() {
   box.parentNode.hidden = !all.length;
   if (!all.length) return;
   const row = x => `<div class="regrow${x.done ? ' done' : ''}"><div class="rb"><b>${esc(x.name)}</b>${x.reg && x.reg !== x.name ? ` <span class="k">レジでは「${esc(x.reg)}」</span>` : ''}<span class="k">${x.old ? `${x.old}円 → ` : '新しく '}<b style="color:var(--ink)">${x.now}円</b> · ${x.at ? new Date(x.at).toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' }) : ''}${x.done ? ` · レジ済 ${md(x.done)}${x.by ? ' ' + esc(x.by) : ''}` : ''}</span></div>${x.done ? '' : `<button class="btn sm" type="button" data-regdone="${x.row}">レジに入れた</button>`}</div>`;
-  box.innerHTML = `<p class="k" style="margin:0 0 8px">${pend.length ? `ピタット原価で売値を変えた${pend.length}品。レジの値段を直したら「レジに入れた」を押してください。押すまでここに残ります。` : 'レジに入れていない変更はありません。'}</p>
+  box.innerHTML = `<p class="k" style="margin:0 0 8px">${pend.length ? `ピタット原価で売価を変更した商品が${pend.length}品あります。レジの売価を変更したら「レジに登録済み」を押してください。押すまでこの一覧に表示されます。` : 'レジに未登録の変更はありません。'}</p>
     ${pend.map(row).join('')}${done.length ? `<details style="margin-top:8px"><summary class="k">最近レジに入れたもの(${done.length})</summary>${done.map(row).join('')}</details>` : ''}
-    ${pend.length ? `<div class="ask"><button class="btn ghost sm" type="button" id="reg-print">レジ用の値段表を出す</button><span class="k">印刷するか、スマホで見ながらレジに入れます</span></div>` : ''}
-    ${pend.some(x => x.old && x.now > x.old) ? `<div class="ask"><button class="btn ghost sm" type="button" id="reg-notice">値上げのお知らせ文を作る</button><span class="k">店頭やLINEでお客さまに伝える文の案</span></div>` : ''}`;
+    ${pend.length ? `<div class="ask"><button class="btn ghost sm" type="button" id="reg-print">レジ用の売価一覧を表示</button><span class="k">印刷するか、スマートフォンで確認しながらレジに登録してください</span></div>` : ''}
+    ${pend.some(x => x.old && x.now > x.old) ? `<div class="ask"><button class="btn ghost sm" type="button" id="reg-notice">値上げのお知らせ文を作成</button><span class="k">店頭やLINEでお客様にお知らせする文章の案</span></div>` : ''}`;
   const rn = $('reg-notice'); if (rn) rn.onclick = async () => {
     const ups = pend.filter(x => x.old && x.now > x.old);
     const sub = '値上げのお知らせ: ' + ups.map(x => `${x.name} ${x.old}円→${x.now}円`).join('、') + '。材料の値上がりのため。日付と理由の書き足しは店舗が行う。';
-    openAsk(); const wait = addMsg('<span class="k">お知らせ文を考えています…(10秒ほど)</span>');
+    openAsk(); const wait = addMsg('<span class="k">お知らせ文を作成しています…(10秒ほど)</span>');
     const out = await api({ kind: 'app_gen', subject: sub }); wait.remove();
-    if (!out.ok) { botSay(esc(out.error || 'うまく作れませんでした')); return; }
+    if (!out.ok) { botSay(esc(out.error || '作成できませんでした')); return; }
     const d = out.drafts || {};
     botSay('<b>お知らせ文の案</b><br>' + esc(d.notice || '').replace(/\n/g, '<br>'));
     if (d.pop) botSay('<b>店頭の貼り紙の案</b><br>' + esc(d.pop).replace(/\n/g, '<br>'));
-    botSay('<span class="k">書かれていないことは足していません。始める日を書き足してお使いください。</span>');
+    botSay('<span class="k">入力された内容以外は記載していません。値上げの開始日を追記してご利用ください。</span>');
   };
   box.querySelectorAll('[data-regdone]').forEach(b => b.onclick = () => setValueX({ field: 'regdone', value: +b.dataset.regdone }));
-  const pr = $('reg-print'); if (pr) pr.onclick = () => openPrint(`<h2>レジに入れる値段</h2><p class="k">${new Date().toLocaleDateString('ja-JP')} 時点。ピタット原価で売値を変えた商品。</p><table class="pt"><tr><th>レジでの名前</th><th>商品</th><th>前の売値</th><th>新しい売値</th><th>変えた日</th><th>レジに入れた✓</th></tr>${pend.map(x => `<tr><td><b>${esc(x.reg || x.name)}</b></td><td>${esc(x.name)}</td><td>${x.old ? x.old + '円' : '—'}</td><td><b style="font-size:18px">${x.now}円</b></td><td>${x.at ? new Date(x.at).toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' }) : ''}</td><td style="width:60px"></td></tr>`).join('')}</table><p class="k">精算レシートを撮ったとき、レジの値段とピタット原価の売値がちがえば、お知らせします。</p>`);
+  const pr = $('reg-print'); if (pr) pr.onclick = () => openPrint(`<h2>レジに登録する売価</h2><p class="k">${new Date().toLocaleDateString('ja-JP')} 時点。ピタット原価で売価を変更した商品です。</p><table class="pt"><tr><th>レジでの商品名</th><th>商品</th><th>変更前の売価</th><th>変更後の売価</th><th>変更日</th><th>レジ登録✓</th></tr>${pend.map(x => `<tr><td><b>${esc(x.reg || x.name)}</b></td><td>${esc(x.name)}</td><td>${x.old ? x.old + '円' : '—'}</td><td><b style="font-size:18px">${x.now}円</b></td><td>${x.at ? new Date(x.at).toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' }) : ''}</td><td style="width:60px"></td></tr>`).join('')}</table><p class="k">精算レシートを撮影した際に、レジの売価とピタット原価の売価が異なる場合はお知らせします。</p>`);
 }
 // 日本の祝日(計算で出す。春分・秋分は近い年の表)
 const EQX = { 2025: [20, 23], 2026: [20, 23], 2027: [21, 23], 2028: [20, 22], 2029: [20, 23], 2030: [20, 23] };
@@ -553,20 +553,20 @@ function renderCal() {
   const list = (D.events || []).filter(e => e.date.slice(0, 7) === ym);
   box.innerHTML = `<div class="cal-h"><b>${y}年${m + 1}月</b><span class="seg"><button type="button" id="cal-prev" aria-label="前の月">‹</button><button type="button" id="cal-today">今月</button><button type="button" id="cal-next" aria-label="次の月">›</button></span></div>
     <div class="calg">${WD.map((w, i) => `<div class="wd${i === 0 ? ' sun' : i === 6 ? ' sat' : ''}">${w}</div>`).join('')}${cells.join('')}</div>
-    <p class="k" style="margin:8px 0 0">うすい赤の日は定休日(設定で変えられます)、赤い日付は日曜と祝日。日を押すと、その日の予定を足せます。点線はGoogleカレンダーの予定。${(() => { const who = [...new Set((D.events || []).filter(e => e.by && e.src !== 'gcal').map(e => e.by))]; return who.length ? '丸の色は入れた人: ' + who.map(w => `<i class="who" style="background:${avColor(w)};display:inline-block;width:8px;height:8px;border-radius:50%;margin:0 4px 0 8px"></i>${esc(w)}`).join('') : ''; })()} 当日の朝8時に、今日の予定をLINEでお知らせします。</p>
+    <p class="k" style="margin:8px 0 0">薄い赤の日は定休日(設定で変更できます)、赤い日付は日曜・祝日です。日付を押すと、その日の予定を追加できます。点線はGoogleカレンダーの予定です。${(() => { const who = [...new Set((D.events || []).filter(e => e.by && e.src !== 'gcal').map(e => e.by))]; return who.length ? '丸の色は入れた人: ' + who.map(w => `<i class="who" style="background:${avColor(w)};display:inline-block;width:8px;height:8px;border-radius:50%;margin:0 4px 0 8px"></i>${esc(w)}`).join('') : ''; })()} 当日の朝8時に、今日の予定をLINEでお知らせします。</p>
     <h1 class="sub">${m + 1}月の予定</h1><div class="card" style="padding:0">${list.length ? `<ul class="evl">${list.map(e => evRow(e, true)).join('')}</ul>` : '<p class="k" style="margin:0;padding:16px">この月の予定はまだありません。</p>'}</div>` + gcalBox();
   const mv = n => { const d = new Date(y, m + n, 1); calYM = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; renderCal(); };
   $('cal-prev').onclick = () => mv(-1); $('cal-next').onclick = () => mv(1); $('cal-today').onclick = () => { calYM = null; renderCal(); };
   box.querySelectorAll('.d').forEach(el => el.onclick = () => evForm(el.dataset.d));
   bindGcal(box);
-  box.querySelectorAll('[data-del]').forEach(b => b.onclick = () => { if (confirmOnce('ev' + b.dataset.del, 'もう一度押すと、この予定を消します')) setValueX({ field: 'event', value: { row: +b.dataset.del, del: true } }); });
+  box.querySelectorAll('[data-del]').forEach(b => b.onclick = () => { if (confirmOnce('ev' + b.dataset.del, 'もう一度押すと、この予定を削除します')) setValueX({ field: 'event', value: { row: +b.dataset.del, del: true } }); });
   box.querySelectorAll('[data-note]').forEach(b => b.onclick = () => { const i = box.querySelector(`.note-in[data-row="${b.dataset.note}"]`), v = i.value.trim(); if (!v) { i.focus(); return; } setValueX({ field: 'event', value: { row: +b.dataset.note, note: v } }); });
   box.querySelectorAll('.note-in').forEach(i => i.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); box.querySelector(`[data-note="${i.dataset.row}"]`).click(); } });
 }
 function evForm(date) {
   const f = $('ev-form'); f.hidden = false;
   const tos = Object.keys(Object.assign({}, ...Object.values(D.ws || {}))).filter(Boolean);
-  f.innerHTML = `<div class="fld"><span class="k">日付</span><input id="ev-date" type="date" value="${esc(date || todayS())}"><span class="k">種類</span><div class="seg" id="ev-kind">${['納品', '催事', '休み', 'その他'].map((k, i) => `<button type="button" data-v="${k}" aria-pressed="${i === 0}">${k}</button>`).join('')}</div><span class="k">内容</span><input id="ev-text" placeholder="内容"><span class="k">相手・誰</span><input id="ev-who" list="ev-tos" placeholder="なくてもOK"><datalist id="ev-tos">${tos.map(x => `<option value="${esc(x)}">`).join('')}</datalist></div><div class="ask"><button class="btn" type="button" id="ev-go">予定に入れる</button><button class="btn ghost" type="button" id="ev-cancel">やめる</button></div>`;
+  f.innerHTML = `<div class="fld"><span class="k">日付</span><input id="ev-date" type="date" value="${esc(date || todayS())}"><span class="k">種類</span><div class="seg" id="ev-kind">${['納品', '催事', '休み', 'その他'].map((k, i) => `<button type="button" data-v="${k}" aria-pressed="${i === 0}">${k}</button>`).join('')}</div><span class="k">内容</span><input id="ev-text" placeholder="内容"><span class="k">相手先</span><input id="ev-who" list="ev-tos" placeholder="任意"><datalist id="ev-tos">${tos.map(x => `<option value="${esc(x)}">`).join('')}</datalist></div><div class="ask"><button class="btn" type="button" id="ev-go">予定に登録</button><button class="btn ghost" type="button" id="ev-cancel">やめる</button></div>`;
   f.scrollIntoView({ behavior: 'smooth', block: 'start' });
   $('ev-kind').querySelectorAll('button').forEach(b => b.onclick = () => $('ev-kind').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b)));
   $('ev-cancel').onclick = () => { f.hidden = true; };
@@ -575,18 +575,18 @@ function evForm(date) {
 $('ev-add-top').onclick = () => evForm();
 // Googleカレンダーとつなぐ(購読の仕組み。入れるのは1か所でいい)
 function gcalBox() {
-  const c = D.cal || {}; if (!D.me || !D.me.owner) return c.gcal ? '<p class="k" style="margin:12px 0 0">Googleカレンダーの予定も、この表に出ています(店主の設定)。</p>' : '';
-  return `<h1 class="sub">Googleカレンダーとつなぐ <span class="k" style="font-weight:400;font-size:13px">(店舗が選べます。つながなくても使えます)</span></h1>
-  <div class="card"><p style="margin:0 0 4px"><b>① ピタット原価の予定を、スマホのGoogleカレンダーにも出す</b></p><p class="k" style="margin:0 0 8px">ピタット原価に入れた納品・催事・休みが、自動でGoogleカレンダーに出ます(数時間遅れることがあります)。</p>
+  const c = D.cal || {}; if (!D.me || !D.me.owner) return c.gcal ? '<p class="k" style="margin:12px 0 0">Googleカレンダーの予定も、この表に表示しています(店主が設定)。</p>' : '';
+  return `<h1 class="sub">Googleカレンダーとの連携 <span class="k" style="font-weight:400;font-size:13px">(任意。連携しなくてもご利用いただけます)</span></h1>
+  <div class="card"><p style="margin:0 0 4px"><b>① ピタット原価の予定をGoogleカレンダーに表示する</b></p><p class="k" style="margin:0 0 8px">ピタット原価に登録した納品・催事・休業日が、自動でGoogleカレンダーに表示されます(反映まで数時間かかる場合があります)。</p>
     <div class="ask" style="margin-top:0"><input id="cal-feed" readonly value="${esc(c.feed || '')}" style="flex:1;min-width:0;font-size:13px"><button class="btn ghost sm" type="button" id="cal-copy">コピー</button></div>
-    <details style="margin-top:8px"><summary class="k">Googleカレンダーでの入れ方</summary><ol class="k" style="margin:8px 0 0;padding-left:1.4em;line-height:1.8"><li>パソコンで Googleカレンダー を開く</li><li>左の「他のカレンダー」の「＋」→「URLで追加」</li><li>上の住所を貼って「カレンダーを追加」</li><li>スマホのGoogleカレンダーの設定で、そのカレンダーの表示をオンにする</li></ol><p class="k" style="margin:8px 0 0">この住所は合言葉つきです。店舗のスタッフ以外には教えないでください。</p></details>
+    <details style="margin-top:8px"><summary class="k">Googleカレンダーでの設定方法</summary><ol class="k" style="margin:8px 0 0;padding-left:1.4em;line-height:1.8"><li>パソコンで Googleカレンダー を開く</li><li>左の「他のカレンダー」の「＋」→「URLで追加」</li><li>上のURLを貼り付けて「カレンダーを追加」</li><li>スマートフォンのGoogleカレンダーの設定で、追加したカレンダーの表示をオンにする</li></ol><p class="k" style="margin:8px 0 0">このURLには認証用の文字列が含まれています。店舗のスタッフ以外には共有しないでください。</p></details>
     <hr style="border:0;border-top:1px solid var(--line-2);margin:16px 0">
-    <p style="margin:0 0 4px"><b>② Googleカレンダーの予定を、ピタット原価にも出す</b></p><p class="k" style="margin:0 0 8px">Googleカレンダーの設定 › そのカレンダー › 「iCal形式の秘密のアドレス」をコピーして、ここに貼ります。Googleに入れた予定がピタット原価の予定と「今日やること」に出ます(見るだけ。消す・直すはGoogle側で)。</p>
-    <div class="ask" style="margin-top:0"><input id="gcal-url" placeholder="https://calendar.google.com/calendar/ical/…/basic.ics" value="${esc(c.gcal || '')}" style="flex:1;min-width:0;font-size:13px"><button class="btn sm" type="button" id="gcal-save">${c.gcal ? '貼り直す' : 'つなぐ'}</button>${c.gcal ? '<button class="btn ghost sm" type="button" id="gcal-off">外す</button>' : ''}</div>
+    <p style="margin:0 0 4px"><b>② Googleカレンダーの予定をピタット原価に表示する</b></p><p class="k" style="margin:0 0 8px">Googleカレンダーの設定 › 対象のカレンダー › 「iCal 形式の非公開 URL」をコピーし、ここに貼り付けます。Googleカレンダーの予定が、ピタット原価の予定と「今日やること」に表示されます(表示のみ。削除・編集はGoogleカレンダーで行ってください)。</p>
+    <div class="ask" style="margin-top:0"><input id="gcal-url" placeholder="https://calendar.google.com/calendar/ical/…/basic.ics" value="${esc(c.gcal || '')}" style="flex:1;min-width:0;font-size:13px"><button class="btn sm" type="button" id="gcal-save">${c.gcal ? '更新する' : '連携する'}</button>${c.gcal ? '<button class="btn ghost sm" type="button" id="gcal-off">連携を解除</button>' : ''}</div>
     ${c.gcal ? '<p class="k" style="margin:8px 0 0">つながっています。Googleの予定は1時間ごとに読み直します。</p>' : ''}</div>`;
 }
 function bindGcal(root) {
-  const cp = root.querySelector('#cal-copy'); if (cp) cp.onclick = async () => { try { await navigator.clipboard.writeText($('cal-feed').value); toast('住所をコピーしました', 'ok'); } catch (e) { $('cal-feed').select(); } };
+  const cp = root.querySelector('#cal-copy'); if (cp) cp.onclick = async () => { try { await navigator.clipboard.writeText($('cal-feed').value); toast('URLをコピーしました', 'ok'); } catch (e) { $('cal-feed').select(); } };
   const sv = root.querySelector('#gcal-save'); if (sv) sv.onclick = () => { const v = $('gcal-url').value.trim(); if (!v) { $('gcal-url').focus(); return; } setValueX({ field: 'gcal', value: v }); };
   const off = root.querySelector('#gcal-off'); if (off) off.onclick = () => setValueX({ field: 'gcal', value: '' });
 }
@@ -601,8 +601,8 @@ function contactsBox() {
   const cs = D.contacts || [], sup = Object.keys(Object.assign({}, ...Object.values(D.months || {}).map(m => m.by))), tos = Object.keys(Object.assign({}, ...Object.values(D.ws || {})));
   const cand = [...new Set(sup.concat(tos))].filter(n => !cs.find(c => c.name === n));
   return `${orderOn() ? '<div class="od-entry"><div><b>発注書をつくる</b><span class="k">仕入先を選ぶと、いつもの品と前回の数が出ます。FAXで送れる形で印刷・PDFにします</span></div><button class="btn" type="button" id="od-open">発注書をつくる</button></div>' : ''}${cs.length ? '' : '<p class="k" style="margin:0 0 8px">まだありません。請求書を撮影すると仕入先が自動で登録されます。手入力で追加することもできます</p>'}
-    ${cs.map(c => `<div class="contact-row"><b>${esc(c.name)}</b><span class="k">${esc(c.kind)}</span><span class="tel">${c.tel ? `<a href="tel:${esc(c.tel.replace(/[^\\d+]/g, ''))}">☎ ${esc(c.tel)}</a>` : '<span class="k">電話なし</span>'}</span><span class="k">${esc(c.person)}${c.regno ? ` · ${esc(c.regno)}` : ''}${c.fax ? ` · FAX ${esc(c.fax)}` : ''}</span><button class="btn ghost sm" type="button" data-ct-edit="${esc(c.name)}">直す</button>${c.addr ? `<div class="k" style="grid-column:1/-1;margin-top:-4px">住所: ${esc(c.addr)}</div>` : ''}${c.bank || c.number ? `<div class="k" style="grid-column:1/-1;margin-top:-4px">振込先: ${esc([c.bank, c.branch, c.type, c.number, c.holder].filter(Boolean).join(' '))}</div>` : ''}</div>`).join('')}
-    ${cs.length ? '<div class="ask"><button class="btn ghost" type="button" id="ct-add">＋ 仕入先・卸先を足す</button></div>' : ''}<div id="ct-form" style="margin-top:12px"${cs.length ? ' hidden' : ''}><div class="fld"><span class="k">名前</span><input id="ct-name" list="ct-cand" placeholder="仕入先・卸先の名前"><datalist id="ct-cand">${cand.map(n => `<option value="${esc(n)}">`).join('')}</datalist><span class="k">種類</span><div class="seg" id="ct-kind">${['業者', '卸先', 'その他'].map((k, i) => `<button type="button" data-v="${k}" aria-pressed="${i === 0}">${k === '業者' ? '仕入先' : k}</button>`).join('')}</div><span class="k">電話</span><input id="ct-tel" inputmode="tel" placeholder="電話番号"><input id="ct-fax" inputmode="tel" placeholder="FAX番号(発注書を送る先)"><span class="k">担当</span><input id="ct-person" placeholder="担当者"><span class="k">住所</span><input id="ct-addr" placeholder="住所"><span class="k">登録番号</span><input id="ct-regno" placeholder="T から始まる13桁(インボイス)" autocomplete="off">${noMoney() ? '<span class="k">振込先</span><span class="k">店主と、金額の閲覧権限がある人だけに見えます</span>' : `<span class="k">振込先</span><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><input id="ct-bank" placeholder="銀行"><input id="ct-branch" placeholder="支店"><select id="ct-type" class="sel"><option value="">種別</option><option>普通</option><option>当座</option></select><input id="ct-number" inputmode="numeric" placeholder="口座番号"><input id="ct-holder" placeholder="名義(カナ)" style="grid-column:1/-1"></div>`}</div><p class="k" style="margin:4px 0 0">請求書を撮ると、電話・担当・住所・振込先は自動で入ります(読めなかったところだけ空のまま)</p><div class="ask"><button class="btn" type="button" id="ct-save">連絡先を保存</button><button class="btn ghost" type="button" id="ct-del" hidden>消す</button></div></div>`;
+    ${cs.map(c => `<div class="contact-row"><b>${esc(c.name)}</b><span class="k">${esc(c.kind)}</span><span class="tel">${c.tel ? `<a href="tel:${esc(c.tel.replace(/[^\\d+]/g, ''))}">☎ ${esc(c.tel)}</a>` : '<span class="k">電話番号未登録</span>'}</span><span class="k">${esc(c.person)}${c.regno ? ` · ${esc(c.regno)}` : ''}${c.fax ? ` · FAX ${esc(c.fax)}` : ''}</span><button class="btn ghost sm" type="button" data-ct-edit="${esc(c.name)}">編集</button>${c.addr ? `<div class="k" style="grid-column:1/-1;margin-top:-4px">住所: ${esc(c.addr)}</div>` : ''}${c.bank || c.number ? `<div class="k" style="grid-column:1/-1;margin-top:-4px">振込先: ${esc([c.bank, c.branch, c.type, c.number, c.holder].filter(Boolean).join(' '))}</div>` : ''}</div>`).join('')}
+    ${cs.length ? '<div class="ask"><button class="btn ghost" type="button" id="ct-add">＋ 仕入先・卸先を追加</button></div>' : ''}<div id="ct-form" style="margin-top:12px"${cs.length ? ' hidden' : ''}><div class="fld"><span class="k">名称</span><input id="ct-name" list="ct-cand" placeholder="仕入先・卸先の名称"><datalist id="ct-cand">${cand.map(n => `<option value="${esc(n)}">`).join('')}</datalist><span class="k">種類</span><div class="seg" id="ct-kind">${['業者', '卸先', 'その他'].map((k, i) => `<button type="button" data-v="${k}" aria-pressed="${i === 0}">${k === '業者' ? '仕入先' : k}</button>`).join('')}</div><span class="k">電話</span><input id="ct-tel" inputmode="tel" placeholder="電話番号"><input id="ct-fax" inputmode="tel" placeholder="FAX番号(発注書を送る先)"><span class="k">担当者</span><input id="ct-person" placeholder="担当者名"><span class="k">住所</span><input id="ct-addr" placeholder="住所"><span class="k">登録番号</span><input id="ct-regno" placeholder="T から始まる13桁(インボイス)" autocomplete="off">${noMoney() ? '<span class="k">振込先</span><span class="k">店主と、金額の閲覧権限がある方のみ表示されます</span>' : `<span class="k">振込先</span><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><input id="ct-bank" placeholder="銀行"><input id="ct-branch" placeholder="支店"><select id="ct-type" class="sel"><option value="">種別</option><option>普通</option><option>当座</option></select><input id="ct-number" inputmode="numeric" placeholder="口座番号"><input id="ct-holder" placeholder="名義(カナ)" style="grid-column:1/-1"></div>`}</div><p class="k" style="margin:4px 0 0">請求書を撮影すると、電話番号・担当者・住所・振込先が自動で入力されます(読み取れなかった項目は空欄のままです)</p><div class="ask"><button class="btn" type="button" id="ct-save">連絡先を保存</button><button class="btn ghost" type="button" id="ct-del" hidden>削除</button></div></div>`;
 }
 const ctv = id => { const e = $(id); return e ? e.value.trim() : ''; }, ctset = (id, v) => { const e = $(id); if (e) e.value = v; };
 function bindContacts(root) {
@@ -613,7 +613,7 @@ function bindContacts(root) {
   const ad = root.querySelector('#ct-add'); if (ad) ad.onclick = () => { open(); $('ct-name').focus(); };
   root.querySelectorAll('[data-ct-edit]').forEach(b => b.onclick = () => { open(); const c = (D.contacts || []).find(x => x.name === b.dataset.ctEdit); if (!c) return; $('ct-name').value = c.name; $('ct-tel').value = c.tel; $('ct-fax').value = c.fax || ''; $('ct-person').value = c.person; $('ct-addr').value = c.addr || ''; ctset('ct-regno', c.regno || ''); ctset('ct-bank', c.bank || ''); ctset('ct-branch', c.branch || ''); ctset('ct-type', c.type || ''); ctset('ct-number', c.number || ''); ctset('ct-holder', c.holder || ''); kindSel(c.kind); $('ct-del').hidden = false; $('ct-name').scrollIntoView({ block: 'center', behavior: 'smooth' }); });
   $('ct-save').onclick = () => { const name = $('ct-name').value.trim(); if (!name) { $('ct-name').focus(); return; } setValueX({ field: 'contact', value: { name, kind: root.querySelector('#ct-kind [aria-pressed="true"]').dataset.v, tel: $('ct-tel').value.trim(), fax: $('ct-fax').value.trim(), person: $('ct-person').value.trim(), addr: $('ct-addr').value.trim(), regno: ctv('ct-regno'), bank: ctv('ct-bank'), branch: ctv('ct-branch'), type: ctv('ct-type'), number: ctv('ct-number'), holder: ctv('ct-holder') } }); };
-  $('ct-del').onclick = () => { const name = $('ct-name').value.trim(); if (name && confirmOnce('ct' + name, 'もう一度押すと、この連絡先を消します')) setValueX({ field: 'contact', value: { name, del: true } }); };
+  $('ct-del').onclick = () => { const name = $('ct-name').value.trim(); if (name && confirmOnce('ct' + name, 'もう一度押すと、この連絡先を削除します')) setValueX({ field: 'contact', value: { name, del: true } }); };
 }
 // ---------- メンバー(店主だけ): 役割・金額の表示/非表示・外す ----------
 const MONEY_TABS = ['cost', 'book', 'sales'];
@@ -636,13 +636,13 @@ function planUse() {
 }
 // プランにない機能の画面: 中身をしまって、何ができるかとプランを出す
 function applyPlanLocks() {
-  [['sales', 'sales', '売上と経費を集めて、月の入金・出金・残りが分かります。商品分析(稼ぎ頭と見直す商品)もここです。'], ['ws', 'ws', '卸先ごとの納品と、月ごとの請求書をつくります。']].forEach(([tab, f, what]) => {
+  [['sales', 'sales', '売上と経費を集計し、月ごとの入金・出金・差額を確認できます。商品分析(利益の大きい商品と見直しが必要な商品)もこちらです。'], ['ws', 'ws', '卸先ごとの納品を記録し、月ごとの請求書を作成します。']].forEach(([tab, f, what]) => {
     const sec = $('t-' + tab); if (!sec) return;
     const lock = !PL(f); sec.classList.toggle('locked', lock);
     let c = sec.querySelector(':scope > .lockcard');
     if (lock && !c) { c = document.createElement('div'); c.className = 'card lockcard'; const ph = sec.querySelector(':scope > .ph'); ph ? ph.after(c) : sec.prepend(c); }
-    if (c) { c.hidden = !lock; if (lock) c.innerHTML = `<p style="margin:0 0 8px"><b>${PLAN_NEED[f]}プランから使えます</b></p><p class="k" style="margin:0 0 12px">${what}</p><button class="btn ghost" type="button" data-plan-ask>運営に相談する</button>`; }
-    if (c) c.querySelectorAll('[data-plan-ask]').forEach(b => b.onclick = () => { show('set'); setTimeout(() => { const x = $('ct-text'); if (x) { x.scrollIntoView({ block: 'center' }); x.value = x.value || (PLAN_NEED[f] + 'プランについて知りたいです'); } }, 200); });
+    if (c) { c.hidden = !lock; if (lock) c.innerHTML = `<p style="margin:0 0 8px"><b>${PLAN_NEED[f]}プランからご利用いただけます</b></p><p class="k" style="margin:0 0 12px">${what}</p><button class="btn ghost" type="button" data-plan-ask>運営に問い合わせる</button>`; }
+    if (c) c.querySelectorAll('[data-plan-ask]').forEach(b => b.onclick = () => { show('set'); setTimeout(() => { const x = $('ct-text'); if (x) { x.scrollIntoView({ block: 'center' }); x.value = x.value || (PLAN_NEED[f] + 'プランについて詳しく知りたいです。'); } }, 200); });
   });
 }   // しまった機能(伝言・在庫・インスタ)
 // 画面でエラーが起きたら「つまずき」として残す(店主に夕方まとめて届く)
@@ -656,7 +656,7 @@ function delChoice(b, onTrash, onPurge) {
     b.dataset.open = 1; b.hidden = true;
     const wrap = document.createElement('span');
     wrap.style.cssText = 'display:inline-flex;gap:8px;flex-wrap:wrap;justify-content:flex-end';
-    wrap.innerHTML = '<button class="btn ghost sm" type="button" data-c="t">消す(あとで戻せる)</button><button class="btn sm" type="button" data-c="p" style="background:var(--warn);border-color:var(--warn);color:#fff">完全に消す(戻せません)</button><button class="btn ghost sm" type="button" data-c="x">やめる</button>';
+    wrap.innerHTML = '<button class="btn ghost sm" type="button" data-c="t">削除(後で元に戻せます)</button><button class="btn sm" type="button" data-c="p" style="background:var(--warn);border-color:var(--warn);color:#fff">完全に削除(元に戻せません)</button><button class="btn ghost sm" type="button" data-c="x">キャンセル</button>';
     b.after(wrap);
     const close = () => { clearTimeout(tm); wrap.remove(); b.hidden = false; delete b.dataset.open; };
     const tm = setTimeout(close, 10000);
@@ -678,32 +678,32 @@ async function renderMembers() {
   const box = $('members-box'); if (!box) return;
   if (!D.me || !(D.me.owner || perm('member'))) { box.parentNode.hidden = true; return; }
   box.parentNode.hidden = false;
-  box.innerHTML = '<p class="k" style="margin:0">読んでいます…</p>';
+  box.innerHTML = '<p class="k" style="margin:0">読み込んでいます…</p>';
   const r = await api({ kind: 'app_members' }).catch(() => null); if (!r || !r.ok) { box.innerHTML = `<p class="k" style="margin:0">${esc((r && r.error) || '読めませんでした')}</p>`; return; }
   drawMembers(r.members, r.plan, r.count);
 }
 function drawMembers(ms, plan, count) {
   const box = $('members-box'), live = ms.filter(m => m.role !== '外した'), gone = ms.filter(m => m.role === '外した');
-  const idle = m => { if (!m.last) return ''; const d = Math.round((Date.now() - new Date(m.last)) / DAY); return d >= 90 ? `<span style="color:var(--warn);font-weight:700">${Math.floor(d / 30)}か月使っていません</span>` : d >= 1 ? `${d}日前` : '今日'; };
-  box.innerHTML = `<p style="margin:0 0 4px"><b>${esc((plan || {}).name || '')}プラン</b> <span class="k">${plan && plan.limit ? `${plan.limit}人まで(今 ${count}人)` : '人数の上限なし'}${plan && plan.limit && count >= plan.limit ? ' · <span style="color:var(--warn)">いっぱいです。だれかを外すか、プランを上げてください</span>' : ''}</span></p><p class="k" style="margin:0 0 8px">${live.filter(m => m.allowed).length}人が使えます。人ごとに「できること」(原価・レシピ・売上と経費・衛生・メンバー管理)を選べます。副店長・スタッフ・パートのひな形もあります。辞めた人は「外す」で、その場で入れなくなります(その人が入れた記録は残ります)。</p>
+  const idle = m => { if (!m.last) return ''; const d = Math.round((Date.now() - new Date(m.last)) / DAY); return d >= 90 ? `<span style="color:var(--warn);font-weight:700">${Math.floor(d / 30)}か月利用がありません</span>` : d >= 1 ? `${d}日前` : '今日'; };
+  box.innerHTML = `<p style="margin:0 0 4px"><b>${esc((plan || {}).name || '')}プラン</b> <span class="k">${plan && plan.limit ? `${plan.limit}人まで(現在 ${count}人)` : '人数の上限なし'}${plan && plan.limit && count >= plan.limit ? ' · <span style="color:var(--warn)">上限に達しています。メンバーを削除するか、上位のプランに変更してください</span>' : ''}</span></p><p class="k" style="margin:0 0 8px">${live.filter(m => m.allowed).length}人が利用できます。メンバーごとに権限(原価・レシピ・売上と経費・衛生・メンバー管理)を設定できます。副店長・スタッフ・パートの標準の権限も用意しています。退職した方は「削除」を押すと、すぐにログインできなくなります(その方が入力した記録は残ります)。</p>
     <div class="mem-list">${live.map(m => `<div class="mem"${m.allowed ? '' : ' style="opacity:.75"'}>${avatar(m.name, true)}<div class="mb"><b>${esc(m.name)}</b> <span class="pill ${m.role === '店主' ? '' : 'gray'}">${esc(m.role)}</span>${m.allowed ? '' : ' <span class="pill warn">許可待ち</span>'}<span class="k">${m.line ? 'LINE' : 'メール'} · 最後に使った日 ${idle(m) || '—'}</span></div>
       <div class="macts">${m.allowed ? (m.role === '店主' ? '<span class="k">すべてできます</span>' : `<button class="btn ghost sm" type="button" data-remove="${m.row}" data-n="${esc(m.name)}">外す</button>`) : `<button class="btn sm" type="button" data-allow="${m.row}">許可</button><button class="btn ghost sm" type="button" data-remove="${m.row}" data-n="${esc(m.name)}">断る</button>`}</div></div>`).join('')}</div>
     ${gone.length ? `<details style="margin-top:8px"><summary class="k">外した人(${gone.length})</summary>${gone.map(m => `<div class="mem" style="opacity:.6">${avatar(m.name, true)}<div class="mb"><b>${esc(m.name)}</b><span class="k">外した</span></div><div class="macts"><button class="btn ghost sm" type="button" data-allow="${m.row}">戻す</button></div></div>`).join('')}</details>` : ''}
-    <p class="k" style="margin:8px 0 0">新しい人を入れるには、上の「スタッフを招待するリンク」を送ってください。3か月使っていない人がいると、店主のLINEに「外しますか?」が届きます。</p>`;
-  const PN = [['cost', '原価を見る'], ['recipe', 'レシピを作る・直す'], ['money', '売上・経費を見る'], ['hyg', '衛生を記録する'], ['member', 'メンバーを管理する']], PRE = ['副店長', 'スタッフ', 'パート'];
+    <p class="k" style="margin:8px 0 0">新しいメンバーを追加するには、上の「スタッフを招待するリンク」を送ってください。3か月利用のないメンバーがいる場合は、店主のLINEに確認のお知らせが届きます。</p>`;
+  const PN = [['cost', '原価の閲覧'], ['recipe', 'レシピの作成・編集'], ['money', '売上・経費の閲覧'], ['hyg', '衛生記録の入力'], ['member', 'メンバーの管理']], PRE = ['副店長', 'スタッフ', 'パート'];
   live.filter(m => m.allowed && m.role !== '店主').forEach(m => {
     const el = box.querySelector(`[data-remove="${m.row}"]`); const row = el && el.closest('.mem'); if (!row) return;
     const p = m.perms || {}, on = PN.filter(([k]) => p[k]).map(([, l]) => l);
     row.insertAdjacentHTML('afterend', `<details class="mem-perm" style="margin:-4px 0 8px 52px"><summary class="k" style="cursor:pointer">${m.title ? esc(m.title) + ' · ' : ''}できること: ${on.length ? on.map(esc).join('・') : '見るだけ'}</summary>
       <div class="seg" style="flex-wrap:wrap;margin:8px 0">${PRE.map(x => `<button type="button" data-pre="${m.row}" data-v="${x}" aria-pressed="${m.title === x}">${x}</button>`).join('')}</div>
       <div style="display:grid;gap:6px">${PN.map(([k, l]) => `<label class="sw"><input type="checkbox" data-pm="${m.row}" data-k="${k}"${p[k] ? ' checked' : ''}${k === 'member' && !D.me.owner ? ' disabled' : ''}><span></span>${l}</label>`).join('')}</div>
-      <p class="k" style="margin:8px 0 0">副店長はすべて、スタッフはレシピと衛生、パートは衛生の記録だけができます。押したあと、1つずつ変えることもできます。</p></details>`);
+      <p class="k" style="margin:8px 0 0">副店長はすべての操作、スタッフはレシピと衛生記録、パートは衛生記録のみ利用できます。役割を選んだ後に、権限を個別に変更することもできます。</p></details>`);
   });
   const act = async (row, action, value) => { const r = await api({ kind: 'app_set', field: 'member', value: { row, action, value } }).catch(() => null); if (!r || !r.ok) { chat((r && r.error) || 'できませんでした'); return; } drawMembers(r.members, r.plan, r.count); toast('メンバーを更新しました', 'ok'); };
   box.querySelectorAll('[data-pre]').forEach(b => b.onclick = () => act(+b.dataset.pre, 'perms', { preset: b.dataset.v }));
   box.querySelectorAll('[data-pm]').forEach(i => i.onchange = () => { const v = {}; box.querySelectorAll(`[data-pm="${i.dataset.pm}"]`).forEach(x => v[x.dataset.k] = x.checked); act(+i.dataset.pm, 'perms', v); });
   box.querySelectorAll('[data-allow]').forEach(b => b.onclick = () => act(+b.dataset.allow, 'allow'));
-  box.querySelectorAll('[data-remove]').forEach(b => b.onclick = () => { if (confirmOnce('mem' + b.dataset.remove, `もう一度押すと、${b.dataset.n}さんを外します(その場で入れなくなります)`)) act(+b.dataset.remove, 'remove'); });
+  box.querySelectorAll('[data-remove]').forEach(b => b.onclick = () => { if (confirmOnce('mem' + b.dataset.remove, `もう一度押すと、${b.dataset.n}さんをメンバーから削除します(すぐにログインできなくなります)`)) act(+b.dataset.remove, 'remove'); });
 }
 // パンくず(パソコン): ホーム › 原価 › 栗万十
 const TABNAME = { today: 'ホーム', cost: '原価', label: '食品表示', mat: '材料', book: '帳簿', hyg: '衛生記録', ws: '卸', ct: '仕入先・卸先', post: '発信', sales: '商品分析', set: '設定', cal: '予定', howto: '作り方' };
@@ -733,7 +733,7 @@ async function renderUpdBar() {
   if (UPD === null) { try { const r = await fetch('/guide/updates.json', { cache: 'no-store' }); UPD = (await r.json()).updates || []; } catch (e) { UPD = []; } }
   const big = UPD.find(u => u.big), seen = store.get('updSeen', '');
   if (!big || seen === big.d + big.t) { bar.hidden = true; return; }
-  bar.hidden = false; bar.innerHTML = `<b>更新情報</b><span>${esc(big.t)}</span><a href="/guide/updates" target="_blank" rel="noopener">一覧</a><button class="btn ghost sm" type="button" id="upd-ok">見た</button>`;
+  bar.hidden = false; bar.innerHTML = `<b>更新情報</b><span>${esc(big.t)}</span><a href="/guide/updates" target="_blank" rel="noopener">一覧</a><button class="btn ghost sm" type="button" id="upd-ok">確認済み</button>`;
   $('upd-ok').onclick = () => { store.set('updSeen', big.d + big.t); bar.hidden = true; };
 }
 function renderStatus() {
@@ -744,12 +744,12 @@ function renderStatus() {
   const pct = v => v == null ? '—' : (Math.round(v * 10) / 10).toLocaleString('ja-JP');
   const arrow = d => d > 0 ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M6 11l6-6 6 6"/></svg>' : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M6 13l6 6 6-6"/></svg>';
   const hasSales = S.salesEx > 0 && S.rate != null;
-  // 円グラフ(材料費と残り)。数字がないときは目標の原価率を薄く描く
+  // 円グラフ(材料費と残り)。数字がないときは目標原価率を薄く描く
   const r = 44, c = 2 * Math.PI * r, share = hasSales ? Math.min(1, Math.max(0, S.rate / 100)) : 0;
   const pie = `<svg viewBox="0 0 112 112" role="img" aria-label="売上の内わけ: 材料費 ${pct(S.rate)}%"><circle cx="56" cy="56" r="${r}" fill="none" stroke="var(--ok-soft)" stroke-width="18"/><circle cx="56" cy="56" r="${r}" fill="none" stroke="var(--accent)" stroke-width="18" stroke-dasharray="${(share * c).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 56 56)" stroke-linecap="butt"/><text x="56" y="52" text-anchor="middle" font-size="18" font-weight="700" fill="var(--ink)" font-family="Zen Maru Gothic,sans-serif">${hasSales ? pct(S.rate) + '%' : '—'}</text><text x="56" y="68" text-anchor="middle" font-size="10" fill="var(--ink-2)">材料費</text></svg>`;
   const diffHtml = S.diff == null ? `<span class="d">${S.prevRate == null ? '先月の数字なし' : '先月と同じ'}</span>` : S.diff === 0 ? '<span class="d">先月と同じ</span>' : `<span class="d ${S.diff > 0 ? 'up' : 'dn'}">${arrow(S.diff)}先月より ${Math.abs(S.diff).toLocaleString('ja-JP')}ポイント${S.diff > 0 ? '上がった' : '下がった'}</span>`;
   const why = S.why || [], guide = S.guide || [];
-  box.innerHTML = `<div class="rate"><span class="t">今月の原価率 <span style="font-weight:400">(税抜の売上に対する材料費)</span></span><span class="v">${hasSales ? `${pct(S.rate)}<small>%</small>` : '<small style="font-size:20px">売れた数を入れると出ます</small>'}</span>${hasSales ? diffHtml : ''}${hasSales ? `<span class="k">売上 ${yen(S.salesEx)}(税抜) ・ 材料費 ${yen(S.matCost)} ・ 残り ${yen(S.profit)} ・ 今月はまだ途中です</span>` : '<span class="k">精算レシートを撮るか、売上の報告を取り込むと、今月の原価率が出ます。</span>'}</div>
+  box.innerHTML = `<div class="rate"><span class="t">今月の原価率 <span style="font-weight:400">(税抜の売上に対する材料費)</span></span><span class="v">${hasSales ? `${pct(S.rate)}<small>%</small>` : '<small style="font-size:20px">販売数を入力すると表示されます</small>'}</span>${hasSales ? diffHtml : ''}${hasSales ? `<span class="k">売上 ${yen(S.salesEx)}(税抜) ・ 材料費 ${yen(S.matCost)} ・ 差額 ${yen(S.profit)} ・ 今月は集計中です</span>` : '<span class="k">精算レシートを撮影するか、売上の報告を取り込むと、今月の原価率が表示されます。</span>'}</div>
     <div class="pie">${pie}<div class="lg"><span><i style="background:var(--accent)"></i>材料費<b>${hasSales ? yen(S.matCost) : '—'}</b></span><span><i style="background:var(--ok-soft);border:1px solid var(--ok)"></i>残り(売上−材料費)<b>${hasSales ? yen(S.profit) : '—'}</b></span></div></div>
     ${why.length ? `<div class="why"><span class="h">原価が上がった理由(直近60日の値上がり)</span>${why.map((w, i) => `<div class="r"><span class="n">${i + 1}</span><span><b>${esc(w.item)}</b>${w.spec ? ` <span class="g">${esc(w.spec)}</span>` : ''} が ${Math.round(w.old).toLocaleString('ja-JP')}円 → ${Math.round(w.now).toLocaleString('ja-JP')}円(+${w.pct}%)。<span class="g">${esc(w.prod)}が苦しい</span></span><span class="u">1${U} +${w.up}円</span></div>`).join('')}</div>` : hasSales ? '<p class="empty">直近60日で、原価を押し上げた値上がりはありません。</p>' : ''}
     ${guide.length ? `<div class="why"><span class="h">売値の目安(原価率${S.target}%にするなら)</span>${guide.map((g, i) => `<div class="r"><span class="n">${i + 1}</span><span><b>${esc(g.name)}</b> <span class="g">原価率 ${g.rate}% ・ 今 ${yen(g.price)}</span></span><span class="u ok">${yen(g.guide)}〜</span></div>`).join('')}</div>` : ''}`;
@@ -808,7 +808,7 @@ function renderHero(q) {
   const cards = [], up = unpaid(), low = ((D.stock || {}).items || []).filter(x => x.low);
   if (up.length) { const sum = up.reduce((a, p) => a + p.total, 0), n = up[0];
     cards.push({ cls: 'main', t: '未払い', v: `${Math.round(sum).toLocaleString('ja-JP')}<small>円</small>`, k: `${up.length}件${n.due ? ' · 次の期限 ' + md(n.due) + ' ' + esc(n.supplier) : ''}`, go: () => show('book') }); }
-  else cards.push({ cls: 'main', t: '未払い', v: '0<small>円</small>', k: 'すべて払い済みです', go: () => show('book') });
+  else cards.push({ cls: 'main', t: '未払い', v: '0<small>円</small>', k: '未払いはありません', go: () => show('book') });
   const ms = Object.keys(D.months || {}).sort(), lm = ms[ms.length - 1];
   const sm = Object.keys(D.sales || {}).sort().pop();
   if (sm) { const o = D.sales[sm]; cards.push({ cls: '', c: 'sales', t: `${+sm.slice(5)}月の売上`, v: `${Math.round(o.total).toLocaleString('ja-JP')}<small>円</small>`, k: `${o.nDays}日分 · 1日平均 ${yen(o.total / Math.max(1, o.nDays))}`, go: () => show('sales') }); }
@@ -887,14 +887,14 @@ function bindStepImgs(box) {
     const id = im.dataset.img;
     if (IMG_CACHE[id]) { im.src = IMG_CACHE[id]; return; }
     const r = await api({ kind: 'app_img_get', id });
-    if (r.ok) { IMG_CACHE[id] = `data:${r.type};base64,${r.data}`; im.src = IMG_CACHE[id]; } else im.alt = '写真を出せませんでした';
+    if (r.ok) { IMG_CACHE[id] = `data:${r.type};base64,${r.data}`; im.src = IMG_CACHE[id]; } else im.alt = '写真を表示できませんでした';
   });
 }
 let howtoSel = null;
 function renderHowto() {
   const box = $('howto-box'); if (!box) return;
   const ps = D.products.filter(p => p.kind !== 'part');
-  if (!ps.length) { box.innerHTML = emptyBox('cam', 'まだレシピがありません', 'レシピを撮ると、ここに作り方が並びます。', ['レシピを撮る', 'cam']); return; }
+  if (!ps.length) { box.innerHTML = emptyBox('cam', 'レシピが登録されていません', 'レシピを撮影すると、ここに作り方が表示されます。', ['レシピを撮影', 'cam']); return; }
   const sel = ps.find(p => p.name === howtoSel);
   if (!sel) {
     box.innerHTML = ps.map(p => `<div class="card prod" role="button" tabindex="0" data-howto="${esc(p.name)}"><div class="hd">${avatar(p.name)}<span class="nm">${esc(p.name)}</span><span class="k">${(p.steps || []).length ? p.steps.length + '手順' + ((p.simgs || []).filter(Boolean).length ? '・写真' + p.simgs.filter(Boolean).length : '') : '手順はまだ'}</span></div></div>`).join('');
@@ -904,14 +904,14 @@ function renderHowto() {
   const p = sel, canCost = !noMoney() && p.batch_cost != null;
   box.innerHTML = `<div class="card" style="grid-column:1/-1">
     <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap"><button class="btn ghost sm" type="button" id="howto-back">← 一覧に戻る</button><b style="font-size:18px">${esc(p.name)}</b></div>
-    <div class="set" style="margin-top:12px"><span class="k">仕込みの量</span><input id="hq" inputmode="numeric" placeholder="例 60"><span class="k">${U}分</span><button class="btn ghost" type="button" id="hq-go">分量を出す</button></div><div id="hq-out"></div>
+    <div class="set" style="margin-top:12px"><span class="k">仕込み量</span><input id="hq" inputmode="numeric" placeholder="例 60"><span class="k">${U}分</span><button class="btn ghost" type="button" id="hq-go">分量を計算</button></div><div id="hq-out"></div>
     ${(p.steps || []).length ? `<ol class="steps" style="margin-top:12px">${p.steps.map((st, si) => `<li>${esc(st)}${(p.simgs || [])[si] ? `<div><img class="stimg" data-img="${esc(p.simgs[si])}" alt="手順${si + 1}の写真"></div>` : ''}</li>`).join('')}</ol>` : '<p class="k" style="margin-top:12px">手順はまだ入っていません。' + (noMoney() ? '店主に声をかけてください。' : '「原価」のカードで書けます。') + '</p>'}
   </div>`;
   $('howto-back').onclick = () => { howtoSel = null; renderHowto(); };
   $('hq-go').onclick = () => {
     const n = +($('hq').value || 0), out = $('hq-out');
-    if (!(n > 0)) { out.innerHTML = '<p class="k" style="margin:4px 0 0">作る数を入れてください。</p>'; return; }
-    if (!p.pieces) { out.innerHTML = `<p class="k" style="margin:4px 0 0">1${U}の重さがまだ入っていないため、分量を出せません。${noMoney() ? '店主に声をかけてください。' : '「原価」のカードで入れられます。'}</p>`; return; }
+    if (!(n > 0)) { out.innerHTML = '<p class="k" style="margin:4px 0 0">製造数を入力してください。</p>'; return; }
+    if (!p.pieces) { out.innerHTML = `<p class="k" style="margin:4px 0 0">1${U}の重さが未入力のため、分量を計算できません。${noMoney() ? '店主に声をかけてください。' : '「原価」のカードで入れられます。'}</p>`; return; }
     const f = n / p.pieces, fq = v => (v >= 20 ? Math.round(v).toLocaleString() : Math.round(v * 10) / 10) + 'g';
     out.innerHTML = `<table style="margin:4px 0 0">${p.rows.map(r => `<tr><td>${esc(r.name)}</td><td class="n">${r.grams == null ? (Math.round(r.qty * f * 10) / 10) + esc(r.unit) : fq(r.grams * f)}</td></tr>`).join('')}${canCost ? `<tr><td><b>材料費</b></td><td class="n"><b>${yen(p.batch_cost * f)}</b></td></tr>` : ''}</table>`;
   };
@@ -922,7 +922,7 @@ const PILL = { '未払い': 'warn', '済': '', '現金済': '', '請求待ち': 
 function renderSort() {
   const all = D.pays || [], ms = [...new Set(all.map(p => p.month))].sort().reverse();
   const chips = $('sort-chips'), box = $('sort-box');
-  if (!ms.length) { chips.innerHTML = ''; box.innerHTML = '<p class="k" style="margin:0">まだ請求書がありません。撮影すると、ここに月別で表示されます</p>'; return; }
+  if (!ms.length) { chips.innerHTML = ''; box.innerHTML = '<p class="k" style="margin:0">請求書が登録されていません。撮影すると、月別に表示されます</p>'; return; }
   const sel = chips.dataset.m && ms.includes(chips.dataset.m) ? chips.dataset.m : ms[0];
   chips.innerHTML = ms.map(m => `<button class="chip" type="button" data-m="${esc(m)}" aria-pressed="${m === sel}">${esc(m.replace('-', '年'))}月分</button>`).join('');
   chips.querySelectorAll('[data-m]').forEach(b => b.onclick = () => { chips.dataset.m = b.dataset.m; renderSort(); });
@@ -936,11 +936,11 @@ function renderSort() {
     <table>${rows.map(p => `<tr><td><b>${esc(p.supplier)}</b><br><span class="k">${esc(p.doc)}${p.paidOn ? ' · ' + esc(p.paidOn.slice(5).replace('-', '/')) + '払い' : p.due ? ' · 期限 ' + esc(p.due.slice(5).replace('-', '/')) : ''}</span></td><td class="n">${yen(p.total)}<br><span class="pill ${PILL[p.status] ?? 'gray'}">${esc(p.status)}</span></td></tr>`).join('')}
     <tr><td><b>合計 ${rows.length}件</b></td><td class="n"><b>${yen(tot)}</b><br><span class="k">払い済み ${yen(done)}</span></td></tr></table>
     <div class="ask" style="margin-top:8px"><button class="btn ghost" type="button" id="sort-copy">この月をコピー</button></div>
-    <p class="k" style="margin:8px 0 0">コピーすると、税理士用のメールや会計ソフトのメモに貼りつけられます</p>`;
+    <p class="k" style="margin:8px 0 0">コピーした内容は、税理士へのメールや会計ソフトのメモに貼り付けられます</p>`;
   $('sort-copy').onclick = async () => {
     const sums = (D.journal || {})[sel] || {};
     const txt = `${sel.replace('-', '年')}月分 請求書\n` + rows.map(p => `${p.supplier}\t${p.doc}\t${p.total}円\t${p.status}${p.paidOn ? '(' + p.paidOn + ')' : ''}`).join('\n') + `\n合計\t\t${tot}円\n\n科目ごと(案)\n` + Object.keys(sums).map(k => `${k}\t${sums[k]}円`).join('\n');
-    try { await navigator.clipboard.writeText(txt); chat('コピーしました。貼りつけて使ってください。', 'heart'); } catch (e) { chat('コピーできませんでした。長押しで選んでください。'); }
+    try { await navigator.clipboard.writeText(txt); chat('コピーしました。貼り付けてご利用ください。', 'heart'); } catch (e) { chat('コピーできませんでした。長押しで選択してください。'); }
   };
 }
 // ---------- 振込先一覧(押すと銀行の公式サイトへ。送金はしない) ----------
@@ -1019,10 +1019,10 @@ async function openBank(url) {
 }
 async function goPay(p) {
   const b = payBank();
-  if (!b) { chat('先に「設定」の振込先一覧で、銀行を選んでください', 'think'); show('set'); setTimeout(() => $('bank-box') && $('bank-box').scrollIntoView({ block: 'start', behavior: 'smooth' }), 120); return; }
+  if (!b) { chat('先に「設定」の振込先一覧で銀行を選択してください', 'think'); show('set'); setTimeout(() => $('bank-box') && $('bank-box').scrollIntoView({ block: 'start', behavior: 'smooth' }), 120); return; }
   const txt = `${p.supplier} ${p.total}円`;
   let copied = false; try { await navigator.clipboard.writeText(txt); copied = true; } catch (e) {}
-  chat(`${copied ? `「${p.supplier} ${p.total.toLocaleString('ja-JP')}円」をコピーしました。` : ''}${b.name}を開きます。振り込んだら「払った」を押してください。`, 'heart');
+  chat(`${copied ? `「${p.supplier} ${p.total.toLocaleString('ja-JP')}円」をコピーしました。` : ''}${b.name}を開きます。振込が完了したら「支払済にする」を押してください。`, 'heart');
   openBank(b.url);
 }
 function renderBanks() {
@@ -1031,7 +1031,7 @@ function renderBanks() {
   const btn = ([id, name, url]) => `<div class="bank${cur && cur.id === id ? ' on' : ''}"><button type="button" data-bank="${id}" aria-pressed="${!!(cur && cur.id === id)}">${cur && cur.id === id ? '✓ ' : ''}${esc(name)}</button><a href="${esc(url)}" target="_blank" rel="noopener" data-open="${esc(url)}" aria-label="${esc(name)}を開く">↗</a></div>`;
   const prefOf = () => { const a = si.addr || ''; const hit = BANKS_REG.find(([pf]) => a.includes(pf) || a.includes(pf.replace(/[都府県]$/, ''))); return hit ? hit[0] : ''; };
   let pref = renderBanks.pref || (cur && (BANKS_REG.find(([, l]) => l.some(x => x[0] === cur.id)) || [])[0]) || prefOf();
-  box.innerHTML = `<p class="k" style="margin:0 0 8px">帳簿の「振込へ」を押すと、ここで選んだ銀行の公式サイトが開きます(仕入先名と金額はコピーされます)。振込の操作は銀行のサイトで行います。銀行名を押すと選択でき、↗ で公式サイトを開きます。</p>
+  box.innerHTML = `<p class="k" style="margin:0 0 8px">帳簿の「振込へ」を押すと、ここで選んだ銀行の公式サイトが開きます(仕入先名と金額がコピーされます)。振込の操作は銀行のサイトで行います。銀行名を押すと選択でき、↗ で公式サイトを開きます。</p>
     ${cur ? `<p style="margin:0 0 4px"><b>選択中:</b> ${esc(cur.name)}</p>` : '<p class="k" style="margin:0 0 4px"><b>まだ選んでいません</b></p>'}` +
     BANKS.map(([g, list]) => `<p class="k" style="margin:12px 0 4px"><b>${g}</b></p><div class="banks">${list.map(btn).join('')}</div>`).join('') +
     `<p class="k" style="margin:12px 0 4px"><b>地方銀行</b></p><select id="bk-pref" aria-label="都道府県" style="font:inherit;font-size:15px;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink)"><option value="">都道府県を選ぶ</option>${BANKS_REG.map(([pf]) => `<option${pf === pref ? ' selected' : ''}>${pf}</option>`).join('')}</select>
@@ -1061,7 +1061,7 @@ function renderPays() {
   const box = $('pays');
   if ($('book-doc') && !$('book-doc').dataset.b) { $('book-doc').dataset.b = 1; $('book-doc').onchange = async () => {
     const files = [...$('book-doc').files].filter(isDocFile).slice(0, 20); $('book-doc').value = ''; if (!files.length) return;
-    const out = $('book-doc-out'); out.hidden = false; out.innerHTML = `<div class="card"><p class="k" style="margin:0">読んでいます… ${files.length}件(1件 20〜60秒)</p></div>`;
+    const out = $('book-doc-out'); out.hidden = false; out.innerHTML = `<div class="card"><p class="k" style="margin:0">読み取っています… ${files.length}件(1件あたり20〜60秒)</p></div>`;
     const logs = [];
     for (const f of files) {
       const r = await invoiceDoc(f);
@@ -1072,11 +1072,11 @@ function renderPays() {
     }
   }; }
   const up = unpaid();
-  if (!(D.pays || []).length) { box.innerHTML = emptyBox('book', 'まだ請求書がありません', '請求書を撮影すると、仕入先別・月別に仕分け、未払いの請求がここに表示されます。', ['請求書を撮る', 'cam']); return; }
+  if (!(D.pays || []).length) { box.innerHTML = emptyBox('book', '請求書が登録されていません', '請求書を撮影すると仕入先別・月別に整理され、未払いの請求がここに表示されます。', ['請求書を撮影', 'cam']); return; }
   const sum = up.reduce((a, p) => a + p.total, 0);
   box.innerHTML = `<div class="card"><div class="row"><span>${up.length ? `未払い ${up.length}件` : '未払いはありません'}</span>${up.length ? `<span class="big" style="font-size:20px">${yen(sum)}</span>` : ''}</div>` +
-    up.map(p => `<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--line)"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span>${esc(p.supplier)} <span class="k">${+p.month.slice(5) || esc(p.month)}月分${p.due ? ' · 期限 ' + esc(p.due.slice(5).replace('-', '/')) : ''}</span></span>${callBtn(p.supplier)}</div>${bankOf(p.supplier) ? `<div class="bkline"><span class="k">振込先</span> <span class="bk">${esc(bankOf(p.supplier))}</span><button class="btn ghost sm" type="button" data-copy="${esc(bankOf(p.supplier))}">コピー</button></div>` : `<div class="bkline k">振込先: まだ(次の請求書を撮ると自動で入ります)</div>`}<div class="row" style="align-items:center;margin-top:8px"><b style="white-space:nowrap;font-size:16px">${yen(p.total)}</b><span style="display:flex;gap:8px;align-items:center;flex:0 0 auto"><button class="btn" style="white-space:nowrap" type="button" data-go="${p.row}">振込へ</button><button class="btn ghost" style="white-space:nowrap" type="button" data-paid="${p.row}">払った</button></span></div>`).join('') +
-    `<p class="k" style="margin:8px 0 0">${payBank() ? `振込は ${esc(payBank().name)} を開きます(<a href="#" id="bank-change" style="color:var(--accent)">変更</a>)。` : '「振込へ」を使うには、<a href="#" id="bank-change" style="color:var(--accent)">設定で銀行を選んでください</a>。'}${VIA}「仕入先名 払った」でも済にできます</p></div>`;
+    up.map(p => `<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--line)"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span>${esc(p.supplier)} <span class="k">${+p.month.slice(5) || esc(p.month)}月分${p.due ? ' · 期限 ' + esc(p.due.slice(5).replace('-', '/')) : ''}</span></span>${callBtn(p.supplier)}</div>${bankOf(p.supplier) ? `<div class="bkline"><span class="k">振込先</span> <span class="bk">${esc(bankOf(p.supplier))}</span><button class="btn ghost sm" type="button" data-copy="${esc(bankOf(p.supplier))}">コピー</button></div>` : `<div class="bkline k">振込先: 未登録(次回の請求書を撮影すると自動で登録されます)</div>`}<div class="row" style="align-items:center;margin-top:8px"><b style="white-space:nowrap;font-size:16px">${yen(p.total)}</b><span style="display:flex;gap:8px;align-items:center;flex:0 0 auto"><button class="btn" style="white-space:nowrap" type="button" data-go="${p.row}">振込へ</button><button class="btn ghost" style="white-space:nowrap" type="button" data-paid="${p.row}">支払済にする</button></span></div>`).join('') +
+    `<p class="k" style="margin:8px 0 0">${payBank() ? `振込は ${esc(payBank().name)} を開きます(<a href="#" id="bank-change" style="color:var(--accent)">変更</a>)。` : '「振込へ」を利用するには、<a href="#" id="bank-change" style="color:var(--accent)">設定で銀行を選択してください</a>。'}${VIA}「仕入先名 払った」と入力しても、支払済にできます</p></div>`;
   box.querySelectorAll('[data-paid]').forEach(b => b.onclick = () => setValue('', 'paid', +b.dataset.paid));
   box.querySelectorAll('[data-copy]').forEach(b => b.onclick = async () => { try { await navigator.clipboard.writeText(b.dataset.copy); toast('振込先をコピーしました', 'ok'); } catch (e) { chat(b.dataset.copy); } });
   box.querySelectorAll('[data-go]').forEach(b => b.onclick = () => goPay(up.find(p => p.row === +b.dataset.go)));
@@ -1092,25 +1092,25 @@ document.addEventListener('click', e => { const b = e.target.closest('[data-empt
 // ---------- 原価 ----------
 // 原価率は税抜で見る(税の表があればその値、なければ税込の売価から)
 function exRatio(p) { const t = p.tax && (p.serve === 'eatin' ? p.tax.eatin : p.tax.takeout); return t && t.ratio != null ? t.ratio : p.per_piece / p.price * 100; }
-// 目標の原価率から出した売値の目安
+// 目標原価率から出した売値の目安
 function guideHtml(p, i) {
   const g = p.guide; if (!g) return '';
-  const head = `<div class="set"><span class="k">目標の原価率</span><input id="sptg-${i}" inputmode="decimal" style="width:4.5em" value="${g.own ? g.target : ''}" placeholder="${g.target}"><span class="k">%</span><button class="btn ghost" type="button" data-ptg="${i}">決定</button></div>`;
-  if (!g.inc) return head + `<p class="k" style="margin:0 0 8px">1${U}の原価が出ると、売値の目安が出ます。</p>`;
-  const now = p.price ? (p.price >= g.inc ? `いまの売価${p.price}円は目安以上です。` : `いまの売価${p.price}円は目安より${g.inc - p.price}円低めです。`) : '';
-  return head + `<p style="margin:0 0 8px"><b>売値の目安 税込${g.inc.toLocaleString('ja-JP')}円</b> <span class="k">(目標${g.target}%${g.own ? '・この商品だけ' : '・店舗の目標'}、税抜${g.ex.toLocaleString('ja-JP')}円、${g.rate}%込み、10円単位で切り上げ)</span><br><span class="k">${now}</span></p>`;
+  const head = `<div class="set"><span class="k">目標原価率</span><input id="sptg-${i}" inputmode="decimal" style="width:4.5em" value="${g.own ? g.target : ''}" placeholder="${g.target}"><span class="k">%</span><button class="btn ghost" type="button" data-ptg="${i}">決定</button></div>`;
+  if (!g.inc) return head + `<p class="k" style="margin:0 0 8px">1${U}の原価を算出すると、売価の目安が表示されます。</p>`;
+  const now = p.price ? (p.price >= g.inc ? `現在の売価${p.price}円は目安以上です。` : `現在の売価${p.price}円は目安より${g.inc - p.price}円低くなっています。`) : '';
+  return head + `<p style="margin:0 0 8px"><b>売価の目安 税込${g.inc.toLocaleString('ja-JP')}円</b> <span class="k">(目標${g.target}%${g.own ? '・この商品だけ' : '・店舗の目標'}、税抜${g.ex.toLocaleString('ja-JP')}円、${g.rate}%込み、10円単位で切り上げ)</span><br><span class="k">${now}</span></p>`;
 }
 // 税込の売価から、出し方ごとの税抜と原価率(税抜)を出す
 function taxHtml2(p) {
-  const t = p.tax; if (!t) return p.price ? '' : '<p class="k" style="margin:4px 0 8px">売価を入れると、税抜の売値と原価率が出ます。</p>';
+  const t = p.tax; if (!t) return p.price ? '' : '<p class="k" style="margin:4px 0 8px">売価を入力すると、税抜の売価と原価率が表示されます。</p>';
   const row = (l, o) => `<tr><td>${l} <span class="k">${o.rate}%</span></td><td class="n">税抜 ${o.ex.toLocaleString('ja-JP')}円</td><td class="n">${o.ratio != null ? '原価率 ' + o.ratio + '%' : '-'}</td></tr>`;
   let h = '<table style="margin:4px 0 8px">';
   if (t.takeout) h += row('持ち帰り', t.takeout);
   if (t.takeoutNext) h += row(`持ち帰り(${esc(t.takeoutNext.from.slice(0, 7).replace('-', '年'))}月〜)`, t.takeoutNext);
   if (t.eatin) h += row('店内', t.eatin);
   h += '</table>';
-  if (t.takeout && t.eatin) h += `<p class="k" style="margin:0 0 8px">税込が同じ${p.price}円だと、店内は税抜で${(Math.round((t.takeout.ex - t.eatin.ex) * 10) / 10).toLocaleString('ja-JP')}円少なくなります。</p>`;
-  if (t.takeoutNext) h += `<p class="k" style="margin:0 0 8px">税込${p.price}円のままなら、${esc(t.takeoutNext.from.slice(5).replace('-', '/'))}から持ち帰りの税抜が${(Math.round((t.takeoutNext.ex - t.takeout.ex) * 10) / 10).toLocaleString('ja-JP')}円増えます。</p>`;
+  if (t.takeout && t.eatin) h += `<p class="k" style="margin:0 0 8px">税込が同じ${p.price}円の場合、店内飲食は税抜で${(Math.round((t.takeout.ex - t.eatin.ex) * 10) / 10).toLocaleString('ja-JP')}円少なくなります。</p>`;
+  if (t.takeoutNext) h += `<p class="k" style="margin:0 0 8px">税込${p.price}円のままの場合、${esc(t.takeoutNext.from.slice(5).replace('-', '/'))}から持ち帰りの税抜が${(Math.round((t.takeoutNext.ex - t.takeout.ex) * 10) / 10).toLocaleString('ja-JP')}円増えます。</p>`;
   return h;
 }
 const open = new Set();
@@ -1131,7 +1131,7 @@ function renderCats(rate) {
 }
 // ---------- 原価: 表(表計算の密度) → 行を押すと下に商品(写真・材料と量・作り方) → レシピ票(製造モード) ----------
 let prodSel = null, prodN = null, prodEditI = -1, prodEditS = -1, costQ = '', costFilt = 'all', pdetEdit = null;
-const COST_COLS = [['name', '商品'], ['cat', '分類'], ['cost', `1${'個'}の原価`], ['diff', '先月比'], ['price', '売価(税込)'], ['rate', '原価率'], ['gp', '粗利/個'], ['sold', '今月の販売数'], ['sure', '確かめた割合'], ['upd', '更新']];
+const COST_COLS = [['name', '商品'], ['cat', '分類'], ['cost', `1${'個'}の原価`], ['diff', '先月比'], ['price', '売価(税込)'], ['rate', '原価率'], ['gp', '粗利/個'], ['sold', '今月の販売数'], ['sure', '確認済みの割合'], ['upd', '更新']];
 function prodSold(p) { const mo = (D.status || {}).month || new Date().toISOString().slice(0, 7), m = (D.menu || {})[mo]; const it = m && (m.items || []).find(x => x.name === p.name); return it ? it.qty : null; }
 function prodVals(p) {
   const r = p.price && p.per_piece != null ? exRatio(p) : null, ex = p.price ? p.price / (1 + ((p.tax && (p.serve === 'eatin' ? 10 : 8)) || 8) / 100) : null;
@@ -1139,7 +1139,7 @@ function prodVals(p) {
 }
 function renderCost() {
   const tw = $('cost-tw'), tb = $('cost-table'), chips = $('cost-chips'), foot = $('cost-foot');
-  if (!D.products.length) { tw.hidden = true; chips.innerHTML = ''; foot.innerHTML = ''; $('pdet').hidden = true; costsEl().innerHTML = emptyBox('cam', 'まだレシピがありません', '手書きのレシピを1枚撮ると、1個の原価がここに出ます。', ['レシピを撮る', 'cam']); return; }
+  if (!D.products.length) { tw.hidden = true; chips.innerHTML = ''; foot.innerHTML = ''; $('pdet').hidden = true; costsEl().innerHTML = emptyBox('cam', 'レシピが登録されていません', '手書きのレシピを1枚撮影すると、1個あたりの原価がここに表示されます。', ['レシピを撮影', 'cam']); return; }
   tw.hidden = false; if (!prodSel) costsEl().innerHTML = '';
   const rate = p => p.price && p.per_piece != null ? exRatio(p) / 100 : -1;
   renderCats(rate);
@@ -1151,7 +1151,7 @@ function renderCost() {
   const key = sortKey === 'new' ? 'upd' : sortKey === 'est' ? 'sure' : sortKey;
   list.sort((a, b) => { if ((a.kind === 'part') !== (b.kind === 'part')) return (a.kind === 'part') - (b.kind === 'part'); const va = key === 'name' ? a.name : key === 'cat' ? (a.cat || '') : prodVals(a)[key], vb = key === 'name' ? b.name : key === 'cat' ? (b.cat || '') : prodVals(b)[key]; if (va == null && vb == null) return 0; if (va == null) return 1; if (vb == null) return -1; return (typeof va === 'string' ? va.localeCompare(vb, 'ja') : va - vb) * (sortKey === 'est' ? 1 : dir); });
   const goods = D.products.filter(p => p.kind !== 'part'), nUp = goods.filter(p => prodVals(p).diff > 0).length, nWarn = goods.filter(p => { const v = prodVals(p); return v.rate != null && v.rate > tg(p); }).length, nNa = goods.filter(p => p.unknown.length || (p.noWeight || []).length).length, nPart = D.products.length - goods.length;
-  chips.innerHTML = [['all', 'すべて'], ['up', `上がった ${nUp}`], ['warn', `目標より高い ${nWarn}`], ['na', `原価未設定の材料 ${nNa}`], ['part', `半製品 ${nPart}`]].map(([k, l]) => `<button class="chip" type="button" data-cf="${k}" aria-pressed="${costFilt === k}">${l}</button>`).join('');
+  chips.innerHTML = [['all', 'すべて'], ['up', `値上がり ${nUp}`], ['warn', `目標より高い ${nWarn}`], ['na', `原価未設定の材料 ${nNa}`], ['part', `半製品 ${nPart}`]].map(([k, l]) => `<button class="chip" type="button" data-cf="${k}" aria-pressed="${costFilt === k}">${l}</button>`).join('');
   chips.querySelectorAll('[data-cf]').forEach(b => b.onclick = () => { costFilt = b.dataset.cf; renderCost(); });
   const money = !noMoney();
   const cols = COST_COLS.filter(([k]) => money || !['cost', 'diff', 'price', 'rate', 'gp'].includes(k)).map(([k, l]) => [k, k === 'cost' ? `1${U}の原価` : k === 'gp' ? `粗利/${U}` : l]);
@@ -1223,7 +1223,7 @@ function pdetOpen(box) {
   if (!pdetOpen.key) { pdetOpen.key = 1; document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('pdet').hidden) pdetClose(); }); }
 }
 function pdetClose() {
-  if (pdetEdit && pdetEdit.dirty && !pdetClose.ok) { pdetClose.ok = 1; toast('保存していない変更があります。もう一度閉じると、変更を破棄します。'); setTimeout(() => { pdetClose.ok = 0; }, 4000); return; }
+  if (pdetEdit && pdetEdit.dirty && !pdetClose.ok) { pdetClose.ok = 1; toast('保存されていない変更があります。もう一度閉じると、変更は破棄されます。'); setTimeout(() => { pdetClose.ok = 0; }, 4000); return; }
   pdetClose.ok = 0; pdetEdit = null; prodSel = null;
   const box = $('pdet'); box.hidden = true; box.innerHTML = ''; box.classList.remove('modal'); const ov = $('pdet-ov'); if (ov) ov.hidden = true; document.body.classList.remove('pdet-on');
   renderCost();
@@ -1240,7 +1240,7 @@ function renderPdetEdit(p, box) {
     <div class="pe">
       <section><h3>材料と分量 <span class="k">1回の仕込み(${p.pieces ? p.pieces + U : '1仕込み'})の量で入力します</span></h3>
         <table class="pe-t"><thead><tr><th>材料名</th><th class="n">分量</th><th>単位</th><th></th></tr></thead><tbody>
-        ${E.rows.map((r, i) => `<tr data-er="${i}"><td><input class="er-n" value="${esc(r.name)}" list="mat-names2" aria-label="材料名" placeholder="名前の一部を入力(例 チーズ)"><small class="er-h"${matKnown(r.name) ? ' hidden' : ''}>材料一覧にない名前です。保存すると「値段が分からない材料」として確認に出ます</small></td><td class="n"><input class="er-q" type="number" step="0.1" min="0" inputmode="decimal" value="${r.q || ''}" aria-label="分量"></td><td><select class="er-u" aria-label="単位">${UNITS.concat(UNITS.includes(r.u) ? [] : [r.u]).map(u => `<option${r.u === u ? ' selected' : ''}>${esc(u)}</option>`).join('')}</select></td><td><button class="pe-del" type="button" data-erd="${i}" aria-label="${esc(r.name || '材料')}を削除">削除</button></td></tr>`).join('')}
+        ${E.rows.map((r, i) => `<tr data-er="${i}"><td><input class="er-n" value="${esc(r.name)}" list="mat-names2" aria-label="材料名" placeholder="名前の一部を入力(例 チーズ)"><small class="er-h"${matKnown(r.name) ? ' hidden' : ''}>材料一覧にない名前です。保存すると「単価が未登録の材料」として確認の一覧に表示されます</small></td><td class="n"><input class="er-q" type="number" step="0.1" min="0" inputmode="decimal" value="${r.q || ''}" aria-label="分量"></td><td><select class="er-u" aria-label="単位">${UNITS.concat(UNITS.includes(r.u) ? [] : [r.u]).map(u => `<option${r.u === u ? ' selected' : ''}>${esc(u)}</option>`).join('')}</select></td><td><button class="pe-del" type="button" data-erd="${i}" aria-label="${esc(r.name || '材料')}を削除">削除</button></td></tr>`).join('')}
         </tbody></table><button class="btn ghost sm" type="button" id="rx-addr">＋ 材料を追加</button>
         <datalist id="mat-names2">${matOpts()}</datalist></section>
       <section><h3>作り方</h3><ol class="pe-s">${E.steps.map((t, i) => `<li><input data-es2="${i}" value="${esc(t)}" maxlength="300" aria-label="手順${i + 1}"><button class="pe-mv" type="button" data-esu="${i}" aria-label="上へ"${i ? '' : ' disabled'}>↑</button><button class="pe-mv" type="button" data-esd="${i}" aria-label="下へ"${i < E.steps.length - 1 ? '' : ' disabled'}>↓</button><button class="pe-del" type="button" data-esx="${i}">削除</button></li>`).join('')}</ol><button class="btn ghost sm" type="button" id="rx-adds">＋ 手順を追加</button></section>
@@ -1282,7 +1282,7 @@ function renderPdetEdit(p, box) {
     if (p.kind !== 'part' && (E.cat || '') !== (p.cat || '')) calls.push({ field: 'pcat', value: E.cat });
     if ((E.unit || '') !== PU(p)) calls.push({ field: 'punit', value: E.unit === U && !p.unitw ? '' : E.unit });
     if (!E.name2) { msg.innerHTML = '<mark>商品名を入力してください。</mark>'; return; }
-    if (E.name2 !== p.name) { if (D.products.some(x => x.name === E.name2)) { msg.innerHTML = `<mark>「${esc(E.name2)}」という商品はすでにあります。別の名前にしてください。</mark>`; return; } calls.push({ field: 'pname', value: E.name2 }); }
+    if (E.name2 !== p.name) { if (D.products.some(x => x.name === E.name2)) { msg.innerHTML = `<mark>「${esc(E.name2)}」という商品はすでに登録されています。別の商品名を入力してください。</mark>`; return; } calls.push({ field: 'pname', value: E.name2 }); }
     if (!calls.length) { back(); return; }
     const sv = $('rx-save'), grp = 'g' + Date.now().toString(36); sv.disabled = true; sv.textContent = '保存しています…';
     for (const c of calls) {
@@ -1306,7 +1306,7 @@ function renderPdet() {
   const canEdit = perm('recipe'), img = (p.simgs || [])[0];
   const algs = p.label ? p.label.allergens : [];
   const matOf = r => D.materials.find(m => m.name === (r.which || r.name) || m.name === r.name || (m.aliases || []).includes(r.name));
-  const qn = per ? `<span class="qn">${[1, per, 50, 100, 200].filter((v, i, a) => a.indexOf(v) === i).sort((a, b) => a - b).map(v => `<button type="button" data-qn="${v}" class="${v === n ? 'on' : ''}">${v}${U}</button>`).join('')}<label><input type="number" id="qn-in" min="1" max="9999" inputmode="numeric" value="${n}" aria-label="個数">${U}分</label></span>` : `<span class="k">1仕込み分 ${p.batch_grams ? fq(p.batch_grams) : ''}<br>(「1${U}の重さ」を入れると個数で出せます)</span>`;
+  const qn = per ? `<span class="qn">${[1, per, 50, 100, 200].filter((v, i, a) => a.indexOf(v) === i).sort((a, b) => a - b).map(v => `<button type="button" data-qn="${v}" class="${v === n ? 'on' : ''}">${v}${U}</button>`).join('')}<label><input type="number" id="qn-in" min="1" max="9999" inputmode="numeric" value="${n}" aria-label="個数">${U}分</label></span>` : `<span class="k">1仕込み分 ${p.batch_grams ? fq(p.batch_grams) : ''}<br>(「1${U}の重さ」を入力すると、個数で表示できます)</span>`;
   const rows = p.rows.map((r, i) => {
     const m = matOf(r), al = m ? (m.allergens || []) : [];
     const amt = r.grams == null ? `<b>${(Math.round(r.qty * f * 10) / 10)}<small>${esc(r.unit)}</small></b>` : `<b>${fq(r.grams * f).replace(/(kg|g)$/, '<small>$1</small>')}</b>`;
@@ -1315,16 +1315,16 @@ function renderPdet() {
   const total = p.batch_grams ? fq(p.batch_grams * f) : '';
   const steps = (p.steps || []).map((t, i) => `<li><span>${esc(t)}${(p.simgs || [])[i] ? `<div><img class="stimg" data-img="${esc(p.simgs[i])}" alt="手順${i + 1}の写真" style="max-width:220px;border-radius:8px;margin-top:6px"></div>` : ''}</span><span></span></li>`).join('');
   box.innerHTML = `<div class="hd2"><h2>${esc(p.name)} <span class="k">${esc(p.part || p.cat || '')}</span></h2><div class="row" style="gap:8px;flex-wrap:wrap">${(() => { const u = lastUndo(); return u && u.kind === 'undo' && u.product === p.name ? `<button class="undo-btn" type="button" id="pdet-undo" title="元に戻す: ${esc(u.label)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg><span>元に戻す</span></button>` : ''; })()}${canEdit ? '<button class="btn" type="button" id="pdet-edit">編集する</button>' : ''}<button class="btn ghost" type="button" id="mk-open">レシピ票<span class="mkx">(製造モード)</span></button><button class="pdx" type="button" id="pdet-x" aria-label="閉じる">×</button></div></div>
-    <div class="rv"><div class="pic"><div class="img">${img ? `<img class="stimg" data-img="${esc(img)}" alt="${esc(p.name)}">` : esc(p.name)}</div><div class="cap">${p.kind === 'part' ? '半製品' : esc(p.cat || '分類なし')} ・ 1回の仕込み ${per ? per + U : (p.batch_grams ? fq(p.batch_grams) : '—')}${p.pw ? ` ・ 1${U} ${p.pw}g` : ''}</div><div class="btns"><button class="btn ghost sm" type="button" id="pdet-photo">写真を撮る・付ける</button>${p.kind !== 'part' ? `<button class="btn ghost sm" type="button" id="pdet-label">食品表示</button>` : ''}</div></div>
+    <div class="rv"><div class="pic"><div class="img">${img ? `<img class="stimg" data-img="${esc(img)}" alt="${esc(p.name)}">` : esc(p.name)}</div><div class="cap">${p.kind === 'part' ? '半製品' : esc(p.cat || '分類なし')} ・ 1回の仕込み ${per ? per + U : (p.batch_grams ? fq(p.batch_grams) : '—')}${p.pw ? ` ・ 1${U} ${p.pw}g` : ''}</div><div class="btns"><button class="btn ghost sm" type="button" id="pdet-photo">写真を撮影・追加</button>${p.kind !== 'part' ? `<button class="btn ghost sm" type="button" id="pdet-label">食品表示</button>` : ''}</div></div>
     <div class="ml"><div class="mh"><span>材料</span>${qn}</div>${rows}${total ? `<div class="row sub"><span>合計(${per ? n + U : '1仕込み'}分)</span><b style="font-size:16px">${total}</b><span></span></div>` : ''}<div class="row sub"><span>アレルゲン</span><span style="font-weight:500;font-size:13px">${algs.length ? algs.map(esc).join('・') : 'なし'}</span><span></span></div></div></div>
     <datalist id="mat-names">${matOpts()}</datalist>
     <div class="steps2"><h3>作り方</h3>${(p.steps || []).length ? `<ol>${steps}</ol>` : '<p class="k" style="margin:0">まだ手順がありません。</p>'}</div>
-    <details class="setd"><summary>その他の設定(出し方・税率・値段のない材料・組み合わせ・削除)</summary><div id="pdet-set"></div></details>`;
+    <details class="setd"><summary>その他の設定(提供方法・税率・単価が未登録の材料・組み合わせ・削除)</summary><div id="pdet-set"></div></details>`;
   bindStepImgs(box);
   $('pdet-x').onclick = pdetClose;
   if ($('pdet-undo')) $('pdet-undo').onclick = () => costUndo();
   if ($('pdet-bk')) $('pdet-bk').onclick = async () => {
-    const out = $('pdet-bkout'); out.innerHTML = '<p class="k">控えを読んでいます…</p>';
+    const out = $('pdet-bkout'); out.innerHTML = '<p class="k">控えを読み込んでいます…</p>';
     const r = await api({ kind: 'app_backup_recipe', product: p.name });
     if (!r.ok) { out.innerHTML = `<p class="k">${esc(r.error)}</p>`; return; }
     if (!r.found) { out.innerHTML = `<p class="k">${esc(r.day)}の控えに「${esc(p.name)}」はありません。</p>`; return; }
@@ -1335,15 +1335,15 @@ function renderPdet() {
     out.innerHTML = `<div class="card" style="margin:8px 0"><p style="margin:0 0 6px"><b>${esc(r.day)} 4時の控え</b></p>
       <p style="margin:0">材料: ${gone.length ? `控えにあって今ない: ${gone.map(x => `<b>${esc(x[0])} ${x[1]}${esc(x[2])}</b>`).join('、')}` : '控えと同じ'}${added.length ? `<br><span class="k">今だけにある: ${added.map(x => esc(x[0]) + ' ' + x[1] + esc(x[2])).join('、')}</span>` : ''}</p>
       ${sgone.length ? `<p style="margin:6px 0 0">作り方: 控えにあって今ない <b>${sgone.map(esc).join(' / ')}</b></p>` : ''}
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">${gone.length ? `<button class="btn sm" type="button" id="bk-ing">消えた材料だけ足す</button><button class="btn ghost sm" type="button" id="bk-ing-all">材料を控えの形にそっくり戻す</button>` : ''}${sgone.length ? `<button class="btn ghost sm" type="button" id="bk-steps">作り方を控えの形に戻す</button>` : ''}</div>
-      <p class="k" style="margin:8px 0 0">戻したあとも、いちばん下の「戻す」から直す前に戻せます。</p></div>`;
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">${gone.length ? `<button class="btn sm" type="button" id="bk-ing">削除された材料のみ追加</button><button class="btn ghost sm" type="button" id="bk-ing-all">材料を控えの内容にすべて戻す</button>` : ''}${sgone.length ? `<button class="btn ghost sm" type="button" id="bk-steps">作り方を控えの内容に戻す</button>` : ''}</div>
+      <p class="k" style="margin:8px 0 0">戻した後も、最下部の「戻す」から修正前の状態に戻せます。</p></div>`;
     if ($('bk-ing')) $('bk-ing').onclick = () => setValueX({ field: 'ing', product: p.name, value: cur.concat(gone) });
     if ($('bk-ing-all')) $('bk-ing-all').onclick = () => setValueX({ field: 'ing', product: p.name, value: r.ingredients });
     if ($('bk-steps')) $('bk-steps').onclick = () => setValueX({ field: 'steps', product: p.name, value: r.steps });
   };
   $('mk-open').onclick = () => openMk(p);
   if ($('pdet-label')) $('pdet-label').onclick = () => { labelName = p.name; show('label'); };
-  $('pdet-photo').onclick = () => { const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*'; inp.onchange = async () => { const fl = inp.files[0]; if (!fl) return; try { const img64 = await shrinkStep(fl); const r = await api({ kind: 'app_img', product: p.name, idx: 0, image: img64, type: 'image/jpeg' }); if (!r.ok) throw new Error(r.error); D = r.data; renderAll(); toast('写真を付けました', 'ok'); } catch (e) { toast(e.message || '写真を送れませんでした'); } }; inp.click(); };
+  $('pdet-photo').onclick = () => { const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*'; inp.onchange = async () => { const fl = inp.files[0]; if (!fl) return; try { const img64 = await shrinkStep(fl); const r = await api({ kind: 'app_img', product: p.name, idx: 0, image: img64, type: 'image/jpeg' }); if (!r.ok) throw new Error(r.error); D = r.data; renderAll(); toast('写真を追加しました', 'ok'); } catch (e) { toast(e.message || '写真を送信できませんでした'); } }; inp.click(); };
   box.querySelectorAll('[data-qn]').forEach(b => b.onclick = () => { prodN = +b.dataset.qn; renderPdet(); });
   if ($('qn-in')) $('qn-in').onchange = () => { prodN = Math.max(1, Math.min(9999, parseInt($('qn-in').value) || 1)); renderPdet(); };
   if ($('pdet-edit')) $('pdet-edit').onclick = () => { pdetEdit = { name: p.name, rows: p.rows.map(r => ({ name: r.name, q: r.q != null ? r.q : r.qty, u: r.u || r.unit || 'g' })), steps: (p.steps || []).slice(), pw: p.pw || '', pieces: p.piecesN || '', price: p.price || '', cat: p.cat || '', unit: PU(p), name2: p.name }; renderPdet(); };
@@ -1360,10 +1360,10 @@ function openMk(p) {
     const rows = p.rows, tot = (p.batch_cost || 0) * mul, pp = p.per_piece, price = p.price, ex = price ? price / (1 + (p.serve === 'eatin' ? 10 : 8) / 100) : null;
     const sheet = `<div class="rsheet${money ? '' : ' nomoney'}"><div class="head"><div>料理名</div><div><b>${esc(p.name)}</b></div><div>取り数</div><div>${per ? per * mul + U + '(1仕込み×' + mul + ')' : '1仕込み×' + mul}${p.pw ? ' ・ 1' + U + ' ' + p.pw + 'g' : ''}</div><div class="m">売価</div><div class="m">${price ? yen(price) + '(税込)' : '未設定'}</div><div class="m">原価</div><div class="m">${pp != null ? pp.toFixed(1) + '円 /' + U + '(1仕込み ' + yen(p.batch_cost) + ')' : yen(p.batch_cost) + '/仕込み'}</div><div class="m">原価率</div><div class="m">${pp != null && ex ? Math.round(pp / ex * 1000) / 10 + '%(税抜)' : '—'}</div></div>
       <table><thead><tr><th style="width:38%">材料名</th><th style="width:18%">分量</th><th class="money" style="width:16%">原体価格</th><th class="money" style="width:14%">価格</th><th>備考</th></tr></thead><tbody>
-      ${rows.map(r => { const m = D.materials.find(x => x.name === (r.which || r.name) || x.name === r.name); const amt = r.grams == null ? (Math.round(r.qty * mul * 10) / 10) + esc(r.unit) : fq(r.grams * mul); const ppg = m && m.ppg ? Math.round(m.ppg * 10000) / 10 + '円/kg' : m && m.ppu ? m.ppu + '円/枚' : '—'; return `<tr><td>${esc(r.name)}${r.src === 'part' ? ' <span class="rem">(半製品)</span>' : ''}</td><td class="n">${amt}</td><td class="money" style="font-size:15px">${ppg}</td><td class="money n" style="font-size:18px">${r.cost != null ? Math.round(r.cost * mul) + '円' : '—'}</td><td class="rem">${r.src === 'est' ? '仮の値段' : r.src === 'unknown' ? '材料の登録がまだ' : ''}</td></tr>`; }).join('')}
+      ${rows.map(r => { const m = D.materials.find(x => x.name === (r.which || r.name) || x.name === r.name); const amt = r.grams == null ? (Math.round(r.qty * mul * 10) / 10) + esc(r.unit) : fq(r.grams * mul); const ppg = m && m.ppg ? Math.round(m.ppg * 10000) / 10 + '円/kg' : m && m.ppu ? m.ppu + '円/枚' : '—'; return `<tr><td>${esc(r.name)}${r.src === 'part' ? ' <span class="rem">(半製品)</span>' : ''}</td><td class="n">${amt}</td><td class="money" style="font-size:15px">${ppg}</td><td class="money n" style="font-size:18px">${r.cost != null ? Math.round(r.cost * mul) + '円' : '—'}</td><td class="rem">${r.src === 'est' ? '仮の単価' : r.src === 'unknown' ? '材料が未登録' : ''}</td></tr>`; }).join('')}
       <tr class="gap"><td colspan="5"></td></tr>${(p.steps || []).length ? `<tr class="grp"><td>作り方</td><td></td><td class="money"></td><td class="money"></td><td class="rem"></td></tr>${p.steps.map((t, i) => `<tr><td colspan="5">${i + 1}. ${esc(t)}</td></tr>`).join('')}` : ''}
       <tr class="gap"><td colspan="5"></td></tr><tr class="gap"><td colspan="5"></td></tr></tbody></table></div>`;
-    mk.innerHTML = `<div class="mkt"><h2>${esc(p.name)}</h2><div class="ctl"><span class="qty">${[1, 2, 3].map(q => `<button type="button" data-q="${q}" class="${q === mul ? 'on' : ''}">${q}仕込み</button>`).join('')}</span>${noMoney() ? '' : `<label class="tg"><input type="checkbox" id="mk-money"${money ? ' checked' : ''}>金額も見る</label>`}<button class="x" type="button" id="mk-print">印刷する</button><button class="x" type="button" id="mk-x">閉じる</button></div></div>${sheet}<p class="tip">紙のレシピ票と同じ並びです。ふだんは材料名と分量だけ。「仕込み」の数で分量が変わります。</p>`;
+    mk.innerHTML = `<div class="mkt"><h2>${esc(p.name)}</h2><div class="ctl"><span class="qty">${[1, 2, 3].map(q => `<button type="button" data-q="${q}" class="${q === mul ? 'on' : ''}">${q}仕込み</button>`).join('')}</span>${noMoney() ? '' : `<label class="tg"><input type="checkbox" id="mk-money"${money ? ' checked' : ''}>金額も見る</label>`}<button class="x" type="button" id="mk-print">印刷する</button><button class="x" type="button" id="mk-x">閉じる</button></div></div>${sheet}<p class="tip">紙のレシピ票と同じ並びです。通常は材料名と分量のみを表示します。「仕込み」の数に応じて分量が変わります。</p>`;
     mk.querySelectorAll('[data-q]').forEach(b => b.onclick = () => { mul = +b.dataset.q; draw(); });
     if ($('mk-money')) $('mk-money').onchange = e => { money = e.target.checked; draw(); };
     $('mk-x').onclick = () => { mk.hidden = true; };
@@ -1381,35 +1381,35 @@ function renderCostCards(only) {
   let partHead = false;
   box.innerHTML = ordered.map(([p, i]) => {
     const U = PU(p);
-    const head = p.per_piece != null ? `<div class="big">${yen1(p.per_piece)}<span class="k" style="font-weight:400"> / 1${U}</span></div>` : '<div class="big" style="font-size:18px;color:var(--ink-2)">1個の重さ待ち</div>';
+    const head = p.per_piece != null ? `<div class="big">${yen1(p.per_piece)}<span class="k" style="font-weight:400"> / 1${U}</span></div>` : '<div class="big" style="font-size:18px;color:var(--ink-2)">1個の重さが未入力</div>';
     const meta = [p.composed ? `<span class="pill gray">組み合わせ ${p.rows.length}つ</span>` : `<span class="pill gray">1仕込み ${yen(p.batch_cost)}</span>`];
     if (p.pieces && !p.composed) meta.push(`<span class="pill gray">約${p.pieces}個</span>`);
     if (p.price && p.per_piece != null) { const r = exRatio(p), tg = (p.guide || {}).target || 30; meta.push(`<span class="pill ${r > tg ? 'warn' : ''}">原価率(税抜) ${Math.round(r)}%${r > tg ? ' · 目標' + tg + '%超え' : ''}</span>`); }
-    if (p.unknown.length) meta.push(`<span class="pill warn">値段のない材料 ${p.unknown.length}(原価に入っていません)</span>`);
-    if ((p.noWeight || []).length) meta.push(`<span class="pill warn">1つの重さがない材料 ${p.noWeight.length}(原価に入っていません)</span>`);
-    const det = `<table>${p.rows.map(r => `<tr><td>${esc(r.name)} <span class="k">${r.grams == null ? (r.qty + esc(r.unit)) : r.grams.toLocaleString() + 'g'}</span>${r.src === 'est' ? ' <span class="pill warn">仮</span>' : r.src === 'unknown' ? ' <span class="pill warn">不明</span>' : r.src === 'noweight' ? ' <span class="pill warn">1つの重さなし</span>' : r.src === 'part' ? ' <span class="pill gray">半製品</span>' : ''}${r.which && r.src !== 'part' ? `<br><span class="k">→ ${esc(r.which)}${r.cands ? '(同じ種類が' + r.cands.length + 'つ。どれか確かめてください)' : ''}</span>` : ''}</td><td class="n">${r.cost == null ? '-' : yen1(r.cost)}</td></tr>`).join('')}<tr><td><b>1仕込み</b></td><td class="n"><b>${yen(p.batch_cost)}</b></td></tr></table>${p.unknown.length ? `<div style="margin-top:8px"><p class="k" style="margin:0 0 4px">値段のない材料は、原価に入っていません。分かる分だけ入れてください(請求書を撮っても入ります)。</p>${p.unknown.map(n => `<p style="margin:8px 0 0"><b>${esc(n)}</b></p>${unkForm(n)}`).join('')}</div>` : ''}${(p.noWeight || []).length ? `<div style="margin-top:8px"><p class="k" style="margin:0 0 4px">数で書かれた材料は、1つの重さが分かると原価に入ります。</p>${p.rows.filter(r => r.src === 'noweight').map(r => `<div class="set"><span class="k">${esc(r.name)} 1${esc(r.unit)}</span><input data-pgn="${esc(r.which || r.name)}" inputmode="decimal" placeholder="例 200" style="width:6em"><span class="k">g</span><button class="btn ghost" type="button" data-pgo="${esc(r.which || r.name)}">決定</button></div>`).join('')}</div>` : ''}
-      <div class="set"><span class="k">仕込みの量</span><input id="sqty-${i}" inputmode="numeric" placeholder="例 60"><span class="k">${U}分</span><button class="btn ghost" type="button" data-scale="${i}">分量を出す</button></div><div id="sqout-${i}"></div>
-      <div style="margin-top:12px"><b>作り方</b>${(p.steps || []).length ? `<ol class="steps">${p.steps.map((s, si) => `<li>${esc(s)}${(p.simgs || [])[si] ? `<div><img class="stimg" data-img="${esc(p.simgs[si])}" alt="手順${si + 1}の写真"><div><button class="btn ghost sm" type="button" data-imgdel="${i}:${si}">写真を消す</button></div></div>` : ` <button class="btn ghost sm" type="button" data-imgadd="${i}:${si}">写真を付ける</button>`}</li>`).join('')}</ol>` : ' <span class="k">まだ入っていません</span>'}
-      <details><summary class="k" style="cursor:pointer">作り方を書く・直す(1行に1手順)</summary><textarea id="stp-${i}" rows="6" style="width:100%;margin-top:8px;font:inherit;font-size:16px;padding:8px 12px;border:1.5px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)" placeholder="例&#10;粉と砂糖を合わせる&#10;卵を混ぜて生地にする&#10;30gずつ包んで焼く">${esc((p.steps || []).join('\n'))}</textarea><div class="ask" style="margin-top:8px"><button class="btn ghost sm" type="button" data-steps="${i}">作り方を保存</button></div></details></div>
+    if (p.unknown.length) meta.push(`<span class="pill warn">単価が未登録の材料 ${p.unknown.length}(原価に含まれていません)</span>`);
+    if ((p.noWeight || []).length) meta.push(`<span class="pill warn">1個の重さが未入力の材料 ${p.noWeight.length}(原価に含まれていません)</span>`);
+    const det = `<table>${p.rows.map(r => `<tr><td>${esc(r.name)} <span class="k">${r.grams == null ? (r.qty + esc(r.unit)) : r.grams.toLocaleString() + 'g'}</span>${r.src === 'est' ? ' <span class="pill warn">仮</span>' : r.src === 'unknown' ? ' <span class="pill warn">不明</span>' : r.src === 'noweight' ? ' <span class="pill warn">1個の重さ未登録</span>' : r.src === 'part' ? ' <span class="pill gray">半製品</span>' : ''}${r.which && r.src !== 'part' ? `<br><span class="k">→ ${esc(r.which)}${r.cands ? '(同じ種類が' + r.cands.length + '件あります。該当するものをご確認ください)' : ''}</span>` : ''}</td><td class="n">${r.cost == null ? '-' : yen1(r.cost)}</td></tr>`).join('')}<tr><td><b>1仕込み</b></td><td class="n"><b>${yen(p.batch_cost)}</b></td></tr></table>${p.unknown.length ? `<div style="margin-top:8px"><p class="k" style="margin:0 0 4px">単価が未登録の材料は、原価に含まれていません。分かるものだけ入力してください(請求書を撮影しても登録されます)。</p>${p.unknown.map(n => `<p style="margin:8px 0 0"><b>${esc(n)}</b></p>${unkForm(n)}`).join('')}</div>` : ''}${(p.noWeight || []).length ? `<div style="margin-top:8px"><p class="k" style="margin:0 0 4px">個数で記載された材料は、1個の重さを入力すると原価に含まれます。</p>${p.rows.filter(r => r.src === 'noweight').map(r => `<div class="set"><span class="k">${esc(r.name)} 1${esc(r.unit)}</span><input data-pgn="${esc(r.which || r.name)}" inputmode="decimal" placeholder="例 200" style="width:6em"><span class="k">g</span><button class="btn ghost" type="button" data-pgo="${esc(r.which || r.name)}">決定</button></div>`).join('')}</div>` : ''}
+      <div class="set"><span class="k">仕込み量</span><input id="sqty-${i}" inputmode="numeric" placeholder="例 60"><span class="k">${U}分</span><button class="btn ghost" type="button" data-scale="${i}">分量を出す</button></div><div id="sqout-${i}"></div>
+      <div style="margin-top:12px"><b>作り方</b>${(p.steps || []).length ? `<ol class="steps">${p.steps.map((s, si) => `<li>${esc(s)}${(p.simgs || [])[si] ? `<div><img class="stimg" data-img="${esc(p.simgs[si])}" alt="手順${si + 1}の写真"><div><button class="btn ghost sm" type="button" data-imgdel="${i}:${si}">写真を消す</button></div></div>` : ` <button class="btn ghost sm" type="button" data-imgadd="${i}:${si}">写真を付ける</button>`}</li>`).join('')}</ol>` : ' <span class="k">未登録</span>'}
+      <details><summary class="k" style="cursor:pointer">作り方の入力・編集(1行に1手順)</summary><textarea id="stp-${i}" rows="6" style="width:100%;margin-top:8px;font:inherit;font-size:16px;padding:8px 12px;border:1.5px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)" placeholder="例&#10;粉と砂糖を合わせる&#10;卵を混ぜて生地にする&#10;30gずつ包んで焼く">${esc((p.steps || []).join('\n'))}</textarea><div class="ask" style="margin-top:8px"><button class="btn ghost sm" type="button" data-steps="${i}">作り方を保存</button></div></details></div>
       <div class="set"><span class="k">1${U}の重さ</span><input id="spw-${i}" inputmode="decimal" value="${p.pw || ''}" placeholder="例 40"><span class="k">g</span><button class="btn ghost" type="button" data-set="pw" data-i="${i}">決定</button></div>
       ${p.composed ? '' : `<div class="set"><span class="k">または 1仕込みで</span><input id="spn-${i}" inputmode="numeric" value="${p.piecesN || ''}" placeholder="例 8"><span class="k">${U}取れる</span><button class="btn ghost" type="button" data-set="pieces" data-i="${i}">決定</button></div><p class="k" style="margin:0 0 8px">ホールケーキ1台を8切れ、1鍋で20${U === '個' ? '個' : U}のように、数で決めることもできます。${p.piecesN ? '今は数で決めています(空にして決めると重さに戻ります)。' : ''}</p>`}
       <div class="set"><span class="k">売価(税込)</span><input id="sprice-${i}" inputmode="decimal" value="${p.price || ''}" placeholder="例 250"><span class="k">円</span><button class="btn ghost" type="button" data-set="price" data-i="${i}">決定</button></div>
       ${p.kind === 'part' ? '' : `<div class="set"><span class="k">分類</span><input id="scat-${i}" list="cat-list" value="${esc(p.cat || '')}" placeholder="例 焼き菓子" maxlength="16"><button class="btn ghost" type="button" data-cat="${i}">決定</button></div>`}
       ${noMoney() || p.kind === 'part' ? '' : `<div class="set"><span class="k">出し方</span><span class="seg" data-serve="${i}">${[['takeout', '持ち帰り'], ['eatin', '店内'], ['both', '両方']].map(([v, l]) => `<button type="button" data-v="${v}" aria-pressed="${(p.serve || 'takeout') === v}">${l}</button>`).join('')}</span></div>${taxHtml2(p)}${guideHtml(p, i)}`}
       ${noMoney() || p.kind === 'part' ? '' : composeHtml(p)}
-      ${noMoney() ? '' : `<div style="margin-top:16px;text-align:right"><button class="btn ghost sm" type="button" data-delprod="${esc(p.name)}" style="color:var(--warn);border-color:var(--warn)">この商品を消す</button></div>`}`;
+      ${noMoney() ? '' : `<div style="margin-top:16px;text-align:right"><button class="btn ghost sm" type="button" data-delprod="${esc(p.name)}" style="color:var(--warn);border-color:var(--warn)">この商品を削除</button></div>`}`;
     const isOpen = open.has(p.name);
-    const ph = p.kind === 'part' && !partHead ? (partHead = true, '<div style="grid-column:1/-1;margin-top:8px"><b>生地・餡などの半製品</b> <span class="k">商品ではなく、ほかのレシピの材料になるもの。「〇〇は商品」と話すと戻せます</span></div>') : '';
-    return ph + `<div class="card prod" data-name="${esc(p.name)}"><div class="hd" role="button" tabindex="0" aria-expanded="${isOpen}" data-toggle>${avatar(p.name)}<span class="nm">${esc(p.name)} <span class="k">${esc(p.part)}</span></span><span class="k">${p.sure}% 確定</span></div>${head}<div class="meta">${meta.join('')}</div><div class="bar" aria-label="請求書で確かめた割合 ${p.sure}%" title="請求書で確かめた割合 ${p.sure}%"><i style="width:${p.sure}%"></i></div><div class="detail" ${isOpen ? '' : 'hidden'}>${det}</div></div>`;
+    const ph = p.kind === 'part' && !partHead ? (partHead = true, '<div style="grid-column:1/-1;margin-top:8px"><b>生地・餡などの半製品</b> <span class="k">商品ではなく、他のレシピの材料として使うものです。AIに「〇〇は商品」と入力すると、商品に戻せます</span></div>') : '';
+    return ph + `<div class="card prod" data-name="${esc(p.name)}"><div class="hd" role="button" tabindex="0" aria-expanded="${isOpen}" data-toggle>${avatar(p.name)}<span class="nm">${esc(p.name)} <span class="k">${esc(p.part)}</span></span><span class="k">${p.sure}% 確定</span></div>${head}<div class="meta">${meta.join('')}</div><div class="bar" aria-label="請求書で確認済みの割合 ${p.sure}%" title="請求書で確認済みの割合 ${p.sure}%"><i style="width:${p.sure}%"></i></div><div class="detail" ${isOpen ? '' : 'hidden'}>${det}</div></div>`;
   }).join('');
   bindUnk(box); bindCompose(box);
   box.querySelectorAll('[data-cat]').forEach(b => b.onclick = () => { const p = D.products[b.dataset.cat]; setValueX({ field: 'pcat', product: p.name, value: $('scat-' + b.dataset.cat).value.trim() }); });
   box.querySelectorAll('[data-scale]').forEach(b => b.onclick = () => {
     const i = +b.dataset.scale, p = D.products[i], out = $('sqout-' + i), n = +($('sqty-' + i).value || 0);
-    if (!(n > 0)) { out.innerHTML = '<p class="k" style="margin:4px 0 8px">作る数を入れてください。</p>'; return; }
-    if (!p.pieces) { out.innerHTML = `<p class="k" style="margin:4px 0 8px">先に「1${U}の重さ」を入れると、分量を出せます。</p>`; return; }
+    if (!(n > 0)) { out.innerHTML = '<p class="k" style="margin:4px 0 8px">製造数を入力してください。</p>'; return; }
+    if (!p.pieces) { out.innerHTML = `<p class="k" style="margin:4px 0 8px">先に「1${U}の重さ」を入力すると、分量を計算できます。</p>`; return; }
     const f = n / p.pieces, fq = v => (v >= 20 ? Math.round(v).toLocaleString() : Math.round(v * 10) / 10) + 'g';
-    out.innerHTML = `<table style="margin:4px 0 8px">${p.rows.map(r => `<tr><td>${esc(r.name)}</td><td class="n">${r.grams == null ? (Math.round(r.qty * f * 10) / 10) + esc(r.unit) : fq(r.grams * f)}</td></tr>`).join('')}<tr><td><b>材料費</b></td><td class="n"><b>${yen(p.batch_cost * f)}</b></td></tr></table><p class="k" style="margin:0 0 8px">${p.composed ? `1${U}の配合 × ${n}` : `ふだんの1仕込み 約${p.pieces}${U} × ${Math.round(f * 100) / 100}`}。印刷はこの画面のまま、ブラウザの印刷でできます。</p>`;
+    out.innerHTML = `<table style="margin:4px 0 8px">${p.rows.map(r => `<tr><td>${esc(r.name)}</td><td class="n">${r.grams == null ? (Math.round(r.qty * f * 10) / 10) + esc(r.unit) : fq(r.grams * f)}</td></tr>`).join('')}<tr><td><b>材料費</b></td><td class="n"><b>${yen(p.batch_cost * f)}</b></td></tr></table><p class="k" style="margin:0 0 8px">${p.composed ? `1${U}の配合 × ${n}` : `ふだんの1仕込み 約${p.pieces}${U} × ${Math.round(f * 100) / 100}`}。この画面は、ブラウザの印刷機能で印刷できます。</p>`;
   });
   // 手順の写真: 出す・付ける・消す
   bindStepImgs(box);
@@ -1418,31 +1418,31 @@ function renderCostCards(only) {
     const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*';
     inp.onchange = async () => {
       const f = inp.files[0]; if (!f) return;
-      b.textContent = '送っています…'; b.disabled = true;
+      b.textContent = '送信しています…'; b.disabled = true;
       try {
         const img64 = await shrinkStep(f);
         const r = await api({ kind: 'app_img', product: D.products[i].name, idx: si, image: img64, type: 'image/jpeg' });
-        if (!r.ok) throw new Error(r.error || '送れませんでした');
-        D = r.data; renderAll(); toast(r.msg || '写真を付けました。', 'ok');
-      } catch (e) { toast(e.message || '写真を送れませんでした'); b.textContent = '写真を付ける'; b.disabled = false; }
+        if (!r.ok) throw new Error(r.error || '送信できませんでした');
+        D = r.data; renderAll(); toast(r.msg || '写真を追加しました。', 'ok');
+      } catch (e) { toast(e.message || '写真を送信できませんでした'); b.textContent = '写真を追加'; b.disabled = false; }
     };
     inp.click();
   });
-  box.querySelectorAll('[data-imgdel]').forEach(b => twice(b, '写真を消す(もう一度押す)', async () => {
+  box.querySelectorAll('[data-imgdel]').forEach(b => twice(b, '写真を削除(もう一度押すと確定)', async () => {
     const [i, si] = b.dataset.imgdel.split(':').map(Number);
     const r = await api({ kind: 'app_img', product: D.products[i].name, idx: si });
-    if (r.ok) { D = r.data; renderAll(); toast(r.msg || '写真を消しました。', 'ok'); } else toast(r.error || '消せませんでした');
+    if (r.ok) { D = r.data; renderAll(); toast(r.msg || '写真を削除しました。', 'ok'); } else toast(r.error || '削除できませんでした');
   }));
   box.querySelectorAll('[data-ptg]').forEach(b => b.onclick = () => {
     const i = +b.dataset.ptg, inp = $('sptg-' + i), v = inp.value.trim() === '' ? 0 : parseFloat(inp.value);
-    if (v !== 0 && !(v >= 5 && v <= 90)) { inp.focus(); chat('目標の原価率は5〜90(%)で入れてください。空にすると店舗の目標に戻ります'); return; }
+    if (v !== 0 && !(v >= 5 && v <= 90)) { inp.focus(); chat('目標原価率は5〜90(%)の範囲で入力してください。空欄にすると店舗の目標値に戻ります'); return; }
     setValueX({ field: 'ptarget', product: D.products[i].name, value: v });
   });
   box.querySelectorAll('[data-pgo]').forEach(b => b.onclick = () => {
     const inp = box.querySelector(`[data-pgn="${CSS.escape(b.dataset.pgo)}"]`), g = parseFloat(inp.value);
     if (!(g > 0)) { inp.focus(); return; }
     const m = D.materials.find(x => x.name === b.dataset.pgo || (x.aliases || []).includes(b.dataset.pgo));
-    if (!m) { chat(`「${esc(b.dataset.pgo)}」は材料の表にまだありません。先に材料の値段を入れてください`); return; }
+    if (!m) { chat(`「${esc(b.dataset.pgo)}」は材料一覧に登録されていません。先に材料の単価を登録してください`); return; }
     setValueX({ field: 'mat', name: m.name, value: { pieceG: g } });
   });
   box.querySelectorAll('[data-serve]').forEach(sg => sg.querySelectorAll('button').forEach(b => b.onclick = () => setValueX({ field: 'serve', product: D.products[+sg.dataset.serve].name, value: b.dataset.v })));
@@ -1509,9 +1509,9 @@ const packRow = (k, i) => `<div class="pkrow" style="display:grid;grid-template-
 function janCheck(d) {
   d = String(d || '').replace(/[\s-]/g, '');
   if (!d) return { ok: true, empty: true };
-  if (!/^\d{13}$/.test(d)) return { ok: false, msg: `JANコードは13桁の数字です(いま${d.replace(/\D/g, '').length}桁)` };
+  if (!/^\d{13}$/.test(d)) return { ok: false, msg: `JANコードは13桁の数字です(現在${d.replace(/\D/g, '').length}桁)` };
   let t = 0; for (let i = 0; i < 12; i++) t += +d[i] * (i % 2 ? 3 : 1);
-  return (10 - t % 10) % 10 === +d[12] ? { ok: true, code: d } : { ok: false, msg: '最後の数字が合いません。番号を見直してください' };
+  return (10 - t % 10) % 10 === +d[12] ? { ok: true, code: d } : { ok: false, msg: 'チェックデジット(最後の数字)が一致しません。番号をご確認ください' };
 }
 const sellFace = () => (D.shopInfo || {}).sell === 'face';
 // 店頭に置くもの: アレルゲン一覧表(全商品 × 特定原材料)とプライスカード。対面販売のお店はこちらが主役
@@ -1523,7 +1523,7 @@ function allergenTable(forPrint) {
   const col = a => `<th style="padding:4px 4px;font-size:12px;line-height:1.25;white-space:normal;min-width:2.6em;vertical-align:bottom">${esc(a.replace('成分', ''))}</th>`;
   return `<table class="hgrid alg"><tr><th style="text-align:left">商品</th>${must.map(col).join('')}${rec.length ? `<th style="border-left:2px solid var(--line)"></th>${rec.map(col).join('')}` : ''}</tr>` +
     goods.map(p => { const has = new Set(p.label.allergens); return `<tr><td style="text-align:left;white-space:nowrap"><b>${esc(p.name)}</b>${p.label.check.length ? ' <span class="k">※</span>' : ''}</td>${must.map(a => `<td>${has.has(a) ? '●' : ''}</td>`).join('')}${rec.length ? `<td style="border-left:2px solid var(--line)"></td>${rec.map(a => `<td>${has.has(a) ? '●' : ''}</td>`).join('')}` : ''}</tr>`; }).join('') +
-    `</table><p class="k" style="margin:8px 0 0">左が表示義務の${must.length}品目${rec.length ? '、右が表示推奨のうち使っているもの' : ''}。${D.products.some(p => p.label.check.length) ? '※は材料の確認がまだの商品で、変わることがあります。' : ''}レシピから自動で出した案です。最終確認は店舗で。</p>`;
+    `</table><p class="k" style="margin:8px 0 0">左が表示義務の${must.length}品目${rec.length ? '、右が表示推奨のうち使っているもの' : ''}。${D.products.some(p => p.label.check.length) ? '※は材料の確認がまだの商品で、変わることがあります。' : ''}レシピから自動で作成した案です。最終確認は店舗で行ってください。</p>`;
 }
 function priceCard(p) {
   const L = lblOf(p), alg = p.label.allergens;
@@ -1539,22 +1539,22 @@ function qrDataUrl(text, size) {
 function qrBox() {
   if (!D.pubUrl) return '';
   const goods = D.products.filter(p => p.kind !== 'part'), shown = goods.filter(p => !p.pubHide).length, u = qrDataUrl(D.pubUrl, 300);
-  return `<div class="card" id="qr-card" style="margin-top:12px"><p style="margin:0 0 8px"><b>お客様向けのアレルゲン一覧(QR)</b> <span class="k">お客様がスマートフォンで読むと、商品ごとのアレルゲンが見られます。ログインなし。原価・売価・原材料名は出ません</span></p>
-    <div class="qrbox"><div class="qr">${u ? `<img src="${u}" alt="アレルゲン一覧のQRコード">` : '<span class="k">QRを作れませんでした</span>'}</div>
-    <div><p class="url" style="margin:0 0 6px">${esc(D.pubUrl)}</p><p class="k" style="margin:0 0 8px">出している商品 ${shown}/${goods.length}品。レシピを変えると、一覧も変わります。</p>
-      <div class="ask" style="justify-content:flex-start"><a class="btn ghost sm" href="${esc(D.pubUrl)}" target="_blank" rel="noopener">開いて確かめる</a><button class="btn ghost sm" type="button" id="qr-a5">A5の紙を印刷</button><button class="btn ghost sm" type="button" id="qr-cards">名刺の大きさ(A4に10枚)</button><button class="btn ghost sm" type="button" id="qr-copy">住所をコピー</button>${D.me && D.me.owner ? '<button class="btn ghost sm" type="button" id="qr-renew">QRを作り直す</button>' : ''}</div>
-      <details style="margin-top:8px"><summary class="k">出す商品・出さない商品</summary><div class="publ">${goods.map(p => `<label class="${p.pubHide ? 'off' : ''}"><input type="checkbox" data-pub="${esc(p.name)}"${p.pubHide ? '' : ' checked'}>${esc(p.name)}${p.label.allergens.length ? ` <span class="k">${p.label.allergens.map(esc).join('・')}</span>` : ''}</label>`).join('')}</div></details>
-      <label style="display:flex;gap:8px;align-items:center;margin-top:8px;font-size:14px"><input type="checkbox" id="qr-oncard"${store.get('qrOnCard', false) ? ' checked' : ''}>プライスカード・ポップの隅にもQRを入れる</label></div></div></div>`;
+  return `<div class="card" id="qr-card" style="margin-top:12px"><p style="margin:0 0 8px"><b>お客様向けのアレルゲン一覧(QR)</b> <span class="k">お客様がスマートフォンで読み取ると、商品ごとのアレルゲンを確認できます。ログインは不要で、原価・売価・原材料名は表示されません</span></p>
+    <div class="qrbox"><div class="qr">${u ? `<img src="${u}" alt="アレルゲン一覧のQRコード">` : '<span class="k">QRコードを作成できませんでした</span>'}</div>
+    <div><p class="url" style="margin:0 0 6px">${esc(D.pubUrl)}</p><p class="k" style="margin:0 0 8px">掲載中の商品 ${shown}/${goods.length}品。レシピを変更すると、一覧にも反映されます。</p>
+      <div class="ask" style="justify-content:flex-start"><a class="btn ghost sm" href="${esc(D.pubUrl)}" target="_blank" rel="noopener">開いて確認</a><button class="btn ghost sm" type="button" id="qr-a5">A5用紙に印刷</button><button class="btn ghost sm" type="button" id="qr-cards">名刺サイズで印刷(A4に10枚)</button><button class="btn ghost sm" type="button" id="qr-copy">URLをコピー</button>${D.me && D.me.owner ? '<button class="btn ghost sm" type="button" id="qr-renew">QRコードを再発行</button>' : ''}</div>
+      <details style="margin-top:8px"><summary class="k">掲載する商品の選択</summary><div class="publ">${goods.map(p => `<label class="${p.pubHide ? 'off' : ''}"><input type="checkbox" data-pub="${esc(p.name)}"${p.pubHide ? '' : ' checked'}>${esc(p.name)}${p.label.allergens.length ? ` <span class="k">${p.label.allergens.map(esc).join('・')}</span>` : ''}</label>`).join('')}</div></details>
+      <label style="display:flex;gap:8px;align-items:center;margin-top:8px;font-size:14px"><input type="checkbox" id="qr-oncard"${store.get('qrOnCard', false) ? ' checked' : ''}>プライスカード・POPの隅にもQRコードを入れる</label></div></div></div>`;
 }
 function bindQr() {
   if (!$('qr-card')) return;
   const si = D.shopInfo || {}, u = qrDataUrl(D.pubUrl, 600), name = esc(si.name || D.shop);
   const sheet = (w, h, n) => `<style>.qg{display:grid;grid-template-columns:repeat(${n === 1 ? 1 : 2},1fr);gap:6mm}.qc{border:1px solid #999;border-radius:3mm;padding:${n === 1 ? '10mm' : '4mm'};width:${w};height:${h};display:grid;grid-template-columns:${n === 1 ? '1fr' : '28mm 1fr'};gap:${n === 1 ? '6mm' : '3mm'};align-items:center;break-inside:avoid;page-break-inside:avoid;text-align:${n === 1 ? 'center' : 'left'}}.qc img{width:${n === 1 ? '70mm' : '28mm'};height:auto;margin:0 auto}.qc b{display:block;font-size:${n === 1 ? '20pt' : '11pt'}}.qc p{margin:2mm 0 0;font-size:${n === 1 ? '13pt' : '8pt'};line-height:1.4}</style><div class="qg">` +
-    Array.from({ length: n }, () => `<div class="qc"><img src="${u}" alt=""><div><b>${name}</b><p>アレルゲン一覧</p><p>このQRで、商品ごとのアレルゲンをスマートフォンで確認できます。</p><p style="font-size:${n === 1 ? '10pt' : '7pt'}">詳しくは店舗のスタッフに確かめてください</p></div></div>`).join('') + '</div>';
+    Array.from({ length: n }, () => `<div class="qc"><img src="${u}" alt=""><div><b>${name}</b><p>アレルゲン一覧</p><p>このQRで、商品ごとのアレルゲンをスマートフォンで確認できます。</p><p style="font-size:${n === 1 ? '10pt' : '7pt'}">詳しくは店舗のスタッフにお尋ねください</p></div></div>`).join('') + '</div>';
   $('qr-a5').onclick = () => openPrint(sheet('128mm', '170mm', 1), { bare: true });
   $('qr-cards').onclick = () => openPrint(sheet('91mm', '55mm', 10), { bare: true });
-  $('qr-copy').onclick = async () => { try { await navigator.clipboard.writeText(D.pubUrl); toast('住所をコピーしました'); } catch (e) { alert('この住所をコピーしてください\n' + D.pubUrl); } };
-  if ($('qr-renew')) $('qr-renew').onclick = () => { if (confirm('QRを作り直すと、今までのQR(印刷した紙)は使えなくなります。作り直しますか?')) setValueX({ field: 'pubqr', value: 1 }); };
+  $('qr-copy').onclick = async () => { try { await navigator.clipboard.writeText(D.pubUrl); toast('URLをコピーしました'); } catch (e) { alert('このURLをコピーしてください\n' + D.pubUrl); } };
+  if ($('qr-renew')) $('qr-renew').onclick = () => { if (confirm('QRコードを再発行すると、これまでのQRコード(印刷済みの紙)は使えなくなります。再発行しますか?')) setValueX({ field: 'pubqr', value: 1 }); };
   $('qr-oncard').onchange = () => { store.set('qrOnCard', $('qr-oncard').checked); renderLabel(); };
   document.querySelectorAll('[data-pub]').forEach(c => c.onchange = () => setValueX({ field: 'pubhide', product: c.dataset.pub, value: !c.checked }));
 }
@@ -1563,7 +1563,7 @@ function storeBox() {
   const sel = D.products.find(x => x.name === labelName) || D.products[0];
   return `<div class="card" id="alg-card"><p style="margin:0 0 8px"><b>アレルゲン一覧表</b> <span class="k">店頭やメニューの近くに置き、お客様からお問い合わせがあった際に提示します</span></p><div class="scroll">${allergenTable()}</div>
       <div class="ask"><button class="btn ghost" type="button" id="alg-print">一覧表を印刷・PDF</button></div></div>
-    <div class="card" style="margin-top:12px"><p style="margin:0 0 8px"><b>プライスカード</b> <span class="k">${esc(sel.name)} · 名前・値段・アレルゲン</span></p>${priceCard(sel)}
+    <div class="card" style="margin-top:12px"><p style="margin:0 0 8px"><b>プライスカード</b> <span class="k">${esc(sel.name)} · 商品名・価格・アレルゲン</span></p>${priceCard(sel)}
       <div class="ask"><button class="btn ghost" type="button" id="pc-print">この商品を印刷</button><button class="btn ghost" type="button" id="pc-print-all">全部の商品を印刷</button></div></div>` + qrBox();
 }
 function bindStore() {
@@ -1574,7 +1574,7 @@ function bindStore() {
   if ($('pc-print-all')) $('pc-print-all').onclick = () => openPrint(cards(D.products.filter(p => p.kind !== 'part')));
   bindQr();
 }
-document.addEventListener('click', e => { if (e.target && e.target.id === 'hint-again') { store.set('hintsOff', false); store.set('hintSeen', {}); toast('次に画面を開いたとき、ヒントが出ます'); show('today'); } });
+document.addEventListener('click', e => { if (e.target && e.target.id === 'hint-again') { store.set('hintsOff', false); store.set('hintSeen', {}); toast('次に画面を開いたときに、ヒントを表示します'); show('today'); } });
 document.addEventListener('click', e => { if (e.target && e.target.id === 'ls-go') { const name = $('ls-name').value.trim(), addr = $('ls-addr').value.trim(); if (!addr) { $('ls-addr').focus(); return; } setValueX({ field: 'shop', value: { name, addr } }); } });
 // 表示の画面は作るのに時間がかかる(ラベル・QR・栄養)ので、開いている時だけ作り直す
 let labelStale = true;
@@ -1583,7 +1583,7 @@ function renderLabel() {
   const chips = $('label-chips'), box = $('label-box'), face = sellFace();
   $('label-h').textContent = face ? 'アレルゲン' : '食品表示';
   $('label-lead').innerHTML = face ? '対面販売・店内飲食の商品には、食品表示ラベルは不要です。お客様に提示するアレルゲン一覧表とプライスカードを作成できます。包装して販売する商品や卸す商品は、下の「ラベルを印刷」から食品表示ラベルを作成できます。' : '一括表示の案とラベルの印刷。<mark>色の付いた箇所</mark>はご確認ください。最終確認と表示の責任は事業者様にあります。<a href="/law" target="_blank" rel="noopener">食品表示の改正と対応の記録</a>';
-  if (!D.products.length) { chips.innerHTML = ''; box.innerHTML = emptyBox('label', 'まだレシピがありません', 'レシピを撮ると、ここに' + (face ? 'アレルゲン一覧表' : '裏表示の案') + 'が出ます。', ['レシピを撮る', 'cam']); return; }
+  if (!D.products.length) { chips.innerHTML = ''; box.innerHTML = emptyBox('label', 'レシピが登録されていません', 'レシピを撮影すると、ここに' + (face ? 'アレルゲン一覧表' : '食品表示の案') + 'が表示されます。', ['レシピを撮影', 'cam']); return; }
   if (!D.products.find(p => p.name === labelName)) labelName = D.products[0].name;
   const goods = D.products.filter(p => p.kind !== 'part');
   if (goods.length && !goods.find(p => p.name === labelName)) labelName = goods[0].name;
@@ -1592,10 +1592,10 @@ function renderLabel() {
   if (cur === 'label' && labelName) setCrumb([labelName]);
   const p = D.products.find(x => x.name === labelName), lb = p.label, L = lblOf(p), si = D.shopInfo || {};
   const needShop = !(si.name && si.addr) && D.me && D.me.owner;
-  const shopMini = needShop ? `<div class="card" id="lbl-shop"><p style="margin:0 0 8px"><b>ラベルの「製造者」に入れる、店舗名と住所</b></p><div class="mn-add" style="margin:0;padding:0;border:0"><input id="ls-name" placeholder="店舗名" value="${esc(si.name || D.shop || '')}" style="flex:1 1 140px;min-width:0"><input id="ls-addr" placeholder="住所(例: 千葉県勝浦市〜)" value="${esc(si.addr || '')}" style="flex:2 1 200px;min-width:0"><button class="btn" type="button" id="ls-go">入れる</button></div></div>` : '';
-  box.innerHTML = shopMini + (face ? storeBox() + `<details class="card" style="margin-top:16px" id="face-lbl"><summary><b>包装して売る・卸す商品のラベル</b> <span class="k">持ち帰り・道の駅・スーパーに出す分だけ</span></summary><div style="margin-top:12px">` : '') + `<div class="label">
+  const shopMini = needShop ? `<div class="card" id="lbl-shop"><p style="margin:0 0 8px"><b>ラベルの「製造者」欄に記載する店舗名と住所</b></p><div class="mn-add" style="margin:0;padding:0;border:0"><input id="ls-name" placeholder="店舗名" value="${esc(si.name || D.shop || '')}" style="flex:1 1 140px;min-width:0"><input id="ls-addr" placeholder="住所(例: 千葉県勝浦市〜)" value="${esc(si.addr || '')}" style="flex:2 1 200px;min-width:0"><button class="btn" type="button" id="ls-go">保存</button></div></div>` : '';
+  box.innerHTML = shopMini + (face ? storeBox() + `<details class="card" style="margin-top:16px" id="face-lbl"><summary><b>包装販売・卸売の商品のラベル</b> <span class="k">持ち帰り・道の駅・スーパーなどに出す商品</span></summary><div style="margin-top:12px">` : '') + `<div class="label">
     <div class="r"><div class="h">名称</div><div class="v">${esc(L.name)}</div></div>
-    <div class="r"><div class="h">原材料名</div><div class="v"><span id="ing">${esc(ingWithOrigin(lb.text, L.origin)) || '(まだ出せません)'}</span>${lb.check.length ? `、<mark>${lb.check.map(esc).join('、')}(要確認)</mark>` : ''}${esc(lb.contains)}</div></div>
+    <div class="r"><div class="h">原材料名</div><div class="v"><span id="ing">${esc(ingWithOrigin(lb.text, L.origin)) || '(まだ作成できません)'}</span>${lb.check.length ? `、<mark>${lb.check.map(esc).join('、')}(要確認)</mark>` : ''}${esc(lb.contains)}</div></div>
     <div class="r"><div class="h">内容量</div><div class="v">${esc(L.content)}</div></div>
     <div class="r"><div class="h">${esc(L.dtype)}</div><div class="v">枠外下部に記載${L.days === '' ? '' : `<span class="k">(作った日から${L.days}日)</span>`}</div></div>
     <div class="r"><div class="h">保存方法</div><div class="v">${esc(L.storage)}</div></div>
@@ -1603,16 +1603,16 @@ function renderLabel() {
     ${lblNotes(L).length ? `<div class="k" style="margin-top:8px">${lblNotes(L).map(esc).join('<br>')}</div>` : ''}
     <div class="ask" style="margin-top:12px"><button class="btn" id="copy" type="button">原材料名をコピー</button>${specOn() ? '<button class="btn ghost" id="spec-one" type="button">商品規格書(Excel)</button><button class="btn ghost" id="spec-all" type="button">全商品の規格書</button>' : ''}<span class="copied" id="copied"></span></div>
     ${lblPrintCard(p, L)}
-    ${nutrBox(p)}` + (face ? '</div></details>' : '<h1 class="sub" style="margin-top:24px">店頭に置くもの</h1>' + storeBox());
+    ${nutrBox(p)}` + (face ? '</div></details>' : '<h1 class="sub" style="margin-top:24px">店頭掲示物</h1>' + storeBox());
   bindStore();
   if ($('spec-one')) $('spec-one').onclick = () => specExport([p]);
   if ($('spec-all')) $('spec-all').onclick = () => specExport(D.products);
   if ($('bk-go')) $('bk-go').onclick = () => { const v = parseFloat($('bk-v').value); if (!(v > 0)) { $('bk-v').focus(); return; } setValue(p.name, 'baked', v); };
-  if ($('nu-copy')) $('nu-copy').onclick = async () => { try { await navigator.clipboard.writeText($('nu-txt').innerText); chat('コピーしました', 'heart'); } catch (e) { chat('長押しで選んでコピーしてください'); } };
+  if ($('nu-copy')) $('nu-copy').onclick = async () => { try { await navigator.clipboard.writeText($('nu-txt').innerText); chat('コピーしました', 'heart'); } catch (e) { chat('長押しで選択してコピーしてください'); } };
   $('copy').onclick = async () => {
     const t = $('ing').textContent + (lb.contains || '');
     try { await navigator.clipboard.writeText(t); $('copied').textContent = 'コピーしました'; }
-    catch (e) { const r = document.createRange(); r.selectNodeContents($('ing')); const s = getSelection(); s.removeAllRanges(); s.addRange(r); $('copied').textContent = '選択しました。長押しでコピー'; }
+    catch (e) { const r = document.createRange(); r.selectNodeContents($('ing')); const s = getSelection(); s.removeAllRanges(); s.addRange(r); $('copied').textContent = '選択しました。長押しでコピーしてください'; }
   };
   bindLblPrint(p, L);
 }
@@ -1637,16 +1637,16 @@ const LS_DEF = { mode: '', sheet: 'p12', pt: 6, dx: 0, dy: 0, scale: 100, datePo
 const lsGet = () => { try { const o = JSON.parse(localStorage.getItem('shikomi:lblsheet') || '{}'); return Object.assign({}, LS_DEF, o, { custom: Object.assign({}, LS_DEF.custom, o.custom || {}) }); } catch (e) { return JSON.parse(JSON.stringify(LS_DEF)); } };
 const lsSet = o => { try { localStorage.setItem('shikomi:lblsheet', JSON.stringify(o)); } catch (e) {} };
 // 用紙の形(シート): [名前, 幅, 高さ, 列, 段, 上余白, 左余白, 横すき間, 縦すき間]
-const sheetOf = S => S.sheet === 'custom' ? ['自分で測った用紙', +S.custom.w, +S.custom.h, +S.custom.cols, +S.custom.rows, +S.custom.top, +S.custom.left, +S.custom.gx, +S.custom.gy] : (SHEETS[S.sheet] || SHEETS.p12);
+const sheetOf = S => S.sheet === 'custom' ? ['用紙サイズを指定', +S.custom.w, +S.custom.h, +S.custom.cols, +S.custom.rows, +S.custom.top, +S.custom.left, +S.custom.gx, +S.custom.gy] : (SHEETS[S.sheet] || SHEETS.p12);
 const rollOf = S => S.roll === 'custom' ? [+S.rw || 62, +S.rh || 100] : (ROLLS[S.roll] || ROLLS.r62x100);
 function lblPrintCard(p, L) {
   const S = lsGet();
   const head = `<p style="margin:0 0 4px"><b>ラベルを印刷</b></p>`;
   if (!S.mode) return `<div class="card lpc" style="margin-top:16px">${head}
-    <p style="margin:0 0 12px">どの機械で印刷しますか?</p>
-    <div class="lmode"><button type="button" data-lm="sheet"><b>コピー機・家庭用プリンタ</b><span>A4のシール用紙(10面・12面・21面など)に、まとめて刷ります</span></button>
-    <button type="button" data-lm="roll"><b>ラベルプリンター</b><span>ロールのラベルに、1枚ずつ刷ります(ブラザーのQLシリーズなど)</span></button></div>
-    <p class="k" style="margin:8px 0 0">あとで変えられます。この端末に覚えます。</p></div>`;
+    <p style="margin:0 0 12px">印刷に使用する機器を選択してください</p>
+    <div class="lmode"><button type="button" data-lm="sheet"><b>コピー機・家庭用プリンタ</b><span>A4のラベル用紙(10面・12面・21面など)に、まとめて印刷します</span></button>
+    <button type="button" data-lm="roll"><b>ラベルプリンター</b><span>ロール状のラベルに、1枚ずつ印刷します(ブラザーのQLシリーズなど)</span></button></div>
+    <p class="k" style="margin:8px 0 0">後から変更できます。この端末に保存されます。</p></div>`;
   const today = new Date(), iso = new Date(today - today.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
   const sheet = S.mode === 'sheet', sh = sheetOf(S), per = sheet ? sh[3] * sh[4] : 10, [rw, rh] = rollOf(S), C = S.custom;
   const num = (id, v, u) => `<span style="display:flex;gap:4px;align-items:center"><input id="${id}" inputmode="decimal" value="${v}" style="width:5em">${u || ''}</span>`;
@@ -1659,11 +1659,11 @@ function lblPrintCard(p, L) {
         <span class="k">保存方法</span><div><select id="lb-stsel" style="width:100%">${STORAGES.map(x => `<option${x === L.storage ? ' selected' : ''}>${esc(x)}</option>`).join('')}<option value=""${STORAGES.includes(L.storage) ? '' : ' selected'}>自分で書く</option></select>
           <input id="lb-st" value="${esc(L.storage)}" style="margin-top:8px${STORAGES.includes(L.storage) ? ';display:none' : ''}" placeholder="保存方法を書く"></div>
         <span class="k">包装</span><div><div id="lb-packs">${(L.packs.length ? L.packs : [{ name: '', content: L.content, jan: L.jan }]).map(packRow).join('')}</div>
-          <button class="btn ghost" type="button" id="lb-addpack">包装を足す</button><p class="k" style="margin:4px 0 0">袋・箱など包装ごとに、内容量とJANコード(卸の商品だけ)を入れます</p></div>
+          <button class="btn ghost" type="button" id="lb-addpack">包装を追加</button><p class="k" style="margin:4px 0 0">袋・箱など包装ごとに、内容量とJANコード(卸売の商品のみ)を入力します</p></div>
         <span class="k">栄養成分</span><div><label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="lb-nut"${L.nut ? ' checked' : ''}>ラベルに載せる</label>
           <details${L.nutMan ? ' open' : ''}><summary class="k">前の表示や分析の値を使う(入れなければ計算した値)</summary><div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:8px"><select id="lb-nbase"><option${!L.nutMan || L.nutMan.base === '100g' ? ' selected' : ''}>100g</option><option${L.nutMan && L.nutMan.base === '1個' ? ' selected' : ''}>1個</option></select><span class="k">当たり</span>
           ${['熱量kcal', 'たんぱく質g', '脂質g', '炭水化物g', '食塩相当量g'].map((l, i) => `<label class="k" style="display:flex;flex-direction:column">${l}<input class="lb-nv" inputmode="decimal" style="width:5.5em" value="${L.nutMan ? L.nutMan.v[i] : ''}"></label>`).join('')}</div></details></div>
-        <span class="k">プラマーク</span><label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="lb-pla"${L.pla ? ' checked' : ''}>ラベルに入れる(袋がプラスチックのとき)</label>
+        <span class="k">プラマーク</span><label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="lb-pla"${L.pla ? ' checked' : ''}>ラベルに表示する(袋がプラスチック製の場合)</label>
         <span class="k">原料原産地</span><div><input id="lb-origin" list="lb-origin-l" value="${esc(L.origin)}" placeholder="例: 国内製造、国産、アメリカ産"><datalist id="lb-origin-l"><option value="国内製造"><option value="国産"><option value="北海道産"><option value="アメリカ産"><option value="カナダ産"><option value="中国産"><option value="輸入"></datalist><p class="k" style="margin:4px 0 0">いちばん多い原材料のすぐ後ろに「(国内製造)」のように入ります。加工した材料なら「国内製造」、生鮮なら「国産」「〇〇産」</p></div>
         <span class="k">表示する者</span><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><select id="lb-mk"><option${L.makerKind === '製造者' ? ' selected' : ''}>製造者</option><option${L.makerKind === '販売者' ? ' selected' : ''}>販売者</option><option${L.makerKind === '加工者' ? ' selected' : ''}>加工者</option></select><input id="lb-fcode" value="${esc(L.fcode)}" placeholder="固有記号(あれば。例: +AB1)" style="width:12em"></div>
         <span class="k">製造所</span><div><input id="lb-factory" value="${esc(L.factory)}" placeholder="店舗と別の場所で作るときだけ(名前と住所)"><p class="k" style="margin:4px 0 0">空なら、上の「${esc(L.makerKind)}」の住所で作っている扱いです</p></div>
@@ -1674,30 +1674,30 @@ function lblPrintCard(p, L) {
       </div><div class="ask"><button class="btn ghost" type="button" id="lb-save">設定を保存</button><span class="k" id="lb-msg"></span></div></details>
     <div class="fld" style="margin-top:8px">
       ${L.packs.length > 1 ? `<span class="k">包装</span><select id="lb-pack">${L.packs.map((k, i) => `<option value="${i}">${esc(k.name || k.content)}</option>`).join('')}</select>` : ''}
-      ${sheet ? `<span class="k">用紙</span><select id="lb-sheet">${Object.entries(SHEETS).map(([k, v]) => `<option value="${k}"${k === S.sheet ? ' selected' : ''}>${v[0]} ${v[1]}×${v[2]}ミリ(${SHEET_PN[k] || ''})</option>`).join('')}<option value="custom"${S.sheet === 'custom' ? ' selected' : ''}>どれも合わない(自分で測って入れる)</option></select>`
+      ${sheet ? `<span class="k">用紙</span><select id="lb-sheet">${Object.entries(SHEETS).map(([k, v]) => `<option value="${k}"${k === S.sheet ? ' selected' : ''}>${v[0]} ${v[1]}×${v[2]}ミリ(${SHEET_PN[k] || ''})</option>`).join('')}<option value="custom"${S.sheet === 'custom' ? ' selected' : ''}>該当なし(寸法を測って入力)</option></select>`
         : `<span class="k">ラベルの大きさ</span><select id="lb-roll">${Object.entries(ROLLS).map(([k, v]) => `<option value="${k}"${k === S.roll ? ' selected' : ''}>${v[2]} 幅${v[0]}×長さ${v[1]}ミリ</option>`).join('')}<option value="custom"${S.roll === 'custom' ? ' selected' : ''}>ほかの大きさ</option></select>
         ${S.roll === 'custom' ? `<span class="k">幅×長さ</span><span style="display:flex;gap:4px;align-items:center"><input id="lb-rw" inputmode="decimal" value="${rw}" style="width:4.5em">×<input id="lb-rh" inputmode="decimal" value="${rh}" style="width:4.5em">ミリ</span>` : ''}`}
       <span class="k">向き</span><select id="lb-rot"><option value="0"${S.rot ? '' : ' selected'}>ラベルの向きのまま刷る</option><option value="1"${S.rot ? ' selected' : ''}>90度回して刷る(縦と横を入れかえ)</option></select>
       <span class="k">並べ方</span><select id="lb-lay"><option value="auto"${(S.lay || 'auto') === 'auto' ? ' selected' : ''}>おまかせ(形に合わせる)</option><option value="side"${S.lay === 'side' ? ' selected' : ''}>横版(栄養・バーコードは右)</option><option value="stack"${S.lay === 'stack' ? ' selected' : ''}>縦版(栄養・バーコードは下)</option></select>
       <span class="k">作った日</span><input id="lb-day" type="date" value="${iso}">
-      <span class="k">期限</span><span style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><select id="lb-dt2"><option${L.dtype === '賞味期限' ? '' : ' selected'}>消費期限</option><option${L.dtype === '賞味期限' ? ' selected' : ''}>賞味期限</option></select><input id="lb-exp" type="date" style="width:auto"><span class="k">${L.days !== '' ? `空なら作った日から${L.days}日` : '日付を入れる'}</span></span>
+      <span class="k">期限</span><span style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><select id="lb-dt2"><option${L.dtype === '賞味期限' ? '' : ' selected'}>消費期限</option><option${L.dtype === '賞味期限' ? ' selected' : ''}>賞味期限</option></select><input id="lb-exp" type="date" style="width:auto"><span class="k">${L.days !== '' ? `空欄の場合は製造日から${L.days}日` : '日付を入れる'}</span></span>
       <span class="k">枚数</span><span style="display:flex;gap:8px;align-items:center"><input id="lb-n" inputmode="numeric" value="${per}" style="width:5em">枚</span>
       ${sheet ? `<span class="k">使用済み</span><span style="display:flex;gap:8px;align-items:center"><input id="lb-skip" inputmode="numeric" value="0" style="width:5em">枚を飛ばす<span class="k">(使いかけの用紙)</span></span>` : ''}
       <span class="k">文字</span><select id="lb-pt">${[5.5, 6, 7, 8, 9].map(v => `<option${v == S.pt ? ' selected' : ''}>${v}</option>`).join('')}</select>
       <span class="k">期限の日付</span><select id="lb-dpos"><option value="foot"${S.datePos === 'foot' ? ' selected' : ''}>ラベルの下に刷る</option><option value="inside"${S.datePos === 'inside' ? ' selected' : ''}>表の中に刷る</option><option value="stamp"${S.datePos === 'stamp' ? ' selected' : ''}>刷らない(日付印を押す)</option></select>
     </div>
-    ${sheet && S.sheet === 'custom' ? `<details open><summary class="k">用紙を定規で測って入れる(ミリ)</summary><p class="k" style="margin:8px 0">用紙のふくろに書いてある大きさでも大丈夫です。左上のラベルから測ります。</p><div class="fld">
+    ${sheet && S.sheet === 'custom' ? `<details open><summary class="k">用紙の寸法を入力(ミリ)</summary><p class="k" style="margin:8px 0">用紙の袋に記載されたサイズでも構いません。左上のラベルから測ってください。</p><div class="fld">
       <span class="k">1枚の幅×高さ</span><span style="display:flex;gap:4px;align-items:center"><input id="lc-w" inputmode="decimal" value="${C.w}" style="width:4.5em">×<input id="lc-h" inputmode="decimal" value="${C.h}" style="width:4.5em"></span>
       <span class="k">横に何枚×縦に何段</span><span style="display:flex;gap:4px;align-items:center"><input id="lc-cols" inputmode="numeric" value="${C.cols}" style="width:3.5em">×<input id="lc-rows" inputmode="numeric" value="${C.rows}" style="width:3.5em"></span>
       <span class="k">紙の上の端から</span>${num('lc-top', C.top, 'ミリ')}<span class="k">紙の左の端から</span>${num('lc-left', C.left, 'ミリ')}
       <span class="k">ラベルの間(横・縦)</span><span style="display:flex;gap:4px;align-items:center"><input id="lc-gx" inputmode="decimal" value="${C.gx}" style="width:4.5em"><input id="lc-gy" inputmode="decimal" value="${C.gy}" style="width:4.5em">ミリ</span></div></details>` : ''}
-    <details${S.dx || S.dy || S.scale != 100 ? ' open' : ''}><summary class="k">印刷がずれるとき・大きさが合わないとき</summary>
-      <p class="k" style="margin:8px 0">まず「合わせ用に試し刷り」を普通の紙に刷って、シール用紙(ラベル)に重ねて見てください。ずれた分だけ入れます。</p>
-      <div class="fld"><span class="k">右へ(ミリ)</span><input id="lb-dx" inputmode="decimal" value="${S.dx}"><span class="k">下へ(ミリ)</span><input id="lb-dy" inputmode="decimal" value="${S.dy}">
-      <span class="k">大きさ(%)</span><input id="lb-scale" inputmode="decimal" value="${S.scale}"></div>
-      <p class="k" style="margin:4px 0 0">左へ・上へは、マイナス(-1.5 など)で入れます。</p></details>
-    <div class="ask"><button class="btn" type="button" id="lb-print">印刷する</button><button class="btn ghost" type="button" id="lb-test">合わせ用に試し刷り</button><button class="btn ghost" type="button" id="lb-csv">ほかのラベルソフトに渡す(CSV)</button></div>
-    <p class="k" style="margin:4px 0 0">${sheet ? '印刷の画面で、用紙はA4、倍率は「100%」(実際のサイズ)、余白は「なし」にしてください。' : '印刷の画面で、プリンターにラベルプリンターを選び、用紙の大きさをラベルと同じにしてください(倍率100%・余白なし)。'}</p></div>`;
+    <details${S.dx || S.dy || S.scale != 100 ? ' open' : ''}><summary class="k">印刷位置やサイズがずれる場合</summary>
+      <p class="k" style="margin:8px 0">まず「位置合わせ用の試し印刷」を普通紙に印刷し、ラベル用紙に重ねてご確認ください。ずれた分の数値を入力します。</p>
+      <div class="fld"><span class="k">右方向(ミリ)</span><input id="lb-dx" inputmode="decimal" value="${S.dx}"><span class="k">下方向(ミリ)</span><input id="lb-dy" inputmode="decimal" value="${S.dy}">
+      <span class="k">倍率(%)</span><input id="lb-scale" inputmode="decimal" value="${S.scale}"></div>
+      <p class="k" style="margin:4px 0 0">左方向・上方向は、マイナスの値(-1.5 など)で入力します。</p></details>
+    <div class="ask"><button class="btn" type="button" id="lb-print">印刷する</button><button class="btn ghost" type="button" id="lb-test">位置合わせ用の試し印刷</button><button class="btn ghost" type="button" id="lb-csv">他のラベルソフト用に出力(CSV)</button></div>
+    <p class="k" style="margin:4px 0 0">${sheet ? '印刷の画面で、用紙は「A4」、倍率は「100%」(実際のサイズ)、余白は「なし」を選択してください。' : '印刷の画面で、プリンターにラベルプリンターを選び、用紙サイズをラベルと同じにしてください(倍率100%・余白なし)。'}</p></div>`;
 }
 function bindLblPrint(p, L) {
   const val = id => $(id) ? $(id).value.trim() : '';
@@ -1717,10 +1717,10 @@ function bindLblPrint(p, L) {
       const j = janCheck(k.jan); if (!j.ok) { $('lb-msg').textContent = `「${k.name || k.content}」: ${j.msg}`; return; }
       k.jan = j.code || ''; packs.push(k);
     }
-    const d = val('lb-days'); if (d !== '' && !(/^\d{1,3}$/.test(d))) { $('lb-msg').textContent = '日数は数字で'; return; }
+    const d = val('lb-days'); if (d !== '' && !(/^\d{1,3}$/.test(d))) { $('lb-msg').textContent = '日数は数字で入力してください'; return; }
     const first = packs[0] || {};
     const nv = [...document.querySelectorAll('.lb-nv')].map(x => x.value.trim()), nutMan = nv.every(x => x !== '') ? { base: val('lb-nbase') || '100g', v: nv } : null;
-    if (nv.some(x => x !== '') && !nutMan) { $('lb-msg').textContent = '栄養成分は5つとも入れてください(使わないなら全部空に)'; return; }
+    if (nv.some(x => x !== '') && !nutMan) { $('lb-msg').textContent = '栄養成分は5項目すべてを入力してください(表示しない場合は、すべて空欄にしてください)'; return; }
     setValueX({ field: 'lbl', product: p.name, value: { name: val('lb-name'), dtype: val('lb-dtype'), days: d, storage: val('lb-st'), content: first.content || '', jan: first.jan || '', packs, nut: $('lb-nut') ? $('lb-nut').checked : false, pla: $('lb-pla') ? $('lb-pla').checked : false, nutMan,
       origin: val('lb-origin'), makerKind: val('lb-mk'), fcode: val('lb-fcode'), factory: val('lb-factory'), caution: val('lb-caution'), opened: val('lb-opened'), contam: [...document.querySelectorAll('.lb-ct:checked')].map(x => x.value), free: val('lb-free') } });
   };
@@ -1737,7 +1737,7 @@ function bindLblPrint(p, L) {
   if ($('lb-roll')) $('lb-roll').onchange = () => { const was = lsGet().roll; const S = keep(); if ((was === 'custom') !== (S.roll === 'custom')) renderLabel(); };
   document.querySelectorAll('.lpc input, .lpc select').forEach(x => { if (!x.closest('#lb-packs') && !/^lb-(name|dtype|days|st|nut|day|n|skip|pack)$/.test(x.id)) x.addEventListener('change', keep); });
   const go = test => {
-    if (!test && p.label.check.length && !confirmOnce('lbchk', `「${p.label.check.join('、')}」が要確認のままです。このまま刷るならもう一度押してください`)) return;
+    if (!test && p.label.check.length && !confirmOnce('lbchk', `「${p.label.check.join('、')}」が要確認のままです。このまま印刷する場合は、もう一度押してください`)) return;
     const S = keep(), n = Math.min(Math.max(parseInt(val('lb-n')) || 0, 1), 500), skip = Math.max(parseInt(val('lb-skip')) || 0, 0);
     const pk = L.packs[+val('lb-pack') || 0];
     const L2 = Object.assign({}, L, { dtype: val('lb-dt2') || L.dtype, exp: val('lb-exp') });
@@ -1750,15 +1750,15 @@ function bindLblPrint(p, L) {
 function labelCsv() {
   const si = D.shopInfo || {}, goods = D.products.filter(p => p.kind !== 'part');
   const q = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
-  const head = ['商品名', '名称', '原材料名', 'アレルゲン', '内容量', '期限の種類', '日数', '保存方法', '表示する者', '名前', '住所', '電話', '固有記号', '製造所', '原料原産地', '使用上の注意', '開封後', '同じ工場のアレルゲン', '自由記入', 'JAN', '栄養の単位', '熱量kcal', 'たんぱく質g', '脂質g', '炭水化物g', '食塩相当量g'];
+  const head = ['商品名', '名称', '原材料名', 'アレルゲン', '内容量', '期限の種類', '日数', '保存方法', '表示責任者', '表示者名', '住所', '電話番号', '固有記号', '製造所', '原料原産地', '使用上の注意', '開封後の取り扱い', '同一工場のアレルゲン', '自由記入', 'JAN', '栄養成分の表示単位', '熱量kcal', 'たんぱく質g', '脂質g', '炭水化物g', '食塩相当量g'];
   const rows = goods.map(p => {
     const L = lblOf(p), lb = p.label || { text: '', allergens: [], contains: '', check: [] };
     const nm = L.nutMan ? { base: L.nutMan.base === '1個' ? `1${U}` : '100g', v: L.nutMan.v } : (p.nutr && p.nutr.per ? { base: `1${U}`, v: p.nutr.per } : null);
     return [p.name, L.name, ingWithOrigin(lb.text, L.origin) + (lb.check.length ? '、' + lb.check.join('、') + '(要確認)' : '') + (lb.contains || ''), (lb.allergens || []).join('・'), L.content, L.dtype, L.days, L.storage, L.makerKind, si.name || D.shop, si.addr || '', si.tel || '', L.fcode, L.factory, L.origin, L.caution, L.opened, (L.contam || []).join('・'), L.free, L.jan, nm ? nm.base + '当たり' : '', ...(nm ? nm.v.map((x, i) => i === 0 ? Math.round(x) : Math.round(x * 10) / 10) : ['', '', '', '', ''])].map(q).join(',');
   });
   const csv = '\ufeff' + head.map(q).join(',') + '\r\n' + rows.join('\r\n');
-  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); a.download = `裏表示_${(si.name || D.shop || '').replace(/[\\/:*?"<>|]/g, '')}_${new Date().toISOString().slice(0, 10)}.csv`; document.body.appendChild(a); a.click(); a.remove();
-  chat(`${goods.length}品の表示をCSVにしました。ラベルソフトの「CSVの読み込み」で開けます`, 'heart');
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); a.download = `食品表示_${(si.name || D.shop || '').replace(/[\\/:*?"<>|]/g, '')}_${new Date().toISOString().slice(0, 10)}.csv`; document.body.appendChild(a); a.click(); a.remove();
+  chat(`${goods.length}品の表示をCSVに書き出しました。ラベルソフトの「CSVの読み込み」から開けます`, 'heart');
 }
 let confirmKey = '';
 function confirmOnce(k, msg) { if (confirmKey === k) { confirmKey = ''; return true; } confirmKey = k; chat(esc(msg), 'think'); setTimeout(() => { if (confirmKey === k) confirmKey = ''; }, 8000); return false; }
@@ -1826,7 +1826,7 @@ function openLabelSheet(p, L, S, n, skip, day, test) {
   const v = $('inv');
   const close0 = () => { v.hidden = true; v.classList.remove('lprint'); window.removeEventListener('resize', fit); };
   v.innerHTML = `<div class="bar3" style="margin-top:0"><button class="btn" type="button" id="inv-print">印刷する</button><button class="btn ghost" type="button" id="inv-close">閉じる</button></div>
-    <p class="k lnote">${test ? '合わせ用の試し刷り(枠と真ん中の十字だけ)。普通の紙に刷って、ラベルに重ねて見てください。' : `${esc(p.name)}${L.pack ? ' ' + esc(L.pack) : ''}${L.janOnly ? ' のバーコード' : ''} ${n}枚`} · ${sheet ? esc(sh[0]) + `(${pageCount}ページ)。印刷の画面で、用紙はA4、倍率は「100%」、余白は「なし」に。` : `ラベル ${w}×${h}ミリ(${pageCount}枚)。印刷の画面で、ラベルプリンターと同じ大きさの用紙を選んでください。`}<span id="lb-over"></span></p>
+    <p class="k lnote">${test ? '位置合わせ用の試し印刷(枠と中央の十字のみ)です。普通紙に印刷し、ラベルに重ねて位置をご確認ください。' : `${esc(p.name)}${L.pack ? ' ' + esc(L.pack) : ''}${L.janOnly ? ' のバーコード' : ''} ${n}枚`} · ${sheet ? esc(sh[0]) + `(${pageCount}ページ)。印刷の画面で、用紙は「A4」、倍率は「100%」、余白は「なし」を選択してください。` : `ラベル ${w}×${h}ミリ(${pageCount}枚)。印刷の画面で、ラベルプリンターと同じサイズの用紙を選択してください。`}<span id="lb-over"></span></p>
     <div class="lwrap" id="lwrap">${pages}</div>`;
   v.hidden = false; v.classList.add('lprint');
   let st = document.getElementById('lb-page'); if (!st) { st = document.createElement('style'); st.id = 'lb-page'; document.head.appendChild(st); }
@@ -1837,9 +1837,9 @@ function openLabelSheet(p, L, S, n, skip, day, test) {
   const c0 = v.querySelector('.lcell'), over = c0 && (c0.scrollHeight > c0.clientHeight + 1 || c0.scrollWidth > c0.clientWidth + 1);
   // バーコードが入りきらないときは縮めずに外して、バーコードだけ別のシールに刷れるようにする
   if (!test && !L.janOnly && hasJan && !noJan && over) { close0(); return openLabelSheet(p, Object.assign({}, L, { noJan: true }), S, n, skip, day, test); }
-  if (!test && L.janOnly) { if (cw < JAN_W + 3 || chh < JAN_H + 3) $('lb-over').innerHTML = `<br><mark>この用紙は小さくて、バーコードが決まりの大きさで入りません。横${Math.ceil(JAN_W + 3)}×縦${Math.ceil(JAN_H + 3)}ミリ以上の用紙にしてください。</mark>`; }
-  else if (!test && over) $('lb-over').innerHTML = '<br><mark>文字がラベルからはみ出しています。文字を小さくするか、大きいラベルにしてください。</mark>';
-  if (!test && noJan && hasJan) $('lb-over').insertAdjacentHTML('beforeend', `<br><mark>このラベルの大きさでは、バーコードを決まりの大きさ(横約30ミリ)で入れられないため、外しました。</mark> 大きいラベルにするか、バーコードだけ別のシールに刷ってください。<br><button class="btn ghost" type="button" id="lb-janonly">バーコードだけ刷る(${n}枚)</button>`);
+  if (!test && L.janOnly) { if (cw < JAN_W + 3 || chh < JAN_H + 3) $('lb-over').innerHTML = `<br><mark>この用紙ではバーコードを規定のサイズで印刷できません。横${Math.ceil(JAN_W + 3)}×縦${Math.ceil(JAN_H + 3)}ミリ以上の用紙をお使いください。</mark>`; }
+  else if (!test && over) $('lb-over').innerHTML = '<br><mark>文字がラベルからはみ出しています。文字を小さくするか、大きいサイズのラベルをお使いください。</mark>';
+  if (!test && noJan && hasJan) $('lb-over').insertAdjacentHTML('beforeend', `<br><mark>このラベルのサイズでは、バーコードを規定のサイズ(横約30ミリ)で印刷できないため、バーコードを除いています。</mark> 大きいサイズのラベルを使うか、バーコードのみを別のラベルに印刷してください。<br><button class="btn ghost" type="button" id="lb-janonly">バーコードのみ印刷(${n}枚)</button>`);
   const close = () => { v.hidden = true; v.classList.remove('lprint'); st.textContent = ''; window.removeEventListener('resize', fit); };
   $('inv-print').onclick = () => window.print(); $('inv-close').onclick = close;
   const jb = $('lb-janonly'); if (jb) jb.onclick = () => { close(); openLabelSheet(p, Object.assign({}, L, { noJan: false, janOnly: true }), S, n, 0, day, false); };
@@ -1850,7 +1850,7 @@ const r1 = x => x < 0.05 ? '0' : (Math.round(x * 10) / 10).toFixed(1);
 function nutrBox(p) {
   const n = p.nutr;
   if (!n) return '';
-  if (!n.per) return `<div class="card" style="margin-top:16px"><p style="margin:0"><b>栄養成分表示</b></p><p class="k" style="margin:4px 0 0">1${U}の重さを入れると、栄養成分(熱量・たんぱく質・脂質・炭水化物・食塩相当量)の案が出ます。「原価」の画面か、${VIA}「${esc(p.name)}は1個30g」</p></div>`;
+  if (!n.per) return `<div class="card" style="margin-top:16px"><p style="margin:0"><b>栄養成分表示</b></p><p class="k" style="margin:4px 0 0">1${U}の重さを入力すると、栄養成分(熱量・たんぱく質・脂質・炭水化物・食塩相当量)の案を表示します。「原価」の画面で入力するか、${VIA}「${esc(p.name)}は1個30g」と入力してください。</p></div>`;
   const v = n.per, salt = v[4] > 0 && v[4] < 0.1 ? (Math.round(v[4] * 100) / 100).toFixed(2) : r1(v[4]);
   return `<div style="margin-top:16px"><div class="label" id="nu-txt">
       <div class="r"><div class="h" style="grid-column:1/-1;border-right:0;font-weight:700">栄養成分表示 1${U}${n.weight ? `(${n.weight}g)` : ''}当たり</div></div>
@@ -1861,9 +1861,9 @@ function nutrBox(p) {
       <div class="r"><div class="h">食塩相当量</div><div class="v">${salt}g</div></div>
       <div class="r"><div class="v" style="grid-column:1/-1;font-size:12px">この表示値は、目安です。(日本食品標準成分表（八訂）増補2023年の計算による推定値)</div></div></div>
     <div class="ask"><button class="btn ghost" type="button" id="nu-copy">栄養成分をコピー</button></div>
-    ${n.baked ? '' : `<div class="card" style="margin-top:8px"><p class="k" style="margin:0 0 8px">( )の重さは焼く前の生地の重さです。焼き上がり1${U}の重さを入れると、表示用の重さになります(栄養の値は変わりません)</p><div class="ask" style="margin-top:0"><input id="bk-v" inputmode="decimal" placeholder="例 26"><span class="k">g</span><button class="btn ghost" type="button" id="bk-go">決定</button></div></div>`}
-    ${n.missing.length ? `<p class="k" style="margin:8px 0 0"><mark>まだ入っていない材料: ${n.missing.map(esc).join('、')}</mark> この分は少なめに出ています。業務用の材料は、袋の栄養成分表示を${SHOT}撮って送るとその値になります</p>` : ''}
-    <p class="k" style="margin:8px 0 0">計算に使ったもの: ${n.srcs.map(s => s === '袋の表示' ? '材料の袋の表示' : '日本食品標準成分表').join('・')}。表の「栄養の対応」シートで材料ごとの値を確かめ・直せます</p></div>`;
+    ${n.baked ? '' : `<div class="card" style="margin-top:8px"><p class="k" style="margin:0 0 8px">( )内は焼成前の生地の重さです。焼き上がり1${U}の重さを入力すると、表示用の重さに置き換わります(栄養成分の値は変わりません)</p><div class="ask" style="margin-top:0"><input id="bk-v" inputmode="decimal" placeholder="例 26"><span class="k">g</span><button class="btn ghost" type="button" id="bk-go">決定</button></div></div>`}
+    ${n.missing.length ? `<p class="k" style="margin:8px 0 0"><mark>栄養成分が未登録の材料: ${n.missing.map(esc).join('、')}</mark> この分は少なめに表示されています。業務用の材料は、袋の栄養成分表示を${SHOT}撮影すると、その値が反映されます</p>` : ''}
+    <p class="k" style="margin:8px 0 0">計算に使用したデータ: ${n.srcs.map(s => s === '袋の表示' ? '材料の袋の表示' : '日本食品標準成分表').join('・')}。材料ごとの値は「栄養の対応」シートで確認・修正できます</p></div>`;
 }
 
 // ---------- 材料 ----------
@@ -1878,7 +1878,7 @@ function renderMat() {
   if (matF === 'up') rows = rows.filter(m => upNames.has(m.name));
   const stk = {}; ((D.stock || {}).items || []).forEach(x => stk[x.key] = x);
   if (matF === 'low') rows = rows.filter(m => stk[m.name] && stk[m.name].known);
-  const row = m => `<tr data-m="${esc(m.name)}" style="cursor:pointer"><td><b>${esc(m.name)}</b>${upNames.has(m.name) ? ' <span class="up">↑</span>' : ''}${m.spec || m.supplier ? ` <span class="k">${esc([m.spec, m.supplier].filter(Boolean).join(' · '))}</span>` : ''}<br><span class="k">${esc(m.display)}${m.allergens.length ? ' · ' + m.allergens.map(esc).join('・') : ''}${m.attrs ? ' · ' + esc(m.attrs) : ''}</span>${m.fromKind ? ' <span class="pill warn">種類の値で仮</span>' : ''}${m.yield && m.yield < 100 ? ` <span class="pill gray">使える${m.yield}%</span>` : ''}${m.pieceG ? ` <span class="pill gray">1つ${m.pieceG}g</span>` : ''}${m.avg ? ' <span class="pill gray">平均で見る</span>' : ''}${stk[m.name] && stk[m.name].known ? `<br><span class="pill ${stk[m.name].low ? 'warn' : 'gray'}">残り ${amt(stk[m.name].left, stk[m.name].unit)}${stk[m.name].days != null ? ' · 約' + stk[m.name].days + '日' : ''}</span>` : ''}</td><td class="n">${noMoney() ? '' : m.ppg ? Math.round(m.ppg * 1000).toLocaleString() + '円/kg' : '-'}<br>${m.ok ? '<span class="pill">請求書</span>' : '<span class="pill warn">仮</span>'}</td></tr>`;
+  const row = m => `<tr data-m="${esc(m.name)}" style="cursor:pointer"><td><b>${esc(m.name)}</b>${upNames.has(m.name) ? ' <span class="up">↑</span>' : ''}${m.spec || m.supplier ? ` <span class="k">${esc([m.spec, m.supplier].filter(Boolean).join(' · '))}</span>` : ''}<br><span class="k">${esc(m.display)}${m.allergens.length ? ' · ' + m.allergens.map(esc).join('・') : ''}${m.attrs ? ' · ' + esc(m.attrs) : ''}</span>${m.fromKind ? ' <span class="pill warn">種類の標準値(仮)</span>' : ''}${m.yield && m.yield < 100 ? ` <span class="pill gray">歩留まり${m.yield}%</span>` : ''}${m.pieceG ? ` <span class="pill gray">1個${m.pieceG}g</span>` : ''}${m.avg ? ' <span class="pill gray">平均単価</span>' : ''}${stk[m.name] && stk[m.name].known ? `<br><span class="pill ${stk[m.name].low ? 'warn' : 'gray'}">残り ${amt(stk[m.name].left, stk[m.name].unit)}${stk[m.name].days != null ? ' · 約' + stk[m.name].days + '日' : ''}</span>` : ''}</td><td class="n">${noMoney() ? '' : m.ppg ? Math.round(m.ppg * 1000).toLocaleString() + '円/kg' : '-'}<br>${m.ok ? '<span class="pill">請求書</span>' : '<span class="pill warn">仮</span>'}</td></tr>`;
   const groups = {}; rows.forEach(m => (groups[m.kind || ''] = groups[m.kind || ''] || []).push(m));
   const gk = Object.keys(groups).sort((a, b) => (a === '') - (b === '') || a.localeCompare(b, 'ja'));
   $('mats').innerHTML = (gk.length > 1 || gk[0] ? gk.map(k => `<tr><td colspan="2" style="padding-top:12px"><b class="k">${k ? '種類: ' + esc(k) : '種類をまだ決めていない材料'}</b>${k && groups[k].length > 1 ? ' <span class="k">(' + groups[k].length + '商品)</span>' : ''}</td></tr>` + groups[k].map(row).join('')).join('') : rows.map(row).join('')) || '<tr><td class="k">ありません</td></tr>';
@@ -1887,7 +1887,7 @@ function renderMat() {
   const all = D.materials.filter(m => !m.packaging), est = all.filter(m => !m.ok).length;
   const ms = Object.keys(D.months).sort(), lastM = ms[ms.length - 1];
   setTimeout(renderCount, 0);
-  $('mat-sum').textContent = `材料 ${all.length}種類のうち、確かめた ${all.length - est}、仮 ${est}。` + (lastM ? `${lastM.replace('-', '年')}月の仕入れ ${yen(D.months[lastM].total)}。` : '');
+  $('mat-sum').textContent = `材料 ${all.length}種類のうち、確認済み ${all.length - est}、仮 ${est}。` + (lastM ? `${lastM.replace('-', '年')}月の仕入れ ${yen(D.months[lastM].total)}。` : '');
 }
 // 材料の候補: 五十音順。別名(クリームチーズなど)や表示名でも絞り込めるように label に入れる
 const matOpts = () => D.materials.slice().sort((a, b) => a.name.localeCompare(b.name, 'ja')).map(m => { const sub = [].concat(m.aliases || [], m.display && m.display !== m.name ? [m.display] : []).join('・').slice(0, 40); return `<option value="${esc(m.name)}"${sub ? ` label="${esc(sub)}"` : ''}>`; }).join('');
@@ -1903,7 +1903,7 @@ function matAddBtn() {
   if ($('mat-add-top')) return;
   let b = $('mat-add'); if (b) return;
   b = document.createElement('div'); b.id = 'mat-add'; b.style.margin = '10px 0';
-  b.innerHTML = '<button class="btn" type="button">＋ 材料(商品)を足す</button> <span class="k">種類(例: マーガリン)の中に、ブランドや規格ちがいの商品を足せます</span>';
+  b.innerHTML = '<button class="btn" type="button">＋ 材料(商品)を追加</button> <span class="k">種類(例: マーガリン)の中に、ブランドや規格の異なる商品を追加できます</span>';
   b.querySelector('button').onclick = () => matEdit(null);
   $('mats').closest('.card').after(b);
 }
@@ -1915,27 +1915,27 @@ function parseSpecG(spec) {
 }
 function matEdit(name, preset) {
   const m = name ? D.materials.find(x => x.name === name) : (preset || {});
-  setCrumb([name || '材料を足す']);
-  matBox(`<p style="margin:0 0 8px"><b>${name ? esc(name) : '材料(商品)を足す'}</b></p>${kindList()}
+  setCrumb([name || '材料を追加']);
+  matBox(`<p style="margin:0 0 8px"><b>${name ? esc(name) : '材料(商品)を追加'}</b></p>${kindList()}
     <div style="display:grid;gap:8px">
     ${name ? '' : `<label>名前(袋に書いてある商品名)${inp('me-name', m.name, '商品名')}</label>`}
     <label>種類${inp('me-kind', m.kind, '例 マーガリン・強力粉・生クリーム')}</label>
     <label>規格${inp('me-spec', m.spec, '例 25kg・500g×20')}</label>
     <label>仕入先${inp('me-sup', m.supplier, '仕入先名')}</label>
     <label>中身${inp('me-attrs', m.attrs, '例 乳脂肪分47%・発酵・無塩・植物性')}</label>
-    ${m.packaging ? '' : `<label>1つの重さ${inp('me-pg', m.pieceG || '', '例 200', '6em')} g<br><span class="k">1個・1玉・1尾・1杯・1本など、数で使うときの重さ。入れると、レシピに数で書けます。</span>${m.pieceG && m.spec && parseSpecG(m.spec) ? `<br><span class="k">規格 ${esc(m.spec)} なら、1袋から約${Math.floor(parseSpecG(m.spec) / m.pieceG)}つ取れます。</span>` : ''}</label>`}
-    ${m.packaging || !name ? '' : `<label style="display:flex;gap:8px;align-items:flex-start"><input type="checkbox" id="me-avg"${m.avg ? ' checked' : ''} style="margin-top:4px"><span>値段は直近3回の平均で見る<br><span class="k">野菜・魚など、相場で値段が変わる材料に。請求書を撮るたびに、直近3回(90日以内)の平均で原価を出します。</span></span></label>`}
-    ${m.packaging ? '' : `<label>使える割合(歩留まり)${inp('me-yield', m.yield && m.yield < 100 ? m.yield : '', '例 90', '6em')} %<br><span class="k">皮・骨・ヘタなどを捨てたあと、何%使えるか。空なら100%。原価は使える分で計算します(レシピの量は、むいた後の使う量で書きます)。</span>${!noMoney() && m.ppg && m.yield && m.yield < 100 ? `<br><span class="k">使える分 1kg ${Math.round(m.ppg * 100 / m.yield * 1000).toLocaleString()}円(買った値段 1kg ${Math.round(m.ppg * 1000).toLocaleString()}円)</span>` : ''}</label>`}
-    ${name ? `<label>別名を足す(レシピや請求書での書き方)${inp('me-alias', '', '商品名')}</label>${m.aliases && m.aliases.length ? `<span class="k">いまの別名: ${m.aliases.map(esc).join('、')}</span>` : ''}` : `<label>値段(1kgあたり・分かれば)${inp('me-ppkg', '', '例 600', '8em')}</label>`}
-    </div><p class="k" style="margin:8px 0">原材料・アレルゲン・栄養は、袋の裏を撮ると本物に置きかわります。それまでは同じ種類の値で仮に出して「要確認」にします。</p>
+    ${m.packaging ? '' : `<label>1個の重さ${inp('me-pg', m.pieceG || '', '例 200', '6em')} g<br><span class="k">1個・1玉・1尾・1杯・1本など、個数で使う場合の重さです。入力すると、レシピに個数で記載できます。</span>${m.pieceG && m.spec && parseSpecG(m.spec) ? `<br><span class="k">規格 ${esc(m.spec)} の場合、1袋から約${Math.floor(parseSpecG(m.spec) / m.pieceG)}個取れます。</span>` : ''}</label>`}
+    ${m.packaging || !name ? '' : `<label style="display:flex;gap:8px;align-items:flex-start"><input type="checkbox" id="me-avg"${m.avg ? ' checked' : ''} style="margin-top:4px"><span>単価は直近3回の平均で計算する<br><span class="k">野菜・魚など、相場で価格が変わる材料向けです。請求書を撮影するたびに、直近3回(90日以内)の平均単価で原価を計算します。</span></span></label>`}
+    ${m.packaging ? '' : `<label>歩留まり${inp('me-yield', m.yield && m.yield < 100 ? m.yield : '', '例 90', '6em')} %<br><span class="k">皮・骨・ヘタなどを除いた後に使える割合です。空欄の場合は100%とします。原価は使える分で計算します(レシピの分量は、下処理後の量で記載してください)。</span>${!noMoney() && m.ppg && m.yield && m.yield < 100 ? `<br><span class="k">可食部 1kgあたり ${Math.round(m.ppg * 100 / m.yield * 1000).toLocaleString()}円(購入価格 1kgあたり ${Math.round(m.ppg * 1000).toLocaleString()}円)</span>` : ''}</label>`}
+    ${name ? `<label>別名を追加(レシピや請求書での表記)${inp('me-alias', '', '商品名')}</label>${m.aliases && m.aliases.length ? `<span class="k">登録済みの別名: ${m.aliases.map(esc).join('、')}</span>` : ''}` : `<label>単価(1kgあたり・分かる場合)${inp('me-ppkg', '', '例 600', '8em')}</label>`}
+    </div><p class="k" style="margin:8px 0">原材料・アレルゲン・栄養成分は、袋の裏面表示を撮影すると実際の値に置き換わります。それまでは同じ種類の標準値を仮に使い、「要確認」と表示します。</p>
     <button class="btn" type="button" id="me-go">保存</button> <button class="btn ghost" type="button" id="me-x">やめる</button>`);
   $('me-x').onclick = matBoxClose;
   $('me-kind').setAttribute('list', 'kinds');
   $('me-go').onclick = () => {
     const v = { kind: $('me-kind').value, spec: $('me-spec').value, supplier: $('me-sup').value, attrs: $('me-attrs').value };
     if ($('me-avg')) v.avg = $('me-avg').checked;
-    if ($('me-pg')) { const pg = $('me-pg').value.trim(); if (pg && !(+pg > 0)) { $('me-pg').focus(); chat('1つの重さはgの数字で入れてください'); return; } v.pieceG = pg ? +pg : 0; }
-    if ($('me-yield')) { const y = $('me-yield').value.trim(); if (y && !(+y > 0 && +y <= 100)) { $('me-yield').focus(); chat('使える割合は1〜100(%)で入れてください'); return; } v.yield = y ? +y : 100; }
+    if ($('me-pg')) { const pg = $('me-pg').value.trim(); if (pg && !(+pg > 0)) { $('me-pg').focus(); chat('1個の重さはgの数値で入力してください'); return; } v.pieceG = pg ? +pg : 0; }
+    if ($('me-yield')) { const y = $('me-yield').value.trim(); if (y && !(+y > 0 && +y <= 100)) { $('me-yield').focus(); chat('歩留まりは1〜100(%)の範囲で入力してください'); return; } v.yield = y ? +y : 100; }
     if (name) { const al = $('me-alias').value.trim(); if (al) v.alias = al; setValueX({ field: 'mat', name, value: v }); }
     else { const nm = $('me-name').value.trim(); if (!nm) { $('me-name').focus(); return; } v.ppkg = parseFloat($('me-ppkg').value) || ''; setValueX({ field: 'mat', name: nm, create: true, value: v }); }
     matBoxClose();
@@ -1947,19 +1947,19 @@ function renderCount() {
   if (SH('stock')) { if (box) box.remove(); return; }
   if (!box) { box = document.createElement('div'); box.id = 'countbox'; $('mat-sum').after(box); }
   const names = D.materials.filter(m => !m.packaging).map(m => m.name);
-  box.innerHTML = `<div class="card" style="margin-top:12px"><p style="margin:0 0 8px"><b>棚卸(数えた量を入れる)</b> <span class="k">棚卸は${esc((D.stock || {}).cycle || '年1回')}</span></p>
+  box.innerHTML = `<div class="card" style="margin-top:12px"><p style="margin:0 0 8px"><b>棚卸(数えた量を入力)</b> <span class="k">棚卸は${esc((D.stock || {}).cycle || '年1回')}</span></p>
     <div class="ask"><select id="cnt-m" style="font:inherit;font-size:15px;padding:8px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);max-width:11em">${names.map(n => `<option>${esc(n)}</option>`).join('')}</select>
     <input id="cnt-v" inputmode="decimal" placeholder="例 2" style="width:70px"><select id="cnt-u" style="font:inherit;font-size:15px;padding:8px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)"><option>kg</option><option>g</option><option>袋</option><option>缶</option></select>
     <button class="btn" type="button" id="cnt-go">記録する</button></div>
-    <p class="k" style="margin:8px 0 0">差がありそうなものだけで大丈夫。${VIA}「バイオレット 残り2袋」でも入れられます</p></div>`;
+    <p class="k" style="margin:8px 0 0">差がありそうな材料だけで構いません。${VIA}「バイオレット 残り2袋」と入力しても記録できます</p></div>`;
   $('cnt-go').onclick = () => { const v = parseFloat($('cnt-v').value); if (!(v >= 0)) { $('cnt-v').focus(); return; } setValueX({ field: 'count', product: $('cnt-m').value, value: v, unit: $('cnt-u').value }); };
 }
 async function setValueX(extra) {
   const out = await api(Object.assign({ kind: 'app_set' }, extra));
-  if (!out.ok) { toast(out.error || 'うまく記録できませんでした', 'ng'); return; }
+  if (!out.ok) { toast(out.error || '記録できませんでした', 'ng'); return; }
   D = out.data; renderAll();
-  if ((extra.field === 'ing' || extra.field === 'steps') && (D.undo || [])[0] && D.undo[0].product === extra.product) { const u0 = D.undo[0]; toast(out.msg || '直しました', 'ok', ['元に戻す', () => setValueX({ field: 'undo', value: u0.row })]); return; }
-  if (out.msg) { chat(out.msg); return; } toast(extra.field === 'check' ? '確かめました。' : extra.field === 'restoreprod' ? 'レシピを戻しました。' : extra.field === 'hyg' ? '記録しました。' : extra.field === 'deliv' ? '納品を記録しました。' : extra.field === 'shop' ? '店舗情報を保存しました。' : extra.field === 'lbl' ? 'ラベルの設定を保存しました。' : extra.field === 'paybank' ? `振込は「${esc((payBank() || {}).name || '')}」を開くようにしました。` : ['biz', 'sell', 'unitword', 'serve', 'closed', 'wsprice', 'regalias'].includes(extra.field) ? '変えました。' : extra.field === 'tax' ? '税率を保存しました。' : extra.field === 'target' || extra.field === 'ptarget' ? '目標の原価率を保存しました。' : extra.field === 'aicap' ? 'AI代の上限を保存しました。' : extra.field === 'mat' ? (extra.value && extra.value.alias ? `「${esc(extra.value.alias)}」を「${esc(extra.name)}」の別名にしました。原価に反映しました。` : '材料を保存しました。') : extra.field === 'hygnotice' ? (extra.value === 'off' ? '衛生記録のお知らせは送らないようにしました。' : `衛生記録のお知らせは${extra.value}時に送ります。`) : extra.field === 'sales' ? '売上を記録しました。' : extra.field === 'cycle' ? `棚卸は「${extra.value}」にしました。その前にLINEでお知らせします。` : '記録しました。在庫を計算しなおしました。', 'ok'); act('heart', 1.3);
+  if ((extra.field === 'ing' || extra.field === 'steps') && (D.undo || [])[0] && D.undo[0].product === extra.product) { const u0 = D.undo[0]; toast(out.msg || '修正しました', 'ok', ['元に戻す', () => setValueX({ field: 'undo', value: u0.row })]); return; }
+  if (out.msg) { chat(out.msg); return; } toast(extra.field === 'check' ? '確認しました。' : extra.field === 'restoreprod' ? 'レシピを元に戻しました。' : extra.field === 'hyg' ? '記録しました。' : extra.field === 'deliv' ? '納品を記録しました。' : extra.field === 'shop' ? '店舗情報を保存しました。' : extra.field === 'lbl' ? 'ラベルの設定を保存しました。' : extra.field === 'paybank' ? `振込先を「${esc((payBank() || {}).name || '')}」に設定しました。` : ['biz', 'sell', 'unitword', 'serve', 'closed', 'wsprice', 'regalias'].includes(extra.field) ? '変更しました。' : extra.field === 'tax' ? '税率を保存しました。' : extra.field === 'target' || extra.field === 'ptarget' ? '目標原価率を保存しました。' : extra.field === 'aicap' ? 'AI利用料の上限を保存しました。' : extra.field === 'mat' ? (extra.value && extra.value.alias ? `「${esc(extra.value.alias)}」を「${esc(extra.name)}」の別名にしました。原価に反映しました。` : '材料を保存しました。') : extra.field === 'hygnotice' ? (extra.value === 'off' ? '衛生記録のお知らせを停止しました。' : `衛生記録のお知らせは${extra.value}時に送ります。`) : extra.field === 'sales' ? '売上を記録しました。' : extra.field === 'cycle' ? `棚卸は「${extra.value}」に設定しました。その前にLINEでお知らせします。` : '記録しました。在庫を再計算しました。', 'ok'); act('heart', 1.3);
 }
 // 小さな確認の窓(画面の手前)。閉じるボタン・外側・Escで閉じる
 // ---------- 商品規格書(オプション・11/19) ----------
@@ -2072,7 +2072,7 @@ function specSheet(S, ver) {
 }
 async function specExport(products) {
   const list = products.filter(p => p.kind !== 'part'); if (!list.length) { toast('商品がありません'); return; }
-  const specs = list.map(specOf), r = await api({ kind: 'app_spec', items: specs.map(S => ({ name: S.name, sig: specSig(S) })) }).catch(() => ({ ok: false, error: 'つながりませんでした' }));
+  const specs = list.map(specOf), r = await api({ kind: 'app_spec', items: specs.map(S => ({ name: S.name, sig: specSig(S) })) }).catch(() => ({ ok: false, error: '通信できませんでした' }));
   if (!r.ok) { toast(r.error || '作れませんでした'); return; }
   const used = new Set(), sheets = specs.map(S => { const sh = specSheet(S, r.vers[S.name] || {}); let n = sh.name, k = 2; while (used.has(n)) n = sh.name.slice(0, 28) + '(' + k++ + ')'; used.add(n); sh.name = n; return sh; });
   const shop = ((D.shopInfo || {}).name || D.shop || '').replace(/[\\/:*?"<>|]/g, ''), d = new Date(), ymd = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
@@ -2087,29 +2087,29 @@ const orderOn = () => !!(D && D.connOpts && D.connOpts.order && D.order);
 const jpDay = t => { const d = new Date(t); return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`; };
 // 設定の「オプション」: このお店で使っているオプションと、使っていないもの(申し込み方)を並べる
 function optBox() {
-  const c = D.connOpts || {}, L = [['order', '発注書(FAXで送る)', '仕入先ごとの発注書を作り、印刷・PDFにしてFAXで送れます。いつもの品と前回の数がすぐ入ります', true], ['spec', '商品規格書の書き出し', '取引先に渡す商品規格書(Excel)を、食品表示のデータから作ります。食品表示の画面から出せます', true]];
-  return L.filter(x => x[3] || c[x[0]]).map(([k, n, w]) => `<div class="opt-row"><div><b>${n}</b> ${c[k] ? '<span class="pill">お使いいただけます</span>' : '<span class="pill gray">お申し込みがあれば使えます</span>'}<div class="k">${w}</div></div>${c[k] ? (k === 'order' ? '<button class="btn" type="button" data-optgo="order">発注書をつくる</button>' : '') : '<button class="btn ghost" type="button" data-optask="' + k + '">申し込む</button>'}</div>`).join('') + '<p class="k" style="margin:8px 0 0">オプションのお申し込み・おやめになるときは「申し込む」か、相談からお知らせください。</p>';
+  const c = D.connOpts || {}, L = [['order', '発注書(FAXで送る)', '仕入先ごとの発注書を作成し、印刷・PDFにしてFAXで送信できます。取引のある品目と前回の数量がすぐに入力されます', true], ['spec', '商品規格書の書き出し', '取引先に提出する商品規格書(Excel)を、食品表示のデータから作成します。食品表示の画面から出力できます', true]];
+  return L.filter(x => x[3] || c[x[0]]).map(([k, n, w]) => `<div class="opt-row"><div><b>${n}</b> ${c[k] ? '<span class="pill">お使いいただけます</span>' : '<span class="pill gray">お申し込み後にご利用いただけます</span>'}<div class="k">${w}</div></div>${c[k] ? (k === 'order' ? '<button class="btn" type="button" data-optgo="order">発注書を作成</button>' : '') : '<button class="btn ghost" type="button" data-optask="' + k + '">申し込む</button>'}</div>`).join('') + '<p class="k" style="margin:8px 0 0">オプションのお申し込み・解約は、「申し込む」または「相談」からご連絡ください。</p>';
 }
 function openOrder(supName) {
   const O = D.order || { sups: [] };
   if (supName == null) {
-    openSheet(`<h2 style="margin:0 0 4px">発注書をつくる</h2><p class="k" style="margin:0 0 10px">仕入先を選んでください。そろそろ買うものがある仕入先が上に出ます</p>
-      ${O.sups.length ? O.sups.map((x, i) => `<button class="od-sup" type="button" data-os="${i}"><b>${esc(x.name)}</b><span class="k">${x.lowN ? `<mark>そろそろ ${x.lowN}品</mark> ` : ''}${x.last ? `前回 ${jpDay(x.last.at).replace(/^\d+年/, '')}` : ''}${x.fax ? '' : ' FAX番号なし'}</span></button>`).join('') : '<p class="k">まだ仕入先がありません。請求書を撮影すると、仕入先といつもの品が入ります</p>'}
-      <div class="fld" style="margin-top:12px"><span class="k">ほかの仕入先</span><input id="od-new" placeholder="仕入先の名前"></div><div class="ask"><button class="btn ghost" type="button" id="od-new-go">この仕入先で作る</button></div>`);
+    openSheet(`<h2 style="margin:0 0 4px">発注書の作成</h2><p class="k" style="margin:0 0 10px">仕入先を選択してください。在庫が少ない材料がある仕入先を上に表示しています</p>
+      ${O.sups.length ? O.sups.map((x, i) => `<button class="od-sup" type="button" data-os="${i}"><b>${esc(x.name)}</b><span class="k">${x.lowN ? `<mark>そろそろ ${x.lowN}品</mark> ` : ''}${x.last ? `前回 ${jpDay(x.last.at).replace(/^\d+年/, '')}` : ''}${x.fax ? '' : ' FAX番号なし'}</span></button>`).join('') : '<p class="k">仕入先が登録されていません。請求書を撮影すると、仕入先と取引のある品目が登録されます</p>'}
+      <div class="fld" style="margin-top:12px"><span class="k">その他の仕入先</span><input id="od-new" placeholder="仕入先名"></div><div class="ask"><button class="btn ghost" type="button" id="od-new-go">この仕入先で作成</button></div>`);
     document.querySelectorAll('[data-os]').forEach(b => b.onclick = () => openOrder(O.sups[+b.dataset.os].name));
     $('od-new-go').onclick = () => { const n = $('od-new').value.trim(); if (!n) { $('od-new').focus(); return; } openOrder(n); };
     return;
   }
   const S = O.sups.find(x => x.name === supName) || { name: supName, fax: '', items: [], last: null };
-  const row = (it, i) => `<div class="od-row" data-i="${i}"><div class="od-n"><b>${esc(it.name)}</b><span class="k">${esc(it.spec || '')}${it.low ? ` <mark>残り少ない${it.left ? '(' + esc(it.left) + ')' : ''}</mark>` : ''}${it.qty !== '' ? ` 前回 ${esc(String(it.qty))}${esc(it.unit || '')}` : ''}</span></div><input class="od-q" inputmode="decimal" aria-label="${esc(it.name)}の数" value="${it.low && it.qty !== '' ? esc(String(it.qty)) : ''}" placeholder="数"><input class="od-u" aria-label="単位" value="${esc(it.unit || '')}" placeholder="単位"></div>`;
-  const free = i => `<div class="od-row od-free"><input class="od-fn" aria-label="品名" placeholder="品名(一覧にない品)"><input class="od-q" inputmode="decimal" aria-label="数" placeholder="数"><input class="od-u" aria-label="単位" placeholder="単位"></div>`;
-  openSheet(`<h2 style="margin:0 0 4px">${esc(S.name)} への発注書</h2><p class="k" style="margin:0 0 8px">頼む品に数を入れてください。空欄の品は発注書に出ません</p>
+  const row = (it, i) => `<div class="od-row" data-i="${i}"><div class="od-n"><b>${esc(it.name)}</b><span class="k">${esc(it.spec || '')}${it.low ? ` <mark>在庫少${it.left ? '(' + esc(it.left) + ')' : ''}</mark>` : ''}${it.qty !== '' ? ` 前回 ${esc(String(it.qty))}${esc(it.unit || '')}` : ''}</span></div><input class="od-q" inputmode="decimal" aria-label="${esc(it.name)}の数" value="${it.low && it.qty !== '' ? esc(String(it.qty)) : ''}" placeholder="数"><input class="od-u" aria-label="単位" value="${esc(it.unit || '')}" placeholder="単位"></div>`;
+  const free = i => `<div class="od-row od-free"><input class="od-fn" aria-label="品名" placeholder="品名(一覧にない品目)"><input class="od-q" inputmode="decimal" aria-label="数" placeholder="数"><input class="od-u" aria-label="単位" placeholder="単位"></div>`;
+  openSheet(`<h2 style="margin:0 0 4px">${esc(S.name)} への発注書</h2><p class="k" style="margin:0 0 8px">発注する品目に数量を入力してください。空欄の品目は発注書に記載されません</p>
     ${S.last ? `<div class="ask" style="margin:0 0 8px"><button class="btn ghost sm" type="button" id="od-same">前回(${jpDay(S.last.at).replace(/^\d+年/, '')})と同じにする</button></div>` : ''}
     <div id="od-items">${S.items.map(row).join('')}${free(0)}${free(1)}${free(2)}</div>
-    <div class="fld" style="margin-top:12px"><span class="k">送り先のFAX番号</span><input id="od-fax" inputmode="tel" value="${esc(S.fax || '')}" placeholder="例 0436-00-0000(仕入先に覚えさせます)">
+    <div class="fld" style="margin-top:12px"><span class="k">送り先のFAX番号</span><input id="od-fax" inputmode="tel" value="${esc(S.fax || '')}" placeholder="例 0436-00-0000(仕入先に保存されます)">
     <span class="k">納品希望日</span><input id="od-day" type="date">
     <span class="k">備考</span><input id="od-memo" placeholder="例 いつもの時間にお願いします"></div>
-    <div class="ask"><button class="btn" type="button" id="od-go">発注書をつくる</button><button class="btn ghost" type="button" id="od-back">仕入先を選び直す</button></div>`);
+    <div class="ask"><button class="btn" type="button" id="od-go">発注書を作成</button><button class="btn ghost" type="button" id="od-back">仕入先を選び直す</button></div>`);
   $('od-back').onclick = () => openOrder();
   if ($('od-same')) $('od-same').onclick = () => {
     const items = document.querySelectorAll('#od-items .od-row:not(.od-free)'), frees = [...document.querySelectorAll('#od-items .od-free')];
@@ -2119,7 +2119,7 @@ function openOrder(supName) {
       if (r) { r.querySelector('.od-q').value = l.qty; r.querySelector('.od-u').value = l.unit || ''; return; }
       const f = frees.find(x => !x.querySelector('.od-fn').value); if (f) { f.dataset.spec = l.spec || ''; f.querySelector('.od-fn').value = l.name; f.querySelector('.od-q').value = l.qty; f.querySelector('.od-u').value = l.unit || ''; }
     });
-    toast('前回と同じ数を入れました。変えるところだけ直してください', 'ok');
+    toast('前回と同じ数量を入力しました。変更する箇所のみ修正してください', 'ok');
   };
   $('od-go').onclick = async () => {
     const lines = [];
@@ -2128,10 +2128,10 @@ function openOrder(supName) {
       if (r.classList.contains('od-free')) { const n = r.querySelector('.od-fn').value.trim(); if (n) lines.push({ name: n, spec: r.dataset.spec || '', qty: q, unit: u }); return; }
       const it = S.items[+r.dataset.i]; lines.push({ name: it.name, spec: it.spec || '', qty: q, unit: u });
     });
-    if (!lines.length) { toast('頼む品に数を入れてください'); return; }
+    if (!lines.length) { toast('発注する品目に数量を入力してください'); return; }
     const go = $('od-go'); go.disabled = true;
     const day = $('od-day').value, memo = $('od-memo').value.trim(), fax = $('od-fax').value.trim();
-    const r = await api({ kind: 'app_order', sup: S.name, fax, lines, day, memo }).catch(() => ({ ok: false, error: 'つながりませんでした' }));
+    const r = await api({ kind: 'app_order', sup: S.name, fax, lines, day, memo }).catch(() => ({ ok: false, error: '通信できませんでした' }));
     go.disabled = false;
     if (!r.ok) { toast(r.error || '作れませんでした'); return; }
     if (r.data) { D = r.data; renderAll(); }
@@ -2142,7 +2142,7 @@ function orderHtml(S, o) {
   const si = D.shopInfo || {}, rows = o.lines.map((l, i) => `<tr><td class="c">${i + 1}</td><td>${esc(l.name)}</td><td>${esc(l.spec || '')}</td><td class="r"><b>${esc(String(l.qty))}</b> ${esc(l.unit || '')}</td><td>${esc(l.note || '')}</td></tr>`);
   for (let i = rows.length; i < 10; i++) rows.push(`<tr><td class="c">${i + 1}</td><td></td><td></td><td></td><td></td></tr>`);
   const day = o.day ? jpDay(o.day.replace(/-/g, '/')) + `(${'日月火水木金土'[new Date(o.day.replace(/-/g, '/')).getDay()]})` : 'ご相談';
-  return `<p class="k od-np">FAXで送る: スマホは「印刷・PDFにする」→ 共有からFAXのアプリへ。パソコンはPDFで保存して、お使いのFAXの仕組みで送ってください。紙に印刷して、お店のFAX機から送ることもできます</p>
+  return `<p class="k od-np">FAXでの送信方法: スマートフォンの場合は「印刷・PDFにする」→ 共有からFAXアプリへ送信します。パソコンの場合はPDFで保存し、ご利用のFAXサービスから送信してください。紙に印刷して、店舗のFAX機から送信することもできます</p>
   <div class="od-doc"><h1>発　注　書</h1>
     <div class="od-top"><div class="od-to"><div class="od-big">${esc(S.name)}　御中</div>${S.person ? `<div>ご担当　${esc(S.person)}　様</div>` : ''}<div>FAX　${esc(o.fax || '')}</div></div>
       <div class="od-from"><div>No.　${esc(o.no || '')}</div><div>発注日　${jpDay(Date.now())}</div><div class="od-shop">${esc(si.name || D.shop)}</div>${si.addr ? `<div>${esc(si.addr)}</div>` : ''}<div>${si.tel ? 'TEL　' + esc(si.tel) : ''}${si.fax ? '　FAX　' + esc(si.fax) : ''}</div>${D.me && D.me.name ? `<div>発注者　${esc(D.me.name)}</div>` : ''}</div></div>
@@ -2189,34 +2189,34 @@ function renderJournal() {
   const sums = D.journal[sel], keys = Object.keys(sums).sort((a, b) => sums[b] - sums[a]), tot = keys.reduce((a, k) => a + sums[k], 0);
   box.innerHTML = `<h1 style="font-size:18px;margin-top:24px">科目ごとの合計(仕訳の案)</h1><div class="chips">${ms.map(m => `<button class="chip" type="button" data-m="${esc(m)}" aria-pressed="${m === sel}">${esc(m.replace('-', '年'))}月</button>`).join('')}</div>
     <div class="card"><table>${keys.map(k => `<tr><td>${k === '要確認' ? '<mark>要確認</mark>' : esc(k)}</td><td class="n">${yen(sums[k])}</td></tr>`).join('')}<tr><td><b>合計</b></td><td class="n"><b>${yen(tot)}</b></td></tr></table>
-    <p class="k" style="margin:8px 0 0">科目は案です。表の「仕入れ」で直すか、「科目」シートに決まりを足すと次から自動で分けます</p></div>
-    <div class="card" style="margin-top:12px"><p style="margin:0 0 4px"><b>税理士に渡す(${esc(sel.replace('-', '年'))}月分)</b></p><p class="k" style="margin:0 0 8px">仕入れの明細・支払い・売上・科目ごとの合計を1つにまとめます。印刷して渡すか、CSV(表計算ソフトや会計ソフトで開ける形)で送ってください。</p>
-    <div class="ask"><button class="btn" type="button" id="tx-print">印刷・PDFにする</button><button class="btn ghost" type="button" id="tx-csv">CSVで保存</button><button class="btn ghost" type="button" id="tx-acct">会計ソフト用に書き出す</button>${SH('journal') ? '' : '<button class="btn ghost" type="button" id="tx-jcsv">仕訳の案(会計ソフト用CSV)</button>'}</div>${SH('journal') ? '' : '<p class="k" style="margin:8px 0 0">仕訳の案は「日付・借方・貸方・金額・摘要」の形です。支払いはすべて現金としています。掛けで払ったものや口座から落ちたものは、会計ソフトで直してください。</p>'}</div>`;
+    <p class="k" style="margin:8px 0 0">科目は案です。「仕入れ」の表で修正するか、「科目」シートに規則を追加すると、次回から自動で分類します</p></div>
+    <div class="card" style="margin-top:12px"><p style="margin:0 0 4px"><b>税理士に渡す(${esc(sel.replace('-', '年'))}月分)</b></p><p class="k" style="margin:0 0 8px">仕入れの明細・支払い・売上・科目ごとの合計を1つにまとめます。印刷してお渡しいただくか、CSV(表計算ソフトや会計ソフトで開ける形式)でお送りください。</p>
+    <div class="ask"><button class="btn" type="button" id="tx-print">印刷・PDFにする</button><button class="btn ghost" type="button" id="tx-csv">CSVで保存</button><button class="btn ghost" type="button" id="tx-acct">会計ソフト用に書き出す</button>${SH('journal') ? '' : '<button class="btn ghost" type="button" id="tx-jcsv">仕訳の案(会計ソフト用CSV)</button>'}</div>${SH('journal') ? '' : '<p class="k" style="margin:8px 0 0">仕訳の案は「日付・借方・貸方・金額・摘要」の形式です。支払いはすべて現金として計上しています。掛け払いや口座引き落としの分は、会計ソフトで修正してください。</p>'}</div>`;
   box.querySelectorAll('[data-m]').forEach(b => b.onclick = () => { box.dataset.m = b.dataset.m; renderJournal(); });
   // 会計ソフト向けの書き出し(連携): freee・マネーフォワード・弥生の取り込みの形。売上の税率は選ぶ(持ち帰り・菓子は軽減8%、店内飲食は10%)
   $('tx-acct').onclick = () => {
     let rate = '8'; try { rate = localStorage.getItem('shikomi:salesRate') || '8'; } catch (e) {}
     openSheet(`<h2 style="margin:0 70px 8px 0;font-size:19px">会計ソフト用に書き出す(${esc(sel.replace('-', '年'))}月分)</h2>
-      <p class="k">お使いの会計ソフトの取り込みの形で保存します。会計ソフトの「インポート」から読み込んでください。</p>
+      <p class="k">ご利用の会計ソフトの取り込み形式で保存します。会計ソフトの「インポート」から読み込んでください。</p>
       <label class="k" for="ax-fmt">会計ソフト</label><select id="ax-fmt" class="mq-sel" style="max-width:none;width:100%"><option value="freee">freee会計(取引のインポート)</option><option value="mf">マネーフォワード クラウド会計(仕訳帳のインポート)</option><option value="yayoi">弥生会計(仕訳データのインポート)</option></select>
       <label class="k" for="ax-rate" style="display:block;margin-top:10px">売上の消費税率</label><select id="ax-rate" class="mq-sel" style="max-width:none;width:100%"><option value="8"${rate === '8' ? ' selected' : ''}>8%(軽減税率。持ち帰り・菓子・パンなど)</option><option value="10"${rate === '10' ? ' selected' : ''}>10%(店内での飲食など)</option></select>
-      <p class="k" style="margin-top:10px">仕入れの科目と税率は、ピタット原価の案のまま出します。科目が「要確認」のものは仕入高、税率が分からないものは8%で出し、摘要に「要確認」と書きます。取り込んだあと、会計ソフトで確かめてください。</p>
+      <p class="k" style="margin-top:10px">仕入れの科目と税率は、ピタット原価の案のまま出力します。科目が「要確認」のものは仕入高、税率が不明なものは8%として出力し、摘要に「要確認」と記載します。取り込み後、会計ソフトでご確認ください。</p>
       <div class="ask" style="margin-top:12px"><button class="btn" type="button" id="ax-go">保存する</button></div>`);
     $('ax-go').onclick = async () => {
-      if (IN_LINE) { chat('LINEの中からはファイルを保存できません。パソコンかスマホのブラウザで開いてください。', 'point'); return; }
+      if (IN_LINE) { chat('LINEの画面からはファイルを保存できません。パソコンまたはスマートフォンのブラウザで開いてください。', 'point'); return; }
       const fmt = $('ax-fmt').value, sr = $('ax-rate').value; try { localStorage.setItem('shikomi:salesRate', sr); } catch (e) {}
-      const r = await api({ kind: 'app_export', month: sel, fmt, salesRate: sr }); if (!r.ok) { toast(r.error || '出せませんでした', 'ng'); return; }
+      const r = await api({ kind: 'app_export', month: sel, fmt, salesRate: sr }); if (!r.ok) { toast(r.error || '出力できませんでした', 'ng'); return; }
       const bytes = sjisBytes(r.csv.text);
       const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([bytes], { type: 'text/csv' })); a.download = r.csv.name; document.body.appendChild(a); a.click(); a.remove();
       const w = r.csv.warn || {}; closeSheet();
       toast(r.csv.n + '件を保存しました' + (w.acct || w.rate ? '(要確認 ' + ((w.acct || 0) + (w.rate || 0)) + '件)' : ''), 'ok');
     };
   };
-  const getX = async () => { const r = await api({ kind: 'app_export', month: sel }); if (!r.ok) { toast(r.error || '出せませんでした', 'ng'); return null; } return r; };
+  const getX = async () => { const r = await api({ kind: 'app_export', month: sel }); if (!r.ok) { toast(r.error || '出力できませんでした', 'ng'); return null; } return r; };
   $('tx-print').onclick = async () => { const r = await getX(); if (r) openPrint(taxHtml(r)); };
   $('tx-csv').onclick = async () => {
     const r = await getX(); if (!r) return;
-    if (IN_LINE) { chat('LINEの中からはファイルを保存できません。パソコンかスマホのブラウザで開いて「CSVで保存」を押すか、「印刷・PDFにする」を使ってください。', 'point'); return; }
+    if (IN_LINE) { chat('LINEの画面からはファイルを保存できません。パソコンまたはスマートフォンのブラウザで開いて「CSVで保存」を押すか、「印刷・PDFにする」をご利用ください。', 'point'); return; }
     const q = v => { const t = String(v == null ? '' : v); return /[",\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t; };
     const rows = [['区分', '日付', '取引先', '品名', '規格', '数量', '単位', '金額(円)', '科目(案)', '税率', 'メモ', '登録番号']];
     r.buys.forEach(b => rows.push(['仕入れ', b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7], b[8], '', b[9] || '']));
@@ -2229,11 +2229,11 @@ function renderJournal() {
   };
   if ($('tx-jcsv')) $('tx-jcsv').onclick = async () => {
     const r = await getX(); if (!r) return;
-    if (IN_LINE) { chat('LINEの中からはファイルを保存できません。パソコンかスマホのブラウザで開いてください。', 'point'); return; }
+    if (IN_LINE) { chat('LINEの画面からはファイルを保存できません。パソコンまたはスマートフォンのブラウザで開いてください。', 'point'); return; }
     const q = v => { const t = String(v == null ? '' : v); return /[",\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t; };
     const rows = [['日付', '借方勘定科目', '借方金額', '貸方勘定科目', '貸方金額', '摘要']];
     r.sales.forEach(x => rows.push([x[0], '現金', x[1], '売上高', x[1], 'レジの売上(税込)']));
-    r.buys.forEach(b => { const ac = b[7] || '要確認', cr = b[3] === '店主が立替' ? '事業主借' : '現金'; rows.push([b[0], ac, b[6], cr, b[6], [b[1], b[2], b[3] && b[3] !== '店主が立替' && b[3] !== '私用' ? b[3] : ''].filter(Boolean).join(' ')]); });
+    r.buys.forEach(b => { const ac = b[7] || '要確認', cr = b[3] === '店主の立替' ? '事業主借' : '現金'; rows.push([b[0], ac, b[6], cr, b[6], [b[1], b[2], b[3] && b[3] !== '店主の立替' && b[3] !== '私用' ? b[3] : ''].filter(Boolean).join(' ')]); });
     (r.regs || []).forEach(x => rows.push(x[1] < 0 ? [x[0], '雑損失', -x[1], '現金', -x[1], '現金の不足 ' + (x[2] || '')] : [x[0], '現金', x[1], '雑収入', x[1], '現金の過剰 ' + (x[2] || '')]));
     rows.splice(1, rows.length - 1, ...rows.slice(1).sort((a, b) => a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
     const csv = '\ufeff' + rows.map(rw => rw.map(q).join(',')).join('\r\n');
@@ -2265,7 +2265,7 @@ function mlockBar() {
   let b = $('mlock-bar'); const want = mlockOn() && mLocked;
   if (!want) { if (b) b.remove(); return; }
   if (!b) { b = document.createElement('div'); b.id = 'mlock-bar'; b.className = 'card'; b.style.cssText = 'display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:12px'; $('t-today').prepend(b); }
-  b.innerHTML = `<span><b>🔒 金額は非表示です</b><br><span class="k">${MLOCK.min}分さわらなかったので、帳簿・売上と原価の金額を非表示にしました。レシピと分量はそのまま見られます</span></span><button class="btn sm" type="button" id="mlock-open">開く</button>`;
+  b.innerHTML = `<span><b>🔒 金額は非表示です</b><br><span class="k">${MLOCK.min}分間操作がなかったため、帳簿・売上・原価の金額を非表示にしました。レシピと分量はそのままご覧いただけます</span></span><button class="btn sm" type="button" id="mlock-open">開く</button>`;
   $('mlock-open').onclick = () => mlockAsk();
 }
 function mlockAsk(next) {
@@ -2275,24 +2275,24 @@ function mlockAsk(next) {
   const draw = mode => {
     const pinIn = (id, ph) => `<input id="${id}" type="password" inputmode="numeric" autocomplete="off" maxlength="4" placeholder="${ph}" style="font-size:28px;letter-spacing:.4em;text-align:center;width:100%;margin:6px 0">`;
     ov.innerHTML = `<div class="card" role="dialog" aria-modal="true" aria-labelledby="mlk-h" style="max-width:380px;width:100%">
-      <h2 id="mlk-h" style="font-family:var(--round);margin:0 0 6px">${mode === 'set' ? '金額表示の暗証番号を設定' : mode === 'reset' ? '暗証番号を決め直す' : '金額を表示する'}</h2>
-      <p class="k" style="margin:0 0 6px">${mode === 'set' ? 'あなただけの4けたの数字です。店舗のスタッフに教えないでください(1111のような同じ数字・1234のような並びは使えません)' : mode === 'reset' ? '店主のLINEに届いた6けたの数字と、新しい4けたの暗証番号を入れてください' : 'あなたの4けたの暗証番号を入れてください'}</p>
+      <h2 id="mlk-h" style="font-family:var(--round);margin:0 0 6px">${mode === 'set' ? '金額表示の暗証番号を設定' : mode === 'reset' ? '暗証番号を再設定' : '金額を表示する'}</h2>
+      <p class="k" style="margin:0 0 6px">${mode === 'set' ? 'ご本人専用の4桁の番号です。店舗のスタッフには教えないでください(1111のような同じ数字や、1234のような連番は使えません)' : mode === 'reset' ? '店主のLINEに届いた6桁の番号と、新しい4桁の暗証番号を入力してください' : '4桁の暗証番号を入力してください'}</p>
       ${mode === 'reset' ? `<input id="mlk-code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="6けたの数字" style="font-size:22px;text-align:center;width:100%;margin:6px 0">` : ''}
       ${pinIn('mlk-pin', '4けた')}${mode !== 'open' ? pinIn('mlk-pin2', 'もう一度') : ''}
       <p class="k" id="mlk-msg" style="margin:4px 0 8px;color:var(--warn)"></p>
       <div style="display:flex;gap:8px"><button class="btn" type="button" id="mlk-ok" style="flex:2">${mode === 'open' ? '開く' : '決める'}</button><button class="btn ghost" type="button" id="mlk-x" style="flex:1">やめる</button></div>
-      ${mode === 'open' ? `<p style="margin:10px 0 0;text-align:center"><button class="btn ghost sm" type="button" id="mlk-forgot">暗証番号を忘れた</button></p>` : ''}</div>`;
+      ${mode === 'open' ? `<p style="margin:10px 0 0;text-align:center"><button class="btn ghost sm" type="button" id="mlk-forgot">暗証番号をお忘れの場合</button></p>` : ''}</div>`;
     const msg = t => { $('mlk-msg').textContent = t; };
     $('mlk-x').onclick = () => ov.remove();
     $('mlk-pin').focus();
     const go = async () => {
       const pin = $('mlk-pin').value.trim();
-      if (mode !== 'open' && pin !== $('mlk-pin2').value.trim()) { msg('2つの数字がちがいます'); return; }
+      if (mode !== 'open' && pin !== $('mlk-pin2').value.trim()) { msg('入力した2つの番号が一致しません'); return; }
       $('mlk-ok').disabled = true;
       let r = mode === 'set' ? await api({ kind: 'app_mlock_pin', pin }) : mode === 'reset' ? await api({ kind: 'app_mlock_reset', code: $('mlk-code').value.trim(), pin }) : await api({ kind: 'app_mlock_unlock', pin });
       if (r.ok && mode !== 'open') { MLOCK.hasPin = true; r = await api({ kind: 'app_mlock_unlock', pin }); }
       $('mlk-ok').disabled = false;
-      if (!r.ok) { if (r.needPin) { draw('set'); return; } msg(r.error || '開けませんでした'); $('mlk-pin').value = ''; $('mlk-pin').focus(); return; }
+      if (!r.ok) { if (r.needPin) { draw('set'); return; } msg(r.error || '表示できませんでした'); $('mlk-pin').value = ''; $('mlk-pin').focus(); return; }
       ov.remove(); try { sessionStorage.setItem(MLK, String(Date.now())); } catch (e) {} mlockSet(false); toast('金額を表示しました', 'ok'); if (next) show(next);
     };
     $('mlk-ok').onclick = go;
@@ -2313,22 +2313,22 @@ async function pkLoad() {
   PK_KEYS = r.keys; pkBanner();
   const box = $('pk-set'); if (!box) return;
   const day = t => t ? new Date(t).toLocaleDateString('ja-JP', { year: 'numeric', month: 'numeric', day: 'numeric' }) : '—';
-  box.innerHTML = `<b>顔認証・指紋認証のログイン</b><p class="k" style="margin:6px 0 8px">iPhone・Androidに入っている顔・指紋(Face ID・指紋認証など)を、そのままログインに使います。新しく顔や指紋を登録することはなく、顔・指紋のデータはスマホの外に出ません。使えるようにした端末なら、メールもパスワードもいりません。${D && D.me && D.me.owner ? '<b>店主の方は使えるようにしてください。</b>' : ''}</p>
-    ${PK_KEYS.length ? PK_KEYS.map(k => `<div class="ask" style="justify-content:space-between;flex-wrap:wrap"><span>${esc(k.dev || '端末')} <span class="k">使えるようにした日 ${day(k.at)}・最後に使った日 ${day(k.last)}</span></span><button class="btn ghost sm" type="button" data-pkdel="${esc(k.id)}">消す</button></div>`).join('') : '<p class="k" style="margin:0 0 8px">まだ使えるようにしていません。</p>'}
+  box.innerHTML = `<b>顔認証・指紋認証のログイン</b><p class="k" style="margin:6px 0 8px">iPhone・Androidに登録済みの顔認証・指紋認証(Face IDなど)を、そのままログインに使用します。新たに顔や指紋を登録する必要はなく、顔・指紋のデータが端末の外に送られることはありません。設定済みの端末では、メールアドレスとパスワードの入力が不要になります。${D && D.me && D.me.owner ? '<b>店主の方は設定をお願いします。</b>' : ''}</p>
+    ${PK_KEYS.length ? PK_KEYS.map(k => `<div class="ask" style="justify-content:space-between;flex-wrap:wrap"><span>${esc(k.dev || '端末')} <span class="k">設定日 ${day(k.at)}・最終利用日 ${day(k.last)}</span></span><button class="btn ghost sm" type="button" data-pkdel="${esc(k.id)}">削除</button></div>`).join('') : '<p class="k" style="margin:0 0 8px">まだ設定されていません。</p>'}
     <div style="margin-top:8px"><button class="btn sm" type="button" id="pk-add">この端末で顔認証・指紋認証を設定する</button> <span class="k" id="pk-msg"></span></div>`;
   $('pk-add').onclick = pkAdd;
-  box.querySelectorAll('[data-pkdel]').forEach(b => twice(b, 'もう一度押すと消えます', async () => { const r2 = await pkPost('/auth/passkey/del', { id: b.dataset.pkdel }); if (!r2.ok) { toast(r2.error); return; } toast('消しました', 'ok'); pkLoad(); }));
+  box.querySelectorAll('[data-pkdel]').forEach(b => twice(b, 'もう一度押すと削除します', async () => { const r2 = await pkPost('/auth/passkey/del', { id: b.dataset.pkdel }); if (!r2.ok) { toast(r2.error); return; } toast('削除しました', 'ok'); pkLoad(); }));
 }
 async function pkAdd() {
-  const m = $('pk-msg'); if (m) m.textContent = '端末の顔認証・指紋認証の画面が出ます…';
+  const m = $('pk-msg'); if (m) m.textContent = '端末の顔認証・指紋認証の画面を表示します…';
   try {
     const r = await pkPost('/auth/passkey/reg-options'); if (!r.ok) throw new Error(r.error);
     const o = r.options; o.challenge = pkU(o.challenge); o.user.id = pkU(o.user.id); o.excludeCredentials = (o.excludeCredentials || []).map(x => Object.assign({}, x, { id: pkU(x.id) }));
     const c = await navigator.credentials.create({ publicKey: o });
     const r2 = await pkPost('/auth/passkey/reg', { id: c.id, clientDataJSON: pkE(c.response.clientDataJSON), attestationObject: pkE(c.response.attestationObject) });
     if (!r2.ok) throw new Error(r2.error);
-    toast('この端末の顔・指紋で入れるようにしました', 'ok'); pkLoad();
-  } catch (e) { const t = e && e.name === 'InvalidStateError' ? 'この端末は、もう使えるようになっています' : e && e.name === 'NotAllowedError' ? 'やめました' : (e && e.message) || '使えるようにできませんでした'; if (m) m.textContent = t; else toast(t); }
+    toast('この端末の顔認証・指紋認証でログインできるようになりました', 'ok'); pkLoad();
+  } catch (e) { const t = e && e.name === 'InvalidStateError' ? 'この端末はすでに設定されています' : e && e.name === 'NotAllowedError' ? '中止しました' : (e && e.message) || '設定できませんでした'; if (m) m.textContent = t; else toast(t); }
 }
 // 店主で、まだ1台も登録していないときは、ホームに1行(「あとで」で1日出さない)
 const PK_NUDGE = false;
@@ -2337,7 +2337,7 @@ function pkBanner() {
   let b = $('pk-ban'); const want = PK_NUDGE && PK_OK && PK_KEYS && !PK_KEYS.length && D && D.me && D.me.owner && Date.now() - store.get('pkLater', 0) > 86400000;
   if (!want) { if (b) b.remove(); return; }
   if (!b) { b = document.createElement('div'); b.id = 'pk-ban'; b.className = 'card'; b.style.cssText = 'display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:12px'; const t = $('t-today'); t.insertBefore(b, $('mlock-bar') ? $('mlock-bar').nextSibling : t.firstChild); }
-  b.innerHTML = `<span><b>スマホの顔認証・指紋認証でログインできるようにしてください</b><br><span class="k">端末のFace ID・指紋認証をそのまま使います。店主のアカウントを守るため</span></span><span style="display:flex;gap:8px"><button class="btn ghost sm" type="button" id="pk-later">あとで</button><button class="btn sm" type="button" id="pk-ban-add">使う</button></span>`;
+  b.innerHTML = `<span><b>顔認証・指紋認証によるログインを設定してください</b><br><span class="k">端末のFace ID・指紋認証をそのまま使用します。店主アカウントの保護のため、設定をお願いします</span></span><span style="display:flex;gap:8px"><button class="btn ghost sm" type="button" id="pk-later">後で</button><button class="btn sm" type="button" id="pk-ban-add">設定する</button></span>`;
   $('pk-later').onclick = () => { store.set('pkLater', Date.now()); b.remove(); };
   $('pk-ban-add').onclick = pkAdd;
 }
@@ -2347,19 +2347,19 @@ function betaAsk() {
   const ov = document.createElement('div'); ov.id = 'beta-ov'; ov.className = 'a2ov'; ov.style.alignItems = 'center';
   ov.innerHTML = `<div class="card" role="dialog" aria-modal="true" aria-labelledby="beta-h" style="max-width:520px;width:100%;max-height:90vh;overflow:auto">
     <h2 id="beta-h" style="font-family:var(--round);margin:0 0 8px">ピタット原価はテスト提供中です</h2>
-    <p style="margin:0 0 8px">少ない店舗で使っていただきながら、直しているところです。始める前に、次のことをご確認ください。</p>
+    <p style="margin:0 0 8px">限られた店舗でご利用いただきながら、改善を進めている段階です。ご利用の前に、次の点をご確認ください。</p>
     <ul style="margin:0 0 12px;padding-left:1.2em;line-height:1.8">
-      <li>画面や使い方が、予告なく変わることがあります。</li>
-      <li>止まったり、計算がまちがったりすることがあります。原価や食品表示は、店舗でも確かめてからお使いください。</li>
-      <li>店舗のデータは毎日控えを取っていますが、すべてを戻せるとは限りません。大事な数字は「書き出し」で手元にも残してください。</li>
-      <li>気づいたことは「相談」から教えてください。直すときの参考にします。</li>
+      <li>画面や操作方法は、予告なく変更される場合があります。</li>
+      <li>動作の停止や計算の誤りが発生する場合があります。原価や食品表示は、店舗でもご確認のうえご利用ください。</li>
+      <li>店舗のデータは毎日バックアップしていますが、すべてを復元できるとは限りません。重要なデータは「書き出し」で手元にも保存してください。</li>
+      <li>お気づきの点は「相談」からお知らせください。改善の参考にさせていただきます。</li>
     </ul>
-    <label style="display:flex;gap:8px;align-items:center;font-weight:700;margin:0 0 12px"><input type="checkbox" id="beta-read" style="width:22px;height:22px"> 上のことを読みました</label>
-    <button class="btn" type="button" id="beta-ok" disabled style="width:100%">テスト中と分かったうえで使う</button>
+    <label style="display:flex;gap:8px;align-items:center;font-weight:700;margin:0 0 12px"><input type="checkbox" id="beta-read" style="width:22px;height:22px"> 上記の内容を確認しました</label>
+    <button class="btn" type="button" id="beta-ok" disabled style="width:100%">テスト提供中であることを了承して利用する</button>
     <p class="k" id="beta-msg" style="margin:8px 0 0"></p></div>`;
   document.body.appendChild(ov);
   $('beta-read').onchange = e => { $('beta-ok').disabled = !e.target.checked; };
-  $('beta-ok').onclick = async () => { $('beta-ok').disabled = true; const r = await api({ kind: 'app_beta_ok', v: D.betaAsk, read: $('beta-read').checked }); if (!r.ok) { $('beta-msg').textContent = r.error || '送れませんでした'; $('beta-ok').disabled = false; return; } delete D.betaAsk; ov.remove(); toast('ありがとうございます。よろしくお願いします', 'ok'); };
+  $('beta-ok').onclick = async () => { $('beta-ok').disabled = true; const r = await api({ kind: 'app_beta_ok', v: D.betaAsk, read: $('beta-read').checked }); if (!r.ok) { $('beta-msg').textContent = r.error || '送信できませんでした'; $('beta-ok').disabled = false; return; } delete D.betaAsk; ov.remove(); toast('ありがとうございます。よろしくお願いいたします', 'ok'); };
 }
 // 鍵が閉じている間は、金額の閲覧権限がない人と同じ形にしたデータで画面を作る(サーバーがスタッフに隠すものと同じ)
 function maskMoney(d) {
@@ -2380,7 +2380,7 @@ function renderAllInner() {
   betaAsk(); mlockBar(); if (PK_KEYS) pkBanner(); else if (PK_OK && !window.__pkl) { window.__pkl = 1; pkLoad(); }
   stuckBind(); if (SORT) sortCard(); else if (CF && !window.__sortl) { window.__sortl = 1; sortLoad(); }
   $('shop').textContent = D.shop; if ($('shop2')) { $('shop2').textContent = D.shop; $('date2').textContent = $('date').textContent; }
-  $('foot').textContent = `${new Date(D.at).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} 時点。画面を開き直すと最新になります。キャラの絵はAtelier SAISPEのLINE絵文字。`;
+  $('foot').textContent = `${new Date(D.at).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} 時点の情報です。画面を開き直すと最新の情報に更新されます。キャラクターのイラストはAtelier SAISPEのLINE絵文字です。`;
 }
 
 // ---------- タブ ----------
@@ -2396,10 +2396,10 @@ function stuckBind() {
   $('stuck-go').onclick = async () => {
     const go = $('stuck-go'); go.disabled = true;
     const scr = ($('sort-ov') ? '取り込み一覧' : SCREEN_NAME[cur] || cur) + (innerWidth < 700 ? '(スマホ)' : innerWidth < 1100 ? '(タブレット)' : '(パソコン)');
-    const r = await api({ kind: 'app_stuck', screen: scr, text: $('stuck-t').value, width: innerWidth }).catch(() => ({ ok: false, error: 'つながりませんでした' }));
+    const r = await api({ kind: 'app_stuck', screen: scr, text: $('stuck-t').value, width: innerWidth }).catch(() => ({ ok: false, error: '通信できませんでした' }));
     go.disabled = false;
-    if (!r.ok) { toast(r.error || '送れませんでした'); return; }
-    $('stuck-t').value = ''; f.hidden = true; b.hidden = false; toast('知らせました。ありがとうございます。直したら「更新情報」でお知らせします', 'ok');
+    if (!r.ok) { toast(r.error || '送信できませんでした'); return; }
+    $('stuck-t').value = ''; f.hidden = true; b.hidden = false; toast('送信しました。ありがとうございます。改善した際は「更新情報」でお知らせします', 'ok');
   };
 }
 function show(t, quiet, keep) {
@@ -2407,7 +2407,7 @@ function show(t, quiet, keep) {
   if (t === 'label') store.set('labelSeen', 1);
   if (!D) return;
   if (mLocked && MONEY_TABS.includes(t) && t !== 'cost') { mlockAsk(t); return; }
-  if (tabLocked(t)) { toast(t === 'cost' ? '原価の画面は、店主が許した人だけが見られます' : '金額の表示は、店主が「見せる」にした人だけが見られます'); t = 'today'; }
+  if (tabLocked(t)) { toast(t === 'cost' ? '原価の画面は、店主が許可した方のみ閲覧できます' : '金額は、店主が表示を許可した方のみ閲覧できます'); t = 'today'; }
   if (t !== 'today' && t !== 'set' && SH(t)) t = 'today';
   const dir = tabs.indexOf(t) - tabs.indexOf(cur); if (t === 'set' && cur !== 'set') { supPrev = cur; loadSup(); } cur = t;
   if (t === 'mat') renderMat();
@@ -2420,17 +2420,17 @@ function show(t, quiet, keep) {
   setCrumb(null); renderBar(); hintClear(); if (!quiet) showHints(t);
   const seen = (() => { try { const k = 'shikomi:seen:' + t; if (localStorage.getItem(k)) return true; localStorage.setItem(k, '1'); } catch (e) {} return false; })();
   const busy = (t === 'hyg' && hygMissing().length) || (t === 'book' && unpaid().length);
-  if (!quiet && (!seen || busy)) chat({ today: null, cost: '原価の一覧です。行を押すと、その商品の材料と量・作り方が表示されます。', label: '食品表示の案です。色の付いた箇所をご確認ください。', howto: '作り方です。商品を押すと、手順と写真が出ます。', mat: '材料の値段です。「仮」は請求書が来たら置き換えます。', set: '設定です。キャラや文字の大きさを変えられます。', hyg: hygMissing().length ? `今日まだの記録が${hygMissing().length}つあります。` : '今日の衛生記録はそろっています。', ws: '卸の納品と請求書です。', sales: '売上と粗利です。精算レシートを撮ると増えていきます。', post: 'ポップやインスタの文、いっしょに考えます。', cal: '予定です。納品・催事・休みを入れておくと、当日の「今日やること」に出ます。', book: unpaid().length ? `未払いが${unpaid().length}件あります。払ったら「払った」を押してください。` : '帳簿です。請求書は月ごとに仕分けてあります。' }[t], t === 'cost' ? 'clap' : t === 'label' ? 'point' : null);
+  if (!quiet && (!seen || busy)) chat({ today: null, cost: '原価の一覧です。行を押すと、その商品の材料と量・作り方が表示されます。', label: '食品表示の案です。色の付いた箇所をご確認ください。', howto: '作り方の画面です。商品を押すと、手順と写真が表示されます。', mat: '材料の単価の画面です。「仮」の単価は、請求書を登録すると置き換わります。', set: '設定の画面です。AIのサイズや文字の大きさを変更できます。', hyg: hygMissing().length ? `本日の未記録の項目が${hygMissing().length}件あります。` : '本日の衛生記録はすべて完了しています。', ws: '卸の納品と請求書の画面です。', sales: '売上と粗利の画面です。精算レシートを撮影すると記録が増えていきます。', post: 'POPやInstagramの文章の作成をお手伝いします。', cal: '予定の画面です。納品・催事・休業日を登録すると、当日の「今日やること」に表示されます。', book: unpaid().length ? `未払いが${unpaid().length}件あります。支払いが完了したら「支払済にする」を押してください。` : '帳簿の画面です。請求書は月ごとに整理しています。' }[t], t === 'cost' ? 'clap' : t === 'label' ? 'point' : null);
 }
 // ---------- ふきだしヒント(初めてでも迷わない) ----------
-// 画面ごとに1〜2個。「次へ」で進み、「もう出さない」で全部止める。設定の「使い方のヒントをもう一度」で戻る
+// 画面ごとに1〜2個。「次へ」で進み、「今後表示しない」で全部止める。設定の「使い方のヒントを再表示」で戻る
 const HINTS = {
-  today: [{ sel: '#status', t: 'ここが今月の状況です。原価率と、先月との差、上がった理由が出ます。' }, { sel: 'nav button[data-t="shot"], #side button[data-tab="shot"]', t: 'レシピ・請求書・材料の袋の裏は、ここから撮影して取り込みます。' }],
-  cost: [{ sel: '#chara', t: 'ここを押して「バター 1kg 2,260円」と話しかけるだけで、材料の値段が入れ替わります。FAX・紙の請求書は「撮る」から。' }, { sel: '#cost-table', t: '商品を押すと、材料ごとの原価と、売価・原価率の入力が出ます。' }],
-  label: [{ sel: '.label', t: 'レシピから食品表示の案が出ます。色のついた所だけ確かめて、ラベルを印刷できます。' }, { sel: '#qr-card', t: 'このQRを店頭に置くと、お客様がスマートフォンで商品ごとのアレルゲンを確認できます。' }],
-  hyg: [{ sel: '#hyg-today', t: '朝と片付けに、温度・体調・清掃を押すだけ。基準を外れるとその場で知らせます。' }],
-  sales: [{ sel: '#gap-wrap', t: 'レシピどおりの材料費と、実際に買った材料費の差です。ロスや量のぶれに気づけます。' }, { sel: '#course-wrap', t: 'コース・セット・宴会の売価は、ここで原価から決められます。' }],
-  book: [{ sel: '#book-doc', t: '請求書のPDFや、受発注システムのCSVは、ここからまとめて取り込めます。' }]
+  today: [{ sel: '#status', t: '今月の状況です。原価率と先月との差、上昇の要因が表示されます。' }, { sel: 'nav button[data-t="shot"], #side button[data-tab="shot"]', t: 'レシピ・請求書・材料の裏面表示は、ここから撮影して取り込みます。' }],
+  cost: [{ sel: '#chara', t: 'ここを押して「バター 1kg 2,260円」と入力するだけで、材料の単価が更新されます。FAX・紙の請求書は「撮影」から取り込めます。' }, { sel: '#cost-table', t: '商品を押すと、材料ごとの原価と、売価・原価率の入力欄が表示されます。' }],
+  label: [{ sel: '.label', t: 'レシピから食品表示の案を作成します。色の付いた箇所を確認し、ラベルを印刷できます。' }, { sel: '#qr-card', t: 'このQRを店頭に置くと、お客様がスマートフォンで商品ごとのアレルゲンを確認できます。' }],
+  hyg: [{ sel: '#hyg-today', t: '始業時と終業時に、温度・体調・清掃をボタンで記録します。基準を外れた場合は、その場でお知らせします。' }],
+  sales: [{ sel: '#gap-wrap', t: 'レシピから計算した材料費と、実際の仕入額の差です。ロスや分量のばらつきの把握に役立ちます。' }, { sel: '#course-wrap', t: 'コース・セット・宴会の売価を、原価から設定できます。' }],
+  book: [{ sel: '#book-doc', t: '請求書のPDFや受発注システムのCSVは、ここからまとめて取り込めます。' }]
 };
 let hintEl = null;
 function hintClear() { if (hintEl) { hintEl.classList.remove('hint-ring'); hintEl = null; } const h = $('hint'); if (h) h.hidden = true; }
@@ -2442,9 +2442,9 @@ function showHints(tab) {
   let i = 0;
   const draw = () => {
     hintClear(); const x = list[i]; hintEl = x.el; x.el.classList.add('hint-ring'); try { x.el.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) {}
-    h.hidden = false; h.innerHTML = `<p class="n">使い方のヒント ${i + 1}/${list.length}</p><p>${esc(x.t)}</p><div class="acts"><button class="btn ghost sm" type="button" id="hint-off">もう出さない</button><button class="btn sm" type="button" id="hint-next">${i + 1 < list.length ? '次へ' : '分かった'}</button></div>`;
+    h.hidden = false; h.innerHTML = `<p class="n">使い方のヒント ${i + 1}/${list.length}</p><p>${esc(x.t)}</p><div class="acts"><button class="btn ghost sm" type="button" id="hint-off">今後表示しない</button><button class="btn sm" type="button" id="hint-next">${i + 1 < list.length ? '次へ' : '分かった'}</button></div>`;
     $('hint-next').onclick = () => { i++; if (i < list.length) draw(); else { seen[tab] = 1; store.set('hintSeen', seen); hintClear(); } };
-    $('hint-off').onclick = () => { store.set('hintsOff', true); hintClear(); toast('ヒントを止めました。設定からもう一度出せます'); };
+    $('hint-off').onclick = () => { store.set('hintsOff', true); hintClear(); toast('ヒントを非表示にしました。設定から再度表示できます'); };
   };
   setTimeout(draw, 500);
 }
@@ -2472,40 +2472,40 @@ function renderSet() {
   const cyc = (D.stock || {}).cycle || '年1回';
   const grp = (t, k, body) => `<h1 class="sub">${t}</h1><div class="card sgrp">${body}</div>`;
   const stand = matchMedia('(display-mode: standalone)').matches || navigator.standalone;
-  const homeIcon = `<div class="card" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><b>${matchMedia('(pointer:coarse)').matches ? 'ホーム画面のアイコン' : 'パソコンのアイコン'}</b>${stand ? '<span class="pill">アイコンから開いています(置けています)</span>' : `<button class="btn sm" type="button" id="set-a2hs">${matchMedia('(pointer:coarse)').matches ? 'ホーム画面に置く' : 'パソコンに置く'}</button><span class="k">LINEやブラウザを通らず、アイコンから開けるようにします</span>`}</div>`;
-  $('set-box').innerHTML = '<h1 class="sub">この端末</h1>' + homeIcon + (PK_OK ? '<div class="card" id="pk-set"><b>顔認証・指紋認証のログイン</b><p class="k" style="margin:6px 0 0">読み込んでいます…</p></div>' : '') + (CF ? `<h1 class="sub">使い方ガイド</h1><div class="card" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><a class="btn ghost sm" href="/guide/start" target="_blank">初期設定(店主・管理者向け)</a><a class="btn ghost sm" href="/guide/daily" target="_blank">日々の操作(すべての利用者向け)</a><a class="btn ghost sm" href="/guide/faq" target="_blank">よくあるご質問(動画付き)</a><button class="btn ghost sm" type="button" id="hint-again">使い方のヒントをもう一度</button></div>` : '') + grp('見え方', 'set', `
+  const homeIcon = `<div class="card" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><b>${matchMedia('(pointer:coarse)').matches ? 'ホーム画面のアイコン' : 'パソコンのアイコン'}</b>${stand ? '<span class="pill">アイコンから起動しています(追加済み)</span>' : `<button class="btn sm" type="button" id="set-a2hs">${matchMedia('(pointer:coarse)').matches ? 'ホーム画面に追加' : 'パソコンに追加'}</button><span class="k">LINEやブラウザを経由せず、アイコンから開けるようにします</span>`}</div>`;
+  $('set-box').innerHTML = '<h1 class="sub">この端末</h1>' + homeIcon + (PK_OK ? '<div class="card" id="pk-set"><b>顔認証・指紋認証のログイン</b><p class="k" style="margin:6px 0 0">読み込んでいます…</p></div>' : '') + (CF ? `<h1 class="sub">使い方ガイド</h1><div class="card" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><a class="btn ghost sm" href="/guide/start" target="_blank">初期設定(店主・管理者向け)</a><a class="btn ghost sm" href="/guide/daily" target="_blank">日々の操作(すべての利用者向け)</a><a class="btn ghost sm" href="/guide/faq" target="_blank">よくあるご質問(動画付き)</a><button class="btn ghost sm" type="button" id="hint-again">使い方のヒントを再表示</button></div>` : '') + grp('見え方', 'set', `
     <div class="set-row"><span>AIのサイズ</span>${seg('csize', [['s', '小'], ['m', '中'], ['l', '大']], store.get('csize', 'm'))}</div>
-    <div class="set-row"><span>文字の大きさ</span>${seg('size', [['normal', 'ふつう'], ['big', '大きめ']], store.get('size', 'normal'))}</div>
+    <div class="set-row"><span>文字の大きさ</span>${seg('size', [['normal', '標準'], ['big', '大きめ']], store.get('size', 'normal'))}</div>
     <div class="set-row"><span>画面の色</span>${seg('theme', [['auto', '自動'], ['light', '明るい'], ['dark', '暗い']], store.get('theme', 'auto'))}</div>`) + grp('店舗の運用設定', 'stock', `
     ${SH('stock') ? '' : `<div class="set-row"><span>棚卸<br><span class="k">店舗全体で共通</span></span>${seg('cycle', [['毎月', '毎月'], ['年1回', '年1回']], cyc)}</div>`}
-    <div class="set-row"><span>売り方<br><span class="k">対面・店内で出す店舗は、裏表示よりアレルゲン表が主役になります</span></span>${seg('sell', [['pack', '包装して売る'], ['face', '対面・店内で出す']], (D.shopInfo || {}).sell || 'pack')}</div>
-    ${noMoney() || !PL('target') ? '' : `<div class="set-row"><span>目標の原価率<br><span class="k">税抜で見ます。売値の目安はここから出します</span></span><span style="display:flex;gap:8px;align-items:center"><input id="tg-v" inputmode="decimal" style="width:4.5em" value="${(D.shopInfo || {}).targetRate || 30}"><span class="k">%</span><button class="btn ghost sm" type="button" id="tg-save">決定</button></span></div>`}
-    ${D.plan ? `<div class="set-row" style="display:block"><span>プランと使える量<br><span class="k">${esc(D.plan.planName)}プラン。プランの変更は運営にご相談ください</span></span>${planUse()}</div>` : ''}
-    ${D.me && D.me.owner ? `<div class="set-row" style="display:block"><span>税率<br><span class="k">売価は税込で入れます。原価率は税抜で見ます</span></span>
+    <div class="set-row"><span>販売方法<br><span class="k">対面販売・店内飲食が中心の店舗では、食品表示ラベルよりもアレルゲン一覧表が中心になります</span></span>${seg('sell', [['pack', '包装して販売'], ['face', '対面販売・店内飲食']], (D.shopInfo || {}).sell || 'pack')}</div>
+    ${noMoney() || !PL('target') ? '' : `<div class="set-row"><span>目標原価率<br><span class="k">税抜で計算します。売価の目安はこの値から算出します</span></span><span style="display:flex;gap:8px;align-items:center"><input id="tg-v" inputmode="decimal" style="width:4.5em" value="${(D.shopInfo || {}).targetRate || 30}"><span class="k">%</span><button class="btn ghost sm" type="button" id="tg-save">決定</button></span></div>`}
+    ${D.plan ? `<div class="set-row" style="display:block"><span>プランと使える量<br><span class="k">${esc(D.plan.planName)}プランです。プランの変更は運営にご相談ください</span></span>${planUse()}</div>` : ''}
+    ${D.me && D.me.owner ? `<div class="set-row" style="display:block"><span>税率<br><span class="k">売価は税込で入力します。原価率は税抜で計算します</span></span>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px"><span class="k">持ち帰り</span><input id="tx-to" inputmode="decimal" style="width:4.5em" value="${((D.shopInfo || {}).tax || {}).takeout ?? 8}"><span class="k">%</span><span class="k" style="margin-left:8px">店内</span><input id="tx-ei" inputmode="decimal" style="width:4.5em" value="${((D.shopInfo || {}).tax || {}).eatin ?? 10}"><span class="k">%</span></div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px"><span class="k">持ち帰りが変わる日</span><input id="tx-from" type="date" style="width:auto" value="${(((D.shopInfo || {}).tax || {}).next || {}).from || ''}"><span class="k">から</span><input id="tx-next" inputmode="decimal" style="width:4.5em" placeholder="例 1" value="${(((D.shopInfo || {}).tax || {}).next || {}).rate ?? ''}"><span class="k">%</span></div>
-      <p class="k" style="margin:8px 0 0">税率が変わることが法律で決まったら、変わる日と税率を入れてください。その日から自動で切りかわります。</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px"><span class="k">持ち帰りの税率の変更日</span><input id="tx-from" type="date" style="width:auto" value="${(((D.shopInfo || {}).tax || {}).next || {}).from || ''}"><span class="k">から</span><input id="tx-next" inputmode="decimal" style="width:4.5em" placeholder="例 1" value="${(((D.shopInfo || {}).tax || {}).next || {}).rate ?? ''}"><span class="k">%</span></div>
+      <p class="k" style="margin:8px 0 0">法改正により税率が変わる場合は、変更日と税率を入力してください。その日から自動で切り替わります。</p>
       <div class="ask"><button class="btn ghost sm" type="button" id="tx-save">税率を保存</button></div></div>` : ''}
-    ${D.me && D.me.owner && PL('sales') && !SH('regclose') ? `<div class="set-row" style="display:block"><span>レジ<br><span class="k">POSレジがあるかどうかで、閉店後のレジ締めの形が変わります。お釣りの準備金は、毎朝レジに入れておくお金です</span></span><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px">${seg('regmode', [['pos', 'POSレジがある'], ['none', 'POSレジはない']], (D.reg || {}).mode || '')}<span class="k">お釣りの準備金</span><input id="rg-fl" inputmode="numeric" style="width:7em" value="${(D.reg || {}).float || ''}" aria-label="お釣りの準備金"><span class="k">円</span><button class="btn ghost sm" type="button" id="rg-fls">決定</button></div></div>` : ''}
-    ${D.me && D.me.owner ? `<div class="set-row"><span>金額表示のロック<br><span class="k">店舗のタブレットを置いたままにしても、売上や原価を見られないように。この時間さわらないと閉じ、開くときは人ごとの4けたの暗証番号</span></span><div class="seg" id="mlock-seg">${[[0, '使わない'], [5, '5分'], [10, '10分'], [30, '30分']].map(([v, l]) => `<button type="button" data-ml="${v}" aria-pressed="${((MLOCK || {}).min || 0) === v}">${l}</button>`).join('')}</div></div>` : ''}
-    ${D.me && D.me.owner && (D.jobList || []).length ? `<div class="set-row" style="display:block"><span>利用する業務<br><span class="k">印をつけた仕事の入口が、メニューの前に出ます。撮る・取り込み一覧・原価・表示・衛生・帳簿はいつも前にあります。ほかは「その他の機能」から開けます(消えません)</span></span><div class="seg" id="jobs" style="flex-wrap:wrap;margin-top:8px">${D.jobList.map(([k, l]) => `<button type="button" data-k="${k}" aria-pressed="${jobsNow().includes(k)}">${l}</button>`).join('')}</div></div>` : ''}
-    ${D.me && D.me.owner && CF ? `<div class="set-row" style="display:block"><span>店舗のデータを書き出す<br><span class="k">店舗の記録を丸ごと、いつでも自分で持ち出せます(やめるときも)。表ごとのCSVはExcelで開けます。店主だけ</span></span><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button class="btn sm" type="button" id="exp-all">丸ごと書き出す</button></div><div id="exp-list" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px"></div></div>` : ''}
-    ${D.me && D.me.owner && (D.hideable || []).length ? `<div class="set-row" style="display:block"><span>使う画面<br><span class="k">使わない画面を隠すと、メニューに出なくなります。データは消えず、いつでも戻せます</span></span><div class="seg" id="hide-tabs" style="flex-wrap:wrap;margin-top:8px">${D.hideable.map(([k, l]) => `<button type="button" data-k="${k}" aria-pressed="${!(D.hidden || []).includes(k)}">${l}</button>`).join('')}</div></div>` : ''}
-    <div class="set-row"><span>業種<br><span class="k">AIに伝えるためのメモ。画面や機能は変わりません</span>${(D.words || {}).biz ? '' : '<br><span class="pill">未記入</span>'}</span>${seg('biz', ((D.words || {}).list || []).map(b => [b, b]), (D.words || {}).biz)}</div>
+    ${D.me && D.me.owner && PL('sales') && !SH('regclose') ? `<div class="set-row" style="display:block"><span>レジ<br><span class="k">POSレジの有無によって、閉店後のレジ締めの方法が変わります。釣銭準備金は、毎朝レジに用意しておく金額です</span></span><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px">${seg('regmode', [['pos', 'POSレジがある'], ['none', 'POSレジはない']], (D.reg || {}).mode || '')}<span class="k">釣銭準備金</span><input id="rg-fl" inputmode="numeric" style="width:7em" value="${(D.reg || {}).float || ''}" aria-label="釣銭準備金"><span class="k">円</span><button class="btn ghost sm" type="button" id="rg-fls">決定</button></div></div>` : ''}
+    ${D.me && D.me.owner ? `<div class="set-row"><span>金額表示のロック<br><span class="k">店舗のタブレットを置いたままにしても、売上や原価を見られないようにします。設定した時間操作がないと非表示になり、再表示には各自の4桁の暗証番号が必要です</span></span><div class="seg" id="mlock-seg">${[[0, '使用しない'], [5, '5分'], [10, '10分'], [30, '30分']].map(([v, l]) => `<button type="button" data-ml="${v}" aria-pressed="${((MLOCK || {}).min || 0) === v}">${l}</button>`).join('')}</div></div>` : ''}
+    ${D.me && D.me.owner && (D.jobList || []).length ? `<div class="set-row" style="display:block"><span>利用する業務<br><span class="k">選択した業務の画面が、メニューの上位に表示されます。撮影・取り込み一覧・原価・食品表示・衛生・帳簿は常に表示されます。その他の画面は「その他の機能」から開けます</span></span><div class="seg" id="jobs" style="flex-wrap:wrap;margin-top:8px">${D.jobList.map(([k, l]) => `<button type="button" data-k="${k}" aria-pressed="${jobsNow().includes(k)}">${l}</button>`).join('')}</div></div>` : ''}
+    ${D.me && D.me.owner && CF ? `<div class="set-row" style="display:block"><span>店舗のデータを書き出す<br><span class="k">店舗の記録をすべて、いつでも書き出せます(解約時も同様です)。表ごとのCSVはExcelで開けます。店主のみ利用できます</span></span><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button class="btn sm" type="button" id="exp-all">すべて書き出す</button></div><div id="exp-list" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px"></div></div>` : ''}
+    ${D.me && D.me.owner && (D.hideable || []).length ? `<div class="set-row" style="display:block"><span>表示する画面<br><span class="k">使わない画面を非表示にすると、メニューに表示されなくなります。データは削除されず、いつでも再表示できます</span></span><div class="seg" id="hide-tabs" style="flex-wrap:wrap;margin-top:8px">${D.hideable.map(([k, l]) => `<button type="button" data-k="${k}" aria-pressed="${!(D.hidden || []).includes(k)}">${l}</button>`).join('')}</div></div>` : ''}
+    <div class="set-row"><span>業種<br><span class="k">AIへの補足情報として使います。画面や機能は変わりません</span>${(D.words || {}).biz ? '' : '<br><span class="pill">未記入</span>'}</span>${seg('biz', ((D.words || {}).list || []).map(b => [b, b]), (D.words || {}).biz)}</div>
     `) + grp('お知らせ', 'hyg', `
-    <div class="set-row"><span>衛生記録のお知らせ<br><span class="k">記録がまだのとき、LINEで念押しする時刻</span></span><div class="seg" id="hygnotice" style="flex-wrap:wrap;justify-content:flex-end">${[['off', '送らない'], ['9', '9時'], ['12', '12時'], ['15', '15時'], ['17', '17時'], ['19', '19時'], ['21', '21時']].map(([v, l]) => `<button type="button" data-v="${v}" aria-pressed="${String((D.shopInfo || {}).hygNotice || '17') === v}">${l}</button>`).join('')}</div></div>
-    <div class="set-row"><span>定休日<br><span class="k">衛生の念押しを休む</span></span><div class="seg" id="closed">${['月', '火', '水', '木', '金', '土', '日'].map(w => `<button type="button" data-w="${w}" aria-pressed="${((D.shopInfo || {}).closed || '').includes(w)}">${w}</button>`).join('')}</div></div>
-    `) + (D.me && D.me.owner ? grp('オプション', 'set', optBox()) : '') + grp('仕入先・卸先', 'book', '<p class="k" style="margin:0 0 8px">電話・担当・振込先の一覧は、メニューの「仕入先・卸先」にあります</p><button class="btn ghost" type="button" id="set-ct">仕入先・卸先の一覧を開く</button>') + grp('店舗情報', 'ws', `<p class="k" style="margin:0 0 8px">卸の請求書とラベルの製造者欄に入ります</p>
+    <div class="set-row"><span>衛生記録のお知らせ<br><span class="k">未記録の場合に、LINEでお知らせする時刻</span></span><div class="seg" id="hygnotice" style="flex-wrap:wrap;justify-content:flex-end">${[['off', '送らない'], ['9', '9時'], ['12', '12時'], ['15', '15時'], ['17', '17時'], ['19', '19時'], ['21', '21時']].map(([v, l]) => `<button type="button" data-v="${v}" aria-pressed="${String((D.shopInfo || {}).hygNotice || '17') === v}">${l}</button>`).join('')}</div></div>
+    <div class="set-row"><span>定休日<br><span class="k">衛生記録のお知らせを停止</span></span><div class="seg" id="closed">${['月', '火', '水', '木', '金', '土', '日'].map(w => `<button type="button" data-w="${w}" aria-pressed="${((D.shopInfo || {}).closed || '').includes(w)}">${w}</button>`).join('')}</div></div>
+    `) + (D.me && D.me.owner ? grp('オプション', 'set', optBox()) : '') + grp('仕入先・卸先', 'book', '<p class="k" style="margin:0 0 8px">電話番号・担当者・振込先の一覧は、メニューの「仕入先・卸先」にあります</p><button class="btn ghost" type="button" id="set-ct">仕入先・卸先の一覧を開く</button>') + grp('店舗情報', 'ws', `<p class="k" style="margin:0 0 8px">卸の請求書と、ラベルの製造者欄に記載されます</p>
     <div class="set-row" style="display:block;padding-top:0">
       <div class="fld" style="margin-top:8px">${[['name', '店名'], ['rep', '代表者'], ['addr', '住所'], ['tel', '電話'], ['fax', 'FAX'], ['reg', '登録番号(T〜)'], ['bank', '振込先']].map(([k, l]) => `<span class="k">${l}</span><input data-shop="${k}" value="${esc((D.shopInfo || {})[k] || '')}">`).join('')}</div>
-      <div class="ask"><button class="btn" type="button" id="shop-save">店舗情報を保存</button></div></div>`) + grp('データの約束', 'label', `
+      <div class="ask"><button class="btn" type="button" id="shop-save">店舗情報を保存</button></div></div>`) + grp('データの取り扱い', 'label', `
     <ul class="k" style="margin:0;padding-left:1.2em;line-height:1.9">
-      <li>撮った写真や記録は、店舗のデータを作るためだけに使います。</li>
-      <li>読み取りに使うAI(Anthropic社)の商用サービスには、お客さまの内容をAIの学習に使わない決まりがあります。</li>
-      <li>データは店舗ごとに分けて預かり、見られるのは招待した人だけです。</li>
-      <li>やめるときは、記録をまとめて書き出してお渡しし、残るデータは消します。</li>
+      <li>撮影した写真や記録は、店舗のデータ作成のためにのみ使用します。</li>
+      <li>読み取りに使用するAI(Anthropic社)の商用サービスでは、お客様のデータをAIの学習に使用しないことが定められています。</li>
+      <li>データは店舗ごとに分けて管理し、閲覧できるのは招待したメンバーのみです。</li>
+      <li>解約時は、記録をまとめて書き出してお渡しし、残りのデータは削除します。</li>
     </ul>`) + `
-    <div class="set-row" style="padding:8px 4px"><span class="k">${esc(D.shop)} · ${new Date(D.at).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} 時点</span><span class="seg"><button type="button" id="reload">読み込み直す</button></span></div>`;
+    <div class="set-row" style="padding:8px 4px"><span class="k">${esc(D.shop)} · ${new Date(D.at).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} 時点</span><span class="seg"><button type="button" id="reload">再読み込み</button></span></div>`;
   $('set-box').querySelectorAll('.seg[data-key] button').forEach(b => b.onclick = () => {
     const key = b.parentNode.dataset.key, v = b.dataset.v;
     if (key === 'cycle') { setValueX({ field: 'cycle', value: v }); return; }
@@ -2517,33 +2517,33 @@ function renderSet() {
   });
   $('set-box').querySelectorAll('[data-ml]').forEach(b => b.onclick = async () => {
     const min = +b.dataset.ml, r = await api({ kind: 'app_mlock_cfg', min });
-    if (!r.ok) { toast(r.error || '変えられませんでした'); return; }
+    if (!r.ok) { toast(r.error || '変更できませんでした'); return; }
     MLOCK = min ? r.mlock : null; try { sessionStorage.setItem(MLK, String(Date.now())); } catch (e) {} mLocked = false; clearInterval(mlockTimer); mlockTimer = null; mlockInit(); renderSet();
-    toast(min ? `金額の表示は、${min}分さわらないと閉じるようにしました` : '金額表示のロックを使わないようにしました', 'ok');
+    toast(min ? `金額の表示は、${min}分間操作がないと非表示にする設定にしました` : '金額表示のロックを解除しました', 'ok');
     if (min && !r.mlock.hasPin) setTimeout(() => mlockAsk(), 300);
   });
   pkLoad();
   $('reload').onclick = () => location.reload();
   if ($('set-a2hs')) $('set-a2hs').onclick = async () => {
     if (IN_LINE) { const base = location.origin + location.pathname.replace(/^\/l\//, '/'); if (!(await openOutside(base))) location.href = base + '?openExternalBrowser=1'; return; }
-    if (a2hsEvt) { const ev = a2hsEvt; ev.prompt(); const r = await ev.userChoice.catch(() => null); a2hsEvt = null; if (r && r.outcome === 'accepted') toast('ホーム画面に置きました', 'ok'); return; }
+    if (a2hsEvt) { const ev = a2hsEvt; ev.prompt(); const r = await ev.userChoice.catch(() => null); a2hsEvt = null; if (r && r.outcome === 'accepted') toast('ホーム画面に追加しました', 'ok'); return; }
     a2hsHelp();
   };
   $('set-ct').onclick = () => show('ct');
   document.querySelectorAll('[data-optgo]').forEach(b => b.onclick = () => openOrder());
   document.querySelectorAll('[data-optask]').forEach(b => b.onclick = async () => {
     const nm = { order: '発注書(FAXで送る)', spec: '商品規格書の書き出し' }[b.dataset.optask]; b.disabled = true;
-    const r = await api({ kind: 'app_contact', cat: 'その他', text: `オプション「${nm}」を使いたいです。` }).catch(() => ({ ok: false }));
-    b.disabled = false; toast(r.ok ? `「${nm}」のお申し込みを送りました。運営からご連絡します` : (r.error || '送れませんでした'), r.ok ? 'ok' : undefined);
+    const r = await api({ kind: 'app_contact', cat: 'その他', text: `オプション「${nm}」の利用を申し込みます。` }).catch(() => ({ ok: false }));
+    b.disabled = false; toast(r.ok ? `「${nm}」のお申し込みを送信しました。運営よりご連絡します` : (r.error || '送信できませんでした'), r.ok ? 'ok' : undefined);
   });
   renderMembers();
   const nb = document.querySelector('nav button[data-t="book"]'); if (nb) nb.style.display = noMoney() ? 'none' : '';
   $('hygnotice').querySelectorAll('button').forEach(b => b.onclick = () => setValueX({ field: 'hygnotice', value: b.dataset.v }));
   $('closed').querySelectorAll('button').forEach(b => b.onclick = () => { b.setAttribute('aria-pressed', b.getAttribute('aria-pressed') !== 'true'); const v = [...$('closed').querySelectorAll('[aria-pressed="true"]')].map(x => x.dataset.w).join(''); setValueX({ field: 'closed', value: v }); });
-  if (false && $('ai-cap-save')) $('ai-cap-save').onclick = () => { const v = parseFloat($('ai-cap').value); if (!(v >= 100 && v <= 30000)) { $('ai-cap').focus(); chat('上限は100〜30,000円で入れてください'); return; } setValueX({ field: 'aicap', value: v }); };
+  if (false && $('ai-cap-save')) $('ai-cap-save').onclick = () => { const v = parseFloat($('ai-cap').value); if (!(v >= 100 && v <= 30000)) { $('ai-cap').focus(); chat('上限は100〜30,000円の範囲で入力してください'); return; } setValueX({ field: 'aicap', value: v }); };
   if ($('uw-save')) $('uw-save').onclick = () => { const v = $('uw-v').value.trim(); if (!v) { $('uw-v').focus(); return; } setValueX({ field: 'unitword', value: v }); };
   if ($('exp-all')) $('exp-all').onclick = async () => {
-    const b = $('exp-all'); b.disabled = true; const r = await api({ kind: 'app_export_all' }).catch(() => ({ ok: false, error: 'つながりませんでした' })); b.disabled = false;
+    const b = $('exp-all'); b.disabled = true; const r = await api({ kind: 'app_export_all' }).catch(() => ({ ok: false, error: '通信できませんでした' })); b.disabled = false;
     if (!r.ok) { toast(r.error || '書き出せませんでした', 'ng'); return; }
     const day = new Date().toISOString().slice(0, 10), nm = String(r.shop || '店舗').replace(/[\\/:*?"<>|]/g, '');
     const save = (blob, name) => { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove(); };
@@ -2551,12 +2551,12 @@ function renderSet() {
     const csv = rows => '\ufeff' + rows.map(row => row.map(v => { const t = v == null ? '' : typeof v === 'object' ? JSON.stringify(v) : String(v); return /[",\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t; }).join(',')).join('\r\n');
     $('exp-list').innerHTML = '<span class="k" style="width:100%">表ごとのCSV:</span>' + r.sheets.map((x, i) => `<button class="btn ghost sm" type="button" data-exp="${i}">${esc(x.name)}</button>`).join('');
     $('exp-list').querySelectorAll('[data-exp]').forEach(e => e.onclick = () => { const x = r.sheets[+e.dataset.exp]; save(new Blob([csv(x.rows)], { type: 'text/csv' }), `${nm}_${x.name}_${day}.csv`); });
-    toast('書き出しました(全データのファイル)。表ごとのCSVは下のボタンから', 'ok');
+    toast('全データを書き出しました。表ごとのCSVは下のボタンから保存できます', 'ok');
   };
   if ($('jobs')) $('jobs').querySelectorAll('button').forEach(b => b.onclick = () => { b.setAttribute('aria-pressed', b.getAttribute('aria-pressed') !== 'true'); setValueX({ field: 'jobs', value: [...$('jobs').querySelectorAll('[aria-pressed="true"]')].map(x => x.dataset.k) }); });
   if ($('hide-tabs')) $('hide-tabs').querySelectorAll('button').forEach(b => b.onclick = () => { b.setAttribute('aria-pressed', b.getAttribute('aria-pressed') !== 'true'); setValueX({ field: 'hidetabs', value: [...$('hide-tabs').querySelectorAll('[aria-pressed="false"]')].map(x => x.dataset.k) }); });
   if ($('rg-fls')) $('rg-fls').onclick = () => setValueX({ field: 'regset', value: { float: $('rg-fl').value.trim() || '0' } });
-  if ($('tg-save')) $('tg-save').onclick = () => { const v = parseFloat($('tg-v').value); if (!(v >= 5 && v <= 90)) { $('tg-v').focus(); chat('目標の原価率は5〜90(%)で入れてください'); return; } setValueX({ field: 'target', value: v }); };
+  if ($('tg-save')) $('tg-save').onclick = () => { const v = parseFloat($('tg-v').value); if (!(v >= 5 && v <= 90)) { $('tg-v').focus(); chat('目標原価率は5〜90(%)の範囲で入力してください'); return; } setValueX({ field: 'target', value: v }); };
   if ($('tx-save')) $('tx-save').onclick = () => setValueX({ field: 'tax', value: { takeout: $('tx-to').value.trim(), eatin: $('tx-ei').value.trim(), next: $('tx-next').value.trim(), from: $('tx-from').value } });
   $('shop-save').onclick = () => { const v = {}; $('set-box').querySelectorAll('[data-shop]').forEach(i => v[i.dataset.shop] = i.value.trim()); setValueX({ field: 'shop', value: v }); };
   renderBanks();
@@ -2567,33 +2567,33 @@ const APPV = ((document.querySelector('script[src*="app.js"]') || {}).src || '')
 var supPrev = 'today';
 $('ct-go').onclick = async () => {
   const text = $('ct-text').value.trim(), cat = ($('ct-cat').querySelector('[aria-pressed="true"]') || {}).dataset?.v || 'その他';
-  if (!text) { chat('内容を書いてください'); $('ct-text').focus(); return; }
+  if (!text) { chat('内容を入力してください'); $('ct-text').focus(); return; }
   if (!CF) {   // 前の形(Google版)は、そのまま送る
-    const out = await api({ kind: 'app_contact', cat, text }); chat(out.ok ? '問い合わせを送りました' : (out.error || '送れませんでした'), out.ok ? 'heart' : undefined); if (out.ok) $('ct-text').value = ''; return;
+    const out = await api({ kind: 'app_contact', cat, text }); chat(out.ok ? 'お問い合わせを送信しました' : (out.error || '送信できませんでした'), out.ok ? 'heart' : undefined); if (out.ok) $('ct-text').value = ''; return;
   }
   const go = $('ct-go'), box = $('ct-ans'); go.disabled = true; box.hidden = false;
-  box.innerHTML = '<div class="sup-ans"><p class="k">お調べしています…</p></div>';
+  box.innerHTML = '<div class="sup-ans"><p class="k">確認しています…</p></div>';
   try {
     const out = await api({ kind: 'sup_ask', cat, text, screen: supPrev, ver: APPV });
     if (!out.ok) throw new Error(out.error);
     $('ct-text').value = '';
-    if (out.sent) { box.innerHTML = '<div class="sup-ans"><p>担当にお送りしました。お返事はここと、LINEにお届けします。</p></div>'; loadSup(); return; }
-    box.innerHTML = `<div class="sup-ans"><div class="who">AIのお答え</div><p>${esc(out.answer)}</p></div>
+    if (out.sent) { box.innerHTML = '<div class="sup-ans"><p>担当者に送信しました。回答はこの画面とLINEでお知らせします。</p></div>'; loadSup(); return; }
+    box.innerHTML = `<div class="sup-ans"><div class="who">AIの回答</div><p>${esc(out.answer)}</p></div>
       <p class="k" style="margin:12px 0 8px">${out.needHuman ? 'この内容は担当の確認が必要かもしれません。' : '解決しましたか?'}</p>
-      <div class="ask" style="margin:0"><button class="btn ${out.needHuman ? '' : 'ghost'}" type="button" id="sup-h">担当に聞く</button><button class="btn ${out.needHuman ? 'ghost' : ''}" type="button" id="sup-ok">解決しました</button></div>
-      <div id="sup-note" hidden style="margin-top:8px"><textarea id="sup-note-t" rows="3" maxlength="2000" placeholder="担当に伝えたいことがあれば(なくても大丈夫です)" aria-label="担当へのひとこと"></textarea><div class="ask"><button class="btn" type="button" id="sup-send">担当に送る</button></div></div>`;
-    $('sup-ok').onclick = async () => { await api({ kind: 'sup_solved', id: out.id }); box.innerHTML = '<div class="sup-ans"><p>よかったです。ほかにもあれば、いつでもどうぞ。</p></div>'; chat('解決してよかったです', 'heart'); };
+      <div class="ask" style="margin:0"><button class="btn ${out.needHuman ? '' : 'ghost'}" type="button" id="sup-h">担当者に問い合わせる</button><button class="btn ${out.needHuman ? 'ghost' : ''}" type="button" id="sup-ok">解決しました</button></div>
+      <div id="sup-note" hidden style="margin-top:8px"><textarea id="sup-note-t" rows="3" maxlength="2000" placeholder="担当者への補足があればご入力ください(任意)" aria-label="担当者への補足"></textarea><div class="ask"><button class="btn" type="button" id="sup-send">担当者に送信</button></div></div>`;
+    $('sup-ok').onclick = async () => { await api({ kind: 'sup_solved', id: out.id }); box.innerHTML = '<div class="sup-ans"><p>解決してよかったです。ほかにもご不明な点があれば、いつでもお問い合わせください。</p></div>'; chat('解決してよかったです', 'heart'); };
     $('sup-h').onclick = () => { $('sup-note').hidden = false; $('sup-note-t').focus(); };
     $('sup-send').onclick = async () => {
       const r = await api({ kind: 'sup_human', id: out.id, text: $('sup-note-t').value.trim() });
-      if (!r.ok) { chat(r.error || '送れませんでした'); return; }
-      box.innerHTML = '<div class="sup-ans"><p>担当にお送りしました。お返事はここと、LINEにお届けします。</p></div>'; chat('担当にお送りしました', 'heart'); loadSup();
+      if (!r.ok) { chat(r.error || '送信できませんでした'); return; }
+      box.innerHTML = '<div class="sup-ans"><p>担当者に送信しました。回答はこの画面とLINEでお知らせします。</p></div>'; chat('担当者に送信しました', 'heart'); loadSup();
     };
   } catch (e) { box.innerHTML = `<div class="sup-ans"><p>${esc((e && e.message) || '送れませんでした。電波のよいところでもう一度どうぞ')}</p></div>`; }
   finally { go.disabled = false; }
 };
-// これまでの問い合わせ(担当からのお返事があれば、設定に印)
-const SUP_ST = { new: ['担当が確認中', 'gray'], open: ['担当が対応中', 'gray'], wait: ['お返事があります', 'warn'], done: ['完了', ''] };
+// これまでのお問い合わせ(担当からのお返事があれば、設定に印)
+const SUP_ST = { new: ['担当者が確認中', 'gray'], open: ['担当者が対応中', 'gray'], wait: ['回答があります', 'warn'], done: ['完了', ''] };
 async function loadSup() {
   if (!CF) return;
   let r; try { r = await api({ kind: 'sup_list' }); } catch (e) { return; }
@@ -2601,33 +2601,33 @@ async function loadSup() {
   const ts = r.tickets || [], unread = ts.filter(t => t.status === 'wait').length, bs = $('badge-set');
   if (bs) bs.hidden = !unread;
   const box = $('ct-hist'); box.hidden = !ts.length; if (!ts.length) return;
-  box.innerHTML = `<h2 class="ch">これまでの問い合わせ</h2>` + ts.map(t => { const st = SUP_ST[t.status] || ['', ''];
+  box.innerHTML = `<h2 class="ch">これまでのお問い合わせ</h2>` + ts.map(t => { const st = SUP_ST[t.status] || ['', ''];
     return `<details class="sup-t"${t.status === 'wait' ? ' open' : ''}><summary><span><b>${esc(t.title)}</b><span class="k" style="display:block">${esc(t.cat)}・${new Date(t.created).toLocaleDateString('ja-JP')}</span></span><span class="pill ${st[1]}">${st[0]}</span></summary>
       ${t.msgs.map(m => `<div class="sup-m ${m.sender === 'ops' ? 'ops' : ''}"><span class="who">${m.sender === 'ops' ? '担当' : m.sender === 'ai' ? 'AI' : 'あなた'}・${new Date(m.at).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>${esc(m.text)}</div>`).join('')}
-      <div class="ask" style="margin-top:8px"><input id="sup-r-${t.id}" placeholder="${t.status === 'done' ? '続けて聞く' : '返事を書く'}" style="flex:1;min-width:0;width:auto" aria-label="続きを書く"><button class="btn ghost sm" type="button" data-sup="${t.id}">送る</button></div></details>`; }).join('');
-  box.querySelectorAll('[data-sup]').forEach(b => b.onclick = async () => { const i = $('sup-r-' + b.dataset.sup), text = i.value.trim(); if (!text) { i.focus(); return; } b.disabled = true; const x = await api({ kind: 'sup_msg', id: b.dataset.sup, text }); b.disabled = false; if (!x.ok) { chat(x.error || '送れませんでした'); return; } chat('担当にお送りしました', 'heart'); loadSup(); });
+      <div class="ask" style="margin-top:8px"><input id="sup-r-${t.id}" placeholder="${t.status === 'done' ? '続けて聞く' : '返事を書く'}" style="flex:1;min-width:0;width:auto" aria-label="追記する"><button class="btn ghost sm" type="button" data-sup="${t.id}">送る</button></div></details>`; }).join('');
+  box.querySelectorAll('[data-sup]').forEach(b => b.onclick = async () => { const i = $('sup-r-' + b.dataset.sup), text = i.value.trim(); if (!text) { i.focus(); return; } b.disabled = true; const x = await api({ kind: 'sup_msg', id: b.dataset.sup, text }); b.disabled = false; if (!x.ok) { chat(x.error || '送信できませんでした'); return; } chat('担当者に送信しました', 'heart'); loadSup(); });
 }
 // ---------- 衛生記録 ----------
 const hygMissing = () => (D && D.hyg && !D.closedToday) ? D.hyg.today.missing : [];
-// 目安を外れたときの対応: よくある対応を押して入れる
+// 基準を外れた場合の対応: よくある対応を押して入れる
 function fixActs(f) {
-  if (/体調/.test(f.label)) return ['食品を扱わない作業にした', '休ませた', '手袋をして作業した', '病院に行くよう伝えた'];
-  if (/[-\d.]+\s*$/.test(f.label) && !/NG$/.test(f.label)) return ['扉を閉め直し、30分後に測り直した', '温度の設定を直した', '詰めすぎを直した', '中身を別の冷蔵庫に移した', '中身を廃棄した', '修理を頼んだ'];
-  if (/受入/.test(f.label)) return ['返品した', '交換を頼んだ', '使わずに分けた'];
-  if (/加熱/.test(f.label)) return ['加熱し直した', '廃棄した'];
-  return ['やり直した', '店主に伝えた', '交換・修理を頼んだ'];
+  if (/体調/.test(f.label)) return ['食品を扱わない作業に変更した', '休ませた', '手袋をして作業した', '医療機関の受診を指示した'];
+  if (/[-\d.]+\s*$/.test(f.label) && !/NG$/.test(f.label)) return ['扉を閉め直し、30分後に再測定した', '温度設定を修正した', '詰め込みすぎを解消した', '中身を別の冷蔵庫に移した', '中身を廃棄した', '修理を依頼した'];
+  if (/受入/.test(f.label)) return ['返品した', '交換を依頼した', '使用を中止して分けた'];
+  if (/加熱/.test(f.label)) return ['再加熱した', '廃棄した'];
+  return ['やり直した', '店主に伝えた', '交換・修理を依頼した'];
 }
-// 衛生管理計画: 一般衛生管理の7つ(いつ・どのように・問題があったとき)と、重要管理(商品を3つに分ける)。印刷して保健所に見せる
+// 衛生管理計画: 一般衛生管理の7つ(いつ・方法・問題があった場合)と、重要管理(商品を3つに分ける)。印刷して保健所に見せる
 function renderHygPlan(own) {
   const box = $('hyg-plan'), P = D.hyg && D.hyg.plan; if (!box) return;
   if (!P) { box.innerHTML = '<p class="k" style="margin:0">読み込めませんでした</p>'; return; }
   const goods = D.products.filter(p => p.kind !== 'part');
-  box.innerHTML = `<p class="k" style="margin:0 0 8px">保健所は「計画」と「記録」の両方を見ます。下の計画には、ひな形の文が入っています。店舗のやり方に合わせて編集し、印刷して記録表と一緒に保管してください。${P.made ? `(最終更新日 ${esc(P.made)})` : ''}</p>
-    <div class="row" style="gap:8px;flex-wrap:wrap"><span class="k">衛生の責任者</span>${own ? `<input id="hp-resp" value="${esc(P.resp)}" placeholder="例: 税所" maxlength="30" style="width:10em"><button class="btn ghost sm" type="button" id="hp-resp-go">決定</button>` : `<b>${esc(P.resp || '未記入')}</b>`}</div>
+  box.innerHTML = `<p class="k" style="margin:0 0 8px">保健所の確認では「計画」と「記録」の両方が求められます。下の計画には、標準の文例が入っています。店舗の運用に合わせて編集し、印刷して記録表と一緒に保管してください。${P.made ? `(最終更新日 ${esc(P.made)})` : ''}</p>
+    <div class="row" style="gap:8px;flex-wrap:wrap"><span class="k">衛生の責任者</span>${own ? `<input id="hp-resp" value="${esc(P.resp)}" placeholder="例: 山田" maxlength="30" style="width:10em"><button class="btn ghost sm" type="button" id="hp-resp-go">決定</button>` : `<b>${esc(P.resp || '未記入')}</b>`}</div>
     <h2 class="ch" style="margin-top:14px">一般衛生管理</h2>
-    <div class="scroll"><table class="hp-tbl"><thead><tr><th>項目</th><th>いつ</th><th>どのように</th><th>問題があったとき</th>${own ? '<th></th>' : ''}</tr></thead><tbody>
-    ${P.gen.map((g, i) => `<tr><td>${esc(g.name)}</td><td data-l="いつ">${esc(g.when)}</td><td data-l="どのように">${esc(g.how)}</td><td data-l="問題があったとき">${esc(g.ng)}</td>${own ? `<td><button class="btn ghost sm" type="button" data-hpe="${i}">編集</button></td>` : ''}</tr>
-      ${own ? `<tr id="hp-ed-${i}" hidden><td colspan="5"><div class="fld"><span class="k">いつ</span><input id="hp-w-${i}" value="${esc(g.when)}" maxlength="40"><span class="k">どのように</span><input id="hp-h-${i}" value="${esc(g.how)}" maxlength="120"><span class="k">問題があったとき</span><input id="hp-n-${i}" value="${esc(g.ng)}" maxlength="120"></div><div class="ask"><button class="btn sm" type="button" data-hps="${i}">保存</button></div></td></tr>` : ''}`).join('')}
+    <div class="scroll"><table class="hp-tbl"><thead><tr><th>項目</th><th>いつ</th><th>方法</th><th>問題があった場合</th>${own ? '<th></th>' : ''}</tr></thead><tbody>
+    ${P.gen.map((g, i) => `<tr><td>${esc(g.name)}</td><td data-l="いつ">${esc(g.when)}</td><td data-l="方法">${esc(g.how)}</td><td data-l="問題があった場合">${esc(g.ng)}</td>${own ? `<td><button class="btn ghost sm" type="button" data-hpe="${i}">編集</button></td>` : ''}</tr>
+      ${own ? `<tr id="hp-ed-${i}" hidden><td colspan="5"><div class="fld"><span class="k">いつ</span><input id="hp-w-${i}" value="${esc(g.when)}" maxlength="40"><span class="k">方法</span><input id="hp-h-${i}" value="${esc(g.how)}" maxlength="120"><span class="k">問題があった場合</span><input id="hp-n-${i}" value="${esc(g.ng)}" maxlength="120"></div><div class="ask"><button class="btn sm" type="button" data-hps="${i}">保存</button></div></td></tr>` : ''}`).join('')}
     </tbody></table></div>
     <div id="hp-pick" hidden style="margin-top:10px"></div>
     <div class="ask" style="margin-top:12px"><button class="btn" type="button" id="hp-print">衛生管理計画を印刷・PDF</button></div>`;
@@ -2636,24 +2636,24 @@ function renderHygPlan(own) {
   box.querySelectorAll('[data-hps]').forEach(b => b.onclick = () => { const i = b.dataset.hps; setValueX({ field: 'hygplan', value: { gen: P.gen[i].key, when: $('hp-w-' + i).value, how: $('hp-h-' + i).value, ng: $('hp-n-' + i).value } }); });
   const canG = own || perm('recipe');
   box.querySelectorAll('[data-hgp]').forEach(b => b.onclick = () => {
-    if (!canG) { toast('商品の分け方は、店主かレシピを直せる人が決めます'); return; }
+    if (!canG) { toast('商品の分類は、店主またはレシピの編集権限がある方が設定します'); return; }
     const n = b.dataset.hgp, pk = $('hp-pick');
     pk.hidden = false; pk.innerHTML = `<b>${esc(n)}</b> を<div class="seg" style="flex-wrap:wrap;margin-top:6px">${P.groups.map(g => `<button type="button" data-v="${g.key}" aria-pressed="${b.dataset.g === g.key}">第${g.key} ${esc(g.name)}</button>`).join('')}<button type="button" data-v="">分けない</button></div>`;
     pk.querySelectorAll('button').forEach(x => x.onclick = () => setValueX({ field: 'hgrp', product: n, value: x.dataset.v }));
     pk.scrollIntoView({ block: 'nearest' });
   });
   $('hp-print').onclick = () => openPrint(`<h2>衛生管理計画</h2><p>${esc(D.shop)} ・ 作成 ${esc(P.made || new Date().toLocaleDateString('sv-SE'))} ・ 責任者 ${esc(P.resp || '　　　　　')}</p>
-    <h3>一般衛生管理</h3><table><thead><tr><th>項目</th><th>いつ</th><th>どのように</th><th>問題があったとき</th></tr></thead><tbody>${P.gen.map(g => `<tr><td>${esc(g.name)}</td><td>${esc(g.when)}</td><td>${esc(g.how)}</td><td>${esc(g.ng)}</td></tr>`).join('')}</tbody></table>
-    <h3>重要管理</h3><table><thead><tr><th>分け方</th><th>商品</th><th>確かめ方</th></tr></thead><tbody>${P.groups.map(g => `<tr><td>第${g.key}グループ<br>${esc(g.name)}</td><td>${g.items.map(esc).join('、') || '—'}</td><td>${esc(g.how)}</td></tr>`).join('')}</tbody></table>
-    <p style="font-size:12px">記録は「衛生管理記録」(月の表)に残します。計画は、作り方や商品が変わったら見直します。</p>`);
+    <h3>一般衛生管理</h3><table><thead><tr><th>項目</th><th>いつ</th><th>方法</th><th>問題があった場合</th></tr></thead><tbody>${P.gen.map(g => `<tr><td>${esc(g.name)}</td><td>${esc(g.when)}</td><td>${esc(g.how)}</td><td>${esc(g.ng)}</td></tr>`).join('')}</tbody></table>
+    <h3>重要管理</h3><table><thead><tr><th>分け方</th><th>商品</th><th>確認方法</th></tr></thead><tbody>${P.groups.map(g => `<tr><td>第${g.key}グループ<br>${esc(g.name)}</td><td>${g.items.map(esc).join('、') || '—'}</td><td>${esc(g.how)}</td></tr>`).join('')}</tbody></table>
+    <p style="font-size:12px">記録は「衛生管理記録」(月次の記録表)に残します。計画は、製造方法や商品が変わった際に見直します。</p>`);
 }
 function renderHyg() {
   if (!D.hyg) { $('hyg-today').innerHTML = '<p class="k" style="margin:0">読み込めませんでした</p>'; return; }
   const t = D.hyg.today, own = !!(D.me && D.me.owner), me = (D.me && D.me.name) || '';
   const range = it => it.kind === 'temp' ? `目安 ${it.lo ?? ''}〜${it.hi ?? ''}℃` : '点検';
   const recPill = r => r ? `<span class="pill ${r.j === 'OK' ? '' : 'warn'}">${esc(String(r.v))}${typeof r.v === 'number' ? '℃' : ''}</span>` : '';
-  // 今日の温度と点検: 朝 / 夕・片付け / いつでも に分けて、それぞれで記録する
-  const WN = { '朝': '朝', '夕': '夕・片付け', '': 'いつでも' };
+  // 今日の温度と点検: 朝 / 終業時 / いつでも に分けて、それぞれで記録する
+  const WN = { '朝': '朝', '夕': '終業時', '': 'いつでも' };
   const group = g => t.items.map((it, i) => ({ it, i, xs: it.slots.map((x, j) => ({ x, j })).filter(o => o.x.s === g) })).filter(o => o.xs.length);
   const rowsHtml = g => group(g).map(({ it, i, xs }) => `<div class="hy-row"><div class="hy-nm"><b>${esc(it.name)}</b><span class="k">${range(it)}</span></div>
       <div class="hy-vals">${xs.map(({ x, j }) => `<div class="hy-slot">${it.kind === 'temp' ? `<input id="hy-${i}-${j}" inputmode="decimal" placeholder="${x.rec ? esc(String(x.rec.v)) : '℃'}" aria-label="${esc(it.name)}${x.s}の温度">` : `<span class="seg" data-hy="${i}-${j}"><button type="button" data-v="OK" aria-pressed="false">OK</button><button type="button" data-v="NG" aria-pressed="false">NG</button></span>`}${recPill(x.rec)}</div>`).join('')}</div></div>`).join('');
@@ -2664,16 +2664,16 @@ function renderHyg() {
   const gAny = group('').length;
   $('hyg-today').innerHTML = (group('朝').length ? cardHtml('朝') : '') + (gAny ? cardHtml('') : '') || '<p class="k" style="margin:10px 0 0">本日記録する項目はありません。</p>';
   $('hyg-eve').hidden = !group('夕').length; $('hyg-eve').innerHTML = group('夕').length ? cardHtml('夕') : '';
-  (group('夕').length ? $('hyg-eve') : $('hyg-today')).insertAdjacentHTML('beforeend', `<p class="k" style="margin:8px 0 0">${VIA}「冷蔵 3 冷凍 -18」「掃除OK」と送っても記録できます(14時より前は朝、14時以降は夕として記録)。</p>`);
+  (group('夕').length ? $('hyg-eve') : $('hyg-today')).insertAdjacentHTML('beforeend', `<p class="k" style="margin:8px 0 0">${VIA}「冷蔵 3 冷凍 -18」「掃除OK」と入力しても記録できます(14時より前は朝、14時以降は夕として記録)。</p>`);
   ['hyg-today', 'hyg-eve'].forEach(id => $(id).querySelectorAll('[data-hy] button').forEach(b => b.onclick = () => { b.parentNode.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b)); }));
   document.querySelectorAll('[data-hygo]').forEach(btn => btn.onclick = () => { const g = btn.dataset.hygo, v = {};
     group(g).forEach(({ it, i, xs }) => xs.forEach(({ x, j }) => { const key = it.name + (x.s ? '|' + x.s : '');
       if (it.kind === 'temp') { const val = $(`hy-${i}-${j}`).value.trim(); if (val) v[key] = val; } else { const p = document.querySelector(`[data-hy="${i}-${j}"] [aria-pressed="true"]`); if (p) v[key] = p.dataset.v; } }));
-    if (!Object.keys(v).length) { chat('温度か点検を入れてから押してください'); return; } setValueX({ field: 'hyg', value: v }); });
-  // 目安を外れたときの対応
+    if (!Object.keys(v).length) { chat('温度または点検結果を入力してから押してください'); return; } setValueX({ field: 'hyg', value: v }); });
+  // 基準を外れた場合の対応
   const fx = $('hyg-fix');
   fx.hidden = !t.fixes.length;
-  fx.innerHTML = t.fixes.length ? `<h2 class="ch">対応を残す <span class="pill warn">${t.fixes.length}件</span></h2><p class="k" style="margin:0 0 8px">目安を外れた記録には、何をしたかを残します。保健所の確認でも見られるところです。</p>
+  fx.innerHTML = t.fixes.length ? `<h2 class="ch">対応を残す <span class="pill warn">${t.fixes.length}件</span></h2><p class="k" style="margin:0 0 8px">基準を外れた記録には、実施した対応を残します。保健所の確認でも参照される項目です。</p>
     ${t.fixes.map((f, i) => `<div style="margin-top:12px"><b>${esc(f.label)}</b><div class="fx-chips">${fixActs(f).map(a => `<button type="button" data-fxa="${i}">${esc(a)}</button>`).join('')}</div><div class="ask" style="margin-top:4px"><input id="fx-${i}" placeholder="例: 扉を閉め直し、30分後に4℃を確認" style="flex:1;min-width:0;width:auto"><button class="btn ghost" type="button" data-fx="${i}">残す</button></div></div>`).join('')}` : '';
   fx.querySelectorAll('[data-fxa]').forEach(b => b.onclick = () => { const inp = $('fx-' + b.dataset.fxa), v = inp.value.trim(); inp.value = v ? v + '、' + b.textContent : b.textContent; inp.focus(); });
   fx.querySelectorAll('[data-fx]').forEach(b => b.onclick = () => { const f = t.fixes[b.dataset.fx], text = $('fx-' + b.dataset.fx).value.trim(); if (!text) { $('fx-' + b.dataset.fx).focus(); return; } setValueX({ field: 'hygfix', value: { sheet: f.sheet, row: f.row, text } }); });
@@ -2681,14 +2681,14 @@ function renderHyg() {
   const H = t.health || { cols: [], people: [] }, ppl = H.people.slice();
   if (me && !ppl.some(p => p.name === me)) ppl.unshift({ name: me, rec: null });
   const mark = v => v === '×' ? '<b class="ng">×</b>' : v === '○' ? '○' : '';
-  $('hyg-health').innerHTML = `<p class="k" style="margin:10px 0 4px">作業の前に1人ずつ記録します。×が1つでもあると店主にお知らせします。LINEで「体調OK」と送っても記録できます。</p>
+  $('hyg-health').innerHTML = `<p class="k" style="margin:10px 0 4px">作業前に1人ずつ記録します。×が1つでもある場合は、店主にお知らせします。LINEで「体調OK」と送信しても記録できます。</p>
     ${ppl.map((p, i) => { const r = p.rec, mine = p.name === me, can = mine || own;
       const st = r ? `<span class="pill ${r.j === '要注意' ? 'warn' : r.j === '休み' ? 'gray' : ''}">${r.j === 'OK' ? 'つけました' : esc(r.j)}</span>` : '<span class="pill gray">まだ</span>';
       const body = r ? (r.j === '休み' ? '' : `<div class="hc-marks">${H.cols.map((c, j) => `<span class="hc-m ${r.v[j] === '×' ? 'ng' : ''}">${esc(c)} ${r.v[j] === '×' ? '×' : '○'}</span>`).join('')}</div>`)
         : can ? `<div class="hc-marks">${H.cols.map((c, j) => `<button type="button" class="hc-t" data-hp="${i}" data-j="${j}" aria-pressed="true">${esc(c)} <b>○</b></button>`).join('')}</div>
           <div class="ask" style="margin-top:8px"><button class="btn sm" type="button" data-hgo="${i}">つける</button>${own && !mine ? `<button class="btn ghost sm" type="button" data-hoff="${i}">休み</button>` : ''}</div>` : '';
       return `<div class="hpx"><div class="row"><b>${esc(p.name)}</b>${st}</div>${body}</div>`; }).join('')}
-    <p class="k" style="margin:12px 0 0">○は「問題なし」。当てはまるものを押して×にします(発熱・せき、下痢・おう吐、手の傷はあれば×。手洗い・服装はできていなければ×)。</p>`;
+    <p class="k" style="margin:12px 0 0">○は「問題なし」です。該当する項目を押して×にします(発熱・せき、下痢・おう吐、手の傷は、症状があれば×。手洗い・服装は、できていなければ×)。</p>`;
   $('hyg-health').querySelectorAll('.hc-t').forEach(b => b.onclick = () => { const on = b.getAttribute('aria-pressed') !== 'true'; b.setAttribute('aria-pressed', on); b.querySelector('b').textContent = on ? '○' : '×'; b.classList.toggle('ng', !on); });
   $('hyg-health').querySelectorAll('[data-hgo]').forEach(b => b.onclick = () => { const i = b.dataset.hgo, marks = [...$('hyg-health').querySelectorAll(`.hc-t[data-hp="${i}"]`)].map(x => x.getAttribute('aria-pressed') === 'true'); setValueX({ field: 'health', value: { person: ppl[i].name, marks } }); });
   $('hyg-health').querySelectorAll('[data-hoff]').forEach(b => b.onclick = () => setValueX({ field: 'health', value: { person: ppl[b.dataset.hoff].name, off: true } }));
@@ -2696,26 +2696,26 @@ function renderHyg() {
   const ib = $('hyg-items'); ib.hidden = !own; $('hyg-items-wrap').hidden = !own;
   if (own) {
     ib.innerHTML = `<p class="k" style="margin:10px 0 8px">冷蔵庫・冷凍庫は台数の制限なく、1台ずつ名前を付けて追加できます。ショーケース・温蔵庫・清掃などの点検も追加できます。</p>
-      <div class="ask" style="margin:0 0 10px"><button class="btn ghost sm" type="button" id="hi-std">手引書の点検を足す(受入れ・器具の消毒・トイレ・加熱の確認)</button></div>
-      <div class="hy-list">${t.items.map((it, i) => `<div class="hy-row"><div class="hy-nm"><b>${esc(it.name)}</b><span class="k">${range(it)}・${{ '朝': '朝', '夕': '夕・片付け', '朝夕': '朝と夕', '': 'いつでも' }[it.when || '']}</span></div><button class="btn ghost sm" type="button" data-hiopen="${i}">編集</button>
+      <div class="ask" style="margin:0 0 10px"><button class="btn ghost sm" type="button" id="hi-std">手引書の点検項目を追加(受入れ・器具の消毒・トイレ・加熱の確認)</button></div>
+      <div class="hy-list">${t.items.map((it, i) => `<div class="hy-row"><div class="hy-nm"><b>${esc(it.name)}</b><span class="k">${range(it)}・${{ '朝': '朝', '夕': '終業時', '朝夕': '朝と夕', '': 'いつでも' }[it.when || '']}</span></div><button class="btn ghost sm" type="button" data-hiopen="${i}">編集</button>
         <div class="hy-ed" id="hi-ed-${i}" hidden>${it.kind === 'temp' ? `<label class="k">目安</label><input id="hi-lo-${i}" inputmode="decimal" value="${it.lo ?? ''}" aria-label="${esc(it.name)}の下限"><span class="k">〜</span><input id="hi-hi-${i}" inputmode="decimal" value="${it.hi ?? ''}" aria-label="${esc(it.name)}の上限"><span class="k">℃</span>` : ''}
-          <select id="hi-t-${i}" aria-label="${esc(it.name)}を記録するとき">${[['朝夕', '朝と夕(2回)'], ['朝', '朝'], ['夕', '夕・片付け'], ['', 'いつでも(1回)']].map(([v, l]) => `<option value="${v}"${(it.when || '') === v ? ' selected' : ''}>${l}</option>`).join('')}</select>
-          <div class="ask" style="margin:0;width:100%"><button class="btn sm" type="button" data-hie="${i}">保存</button><button class="btn ghost sm" type="button" data-hio="${i}">記録を止める</button></div></div></div>`).join('')}</div>
-      <div class="hy-add"><input id="hi-name" placeholder="名前(例: 冷蔵庫2、ショーケース)" maxlength="20"><select id="hi-type" aria-label="種類"><option value="冷蔵">冷蔵(0〜10℃)</option><option value="冷凍">冷凍(-30〜-15℃)</option><option value="温蔵">温蔵(65℃以上)</option><option value="中心温度">加熱の中心温度(75℃以上)</option><option value="チェック">点検(OK/NG)</option></select><select id="hi-times" aria-label="記録するとき"><option value="朝夕">朝と夕(2回)</option><option value="朝">朝</option><option value="夕">夕・片付け</option><option value="">いつでも(1回)</option></select><button class="btn" type="button" id="hi-add">足す</button></div>`;
+          <select id="hi-t-${i}" aria-label="${esc(it.name)}を記録するとき">${[['朝夕', '始業時と終業時(2回)'], ['朝', '朝'], ['夕', '終業時'], ['', '随時(1回)']].map(([v, l]) => `<option value="${v}"${(it.when || '') === v ? ' selected' : ''}>${l}</option>`).join('')}</select>
+          <div class="ask" style="margin:0;width:100%"><button class="btn sm" type="button" data-hie="${i}">保存</button><button class="btn ghost sm" type="button" data-hio="${i}">記録を停止</button></div></div></div>`).join('')}</div>
+      <div class="hy-add"><input id="hi-name" placeholder="名前(例: 冷蔵庫2、ショーケース)" maxlength="20"><select id="hi-type" aria-label="種類"><option value="冷蔵">冷蔵(0〜10℃)</option><option value="冷凍">冷凍(-30〜-15℃)</option><option value="温蔵">温蔵(65℃以上)</option><option value="中心温度">加熱の中心温度(75℃以上)</option><option value="チェック">点検(OK/NG)</option></select><select id="hi-times" aria-label="記録するとき"><option value="朝夕">始業時と終業時(2回)</option><option value="朝">朝</option><option value="夕">終業時</option><option value="">随時(1回)</option></select><button class="btn" type="button" id="hi-add">追加</button></div>`;
     $('hi-std').onclick = () => setValueX({ field: 'hygstd', value: 1 });
     $('hi-add').onclick = () => { const name = $('hi-name').value.trim(); if (!name) { $('hi-name').focus(); return; } setValueX({ field: 'hygitem', value: { action: 'add', name, type: $('hi-type').value, when: $('hi-times').value } }); };
     ib.querySelectorAll('[data-hiopen]').forEach(b => b.onclick = () => { const e = $('hi-ed-' + b.dataset.hiopen); e.hidden = !e.hidden; b.textContent = e.hidden ? '編集' : '閉じる'; });
     ib.querySelectorAll('[data-hie]').forEach(b => b.onclick = () => { const i = b.dataset.hie, it = t.items[i]; setValueX({ field: 'hygitem', value: { action: 'edit', name: it.name, lo: it.kind === 'temp' ? $('hi-lo-' + i).value : '', hi: it.kind === 'temp' ? $('hi-hi-' + i).value : '', when: $('hi-t-' + i).value } }); });
-    ib.querySelectorAll('[data-hio]').forEach(b => b.onclick = () => { const it = t.items[b.dataset.hio]; if (confirm(`「${it.name}」の記録を止めますか? これまでの記録は残ります。`)) setValueX({ field: 'hygitem', value: { action: 'off', name: it.name } }); });
+    ib.querySelectorAll('[data-hio]').forEach(b => b.onclick = () => { const it = t.items[b.dataset.hio]; if (confirm(`「${it.name}」の記録を停止しますか? これまでの記録は残ります。`)) setValueX({ field: 'hygitem', value: { action: 'off', name: it.name } }); });
   }
   renderHygPlan(own);
   // 月の記録表
   const ms = Object.keys(D.hyg.months || {}).sort().reverse(), chips = $('hyg-chips');
-  if (!ms.length) { chips.innerHTML = ''; $('hyg-month').innerHTML = '<p class="k" style="margin:0">記録がたまると、ここに月の表ができます</p>'; return; }
+  if (!ms.length) { chips.innerHTML = ''; $('hyg-month').innerHTML = '<p class="k" style="margin:0">記録が蓄積されると、ここに月次の記録表が作成されます</p>'; return; }
   const sel = chips.dataset.m && ms.includes(chips.dataset.m) ? chips.dataset.m : ms[0], M = D.hyg.months[sel];
   chips.innerHTML = ms.map(m => `<button class="chip" type="button" data-m="${m}" aria-pressed="${m === sel}">${+m.slice(5)}月</button>`).join('');
   chips.querySelectorAll('[data-m]').forEach(b => b.onclick = () => { chips.dataset.m = b.dataset.m; renderHyg(); });
-  $('hyg-month').innerHTML = `<div class="row" style="margin-bottom:8px"><span>${M.ok ? `<span class="pill">確認済み</span> <span class="k">${esc(M.ok)}</span>` : '<span class="pill gray">店主の確認まだ</span>'}</span>${own && !M.ok ? '<button class="btn ghost sm" type="button" id="hyg-ok">この月を確認しました</button>' : ''}</div>` + hygTable(sel);
+  $('hyg-month').innerHTML = `<div class="row" style="margin-bottom:8px"><span>${M.ok ? `<span class="pill">確認済み</span> <span class="k">${esc(M.ok)}</span>` : '<span class="pill gray">店主の確認待ち</span>'}</span>${own && !M.ok ? '<button class="btn ghost sm" type="button" id="hyg-ok">この月を確認しました</button>' : ''}</div>` + hygTable(sel);
   if ($('hyg-ok')) $('hyg-ok').onclick = () => setValueX({ field: 'hygok', value: sel });
   $('hyg-print').onclick = () => openPrint(`<h2>衛生管理記録</h2><p>${esc(D.shop)} ・ ${sel.replace('-', '年')}月${M.ok ? ' ・ 確認: ' + esc(M.ok) : ' ・ 確認者:　　　　　'}</p>${hygTable(sel)}<p style="font-size:12px">目安: ${t.items.filter(i => i.kind === 'temp').map(i => `${esc(i.name)} ${i.lo ?? ''}〜${i.hi ?? ''}℃`).join(' / ')}</p>`);
 }
@@ -2732,7 +2732,7 @@ function hygTable(mo) {
     for (let d = 1; d <= n; d++) { const r = hp[key(d)] || {}; h += `<tr><td>${d}(${wd(d)})</td>${people.map(p => { const x = r[p]; return !x ? '<td></td>' : x.j === '休み' ? '<td>休</td>' : `<td class="${x.j === 'OK' ? '' : 'bad'}">${x.j === 'OK' ? '○' : '×'}</td>`; }).join('')}</tr>`; }
     h += '</table>';
   }
-  if ((M.fixes || []).length) h += `<h3 class="ht">目安を外れたときの対応</h3><table class="hgrid fx"><tr><th>日</th><th>記録</th><th>対応</th></tr>${M.fixes.map(f => `<tr><td>${+f.d.slice(8)}日</td><td>${esc(f.what)}</td><td>${esc(f.fix)}</td></tr>`).join('')}</table>`;
+  if ((M.fixes || []).length) h += `<h3 class="ht">基準を外れた場合の対応</h3><table class="hgrid fx"><tr><th>日</th><th>記録</th><th>対応</th></tr>${M.fixes.map(f => `<tr><td>${+f.d.slice(8)}日</td><td>${esc(f.what)}</td><td>${esc(f.fix)}</td></tr>`).join('')}</table>`;
   return h;
 }
 function openPrint(html, opt) {
@@ -2745,9 +2745,9 @@ function renderWs() {
   const ws = D.ws || {}, ms = Object.keys(ws).sort().reverse(), chips = $('ws-chips');
   const tos = [...new Set(ms.flatMap(m => Object.keys(ws[m])))];
   $('ws-add').innerHTML = `<p style="margin:0 0 8px"><b>納品を記録</b></p><div class="fld"><span class="k">卸先</span><input id="ws-to" list="ws-tos" placeholder="卸先"><datalist id="ws-tos">${tos.map(t => `<option value="${esc(t)}">`).join('')}</datalist>
-    <span class="k">商品と数</span><input id="ws-items" placeholder="商品と数"></div><div class="ask"><button class="btn" type="button" id="ws-go">記録する</button><span class="k">話しかけても入ります</span></div>`;
-  $('ws-go').onclick = () => { const to = $('ws-to').value.trim(), it = $('ws-items').value.trim(); if (!to || !it) { chat('卸先と、商品と数を入れてください'); return; } setValueX({ field: 'deliv', value: to + ' ' + it }); };
-  if (!ms.length) { chips.innerHTML = ''; $('ws-list').innerHTML = emptyBox('ws', 'まだ納品の記録がありません', '上の欄に卸先と商品・数を入れると、ここに月ごとに並びます。'); return; }
+    <span class="k">商品と数</span><input id="ws-items" placeholder="商品と数"></div><div class="ask"><button class="btn" type="button" id="ws-go">記録する</button><span class="k">AIに入力しても記録できます</span></div>`;
+  $('ws-go').onclick = () => { const to = $('ws-to').value.trim(), it = $('ws-items').value.trim(); if (!to || !it) { chat('卸先・商品・数量を入力してください'); return; } setValueX({ field: 'deliv', value: to + ' ' + it }); };
+  if (!ms.length) { chips.innerHTML = ''; $('ws-list').innerHTML = emptyBox('ws', '納品の記録がありません', '上の欄に卸先・商品・数量を入力すると、ここに月ごとに表示されます。'); return; }
   const sel = chips.dataset.m && ms.includes(chips.dataset.m) ? chips.dataset.m : ms[0];
   chips.innerHTML = ms.map(m => `<button class="chip" type="button" data-m="${m}" aria-pressed="${m === sel}">${m.replace('-', '年')}月</button>`).join('');
   chips.querySelectorAll('[data-m]').forEach(b => b.onclick = () => { chips.dataset.m = b.dataset.m; renderWs(); });
@@ -2757,7 +2757,7 @@ function renderWs() {
     ${Object.keys(by).length > 1 ? `<p class="ct" style="margin-top:12px">卸先ごと</p>${barsH(Object.keys(by).map(to => ({ l: to, v: by[to].total })).sort((a, b) => b.v - a.v), 'var(--c-ws)')}` : ''}</div>` + Object.keys(by).map((to, i) => { const o = by[to], miss = [...new Set(o.lines.filter(l => l.unit == null).map(l => l.item))];
     return `<div class="card"><div class="row"><b>${esc(to)} ${callBtn(to)}</b><span class="big" style="font-size:20px">${yen(o.total)}</span></div><p class="k" style="margin:4px 0 8px">税抜 · ${o.lines.length}回の納品</p>
     ${miss.length ? `<div class="ask" style="margin-top:0">${miss.map((it, j) => `<span class="k">${esc(it)}の卸値</span><input id="wp-${i}-${j}" inputmode="numeric" placeholder="円" style="width:80px"><button class="btn ghost" type="button" data-wp="${i}-${j}" data-to="${esc(to)}" data-it="${esc(it)}">決定</button>`).join('')}</div>` : ''}
-    <div class="ask"><button class="btn ghost" type="button" data-inv="${esc(to)}">請求書を見る・印刷</button></div></div>`; }).join('');
+    <div class="ask"><button class="btn ghost" type="button" data-inv="${esc(to)}">請求書の表示・印刷</button></div></div>`; }).join('');
   $('ws-list').querySelectorAll('[data-wp]').forEach(b => b.onclick = () => { const v = +$('wp-' + b.dataset.wp).value; if (!(v > 0)) return; setValueX({ field: 'wsprice', to: b.dataset.to, product: b.dataset.it, value: v }); });
   $('ws-list').querySelectorAll('[data-inv]').forEach(b => b.onclick = () => openInvoice(sel, b.dataset.inv));
 }
@@ -2776,20 +2776,20 @@ function openInvoice(mo, to) {
       <tr><td colspan="3" style="text-align:right"><b>合計</b></td><td style="text-align:right"><b>${(sub + tax).toLocaleString('ja-JP')}</b></td></tr></table>
     <p style="font-size:12px">※は軽減税率(8%)対象です。</p>
     <p style="font-size:12px">納品日: ${[...new Set(o.lines.map(l => l.day))].sort().map(d => +d.slice(5, 7) + '/' + +d.slice(8)).join('、')}</p>
-    ${si.bank ? `<p>お振込先: ${esc(si.bank)}</p>` : ''}${rows.some(r => r.unit == null) ? '<p style="color:#a4512a">単価が未定の品があります。「卸」の画面で卸値を入れてください。</p>' : ''}`);
+    ${si.bank ? `<p>お振込先: ${esc(si.bank)}</p>` : ''}${rows.some(r => r.unit == null) ? '<p style="color:#a4512a">単価が未設定の品目があります。「卸」の画面で卸値を入力してください。</p>' : ''}`);
 }
 // ---------- 売上と粗利 ----------
 // 売上のお知らせメールをまとめて取り込む(読み取る → 中身を見せる → 取り込む)
 let sbFile = null, sbReports = null;
 if ($('sb-file')) $('sb-file').onchange = () => {
   const f = $('sb-file').files[0]; if (!f) return; sbFile = null; sbReports = null; $('sb-go').hidden = true; $('sb-out').innerHTML = '';
-  if (f.size > 5 * 1024 * 1024) { chat('ファイルが大きすぎます(5MBまで)。期間を分けて書き出してください'); return; }
+  if (f.size > 5 * 1024 * 1024) { chat('ファイルサイズが上限(5MB)を超えています。期間を分けて書き出してください'); return; }
   const rd = new FileReader();
   if (/^text\/|\.(csv|tsv|txt)$/i.test(f.type + ' ' + f.name) && !/pdf|image/.test(f.type)) {   // CSV・テキストは、そのまま欄に入れる(Shift_JISのCSVにも対応)
     rd.onload = () => { const buf = new Uint8Array(rd.result); let t = new TextDecoder('utf-8').decode(buf); if (/�/.test(t)) { try { t = new TextDecoder('shift_jis').decode(buf); } catch (e) {} } $('sb-text').value = t; $('sb-fname').textContent = f.name + ' を入れました'; };
     rd.readAsArrayBuffer(f);
   } else {
-    rd.onload = () => { sbFile = { data: String(rd.result).split(',')[1], type: f.type || 'application/pdf' }; $('sb-fname').textContent = f.name + '(「読み取る」でAIが読み取ります)'; };
+    rd.onload = () => { sbFile = { data: String(rd.result).split(',')[1], type: f.type || 'application/pdf' }; $('sb-fname').textContent = f.name + '(「読み取る」を押すと、AIが読み取ります)'; };
     rd.readAsDataURL(f);
   }
 };
@@ -2797,12 +2797,12 @@ if ($('sb-text')) $('sb-text').addEventListener('input', () => { sbReports = nul
 if ($('sb-check')) {
   $('sb-check').onclick = async () => {
     const text = $('sb-text').value; if (!text.trim() && !sbFile) { $('sb-text').focus(); return; }
-    $('sb-out').innerHTML = '<p class="k">読み取っています…(AIが読むときは少しかかります)</p>'; $('sb-go').hidden = true; $('sb-check').disabled = true;
+    $('sb-out').innerHTML = '<p class="k">読み取っています…(AIによる読み取りには少し時間がかかります)</p>'; $('sb-go').hidden = true; $('sb-check').disabled = true;
     let r; try { r = await api({ kind: 'app_set', field: 'salesbulk', value: { text, dry: true, file: sbFile || undefined } }); } finally { $('sb-check').disabled = false; }
     if (!r.ok) { $('sb-out').innerHTML = `<p class="k">${esc(r.error || '読み取れませんでした')}</p>`; return; }
     sbReports = r.reports || null;
     const p = r.preview, its = Object.entries(p.items).sort((a, b) => b[1] - a[1]);
-    $('sb-out').innerHTML = `<p style="margin:8px 0 4px"><b>${p.days}日分・合計 ${yen(p.total)}</b> <span class="k">${esc(p.from)} 〜 ${esc(p.to)}${p.conn ? '・' + esc(p.conn) + 'のCSVとして読み取りました' : ''}${p.byAI ? '・AIが読み取りました。数字を確かめてください' : ''}</span></p>${p.note ? `<p class="k" style="margin:0 0 6px">${esc(p.note)}</p>` : ''}<div class="scroll"><table>${its.map(([n, q]) => `<tr><td>${esc(n)}</td><td class="n">${q}点</td></tr>`).join('')}</table></div>`;
+    $('sb-out').innerHTML = `<p style="margin:8px 0 4px"><b>${p.days}日分・合計 ${yen(p.total)}</b> <span class="k">${esc(p.from)} 〜 ${esc(p.to)}${p.conn ? '・' + esc(p.conn) + 'のCSVとして読み取りました' : ''}${p.byAI ? '・AIが読み取りました。数値をご確認ください' : ''}</span></p>${p.note ? `<p class="k" style="margin:0 0 6px">${esc(p.note)}</p>` : ''}<div class="scroll"><table>${its.map(([n, q]) => `<tr><td>${esc(n)}</td><td class="n">${q}点</td></tr>`).join('')}</table></div>`;
     $('sb-go').hidden = false;
   };
   $('sb-go').onclick = async () => {
@@ -2813,21 +2813,21 @@ if ($('sb-check')) {
     D = r.data; renderAll(); $('sb-text').value = ''; sbFile = null; sbReports = null; $('sb-fname').textContent = ''; $('sb-go').hidden = true; $('sb-out').innerHTML = `<p style="margin:8px 0 0">${esc(r.msg)}</p>`; toast('売上を取り込みました。', 'ok');
   };
 }
-// メニューの分析(看板・見直し・売り方の工夫・やめる候補)
+// メニューの分析(看板・見直し・販売方法の工夫・販売中止の候補)
 let menuMo = null;
 function renderMenuA() {
   const box = $('menu-box'); if (!box) return;
   const mm = D.menu || {}, ms = Object.keys(mm).sort().reverse().filter(k => (mm[k].items || []).length || (mm[k].missing || []).length);
   if (noMoney()) { box.innerHTML = ''; return; }
-  if (!ms.length) { box.innerHTML = `<div class="card"><p style="margin:0"><b>品目別の売上がまだありません</b></p><p class="k" style="margin:8px 0 0">品目ごとに数が印字されるレジの精算レシートを撮るか、卸の納品を記録すると、ここに出ます。部門の合計(和菓子 いくら)だけのレシートでは分けられません。</p></div>`; return; }
-  const sel = ms.includes(menuMo) ? menuMo : ms[0], o = mm[sel], Q = { star: ['看板', 'よく売れて、もうかる', '今のまま。切らさないように'], plow: ['見直し', 'よく売れるが、粗利が薄い', '値上げか、原価を下げる'], puzzle: ['売り方の工夫', 'もうかるが、あまり売れない', '置き場所・おすすめ・試食で売る'], dog: ['やめる候補', '売れず、粗利も薄い', '入れかえや、作る数を減らす'] };
+  if (!ms.length) { box.innerHTML = `<div class="card"><p style="margin:0"><b>品目別の売上はまだありません</b></p><p class="k" style="margin:8px 0 0">品目ごとの数量が印字された精算レシートを撮影するか、卸の納品を記録すると、ここに表示されます。部門の合計(例: 和菓子 ○○円)のみのレシートでは、品目別に分けられません。</p></div>`; return; }
+  const sel = ms.includes(menuMo) ? menuMo : ms[0], o = mm[sel], Q = { star: ['看板', '販売数・粗利ともに高い', '現状維持。欠品に注意'], plow: ['見直し', '販売数は多いが、粗利が低い', '値上げ、または原価の見直し'], puzzle: ['販売方法の工夫', '粗利は高いが、販売数が少ない', '陳列・おすすめ・試食で販売を促進'], dog: ['販売中止の候補', '販売数・粗利ともに低い', '商品の入れ替え、または製造数の削減'] };
   const by = k => (o.items || []).filter(i => i.quad === k);
   box.innerHTML = `${ms.length > 1 ? `<div class="chips" style="margin-bottom:8px">${ms.map(m => `<button class="chip" type="button" data-mm="${m}" aria-pressed="${m === sel}">${m.replace('-', '年')}月</button>`).join('')}</div>` : ''}
-    ${(o.notes || []).length || o.partial ? `<div class="card ma-notes"><h2 class="ch">${+sel.slice(5)}月の見通し</h2><ul>${o.notes.map(n => `<li class="${n.k}">${esc(n.t)}</li>`).join('')}</ul>${o.prev ? `<p class="k" style="margin:8px 0 0">くらべた月: ${+o.prev.slice(5)}月</p>` : o.partial ? '<p class="k" style="margin:8px 0 0">今月はまだ途中なので、前の月とのくらべは月が終わってから出します。</p>' : ''}</div>` : ''}
+    ${(o.notes || []).length || o.partial ? `<div class="card ma-notes"><h2 class="ch">${+sel.slice(5)}月の見通し</h2><ul>${o.notes.map(n => `<li class="${n.k}">${esc(n.t)}</li>`).join('')}</ul>${o.prev ? `<p class="k" style="margin:8px 0 0">比較月: ${+o.prev.slice(5)}月</p>` : o.partial ? '<p class="k" style="margin:8px 0 0">今月は集計中のため、前月との比較は月末後に表示します。</p>' : ''}</div>` : ''}
     ${(o.items || []).length ? `<div class="mq">${['star', 'plow', 'puzzle', 'dog'].map(k => `<div class="${k}"><b>${Q[k][0]}</b><span class="k">${Q[k][1]} → ${Q[k][2]}</span>${by(k).length ? `<ul>${by(k).map(i => `<li>${esc(i.name)} <span class="k" style="display:inline">${i.qty}${U} · 1${U} ${i.unitMargin.toLocaleString('ja-JP')}円</span></li>`).join('')}</ul>` : '<span class="k">なし</span>'}</div>`).join('')}</div>
     <div class="card" style="margin-top:12px"><div class="scroll"><table><tr><th style="text-align:left">商品</th><th>売れた数</th><th>売上(税抜)</th><th>1${U}の粗利</th><th>原価率</th><th>粗利計</th><th>前の月</th></tr>${o.items.map(i => `<tr><td style="text-align:left">${esc(i.name)}</td><td class="n">${i.qty}</td><td class="n">${yen(i.salesEx)}</td><td class="n">${i.unitMargin.toLocaleString('ja-JP')}円</td><td class="n">${i.rate != null ? i.rate + '%' : '-'}</td><td class="n"><b>${yen(i.profit)}</b></td><td class="n">${i.prevQty != null ? (i.qty >= i.prevQty ? '<span class="upx">+' : '<span class="dnx">') + (i.qty - i.prevQty) + U + '</span>' : '<span class="k">-</span>'}</td></tr>`).join('')}</table></div>
-    <p class="k" style="margin:8px 0 0">粗利は、税抜の売上から材料費だけを引いた額です(人件費・光熱費は入っていません)。線引き: 売れた数 ${o.popLine}${U}以上が「よく売れる」、1${U}の粗利 ${o.marginLine}円以上が「もうかる」(この月の平均から)。</p></div>` : ''}
-    ${(o.missing || []).length ? `<p class="k" style="margin:8px 0 0">原価が出ていないため分けられない商品: ${o.missing.map(esc).join('、')}(1個の重さか、1仕込みで何個取れるかを入れると入ります)</p>` : ''}`;
+    <p class="k" style="margin:8px 0 0">粗利は、税抜の売上から材料費のみを差し引いた額です(人件費・光熱費は含みません)。分類の基準: 販売数 ${o.popLine}${U}以上を「販売数が多い」、1${U}の粗利 ${o.marginLine}円以上を「粗利が高い」とします(この月の平均から算出)。</p></div>` : ''}
+    ${(o.missing || []).length ? `<p class="k" style="margin:8px 0 0">原価が未算出のため分類できない商品: ${o.missing.map(esc).join('、')}(1個の重さ、または1仕込みで取れる個数を入力すると分類されます)</p>` : ''}`;
   box.querySelectorAll('[data-mm]').forEach(b => b.onclick = () => { menuMo = b.dataset.mm; renderMenuA(); });
 }
 // 入出金(月): 入金(売上+卸)・出金(帳簿の科目ごと)・残り
@@ -2835,18 +2835,18 @@ let moneyMo = null;
 function renderMoney() {
   const box = $('money-box'); if (!box) return;
   const mm = D.money || {}, ms = Object.keys(mm).sort();
-  if (noMoney() || !ms.length) { box.innerHTML = noMoney() ? '' : `<div class="card"><h2 class="ch">入出金</h2><p class="k" style="margin:0">売上(レジの精算レシート)と、仕入れの請求書や店舗で買ったもののレシートを撮ると、月の「入金・出金・残り」がここに出ます。</p>${expForm()}</div>`; bindExp(); return; }
+  if (noMoney() || !ms.length) { box.innerHTML = noMoney() ? '' : `<div class="card"><h2 class="ch">入出金</h2><p class="k" style="margin:0">売上(レジの精算レシート)と、仕入れの請求書や購入時のレシートを撮影すると、月ごとの「入金・出金・差額」がここに表示されます。</p>${expForm()}</div>`; bindExp(); return; }
   const sel = ms.includes(moneyMo) ? moneyMo : ms[ms.length - 1], o = mm[sel], mx = Math.max(1, ...ms.map(k => Math.max(mm[k].in, mm[k].out)));
   box.innerHTML = `<div class="card"><div class="row"><h2 class="ch">入出金</h2>${ms.length > 1 ? `<select id="mn-mo" aria-label="月">${ms.slice().reverse().map(k => `<option value="${k}"${k === sel ? ' selected' : ''}>${k.replace('-', '年')}月</option>`).join('')}</select>` : `<span class="k">${sel.replace('-', '年')}月</span>`}</div>
     <div class="mn-sum"><div><b>${yen(o.in)}</b><span>入金</span></div><div><b>${yen(o.out)}</b><span>出金</span></div><div class="${o.left < 0 ? 'neg' : ''}"><b>${yen(o.left)}</b><span>残り</span></div></div>
-    <p class="k" style="margin:0">入金: 売上 ${yen(o.sales)}(税込)${o.ws ? `・卸 ${yen(o.ws)}` : ''}${o.misc ? `・現金の過不足(多い分) ${yen(o.misc)}` : ''}。出金は、帳簿に入った請求書・レシート・手で入れた経費です(人件費は入っていません)。${o.personal ? `店のお金で買った私用の物 ${yen(o.personal)} は、出金に入れず分けています(事業主貸)。` : ''}</p>
+    <p class="k" style="margin:0">入金: 売上 ${yen(o.sales)}(税込)${o.ws ? `・卸 ${yen(o.ws)}` : ''}${o.misc ? `・現金の過不足(多い分) ${yen(o.misc)}` : ''}。出金は、帳簿に登録された請求書・レシート・手入力の経費です(人件費は含みません)。${o.personal ? `店のお金で買った私用の物 ${yen(o.personal)} は、出金に含めず区分しています(事業主貸)。` : ''}</p>
     ${regMonthHtml(sel)}
     ${(o.channels || []).map((c, i) => `<div class="mn-ch"><div class="row"><b>${esc(c.name)}</b><span class="pill ${c.actual ? '' : 'gray'}">${c.actual ? '入金で確定' : '見込み'}</span></div>
       <div class="mn-eq"><span>売上 ${yen(c.gross)}</span><span>− 手数料 ${yen(c.fee)}${c.actual ? '' : `(${c.rate}%)`}</span><span>= 入金 <b>${yen(c.deposit)}</b></span></div>
-      ${c.actual && c.diff ? `<p class="k" style="margin:4px 0 0">${c.rate}%で計算した額との差: ${c.diff > 0 ? '+' : ''}${c.diff.toLocaleString('ja-JP')}円(端数や返品などの前後。入金額に合わせています)</p>` : ''}
-      ${SH('chdeposit') ? '' : `<div class="ask" style="margin-top:8px"><input id="dp-${i}" inputmode="numeric" placeholder="実際の入金額(円)" value="${c.actual ? c.deposit : ''}" style="flex:1;min-width:0;width:auto" aria-label="${esc(c.name)}の実際の入金額"><button class="btn ghost sm" type="button" data-dp="${i}">${c.actual ? '直す' : '入金額を入れる'}</button>${c.actual ? `<button class="btn ghost sm" type="button" data-dpx="${i}">見込みに戻す</button>` : ''}</div>`}</div>`).join('')}
+      ${c.actual && c.diff ? `<p class="k" style="margin:4px 0 0">${c.rate}%で計算した額との差: ${c.diff > 0 ? '+' : ''}${c.diff.toLocaleString('ja-JP')}円(端数や返品などによる差。入金額に合わせています)</p>` : ''}
+      ${SH('chdeposit') ? '' : `<div class="ask" style="margin-top:8px"><input id="dp-${i}" inputmode="numeric" placeholder="実際の入金額(円)" value="${c.actual ? c.deposit : ''}" style="flex:1;min-width:0;width:auto" aria-label="${esc(c.name)}の実際の入金額"><button class="btn ghost sm" type="button" data-dp="${i}">${c.actual ? '修正' : '入金額を入力'}</button>${c.actual ? `<button class="btn ghost sm" type="button" data-dpx="${i}">見込み額に戻す</button>` : ''}</div>`}</div>`).join('')}
     ${o.outs.length ? `<div class="mn-out">${o.outs.map(x => `<div class="rw"><span>${esc(x.acct)}${x.est ? ' <span class="k" style="display:inline">(見込み)</span>' : ''}</span><span class="n">${yen(x.amount)}</span></div>`).join('')}</div>` : ''}
-    ${ms.length > 1 ? `<div class="mn-bars" aria-label="月ごとの入金と出金">${ms.map(k => `<div class="mn-bar"><span class="k">${+k.slice(5)}月</span><span class="t"><i style="width:${Math.round(mm[k].in / mx * 100)}%"></i><i class="o" style="width:${Math.round(mm[k].out / mx * 100)}%"></i></span><span class="v ${mm[k].left < 0 ? 'dnx' : ''}">${yen(mm[k].left)}</span></div>`).join('')}<p class="k" style="margin:4px 0 0">青が入金、赤が出金。右は残り。</p></div>` : ''}
+    ${ms.length > 1 ? `<div class="mn-bars" aria-label="月ごとの入金と出金">${ms.map(k => `<div class="mn-bar"><span class="k">${+k.slice(5)}月</span><span class="t"><i style="width:${Math.round(mm[k].in / mx * 100)}%"></i><i class="o" style="width:${Math.round(mm[k].out / mx * 100)}%"></i></span><span class="v ${mm[k].left < 0 ? 'dnx' : ''}">${yen(mm[k].left)}</span></div>`).join('')}<p class="k" style="margin:4px 0 0">青は入金、赤は出金、右は差額です。</p></div>` : ''}
     ${expForm()}</div>`;
   if ($('mn-mo')) $('mn-mo').onchange = () => { moneyMo = $('mn-mo').value; renderMoney(); };
   box.querySelectorAll('[data-dp]').forEach(b => b.onclick = () => { const c = o.channels[b.dataset.dp], v = $('dp-' + b.dataset.dp).value.trim(); if (!v) { $('dp-' + b.dataset.dp).focus(); return; } setValueX({ field: 'deposit', value: { name: c.name, month: sel, amount: v } }); });
@@ -2858,32 +2858,32 @@ function renderRegClose() {
   const wrap = $('regc-wrap'), box = $('regc'); if (!wrap) return;
   if (SH('regclose')) { wrap.hidden = true; return; }
   const R = D.reg || {};
-  if (!R.mode || !PL('sales')) { wrap.hidden = !(D.me && D.me.owner && PL('sales') && !R.mode); if (!wrap.hidden) box.innerHTML = `<p class="k" style="margin:0 0 8px">閉店後にレジの現金を数えて、売上と合っているかを確かめられます。先に、POSレジがあるかどうかを選んでください。</p><div class="seg" id="rg-mode0"><button type="button" data-v="pos">POSレジがある</button><button type="button" data-v="none">POSレジはない</button></div>`; if ($('rg-mode0')) $('rg-mode0').querySelectorAll('button').forEach(b => b.onclick = () => setValueX({ field: 'regset', value: { mode: b.dataset.v } })); return; }
+  if (!R.mode || !PL('sales')) { wrap.hidden = !(D.me && D.me.owner && PL('sales') && !R.mode); if (!wrap.hidden) box.innerHTML = `<p class="k" style="margin:0 0 8px">閉店後にレジの現金を数え、売上と一致しているかを確認できます。先に、POSレジの有無を選択してください。</p><div class="seg" id="rg-mode0"><button type="button" data-v="pos">POSレジがある</button><button type="button" data-v="none">POSレジはない</button></div>`; if ($('rg-mode0')) $('rg-mode0').querySelectorAll('button').forEach(b => b.onclick = () => setValueX({ field: 'regset', value: { mode: b.dataset.v } })); return; }
   wrap.hidden = false;
   const today = new Date().toLocaleDateString('sv-SE'), done = (R.closes || []).find(c => c.date === today), pos = R.mode === 'pos';
   if (done && !box.dataset.redo) {
     const m = !noMoney() && done.counted != null;
-    box.innerHTML = `<div class="row"><b>今日の締めは済んでいます</b><button class="btn ghost sm" type="button" id="rg-redo">入れ直す</button></div>${m ? `<p class="k" style="margin:6px 0 0">${done.diff === 0 ? '現金は合っていました' : `現金が${Math.abs(done.diff).toLocaleString('ja-JP')}円${done.diff < 0 ? '足りませんでした' : '多くありました'}${done.reason ? '(' + esc(done.reason) + ')' : ''}`}${done.sales != null ? `。売上 ${yen(done.sales)}` : ''}${done.who ? `。記録: ${esc(done.who)}` : ''}</p>` : ''}`;
+    box.innerHTML = `<div class="row"><b>本日のレジ締めは完了しています</b><button class="btn ghost sm" type="button" id="rg-redo">再入力</button></div>${m ? `<p class="k" style="margin:6px 0 0">${done.diff === 0 ? '現金は一致していました' : `現金が${Math.abs(done.diff).toLocaleString('ja-JP')}円${done.diff < 0 ? '不足していました' : '過剰でした'}${done.reason ? '(' + esc(done.reason) + ')' : ''}`}${done.sales != null ? `。売上 ${yen(done.sales)}` : ''}${done.who ? `。記録: ${esc(done.who)}` : ''}</p>` : ''}`;
     $('rg-redo').onclick = () => { box.dataset.redo = '1'; renderRegClose(); };
     return;
   }
   const num = id => { const v = ($(id) || {}).value; if (v == null || String(v).trim() === '') return null; const n = Number(String(v).replace(/[,円\s]/g, '')); return isNaN(n) ? null : n; };
-  box.innerHTML = `<p class="k" style="margin:0 0 8px">${pos ? '精算レシートの「現金」の売上と、レジの中の現金を比べます。' : '数えた現金から、今日の売上を出します。'}</p>
+  box.innerHTML = `<p class="k" style="margin:0 0 8px">${pos ? '精算レシートの「現金」の売上と、レジの中の現金を比べます。' : '数えた現金から、本日の売上を出します。'}</p>
     <div class="fld">
       ${pos ? '<span class="k">精算レシートの「現金」の売上</span><input id="rg-cash" inputmode="numeric" placeholder="例 52300" autocomplete="off">' : ''}
-      <span class="k">数えた現金(レジの中の全部)</span><input id="rg-cnt" inputmode="numeric" placeholder="例 82000" autocomplete="off">
-      ${pos ? '' : '<span class="k">カード・電子マネーの売上</span><input id="rg-cl" inputmode="numeric" placeholder="なければ空のまま" autocomplete="off"><span class="k">伝票の合計(あれば)</span><input id="rg-slip" inputmode="numeric" placeholder="手書きの伝票などの合計" autocomplete="off">'}
-      <span class="k">お釣りの準備金</span><input id="rg-flt" inputmode="numeric" value="${R.float || ''}" placeholder="例 30000" autocomplete="off">
+      <span class="k">数えた現金(レジ内の全額)</span><input id="rg-cnt" inputmode="numeric" placeholder="例 82000" autocomplete="off">
+      ${pos ? '' : '<span class="k">カード・電子マネーの売上</span><input id="rg-cl" inputmode="numeric" placeholder="なければ空のまま" autocomplete="off"><span class="k">伝票の合計(ある場合)</span><input id="rg-slip" inputmode="numeric" placeholder="手書きの伝票などの合計" autocomplete="off">'}
+      <span class="k">釣銭準備金</span><input id="rg-flt" inputmode="numeric" value="${R.float || ''}" placeholder="例 30000" autocomplete="off">
     </div>
     <div id="rg-live" class="k" style="margin:8px 0 0" aria-live="polite"></div>
-    <div id="rg-why" hidden style="margin-top:8px"><span class="k">合わなかった理由</span><div class="seg" id="rg-rs" style="flex-wrap:wrap">${(R.reasons || []).map(r => `<button type="button" data-v="${esc(r)}">${esc(r)}</button>`).join('')}</div><input id="rg-memo" placeholder="ひと言(任意)" maxlength="80" style="margin-top:8px"></div>
-    <div class="ask"><button class="btn" type="button" id="rg-go">締めを記録する</button>${done ? '<button class="btn ghost" type="button" id="rg-cancel">やめる</button>' : ''}</div>`;
+    <div id="rg-why" hidden style="margin-top:8px"><span class="k">差異の理由</span><div class="seg" id="rg-rs" style="flex-wrap:wrap">${(R.reasons || []).map(r => `<button type="button" data-v="${esc(r)}">${esc(r)}</button>`).join('')}</div><input id="rg-memo" placeholder="補足(任意)" maxlength="80" style="margin-top:8px"></div>
+    <div class="ask"><button class="btn" type="button" id="rg-go">レジ締めを記録</button>${done ? '<button class="btn ghost" type="button" id="rg-cancel">やめる</button>' : ''}</div>`;
   const live = () => {
     const cnt = num('rg-cnt'), flt = num('rg-flt') || 0; let diff = null, txt = '';
     if (cnt == null) { $('rg-live').textContent = ''; $('rg-why').hidden = true; return; }
     if (pos) { const cash = num('rg-cash'); if (cash != null) { diff = cnt - flt - cash; } }
-    else { const cl = num('rg-cl') || 0, slip = num('rg-slip'); txt = `今日の売上 ${yen(cnt - flt + cl)}(現金 ${yen(cnt - flt)} + キャッシュレス ${yen(cl)})`; if (slip != null) diff = cnt - flt - (slip - cl); }
-    if (diff != null) txt += (txt ? '。' : '') + (diff === 0 ? '現金は合っています' : `現金が${Math.abs(diff).toLocaleString('ja-JP')}円${diff < 0 ? '足りません' : '多いです'}`);
+    else { const cl = num('rg-cl') || 0, slip = num('rg-slip'); txt = `本日の売上 ${yen(cnt - flt + cl)}(現金 ${yen(cnt - flt)} + キャッシュレス ${yen(cl)})`; if (slip != null) diff = cnt - flt - (slip - cl); }
+    if (diff != null) txt += (txt ? '。' : '') + (diff === 0 ? '現金は一致しています' : `現金が${Math.abs(diff).toLocaleString('ja-JP')}円${diff < 0 ? '足りません' : '多いです'}`);
     $('rg-live').textContent = txt; $('rg-why').hidden = !diff;
   };
   box.querySelectorAll('input').forEach(i => i.oninput = live);
@@ -2900,44 +2900,44 @@ function renderRegClose() {
 function regMonthHtml(mo) {
   const cs = ((D.reg || {}).closes || []).filter(c => c.date.slice(0, 7) === mo); if (!cs.length) return '';
   const off = cs.filter(c => c.diff);
-  return `<details style="margin-top:12px"><summary class="k" style="cursor:pointer">レジ締め ${cs.length}日 ・ 合わなかった日 ${off.length}日</summary>
-    ${off.length ? `<div class="mn-out">${off.map(c => `<div class="rw"><span>${+c.date.slice(5, 7)}/${+c.date.slice(8)} ${esc(c.reason || '理由なし')}${c.memo ? ` <span class="k" style="display:inline">${esc(c.memo)}</span>` : ''}</span><span class="n ${c.diff < 0 ? 'dnx' : ''}">${c.diff > 0 ? '+' : ''}${c.diff.toLocaleString('ja-JP')}円</span></div>`).join('')}</div><p class="k" style="margin:4px 0 0">足りない分は「雑損失」、多い分は「雑収入」として、入出金に入れています。POSの売上は直しません。</p>` : '<p class="k" style="margin:8px 0 0">この月は、現金がすべて合っていました。</p>'}</details>`;
+  return `<details style="margin-top:12px"><summary class="k" style="cursor:pointer">レジ締め ${cs.length}日 ・ 差異があった日 ${off.length}日</summary>
+    ${off.length ? `<div class="mn-out">${off.map(c => `<div class="rw"><span>${+c.date.slice(5, 7)}/${+c.date.slice(8)} ${esc(c.reason || '理由なし')}${c.memo ? ` <span class="k" style="display:inline">${esc(c.memo)}</span>` : ''}</span><span class="n ${c.diff < 0 ? 'dnx' : ''}">${c.diff > 0 ? '+' : ''}${c.diff.toLocaleString('ja-JP')}円</span></div>`).join('')}</div><p class="k" style="margin:4px 0 0">不足分は「雑損失」、過剰分は「雑収入」として入出金に計上しています。POSの売上は修正しません。</p>` : '<p class="k" style="margin:8px 0 0">この月は、現金の差異はありませんでした。</p>'}</details>`;
 }
 function expForm() {
   const cf = D.chFees || [];
   return `<details style="margin-top:12px"${cf.length ? '' : ' open'}><summary class="k" style="cursor:pointer">販路の手数料(道の駅・直売所など、入金の前に引かれる分)${cf.length ? ': ' + cf.map(x => esc(x.name) + ' ' + x.rate + '%').join('・') : ''}</summary>
-    <p class="k" style="margin:8px 0">売上はそのまま記録し、手数料は「出金」に入れます。売上の記録の名前(メールの店舗名など)にこの名前が入っていれば、その販路として数えます。</p>
+    <p class="k" style="margin:8px 0">売上はそのまま記録し、手数料は「出金」に計上します。売上の記録名(メールの店舗名など)にこの名前が含まれる場合、その販路の売上として集計します。</p>
     ${cf.map((x, i) => `<div class="row" style="padding:4px 0"><span>${esc(x.name)} ${x.rate}%</span><button class="btn ghost sm" type="button" data-cfx="${i}">外す</button></div>`).join('')}
-    <div class="mn-add"><input id="cf-name" placeholder="販路の名前(例: 道の駅)" maxlength="20" style="flex:1 1 140px;min-width:0"><input id="cf-rate" inputmode="decimal" placeholder="手数料(%)" style="width:110px"><button class="btn" type="button" id="cf-go">入れる</button></div></details>
-  <details style="margin-top:12px"><summary class="k" style="cursor:pointer">レシートのない経費を入れる(家賃・電気代など)</summary><div class="mn-add"><input id="ex-date" type="date" value="${new Date().toLocaleDateString('sv-SE')}" aria-label="日付"><input id="ex-item" placeholder="内容(例: 電気代)" maxlength="40"><input id="ex-amt" inputmode="numeric" placeholder="金額(円)"><select id="ex-acct" aria-label="科目"><option value="">科目はおまかせ</option>${(D.expAccts || []).map(a => `<option>${esc(a)}</option>`).join('')}</select>${SH('privatepay') ? '' : `<select id="ex-pay" aria-label="支払額"><option value="shop">店のお金で払った</option><option value="owner">店主の財布で立て替えた</option><option value="private">店のお金で私用の物を買った</option></select>`}<button class="btn" type="button" id="ex-go">入れる</button></div><p class="k" style="margin:8px 0 0">${VIA}「経費 電気代 8000」でも入ります。${SH('privatepay') ? '' : '私用の物は経費にせず「事業主貸」として分けます。'}</p></details>
+    <div class="mn-add"><input id="cf-name" placeholder="販路の名前(例: 道の駅)" maxlength="20" style="flex:1 1 140px;min-width:0"><input id="cf-rate" inputmode="decimal" placeholder="手数料(%)" style="width:110px"><button class="btn" type="button" id="cf-go">登録</button></div></details>
+  <details style="margin-top:12px"><summary class="k" style="cursor:pointer">レシートのない経費を入力(家賃・電気代など)</summary><div class="mn-add"><input id="ex-date" type="date" value="${new Date().toLocaleDateString('sv-SE')}" aria-label="日付"><input id="ex-item" placeholder="内容(例: 電気代)" maxlength="40"><input id="ex-amt" inputmode="numeric" placeholder="金額(円)"><select id="ex-acct" aria-label="科目"><option value="">科目は自動で判定</option>${(D.expAccts || []).map(a => `<option>${esc(a)}</option>`).join('')}</select>${SH('privatepay') ? '' : `<select id="ex-pay" aria-label="支払額"><option value="shop">店の資金で支払った</option><option value="owner">店主が立て替えた</option><option value="private">店の資金で私用の物を購入した</option></select>`}<button class="btn" type="button" id="ex-go">記録する</button></div><p class="k" style="margin:8px 0 0">${VIA}「経費 電気代 8000」と入力しても記録できます。${SH('privatepay') ? '' : '私用の物は経費にせず「事業主貸」として分けます。'}</p></details>
   ${SH('fixedexp') ? '' : `<details style="margin-top:12px"><summary class="k" style="cursor:pointer">毎月決まって出ていくお金${(D.fixedExps || []).length ? ': ' + D.fixedExps.map(x => esc(x.item)).join('・') : '(家賃・リース・ソフト代など)'}</summary>
-    <p class="k" style="margin:8px 0">一度入れると、毎月その日を過ぎたら帳簿に自動で入ります。金額が変わったら、同じ名前で入れ直してください。</p>
+    <p class="k" style="margin:8px 0">一度登録すると、毎月その日を過ぎた時点で帳簿に自動で記録されます。金額が変わった場合は、同じ名前で登録し直してください。</p>
     ${(D.fixedExps || []).map((x, i) => `<div class="row" style="padding:4px 0"><span>${esc(x.item)} ${yen(x.amount)} ・ 毎月${x.day}日${x.acct ? ' ・ ' + esc(x.acct) : ''}</span><button class="btn ghost sm" type="button" data-fxx="${i}">外す</button></div>`).join('')}
-    <div class="mn-add"><input id="fx-item" placeholder="内容(例: 家賃)" maxlength="40"><input id="fx-amt" inputmode="numeric" placeholder="金額(円)"><input id="fx-day" inputmode="numeric" placeholder="日(1〜28)" style="width:100px"><select id="fx-acct" aria-label="科目"><option value="">科目はおまかせ</option>${(D.expAccts || []).map(a => `<option>${esc(a)}</option>`).join('')}</select><button class="btn" type="button" id="fx-go">入れる</button></div></details>`}
-  <details style="margin-top:12px"><summary class="k" style="cursor:pointer">経費の科目を足す${(D.expExtra || []).length ? ': ' + D.expExtra.map(esc).join('・') : ''}</summary>
-    <p class="k" style="margin:8px 0">決まった科目のほかに、店舗で使う科目を足せます(例: 荷造運賃、支払手数料)。</p>
+    <div class="mn-add"><input id="fx-item" placeholder="内容(例: 家賃)" maxlength="40"><input id="fx-amt" inputmode="numeric" placeholder="金額(円)"><input id="fx-day" inputmode="numeric" placeholder="日(1〜28)" style="width:100px"><select id="fx-acct" aria-label="科目"><option value="">科目は自動で判定</option>${(D.expAccts || []).map(a => `<option>${esc(a)}</option>`).join('')}</select><button class="btn" type="button" id="fx-go">登録</button></div></details>`}
+  <details style="margin-top:12px"><summary class="k" style="cursor:pointer">経費の科目を追加${(D.expExtra || []).length ? ': ' + D.expExtra.map(esc).join('・') : ''}</summary>
+    <p class="k" style="margin:8px 0">標準の科目のほかに、店舗で使用する科目を追加できます(例: 荷造運賃、支払手数料)。</p>
     ${(D.expExtra || []).map((x, i) => `<div class="row" style="padding:4px 0"><span>${esc(x)}</span><button class="btn ghost sm" type="button" data-eax="${i}">外す</button></div>`).join('')}
-    <div class="mn-add"><input id="ea-name" placeholder="科目の名前" maxlength="20" style="flex:1 1 160px;min-width:0"><button class="btn" type="button" id="ea-go">足す</button></div></details>`;
+    <div class="mn-add"><input id="ea-name" placeholder="科目名" maxlength="20" style="flex:1 1 160px;min-width:0"><button class="btn" type="button" id="ea-go">追加</button></div></details>`;
 }
 function bindExp() {
   if ($('cf-go')) $('cf-go').onclick = () => { const name = $('cf-name').value.trim(), rate = $('cf-rate').value.trim(); if (!name) { $('cf-name').focus(); return; } if (!rate) { $('cf-rate').focus(); return; } setValueX({ field: 'chfee', value: { name, rate } }); };
-  document.querySelectorAll('[data-cfx]').forEach(b => b.onclick = () => { const x = (D.chFees || [])[b.dataset.cfx]; if (x && confirm(x.name + 'の手数料を外しますか?')) setValueX({ field: 'chfee', value: { name: x.name, remove: true } }); });
+  document.querySelectorAll('[data-cfx]').forEach(b => b.onclick = () => { const x = (D.chFees || [])[b.dataset.cfx]; if (x && confirm(x.name + 'の手数料を削除しますか?')) setValueX({ field: 'chfee', value: { name: x.name, remove: true } }); });
   if (!$('ex-go')) return;
   $('ex-go').onclick = async () => {
     const item = $('ex-item').value.trim(), amount = $('ex-amt').value.trim(); if (!item) { $('ex-item').focus(); return; } if (!amount) { $('ex-amt').focus(); return; }
     const value = { date: $('ex-date').value, item, amount, acct: $('ex-acct').value, pay: $('ex-pay') ? $('ex-pay').value : 'shop' }, key = JSON.stringify(value);
     if (exDupKey === key) value.force = true;
     const out = await api({ kind: 'app_set', field: 'expense', value });
-    if (!out.ok) { if (/同じ日・同じ金額/.test(out.error || '')) { exDupKey = key; chat(out.error, 'point'); return; } toast(out.error || '入れられませんでした', 'ng'); return; }
-    exDupKey = ''; D = out.data; renderAll(); chat(out.msg || '経費を入れました');
+    if (!out.ok) { if (/同じ日・同じ金額/.test(out.error || '')) { exDupKey = key; chat(out.error, 'point'); return; } toast(out.error || '記録できませんでした', 'ng'); return; }
+    exDupKey = ''; D = out.data; renderAll(); chat(out.msg || '経費を記録しました');
   };
   if ($('fx-go')) $('fx-go').onclick = () => { const item = $('fx-item').value.trim(), amount = $('fx-amt').value.trim(), day = $('fx-day').value.trim() || '1'; if (!item) { $('fx-item').focus(); return; } if (!amount) { $('fx-amt').focus(); return; } setValueX({ field: 'fixedexp', value: { item, amount, day, acct: $('fx-acct').value } }); };
-  document.querySelectorAll('[data-fxx]').forEach(b => b.onclick = () => { const x = (D.fixedExps || [])[b.dataset.fxx]; if (x && confirm(x.item + 'を毎月の支出から外しますか?(入れ済みの月の分は残ります)')) setValueX({ field: 'fixedexp', value: { item: x.item, remove: true } }); });
+  document.querySelectorAll('[data-fxx]').forEach(b => b.onclick = () => { const x = (D.fixedExps || [])[b.dataset.fxx]; if (x && confirm(x.item + 'を毎月の支出から削除しますか?(記録済みの月の分は残ります)')) setValueX({ field: 'fixedexp', value: { item: x.item, remove: true } }); });
   if ($('ea-go')) $('ea-go').onclick = () => { const name = $('ea-name').value.trim(); if (!name) { $('ea-name').focus(); return; } setValueX({ field: 'expacct', value: { name } }); };
   document.querySelectorAll('[data-eax]').forEach(b => b.onclick = () => { const x = (D.expExtra || [])[b.dataset.eax]; if (x) setValueX({ field: 'expacct', value: { name: x, remove: true } }); });
 }
 let exDupKey = '';
-// コース・セット・飲み放題: 商品を組んで1人前の原価 → 目標の原価率で売値を提案。飲み会は人数と値引きで原価率と粗利
+// コース・セット・飲み放題: 商品を組んで1人前の原価 → 目標原価率で売値を提案。飲み会は人数と値引きで原価率と粗利
 let crsEdit = null;
 function renderCourses() {
   const wrap = $('course-wrap'), box = $('courses'), pbox = $('party'); if (!wrap) return;
@@ -2945,63 +2945,63 @@ function renderCourses() {
   wrap.hidden = false;
   const cs = D.courses || [], goods = D.products.filter(p => p.kind !== 'part'), tgt = (D.shopInfo || {}).targetRate || 30;
   const pct = v => v == null ? '—' : v + '%';
-  const card = c => `<div class="crs"><div class="hd2"><b>${esc(c.name)}</b><span class="k">${c.type === 'drink' ? `飲み放題 ・ 1人 ${c.cups}杯` : `コース ・ ${c.items.length}品`} ・ 目標 ${c.target}% ・ ${c.serve === 'takeout' ? '持ち帰り' : '店内'}</span><span><button class="btn ghost sm" type="button" data-ce="${esc(c.name)}">変える</button> <button class="btn ghost sm" type="button" data-cx="${esc(c.name)}">消す</button></span></div>
-    <div class="nums"><div><span>1人の原価</span><b>${c.cost ? yen(c.cost) : '—'}</b></div><div><span>売値の目安(税込)</span><b class="ac">${c.guide ? yen(c.guide) : '—'}</b></div><div><span>今の売値</span><b>${c.price ? yen(c.price) : '未設定'}</b></div><div><span>原価率</span><b class="${c.ratio != null && c.ratio > c.target + 5 ? 'ng' : ''}">${pct(c.ratio)}</b></div>${c.margin != null ? `<div><span>1人の残り(税抜)</span><b>${yen(c.margin)}</b></div>` : ''}</div>
+  const card = c => `<div class="crs"><div class="hd2"><b>${esc(c.name)}</b><span class="k">${c.type === 'drink' ? `飲み放題 ・ 1人 ${c.cups}杯` : `コース ・ ${c.items.length}品`} ・ 目標 ${c.target}% ・ ${c.serve === 'takeout' ? '持ち帰り' : '店内'}</span><span><button class="btn ghost sm" type="button" data-ce="${esc(c.name)}">編集</button> <button class="btn ghost sm" type="button" data-cx="${esc(c.name)}">削除</button></span></div>
+    <div class="nums"><div><span>1人あたりの原価</span><b>${c.cost ? yen(c.cost) : '—'}</b></div><div><span>売価の目安(税込)</span><b class="ac">${c.guide ? yen(c.guide) : '—'}</b></div><div><span>今の売値</span><b>${c.price ? yen(c.price) : '未設定'}</b></div><div><span>原価率</span><b class="${c.ratio != null && c.ratio > c.target + 5 ? 'ng' : ''}">${pct(c.ratio)}</b></div>${c.margin != null ? `<div><span>1人あたりの粗利(税抜)</span><b>${yen(c.margin)}</b></div>` : ''}</div>
     <p class="say">${esc(c.say)}</p>
-    <p class="its">${c.items.map(i => `${esc(i.name)}${i.qty !== 1 ? ' ×' + i.qty : ''}${i.cost != null ? ` ${yen(i.cost)}` : ` <span class="ng">(原価なし)</span>`}`).join(' ・ ')}${c.note ? `<br>${esc(c.note)}` : ''}</p></div>`;
+    <p class="its">${c.items.map(i => `${esc(i.name)}${i.qty !== 1 ? ' ×' + i.qty : ''}${i.cost != null ? ` ${yen(i.cost)}` : ` <span class="ng">(原価未設定)</span>`}`).join(' ・ ')}${c.note ? `<br>${esc(c.note)}` : ''}</p></div>`;
   const e = crsEdit || {};
   const form = `<div class="crs crs-f" id="crs-form"><div class="row" style="flex-wrap:wrap;gap:8px"><input id="cr-name" placeholder="名前(例: 季節のコース、2時間飲み放題)" value="${esc(e.name || '')}" maxlength="40" style="flex:1 1 200px;min-width:0"><select id="cr-type" aria-label="種類"><option value="course"${e.type !== 'drink' ? ' selected' : ''}>コース・セット</option><option value="drink"${e.type === 'drink' ? ' selected' : ''}>飲み放題</option></select><select id="cr-serve" aria-label="出し方"><option value="eatin"${e.serve !== 'takeout' ? ' selected' : ''}>店内(10%)</option><option value="takeout"${e.serve === 'takeout' ? ' selected' : ''}>持ち帰り(8%)</option></select></div>
-    <div id="cr-rows">${(e.items && e.items.length ? e.items : [{ name: '', qty: 1 }]).map(i => `<div class="rw"><input class="cr-n" list="cr-list" placeholder="料理・ドリンク(商品の名前)" value="${esc(i.name)}"><input class="cr-q" inputmode="decimal" value="${i.qty || 1}" aria-label="数"><button class="btn ghost sm" type="button" data-cr-del aria-label="この行を消す">✕</button></div>`).join('')}</div>
+    <div id="cr-rows">${(e.items && e.items.length ? e.items : [{ name: '', qty: 1 }]).map(i => `<div class="rw"><input class="cr-n" list="cr-list" placeholder="料理・ドリンク(商品名)" value="${esc(i.name)}"><input class="cr-q" inputmode="decimal" value="${i.qty || 1}" aria-label="数"><button class="btn ghost sm" type="button" data-cr-del aria-label="この行を削除">✕</button></div>`).join('')}</div>
     <datalist id="cr-list">${goods.map(p => `<option value="${esc(p.name)}">`).join('')}</datalist>
-    <div class="row" style="flex-wrap:wrap;gap:8px;justify-content:flex-start"><button class="btn ghost sm" type="button" id="cr-add">＋ 品を足す</button><span class="k">今の売値(税込)</span><input id="cr-price" inputmode="numeric" value="${e.price || ''}" placeholder="例 5000" style="width:7em"><span class="k">目標の原価率</span><input id="cr-tgt" inputmode="numeric" value="${e.target || ''}" placeholder="${tgt}" style="width:4em"><span class="k">%</span><span id="cr-cups-w"${e.type === 'drink' ? '' : ' hidden'}><span class="k">1人の平均杯数</span><input id="cr-cups" inputmode="numeric" value="${e.cups || 4}" style="width:4em"></span></div>
+    <div class="row" style="flex-wrap:wrap;gap:8px;justify-content:flex-start"><button class="btn ghost sm" type="button" id="cr-add">＋ 品目を追加</button><span class="k">現在の売価(税込)</span><input id="cr-price" inputmode="numeric" value="${e.price || ''}" placeholder="例 5000" style="width:7em"><span class="k">目標原価率</span><input id="cr-tgt" inputmode="numeric" value="${e.target || ''}" placeholder="${tgt}" style="width:4em"><span class="k">%</span><span id="cr-cups-w"${e.type === 'drink' ? '' : ' hidden'}><span class="k">1人あたりの平均杯数</span><input id="cr-cups" inputmode="numeric" value="${e.cups || 4}" style="width:4em"></span></div>
     <input id="cr-note" placeholder="メモ(任意。例: 前菜・魚・肉・デザート)" value="${esc(e.note || '')}" maxlength="120">
     <div class="ask"><button class="btn" type="button" id="cr-go">${e.name ? '保存して計算' : '作って計算'}</button>${crsEdit ? '<button class="btn ghost" type="button" id="cr-cancel">やめる</button>' : ''}</div></div>`;
-  box.innerHTML = `<p class="k" style="margin:0">料理は、原価の画面にある商品から選びます。飲み放題は、ドリンクを何種類か入れると1杯の平均原価で計算します。目標の原価率を空にすると、設定の${tgt}%を使います。</p>${cs.map(card).join('')}${form}`;
+  box.innerHTML = `<p class="k" style="margin:0">料理は、原価の画面に登録された商品から選びます。飲み放題は、複数のドリンクを登録すると1杯あたりの平均原価で計算します。目標原価率を空欄にすると、設定の${tgt}%を使います。</p>${cs.map(card).join('')}${form}`;
   box.querySelectorAll('[data-ce]').forEach(b => b.onclick = () => { crsEdit = cs.find(c => c.name === b.dataset.ce); renderCourses(); $('crs-form').scrollIntoView({ block: 'nearest' }); });
-  box.querySelectorAll('[data-cx]').forEach(b => b.onclick = () => { if (confirm(`「${b.dataset.cx}」を消しますか?`)) setValueX({ field: 'course', value: { name: b.dataset.cx, remove: true } }); });
+  box.querySelectorAll('[data-cx]').forEach(b => b.onclick = () => { if (confirm(`「${b.dataset.cx}」を削除しますか?`)) setValueX({ field: 'course', value: { name: b.dataset.cx, remove: true } }); });
   $('cr-type').onchange = () => { $('cr-cups-w').hidden = $('cr-type').value !== 'drink'; };
   const bindDel = () => box.querySelectorAll('[data-cr-del]').forEach(x => x.onclick = () => { if ($('cr-rows').children.length > 1) x.parentNode.remove(); });
   bindDel();
-  $('cr-add').onclick = () => { $('cr-rows').insertAdjacentHTML('beforeend', '<div class="rw"><input class="cr-n" list="cr-list" placeholder="料理・ドリンク(商品の名前)"><input class="cr-q" inputmode="decimal" value="1" aria-label="数"><button class="btn ghost sm" type="button" data-cr-del aria-label="この行を消す">✕</button></div>'); bindDel(); $('cr-rows').lastElementChild.querySelector('.cr-n').focus(); };
+  $('cr-add').onclick = () => { $('cr-rows').insertAdjacentHTML('beforeend', '<div class="rw"><input class="cr-n" list="cr-list" placeholder="料理・ドリンク(商品名)"><input class="cr-q" inputmode="decimal" value="1" aria-label="数"><button class="btn ghost sm" type="button" data-cr-del aria-label="この行を削除">✕</button></div>'); bindDel(); $('cr-rows').lastElementChild.querySelector('.cr-n').focus(); };
   if ($('cr-cancel')) $('cr-cancel').onclick = () => { crsEdit = null; renderCourses(); };
   $('cr-go').onclick = async () => {
     const name = $('cr-name').value.trim(); if (!name) { $('cr-name').focus(); return; }
     const items = [...$('cr-rows').querySelectorAll('.rw')].map(r => ({ name: r.querySelector('.cr-n').value.trim(), qty: parseFloat(r.querySelector('.cr-q').value) || 1 })).filter(i => i.name);
     if (!items.length) { $('cr-rows').querySelector('.cr-n').focus(); return; }
-    const out = await api({ kind: 'app_set', field: 'course', value: { name, type: $('cr-type').value, serve: $('cr-serve').value, items, price: $('cr-price').value, target: $('cr-tgt').value, cups: $('cr-cups').value, note: $('cr-note').value } }).catch(() => ({ ok: false, error: 'つながりませんでした' }));
+    const out = await api({ kind: 'app_set', field: 'course', value: { name, type: $('cr-type').value, serve: $('cr-serve').value, items, price: $('cr-price').value, target: $('cr-tgt').value, cups: $('cr-cups').value, note: $('cr-note').value } }).catch(() => ({ ok: false, error: '通信できませんでした' }));
     if (!out.ok) { toast(out.error || '保存できませんでした', 'ng'); return; }
     crsEdit = null; D = out.data; renderAll(); chat(out.msg || '保存しました');
   };
   // 飲み会・宴会の料金
   const foods = cs.filter(c => c.type !== 'drink'), drinks = cs.filter(c => c.type === 'drink');
-  pbox.innerHTML = `<p style="margin:0 0 4px"><b>飲み会・宴会の料金を決める</b></p><p class="k" style="margin:0 0 8px">コースと飲み放題を選び、人数を入れると、1人の料金の目安と全体の原価率・残りが出ます。幹事への値引きも試せます。</p>
-    <div class="row" style="flex-wrap:wrap;gap:8px;justify-content:flex-start"><select id="pt-food" aria-label="コース"><option value="">コースなし</option>${foods.map(c => `<option value="${esc(c.name)}">${esc(c.name)}</option>`).join('')}</select><select id="pt-drink" aria-label="飲み放題"><option value="">飲み放題なし</option>${drinks.map(c => `<option value="${esc(c.name)}">${esc(c.name)}</option>`).join('')}</select><span class="k">人数</span><input id="pt-n" inputmode="numeric" value="8" style="width:4em"><span class="k">1人の料金(税込)</span><input id="pt-price" inputmode="numeric" placeholder="空なら目安" style="width:7em"><span class="k">1人の値引き</span><input id="pt-disc" inputmode="numeric" placeholder="0" style="width:5em"><button class="btn" type="button" id="pt-go">計算</button></div>
+  pbox.innerHTML = `<p style="margin:0 0 4px"><b>宴会の料金設定</b></p><p class="k" style="margin:0 0 8px">コースと飲み放題を選び、人数を入力すると、1人あたりの料金の目安と全体の原価率・粗利が表示されます。値引きした場合の試算もできます。</p>
+    <div class="row" style="flex-wrap:wrap;gap:8px;justify-content:flex-start"><select id="pt-food" aria-label="コース"><option value="">コースなし</option>${foods.map(c => `<option value="${esc(c.name)}">${esc(c.name)}</option>`).join('')}</select><select id="pt-drink" aria-label="飲み放題"><option value="">飲み放題なし</option>${drinks.map(c => `<option value="${esc(c.name)}">${esc(c.name)}</option>`).join('')}</select><span class="k">人数</span><input id="pt-n" inputmode="numeric" value="8" style="width:4em"><span class="k">1人あたりの料金(税込)</span><input id="pt-price" inputmode="numeric" placeholder="空欄の場合は目安額" style="width:7em"><span class="k">1人あたりの値引き</span><input id="pt-disc" inputmode="numeric" placeholder="0" style="width:5em"><button class="btn" type="button" id="pt-go">計算</button></div>
     <div id="pt-out" style="margin-top:10px"></div>`;
   if (!cs.length) { pbox.hidden = true; } else pbox.hidden = false;
   $('pt-go').onclick = async () => {
     const out = await api({ kind: 'app_set', field: 'party', value: { course: $('pt-food').value, drink: $('pt-drink').value, people: $('pt-n').value, price: $('pt-price').value, discount: $('pt-disc').value } }).catch(() => ({ ok: false }));
     if (!out.ok) { toast(out.error || '計算できませんでした', 'ng'); return; }
     const p = out.party;
-    $('pt-out').innerHTML = `<div class="crs"><div class="nums"><div><span>1人の料金(税込)</span><b class="ac">${yen(p.price1)}</b></div><div><span>1人の原価</span><b>${yen(p.cost1)}</b></div><div><span>${p.people}名の売上</span><b>${yen(p.total)}</b></div><div><span>残り(税抜)</span><b>${yen(p.margin)}</b></div><div><span>原価率</span><b class="${p.ratio > p.target + 5 ? 'ng' : ''}">${p.ratio == null ? '—' : p.ratio + '%'}</b></div>${p.discount ? `<div><span>値引き後の原価率</span><b class="${p.ratioAfter > p.target + 5 ? 'ng' : ''}">${p.ratioAfter}%</b></div>` : ''}</div><p class="say">${esc(p.say)}</p></div>`;
+    $('pt-out').innerHTML = `<div class="crs"><div class="nums"><div><span>1人あたりの料金(税込)</span><b class="ac">${yen(p.price1)}</b></div><div><span>1人あたりの原価</span><b>${yen(p.cost1)}</b></div><div><span>${p.people}名の売上</span><b>${yen(p.total)}</b></div><div><span>粗利(税抜)</span><b>${yen(p.margin)}</b></div><div><span>原価率</span><b class="${p.ratio > p.target + 5 ? 'ng' : ''}">${p.ratio == null ? '—' : p.ratio + '%'}</b></div>${p.discount ? `<div><span>値引き後の原価率</span><b class="${p.ratioAfter > p.target + 5 ? 'ng' : ''}">${p.ratioAfter}%</b></div>` : ''}</div><p class="say">${esc(p.say)}</p></div>`;
   };
 }
-// 理論と実際の差(簡易版): 月ごとに2本の棒(レシピどおり / 実際に買った)と差、材料の上位5つ
+// 理論と実際の差(簡易版): 月ごとに2本の棒(レシピどおり / 実際の仕入額)と差、材料の上位5つ
 function renderGap() {
   const wrap = $('gap-wrap'), box = $('gap'); if (!wrap) return;
   if (noMoney() || !PL('analysis') || !Array.isArray(D.gap)) { wrap.hidden = true; return; }
   wrap.hidden = false;
-  if (!D.gap.length) { box.innerHTML = '<p class="k" style="margin:0">請求書と作った数(製造メモ)がそろうと、ここに月ごとの差が出ます。作った数は「どら焼き 40個」のように入れられます。</p>'; return; }
+  if (!D.gap.length) { box.innerHTML = '<p class="k" style="margin:0">請求書と製造数(製造メモ)がそろうと、ここに月ごとの差額が表示されます。製造数は「どら焼き 40個」のように入力できます。</p>'; return; }
   const cards = D.gap.slice().reverse().map(g => {
     const mx = Math.max(g.theory, g.actual, 1), pct = v => Math.round(v / mx * 100), ym = g.ym.slice(0, 4) + '年' + (+g.ym.slice(5)) + '月';
-    const note = !g.madeN ? '作った数(製造メモ)がない月。差は出せません' : !g.invN ? '請求書がない月' : g.rate == null ? '' : g.rate > 15 ? '買った分がレシピより' + g.rate + '%多い。ロス・量のぶれ・在庫の増えを確かめる' : g.rate < -15 ? '買った分がレシピより少ない。在庫を使っているか、作った数の入れ忘れ' : 'レシピどおりの範囲(±15%)';
+    const note = !g.madeN ? '製造数(製造メモ)の記録がない月です。差額は算出できません' : !g.invN ? '請求書がない月' : g.rate == null ? '' : g.rate > 15 ? '仕入額がレシピより' + g.rate + '%多くなっています。ロス・分量のばらつき・在庫の増加をご確認ください' : g.rate < -15 ? '仕入額がレシピより少なくなっています。在庫の使用、または製造数の入力漏れが考えられます' : 'レシピどおりの範囲内(±15%)';
     return `<div class="gapc"><div class="ym">${ym}<span>作った ${g.madeN}${U} ・ 請求書 ${g.invN}行</span></div>
       <div class="gbar"><span>レシピどおり</span><i><b style="width:${pct(g.theory)}%"></b></i><em>${yen(g.theory)}</em></div>
-      <div class="gbar ac"><span>実際に買った</span><i><b style="width:${pct(g.actual)}%"></b></i><em>${yen(g.actual)}</em></div>
+      <div class="gbar ac"><span>実際の仕入額</span><i><b style="width:${pct(g.actual)}%"></b></i><em>${yen(g.actual)}</em></div>
       <p class="df">差 <b class="${g.rate == null ? '' : Math.abs(g.rate) > 15 ? 'ng' : 'ok'}">${g.diff >= 0 ? '+' : ''}${yen(g.diff)}</b>${g.rate != null ? ` <span class="k">(${g.rate >= 0 ? '+' : ''}${g.rate}%)</span>` : ''}</p>
       ${note ? `<p class="k" style="margin:4px 0 0">${esc(note)}</p>` : ''}
-      ${g.top.length ? `<table class="gapt"><tr><th>材料</th><th>買った</th><th>使ったはず</th><th>差</th></tr>${g.top.map(t => `<tr><td>${esc(t.display)}</td><td>${t.boughtG ? fmtG(t.boughtG) : '—'}<br><span class="k">${yen(t.boughtYen)}</span></td><td>${t.usedG ? fmtG(t.usedG) : '—'}<br><span class="k">${yen(t.usedYen)}</span></td><td class="${Math.abs(t.diffYen) > Math.max(500, t.usedYen * 0.2) ? 'ng' : ''}" style="font-weight:700">${t.diffYen >= 0 ? '+' : ''}${yen(t.diffYen)}</td></tr>`).join('')}</table>` : ''}</div>`;
+      ${g.top.length ? `<table class="gapt"><tr><th>材料</th><th>買った</th><th>理論使用量</th><th>差</th></tr>${g.top.map(t => `<tr><td>${esc(t.display)}</td><td>${t.boughtG ? fmtG(t.boughtG) : '—'}<br><span class="k">${yen(t.boughtYen)}</span></td><td>${t.usedG ? fmtG(t.usedG) : '—'}<br><span class="k">${yen(t.usedYen)}</span></td><td class="${Math.abs(t.diffYen) > Math.max(500, t.usedYen * 0.2) ? 'ng' : ''}" style="font-weight:700">${t.diffYen >= 0 ? '+' : ''}${yen(t.diffYen)}</td></tr>`).join('')}</table>` : ''}</div>`;
   });
-  box.innerHTML = `<div class="gapm">${cards.join('')}</div><p class="k" style="margin:10px 0 0">レシピどおり＝作った数 × レシピの量 × 今の材料の単価。実際＝その月の請求書の材料の行(包材は除く)。材料の在庫が増えた月は「実際」が大きく出ます。棚卸を組み込んだ本格版は、次の商品分析で足します。</p>`;
+  box.innerHTML = `<div class="gapm">${cards.join('')}</div><p class="k" style="margin:10px 0 0">レシピどおり＝製造数 × レシピの分量 × 現在の材料単価。実際＝その月の請求書の材料の行(包材は除く)。材料の在庫が増えた月は「実際」が大きくなります。</p>`;
 }
 const fmtG = v => v >= 1000 ? (Math.round(v / 100) / 10) + 'kg' : Math.round(v) + 'g';
 function renderSales() {
@@ -3011,9 +3011,9 @@ function renderSales() {
   renderMenuA();
   if ($('sales-bulk')) $('sales-bulk').hidden = noMoney();
   const sa = D.sales || {}, ms = Object.keys(sa).sort().reverse(), chips = $('sales-chips');
-  $('sales-add').innerHTML = `<p style="margin:0 0 8px"><b>写真がないときは数字で</b></p><div class="fld"><span class="k">日付</span><input id="sl-date" type="date" value="${new Date().toLocaleDateString('sv-SE')}"><span class="k">売上(税込)</span><input id="sl-total" inputmode="numeric" placeholder="52300"><span class="k">客数</span><input id="sl-cust" inputmode="numeric" placeholder="48(なくても可)"></div><div class="ask"><button class="btn" type="button" id="sl-go">記録する</button><span class="k">${SHOT}精算レシートを撮るのが一番簡単です</span></div>`;
-  $('sl-go').onclick = () => { const t = $('sl-total').value.trim(); if (!t) { chat('売上の金額を入れてください'); return; } setValueX({ field: 'sales', value: { date: $('sl-date').value, total: t, customers: $('sl-cust').value.trim() } }); };
-  if (!ms.length) { chips.innerHTML = ''; $('sales-box').innerHTML = emptyBox('sales', 'まだ売上の記録がありません', '閉店後にレジの精算レシートを撮ると、売上と粗利がここに出ます。', ['レシートを撮る', 'cam']); return; }
+  $('sales-add').innerHTML = `<p style="margin:0 0 8px"><b>写真がない場合は数値で入力</b></p><div class="fld"><span class="k">日付</span><input id="sl-date" type="date" value="${new Date().toLocaleDateString('sv-SE')}"><span class="k">売上(税込)</span><input id="sl-total" inputmode="numeric" placeholder="52300"><span class="k">客数</span><input id="sl-cust" inputmode="numeric" placeholder="48(なくても可)"></div><div class="ask"><button class="btn" type="button" id="sl-go">記録する</button><span class="k">${SHOT}精算レシートを撮影する方法が簡単です</span></div>`;
+  $('sl-go').onclick = () => { const t = $('sl-total').value.trim(); if (!t) { chat('売上の金額を入力してください'); return; } setValueX({ field: 'sales', value: { date: $('sl-date').value, total: t, customers: $('sl-cust').value.trim() } }); };
+  if (!ms.length) { chips.innerHTML = ''; $('sales-box').innerHTML = emptyBox('sales', '売上の記録はまだありません', '閉店後にレジの精算レシートを撮影すると、売上と粗利がここに表示されます。', ['レシートを撮影', 'cam']); return; }
   const sel = chips.dataset.m && ms.includes(chips.dataset.m) ? chips.dataset.m : ms[0];
   chips.innerHTML = ms.map(m => `<button class="chip" type="button" data-m="${m}" aria-pressed="${m === sel}">${m.replace('-', '年')}月</button>`).join('');
   chips.querySelectorAll('[data-m]').forEach(b => b.onclick = () => { chips.dataset.m = b.dataset.m; renderSales(); });
@@ -3021,24 +3021,24 @@ function renderSales() {
   const rate = o.madeCost ? Math.round(o.madeCost / Math.max(1, o.total) * 100) : null;
   const [sy, smn] = sel.split('-').map(Number), nd = new Date(sy, smn, 0).getDate(), daily = []; for (let d = 1; d <= nd; d++) { const k = `${sel}-${String(d).padStart(2, '0')}`; daily.push({ l: String(d), v: (o.days || {})[k] || 0 }); }
   const prof = o.madeCost ? o.total - o.madeCost : null;
-  $('sales-box').innerHTML = `<div class="card">${tiles([{ t: '売上(税込)', v: yen(o.total), c: 'sales', k: `${o.nDays}日分 · 1日平均 ${yen(o.total / Math.max(1, o.nDays))}` }, { t: '作った分の材料費', v: o.madeCost ? yen(o.madeCost) : '<span class="k">—</span>', c: 'cost', k: rate != null ? `原価率の目安 ${rate}%` : '1個の重さと作った数から' }, { t: '粗利(材料費を引いた分)', v: prof != null ? yen(prof) : '<span class="k">—</span>', c: 'ws', k: '人件費・光熱費は入っていません' }])}
+  $('sales-box').innerHTML = `<div class="card">${tiles([{ t: '売上(税込)', v: yen(o.total), c: 'sales', k: `${o.nDays}日分 · 1日平均 ${yen(o.total / Math.max(1, o.nDays))}` }, { t: '製造分の材料費', v: o.madeCost ? yen(o.madeCost) : '<span class="k">—</span>', c: 'cost', k: rate != null ? `原価率の目安 ${rate}%` : '1個の重さと製造数から算出' }, { t: '粗利(材料費を差し引いた額)', v: prof != null ? yen(prof) : '<span class="k">—</span>', c: 'ws', k: '人件費・光熱費は含みません' }])}
     <p class="ct" style="margin-top:12px">日ごとの売上</p>${barsV(daily, 'var(--c-sales)', { label: '日ごとの売上', h: 150 })}</div>
     <div class="card" hidden><div class="row"><span>売上(税込)</span><span class="big">${yen(o.total)}</span></div>
       <p class="k" style="margin:4px 0 0">${o.nDays}日分 · 1日平均 ${yen(o.total / Math.max(1, o.nDays))}${o.customers ? ` · 客数 ${o.customers}人 · 客単価 ${yen(o.total / o.customers)}` : ''}</p>
-      ${rate != null ? `<div class="row" style="margin-top:8px"><span>作った分の材料費</span><b>${yen(o.madeCost)}</b></div><p class="k" style="margin:4px 0 0">原価率の目安 ${rate}%(製造メモ × 1${U}の原価 ÷ 売上)</p>` : ''}</div>
+      ${rate != null ? `<div class="row" style="margin-top:8px"><span>製造分の材料費</span><b>${yen(o.madeCost)}</b></div><p class="k" style="margin:4px 0 0">原価率の目安 ${rate}%(製造メモ × 1${U}の原価 ÷ 売上)</p>` : ''}</div>
     ${items.length ? `<div class="card"><p style="margin:0 0 8px"><b>商品ごとの粗利</b> <span class="k">売上 − 材料費</span></p>${barsH(items.slice(0, 8).map(n => ({ l: n, v: o.items[n].amount - o.items[n].cost })), 'var(--c-sales)')}<table><tr><td class="k">商品</td><td class="n k">数</td><td class="n k">売上</td><td class="n k">粗利</td></tr>${items.map(n => { const x = o.items[n], g = x.amount - x.cost; return `<tr><td>${esc(n)}${x.unit == null ? ' <span class="pill warn">重さ待ち</span>' : ''}</td><td class="n">${x.qty}</td><td class="n">${yen(x.amount)}</td><td class="n"><b>${yen(g)}</b><br><span class="k">${x.amount ? Math.round(g / x.amount * 100) : 0}%</span></td></tr>`; }).join('')}</table>
-      <p class="k" style="margin:8px 0 0">人件費・光熱費などは入っていません。材料費だけを引いた額です</p></div>` : ''}
-    ${unk.length ? `<div class="card"><p style="margin:0 0 8px"><b>レジの名前と商品をつなぐ</b></p><p class="k" style="margin:0 0 8px">商品ごとに打っている名前は、ピタット原価の商品を選ぶと粗利が出ます。部門(和菓子など)はそのままで大丈夫です</p>
-      ${unk.map((u, i) => `<div class="ask"><span style="min-width:7em">${esc(u)} <span class="k">${yen(o.unknown[u])}</span></span><select id="ra-${i}" style="font:inherit;font-size:14px;padding:4px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)"><option value="">選ぶ</option>${D.products.map(p => `<option>${esc(p.name)}</option>`).join('')}</select><button class="btn ghost" type="button" data-ra="${i}" data-reg="${esc(u)}">つなぐ</button></div>`).join('')}</div>` : ''}`;
+      <p class="k" style="margin:8px 0 0">人件費・光熱費などは含みません。材料費のみを差し引いた額です</p></div>` : ''}
+    ${unk.length ? `<div class="card"><p style="margin:0 0 8px"><b>レジの商品名と商品の対応付け</b></p><p class="k" style="margin:0 0 8px">レジで商品ごとに登録している名前に、ピタット原価の商品を対応付けると粗利が表示されます。部門(和菓子など)はそのままで構いません</p>
+      ${unk.map((u, i) => `<div class="ask"><span style="min-width:7em">${esc(u)} <span class="k">${yen(o.unknown[u])}</span></span><select id="ra-${i}" style="font:inherit;font-size:14px;padding:4px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)"><option value="">選ぶ</option>${D.products.map(p => `<option>${esc(p.name)}</option>`).join('')}</select><button class="btn ghost" type="button" data-ra="${i}" data-reg="${esc(u)}">対応付ける</button></div>`).join('')}</div>` : ''}`;
   $('sales-box').querySelectorAll('[data-ra]').forEach(b => b.onclick = () => { const p = $('ra-' + b.dataset.ra).value; if (!p) return; setValueX({ field: 'regalias', reg: b.dataset.reg, product: p }); });
 }
-// ---------- 発信: SNSに上げる画像・店に置くもの(ポップ・値札・貼り紙)・投稿の予定表 ----------
+// ---------- 発信: SNSに投稿する画像・店頭掲示物(ポップ・値札・貼り紙)・投稿の予定表 ----------
 // 絵は画面の中(canvas)で作る。AIは言葉だけ(型の一言だけなら、AIを使わずに作れる)。
 // お店の型(ロゴ・色・書体)を登録すると、どの型にも入るので、ほかのお店と同じ見た目にならない
 const FONTS = {
-  mincho: { css: '"Shippori Mincho B1","Hiragino Mincho ProN","Yu Mincho",serif', label: '明朝(和の感じ)' },
-  maru: { css: '"Zen Maru Gothic","Hiragino Maru Gothic ProN",sans-serif', label: '丸ゴシック(やわらか)' },
-  gothic: { css: '"Noto Sans JP","Hiragino Sans","Yu Gothic",sans-serif', label: 'ゴシック(すっきり)' }
+  mincho: { css: '"Shippori Mincho B1","Hiragino Mincho ProN","Yu Mincho",serif', label: '明朝(和風)' },
+  maru: { css: '"Zen Maru Gothic","Hiragino Maru Gothic ProN",sans-serif', label: '丸ゴシック(柔らかい印象)' },
+  gothic: { css: '"Noto Sans JP","Hiragino Sans","Yu Gothic",sans-serif', label: 'ゴシック(すっきりした印象)' }
 };
 // 型: 色・模様・書体と、そのまま使える一言
 const TPL = {
@@ -3190,15 +3190,15 @@ function renderPost() {
   const goods = D.products.filter(p => p.kind !== 'part'), b = brand();
   // インスタの普段の投稿(画像・予定表)はしまって、値上げのお知らせ文とPOP・値札・貼り紙にしぼる(2026-10-23)
   if ($('post-plan')) $('post-plan').hidden = SH('insta'); if ($('post-sns')) $('post-sns').hidden = SH('insta');
-  if (SH('insta')) { const ld = document.querySelector('#t-post .lead'); if (ld) ld.textContent = '値上げのお知らせ文と、店に置くポップ・値札・貼り紙を作ります。'; if ($('post-free')) $('post-free').placeholder = '例: 11月1日からの値上げのお知らせ'; }
+  if (SH('insta')) { const ld = document.querySelector('#t-post .lead'); if (ld) ld.textContent = '値上げのお知らせ文と、店頭に置くPOP・値札・貼り紙を作成します。'; if ($('post-free')) $('post-free').placeholder = '例: 11月1日からの値上げのお知らせ'; }
   // お店の型
   const bb = $('post-brand');
-  if (bb && !(D.me && D.me.owner)) bb.innerHTML = `<div class="row"><b>店舗の型</b></div><p class="k" style="margin:4px 0 0">ロゴ・店舗の色・書体は、店主が決めます。${b.color || b.logo ? '登録済みの型が、画像と印刷物に入ります。' : ''}</p>`;
+  if (bb && !(D.me && D.me.owner)) bb.innerHTML = `<div class="row"><b>店舗の型</b></div><p class="k" style="margin:4px 0 0">ロゴ・店舗の色・書体は、店主が設定します。${b.color || b.logo ? '登録済みの型が、画像と印刷物に入ります。' : ''}</p>`;
   else if (bb) {
     bb.innerHTML = `<div class="row"><b>店舗の型</b><span class="k">${b.color || b.font || b.logo ? '登録済み' : 'まだ'}</span></div>
-      <p class="k" style="margin:4px 0 12px">ロゴ・店舗の色・書体を一度入れると、画像・ポップ・値札・貼り紙のすべてに入ります。ほかの店舗と同じ見た目になりません。</p>
+      <p class="k" style="margin:4px 0 12px">ロゴ・店舗の色・書体を一度設定すると、画像・POP・値札・貼り紙のすべてに反映されます。他店と同じデザインになることはありません。</p>
       <div class="brand-row"><div class="brand-logo">${b.logo ? `<img src="${b.logo}" alt="ロゴ">` : '<span class="k">ロゴなし</span>'}</div>
-        <div class="ps-ctl"><label class="btn ghost ps-photo">ロゴを入れる<input type="file" id="br-logo" accept="image/*" hidden></label>${b.logo ? '<button class="btn ghost" type="button" id="br-nologo">ロゴを外す</button>' : ''}
+        <div class="ps-ctl"><label class="btn ghost ps-photo">ロゴを設定<input type="file" id="br-logo" accept="image/*" hidden></label>${b.logo ? '<button class="btn ghost" type="button" id="br-nologo">ロゴを削除</button>' : ''}
         <span class="k">店舗の色</span><div class="brand-colors">${['', '#a8322a', '#b5541c', '#8a4b1c', '#2f7d6d', '#1d7fb3', '#1f2a44', '#d6577a', '#5a4fcf'].map(c => `<button type="button" class="sw2" data-bc="${c}" aria-pressed="${(b.color || '') === c}" style="background:${c || 'conic-gradient(#a8322a,#2f7d6d,#1d7fb3,#d6577a,#a8322a)'}" title="${c ? c : '型の色のまま'}"></button>`).join('')}<input type="color" id="br-color" value="${b.color || '#a8322a'}" aria-label="ほかの色"></div>
         <span class="k">書体</span><div class="seg" id="br-font">${[['', '型のまま']].concat(Object.keys(FONTS).map(k => [k, FONTS[k].label])).map(([k, l]) => `<button type="button" data-v="${k}" aria-pressed="${(b.font || '') === k}">${l}</button>`).join('')}</div></div></div>`;
     const saveB = v => setValueX({ field: 'shop', value: v });
@@ -3209,16 +3209,16 @@ function renderPost() {
     $('br-logo').onchange = e => { const f = e.target.files[0]; if (!f) return; const im = new Image(); im.onload = () => {
       // 小さく縮めて保存(8KBくらいまで)
       for (const [s, q] of [[200, .85], [160, .75], [120, .7], [96, .6]]) { const r = Math.min(1, s / Math.max(im.width, im.height)), cv = document.createElement('canvas'); cv.width = Math.round(im.width * r); cv.height = Math.round(im.height * r); cv.getContext('2d').drawImage(im, 0, 0, cv.width, cv.height); let u = cv.toDataURL('image/webp', q); if (!/^data:image\/webp/.test(u)) u = cv.toDataURL('image/png'); if (u.length < 8400) { saveB({ brandLogo: u }); return; } }
-      toast('ロゴが大きすぎます。小さめの画像にしてください', 'ng'); }; im.src = URL.createObjectURL(f); };
+      toast('ロゴの画像サイズが大きすぎます。小さめの画像をお使いください', 'ng'); }; im.src = URL.createObjectURL(f); };
   }
-  // 店に置くもの
+  // 店頭掲示物
   const box = $('post-shop');
   if (box) {
-    box.innerHTML = `<div class="row"><b>店に置くもの</b></div>
-      <p class="k" style="margin:4px 0 12px">印刷して店頭に。${SH('insta') ? '色と書体は下の「店舗の型」で決めたものになります。' : '色と模様は下の「SNSに上げる画像」で選んだ型になります。'}</p>
+    box.innerHTML = `<div class="row"><b>店頭掲示物</b></div>
+      <p class="k" style="margin:4px 0 12px">印刷して店頭に掲示します。${SH('insta') ? '色と書体は下の「店舗の型」で決めたものになります。' : '色と模様は下の「SNSに投稿する画像」で選んだ型になります。'}</p>
       <div class="ps-acts"><button class="btn ghost" type="button" id="ps-cards">値札カード(全商品・A4に8枚)</button>${sellFace() ? '<button class="btn ghost" type="button" id="ps-al">アレルゲン表</button>' : ''}
-      <button class="btn ghost" type="button" id="ps-pop">ポップ(A5)</button><button class="btn ghost" type="button" id="ps-notice">お知らせの貼り紙(A4)</button></div>`;
-    $('ps-cards').onclick = () => { if (!goods.length) { chat('商品がまだありません'); return; } priceCards(goods); };
+      <button class="btn ghost" type="button" id="ps-pop">POP(A5)</button><button class="btn ghost" type="button" id="ps-notice">お知らせの貼り紙(A4)</button></div>`;
+    $('ps-cards').onclick = () => { if (!goods.length) { chat('商品が登録されていません'); return; } priceCards(goods); };
     if ($('ps-al')) $('ps-al').onclick = () => show('label');
     $('ps-pop').onclick = async () => { await fontsReady(); const cv = document.createElement('canvas'); cv.width = 1748; cv.height = 2480; drawCard(cv, Object.assign(cardOpts('pop'), { photo: null })); printImage(cv, 'A5 portrait'); };
     $('ps-notice').onclick = async () => { await fontsReady(); const cv = document.createElement('canvas'); cv.width = 2480; cv.height = 3508; const o = cardOpts('notice'); drawCard(cv, Object.assign(o, { photo: null, sub: (PS.d && PS.d.notice) || o.sub, name: '' })); printImage(cv, 'A4 portrait'); };
@@ -3227,27 +3227,27 @@ function renderPost() {
   const pl = $('post-plan');
   if (pl) {
     const plan = postPlan(), md = d => `${d.getMonth() + 1}/${d.getDate()}`;
-    pl.innerHTML = `<div class="row"><b>投稿の予定表</b><span class="k">これから45日</span></div><p class="k" style="margin:4px 0 8px">行事の1週間前に出すと、お客様が予定に入れやすくなります。店舗の予定(休み・催事)も入ります。</p>
-      ${plan.length ? plan.map((e, i) => `<div class="plan-row"><span class="plan-d">${md(e.post)}<small>に出す</small></span><span><b>${esc(e.t)}</b>${e.own ? '' : `<span class="k">(${md(e.date)})</span>`}<br><span class="k">${esc(e.theme)}</span></span><button class="btn ghost sm" type="button" data-plan="${i}">これで作る</button></div>`).join('') : '<p class="k">近い行事はありません。</p>'}`;
-    pl.querySelectorAll('[data-plan]').forEach(x => x.onclick = () => { const e = plan[x.dataset.plan]; PS.tpl = e.tpl; store.set('pTpl', PS.tpl); PS.c = null; PS.s = null; $('post-free').value = e.theme; renderPost(); $('post-free').scrollIntoView({ block: 'center', behavior: 'smooth' }); chat('型を選びました。「案を作る」で言葉を作れます。型の一言のままでも使えます'); });
+    pl.innerHTML = `<div class="row"><b>投稿の予定表</b><span class="k">これから45日</span></div><p class="k" style="margin:4px 0 8px">行事の1週間前に投稿すると、お客様が予定を立てやすくなります。店舗の予定(休業日・催事)も表示されます。</p>
+      ${plan.length ? plan.map((e, i) => `<div class="plan-row"><span class="plan-d">${md(e.post)}<small>に出す</small></span><span><b>${esc(e.t)}</b>${e.own ? '' : `<span class="k">(${md(e.date)})</span>`}<br><span class="k">${esc(e.theme)}</span></span><button class="btn ghost sm" type="button" data-plan="${i}">この内容で作成</button></div>`).join('') : '<p class="k">近い行事はありません。</p>'}`;
+    pl.querySelectorAll('[data-plan]').forEach(x => x.onclick = () => { const e = plan[x.dataset.plan]; PS.tpl = e.tpl; store.set('pTpl', PS.tpl); PS.c = null; PS.s = null; $('post-free').value = e.theme; renderPost(); $('post-free').scrollIntoView({ block: 'center', behavior: 'smooth' }); chat('テンプレートを選択しました。「案を作る」で文章を作成できます。テンプレートの文章のままでもご利用いただけます'); });
   }
-  // SNSに上げる画像(AIを使わなくても、型の一言で作れる)
+  // SNSに投稿する画像(AIを使わなくても、型の一言で作れる)
   const sb = $('post-sns'), T = TPL[PS.tpl] || TPL.wa, d = PS.d || {};
   if (sb) {
     const segs = (id, list, v) => `<div class="seg segw" id="${id}">${list.map(([k, l]) => `<button type="button" data-v="${k}" aria-pressed="${k === v}">${l}</button>`).join('')}</div>`;
-    sb.innerHTML = `<div class="row"><b>SNSに上げる画像</b></div>
-      <p class="k" style="margin:4px 0 12px">型を選ぶと、その型の一言が入ります。商品の写真を入れると、写真の上に言葉がのります。保存してインスタやLINEにそのまま上げられます。</p>
-      <div class="ps-grid"><div><canvas id="ps-cv" class="ps-cv" width="1080" height="1080" aria-label="SNS用の画像"></canvas>${PS.photo ? '<p class="k" style="margin:8px 0 0;text-align:center">写真は指でずらせます</p>' : ''}</div>
+    sb.innerHTML = `<div class="row"><b>SNSに投稿する画像</b></div>
+      <p class="k" style="margin:4px 0 12px">テンプレートを選ぶと、その文章が入ります。商品の写真を追加すると、写真の上に文字が重なります。保存した画像は、そのままInstagramやLINEに投稿できます。</p>
+      <div class="ps-grid"><div><canvas id="ps-cv" class="ps-cv" width="1080" height="1080" aria-label="SNS用の画像"></canvas>${PS.photo ? '<p class="k" style="margin:8px 0 0;text-align:center">写真は指で位置を調整できます</p>' : ''}</div>
       <div class="ps-ctl"><span class="k">型</span>${segs('ps-tpl', Object.keys(TPL).map(k => [k, TPL[k].label]), PS.tpl)}
         <span class="k">大きさ</span>${segs('ps-size', Object.keys(SIZES).map(k => [k, SIZES[k][2]]), PS.size)}
-        <label class="btn ghost ps-photo">📷 写真を入れる<input type="file" id="ps-file" accept="image/*" hidden></label>
-        ${PS.photo ? `<div class="ps-adj"><label class="k"><input type="checkbox" id="ps-auto" ${PS.auto ? 'checked' : ''}> 明るさ・位置をおまかせで整える</label>
+        <label class="btn ghost ps-photo">📷 写真を追加<input type="file" id="ps-file" accept="image/*" hidden></label>
+        ${PS.photo ? `<div class="ps-adj"><label class="k"><input type="checkbox" id="ps-auto" ${PS.auto ? 'checked' : ''}> 明るさ・位置を自動で調整</label>
           <span class="k">明るさ</span><input type="range" id="ps-bright" min="-40" max="40" value="${PS.bright}"><span class="k">大きさ</span><input type="range" id="ps-zoom" min="100" max="250" value="${Math.round(PS.zoom * 100)}">
-          <button class="btn ghost sm" type="button" id="ps-nophoto">写真を外す</button></div>` : ''}
-        <span class="k">大きい言葉</span><input id="ps-catch" value="${esc(PS.c != null ? PS.c : T.c)}"><span class="k">小さい言葉</span><input id="ps-sub" value="${esc(PS.s != null ? PS.s : T.s)}">
-        <button class="btn ghost sm" type="button" id="ps-tplword" style="align-self:flex-start">型の一言に戻す</button>
-        ${d.name ? `<label class="k" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="ps-name" ${PS.useName ? 'checked' : ''}> 商品名と値段を入れる</label>` : ''}
-        <div class="ps-acts"><button class="btn" type="button" id="ps-save">画像を保存</button><button class="btn ghost" type="button" id="ps-all">4つの大きさをまとめて保存</button><button class="btn ghost" type="button" id="ps-share" hidden>共有(インスタ・LINEへ)</button></div></div></div>`;
+          <button class="btn ghost sm" type="button" id="ps-nophoto">写真を削除</button></div>` : ''}
+        <span class="k">見出し</span><input id="ps-catch" value="${esc(PS.c != null ? PS.c : T.c)}"><span class="k">本文</span><input id="ps-sub" value="${esc(PS.s != null ? PS.s : T.s)}">
+        <button class="btn ghost sm" type="button" id="ps-tplword" style="align-self:flex-start">テンプレートの文章に戻す</button>
+        ${d.name ? `<label class="k" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="ps-name" ${PS.useName ? 'checked' : ''}> 商品名と価格を入れる</label>` : ''}
+        <div class="ps-acts"><button class="btn" type="button" id="ps-save">画像を保存</button><button class="btn ghost" type="button" id="ps-all">4つのサイズをまとめて保存</button><button class="btn ghost" type="button" id="ps-share" hidden>共有(Instagram・LINEへ)</button></div></div></div>`;
     const redraw = () => snsDraw();
     $('ps-tpl').querySelectorAll('button').forEach(x => x.onclick = () => { const wasDefault = PS.c == null || PS.c === T.c; PS.tpl = x.dataset.v; store.set('pTpl', PS.tpl); if (wasDefault && !PS.d) { PS.c = null; PS.s = null; } renderPost(); });
     $('ps-size').querySelectorAll('button').forEach(x => x.onclick = () => { PS.size = x.dataset.v; $('ps-size').querySelectorAll('button').forEach(y => y.setAttribute('aria-pressed', y === x)); redraw(); });
@@ -3270,26 +3270,26 @@ function renderPost() {
     const dl = (bl, name) => { const a = document.createElement('a'); a.href = URL.createObjectURL(bl); a.download = name; document.body.appendChild(a); a.click(); a.remove(); };
     $('ps-save').onclick = async () => { dl(await canvasBlob($('ps-cv')), fname()); chat('画像を保存しました。投稿文は「コピー」で写せます', 'clap'); };
     const allBlobs = async () => { const out = []; for (const k of Object.keys(SIZES)) { const cv = document.createElement('canvas'); [cv.width, cv.height] = SIZES[k]; drawCard(cv, cardOpts('sns')); out.push([await canvasBlob(cv), fname(k)]); } return out; };
-    $('ps-all').onclick = async () => { for (const [bl, n] of await allBlobs()) { dl(bl, n); await new Promise(r => setTimeout(r, 300)); } chat('4つの大きさで保存しました', 'clap'); };
+    $('ps-all').onclick = async () => { for (const [bl, n] of await allBlobs()) { dl(bl, n); await new Promise(r => setTimeout(r, 300)); } chat('4つのサイズで保存しました', 'clap'); };
     if (navigator.canShare && navigator.canShare({ files: [new File([''], 'a.png', { type: 'image/png' })] })) {
       $('ps-share').hidden = false;
-      $('ps-share').onclick = async () => { try { try { await navigator.clipboard.writeText(d.insta || ''); } catch (e) {} const bl = await canvasBlob($('ps-cv')); await navigator.share({ files: [new File([bl], fname(), { type: 'image/png' })], text: d.insta || '' }); if (d.insta) chat('投稿文はコピーしてあります。貼り付けるだけです', 'heart'); } catch (e) {} };
+      $('ps-share').onclick = async () => { try { try { await navigator.clipboard.writeText(d.insta || ''); } catch (e) {} const bl = await canvasBlob($('ps-cv')); await navigator.share({ files: [new File([bl], fname(), { type: 'image/png' })], text: d.insta || '' }); if (d.insta) chat('投稿文はコピー済みです。貼り付けてご利用ください', 'heart'); } catch (e) {} };
     }
     fontsReady().then(redraw); redraw();
   }
   // 文の案(AI)
   $('post-p').innerHTML = '<option value="">商品から選ぶ</option>' + goods.map(p => `<option${d.name === p.name ? ' selected' : ''}>${esc(p.name)}</option>`).join('');
-  $('post-out').innerHTML = PS.d ? [['インスタの投稿文', PS.d.insta, 'insta'], ['ポップの文', PS.d.pop, 'pop'], ['お知らせの文(LINEなど)', PS.d.notice, 'notice']].map(([l, t, k]) => `<div class="card"><div class="row"><b>${l}</b><button class="btn ghost" type="button" data-cp="${k}">コピー</button></div><p class="draft" id="dr-${k}">${esc(t || '')}</p></div>`).join('') : '';
-  $('post-out').querySelectorAll('[data-cp]').forEach(x => x.onclick = async () => { try { await navigator.clipboard.writeText($('dr-' + x.dataset.cp).textContent); chat('コピーしました', 'heart'); } catch (e) { chat('長押しで選んでコピーしてください'); } });
+  $('post-out').innerHTML = PS.d ? [['Instagramの投稿文', PS.d.insta, 'insta'], ['POPの文章', PS.d.pop, 'pop'], ['お知らせの文章(LINEなど)', PS.d.notice, 'notice']].map(([l, t, k]) => `<div class="card"><div class="row"><b>${l}</b><button class="btn ghost" type="button" data-cp="${k}">コピー</button></div><p class="draft" id="dr-${k}">${esc(t || '')}</p></div>`).join('') : '';
+  $('post-out').querySelectorAll('[data-cp]').forEach(x => x.onclick = async () => { try { await navigator.clipboard.writeText($('dr-' + x.dataset.cp).textContent); chat('コピーしました', 'heart'); } catch (e) { chat('長押しで選択してコピーしてください'); } });
   $('post-go').onclick = async () => {
-    const sub = $('post-free').value.trim() || $('post-p').value; if (!sub) { chat('商品を選ぶか、テーマを書いてください'); return; }
-    $('post-out').innerHTML = '<div class="card"><p class="k" style="margin:0">考えています…(10秒ほど)</p></div>'; chat('考えています…', 'think');
+    const sub = $('post-free').value.trim() || $('post-p').value; if (!sub) { chat('商品を選択するか、テーマを入力してください'); return; }
+    $('post-out').innerHTML = '<div class="card"><p class="k" style="margin:0">作成しています…(10秒ほど)</p></div>'; chat('考えています…', 'think');
     const out = await api({ kind: 'app_gen', subject: sub });
-    if (!out.ok) { $('post-out').innerHTML = ''; chat(out.error || 'うまく作れませんでした'); return; }
+    if (!out.ok) { $('post-out').innerHTML = ''; chat(out.error || '作成できませんでした'); return; }
     const dd = out.drafts; dd.catch = dd.catch || String(dd.pop || '').split('\n')[0].slice(0, 14); dd.sub = dd.sub || '';
     PS.d = dd; PS.c = dd.catch; PS.s = dd.sub; PS.useName = true;
     await fontsReady(); renderPost(); $('post-sns').scrollIntoView({ block: 'start', behavior: 'smooth' });
-    chat('案と画像ができました。書かれていないことは足していません。', 'clap');
+    chat('案と画像を作成しました。入力された内容以外は記載していません。', 'clap');
   };
 }
 
@@ -3354,13 +3354,13 @@ function faces() { const el = $('sface'); if (STILL) { el.style.backgroundImage 
 if (STILL) faces(); else (() => { const s = document.createElement('script'); s.src = 'emoji.js?v=18'; s.async = true; s.onload = faces; document.body.appendChild(s); })();
 function addMsg(html, me) { const d = document.createElement('div'); d.className = 'm' + (me ? ' me' : ''); d.innerHTML = html; msgs.appendChild(d); d.scrollIntoView({ block: 'end', behavior: 'smooth' }); return d; }
 function botSay(html, role) { const d = addMsg('…'); setTimeout(() => { d.innerHTML = html; d.scrollIntoView({ block: 'end', behavior: 'smooth' }); }, 120); if (role) chat(null, role); }
-function openAsk() { if (!D) return; sheet.hidden = false; if (!msgs.children.length) botSay('何でも聞いてください。使い方も、店舗のことも答えます。'); renderChips(); setTimeout(() => qIn.focus(), 100); }
+function openAsk() { if (!D) return; sheet.hidden = false; if (!msgs.children.length) botSay('ご不明な点は何でもお尋ねください。操作方法から店舗のデータまでお答えします。'); renderChips(); setTimeout(() => qIn.focus(), 100); }
 $('sclose').onclick = () => sheet.hidden = true; sheet.onclick = e => { if (e.target === sheet) sheet.hidden = true; };
 ch.onclick = openAsk; ch.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openAsk(); } };
 $('cam').onclick = openCamera;
 function renderChips(quick) {
   const p0 = D.products[0] ? D.products[0].name : '看板商品';
-  const c = quick && quick.length ? quick : (noMoney() ? ['今日の衛生でまだのは?', 'ラベルの印刷がずれる', '仕入先の電話番号はどこ?', 'インスタの画像を作りたい', '賞味期限と消費期限のちがいは?', `${p0}の栄養成分は?`] : ['今月儲かってる?', `${p0}の原価は?`, '値上げしたほうがいい?', 'ラベルの印刷がずれる', '仕入先の電話番号はどこ?', 'インスタの画像を作りたい', '払っていないのは?', '賞味期限と消費期限のちがいは?']);
+  const c = quick && quick.length ? quick : (noMoney() ? ['本日の衛生記録で未記録のものは?', 'ラベルの印刷位置がずれる', '仕入先の電話番号はどこ?', 'インスタの画像を作りたい', '賞味期限と消費期限の違いは?', `${p0}の栄養成分は?`] : ['今月の利益は?', `${p0}の原価は?`, '値上げを検討すべき商品は?', 'ラベルの印刷位置がずれる', '仕入先の電話番号はどこ?', 'インスタの画像を作りたい', '未払いの請求は?', '賞味期限と消費期限の違いは?']);
   const box = $('qchips'); box.innerHTML = c.map(s => `<button type="button">${esc(s)}</button>`).join('');
   box.querySelectorAll('button').forEach(b => b.onclick = () => ask(b.textContent));
 }
@@ -3370,29 +3370,29 @@ async function answer(s) {
   s = s.replace(/\s+/g, ' ').trim(); let m;
   const p = findProd(s);
   if (p && (m = s.match(/(\d+(?:\.\d+)?)\s*(g|ｇ|グラム)/))) { await setValue(p.name, 'pw', +m[1]); const q = D.products.find(x => x.name === p.name); return [`記録しました。${esc(p.name)}は1個${m[1]}g、約${q.pieces}個、1個 <b>${yen1(q.per_piece)}</b> です。`, 'heart']; }
-  if (p && (m = s.match(/(\d+)\s*円/))) { await setValue(p.name, 'price', +m[1]); const q = D.products.find(x => x.name === p.name); return [`記録しました。${esc(p.name)}は${m[1]}円。` + (q.per_piece != null ? `原価率は <b>${Math.round(q.per_piece / q.price * 100)}%</b> です。` : '1個の重さが分かれば原価率も出します。'), 'heart']; }
+  if (p && (m = s.match(/(\d+)\s*円/))) { await setValue(p.name, 'price', +m[1]); const q = D.products.find(x => x.name === p.name); return [`記録しました。${esc(p.name)}は${m[1]}円。` + (q.per_piece != null ? `原価率は <b>${Math.round(q.per_piece / q.price * 100)}%</b> です。` : '1個の重さを入力すると、原価率も算出します。'), 'heart']; }
   if (p && /裏表示|表示|ラベル|原材料/.test(s)) return [`${esc(p.name)}の原材料名の案です。\n<b>${esc(p.label.text)}${esc(p.label.contains)}</b>` + (p.label.check.length ? `\n要確認:${p.label.check.map(esc).join('、')}` : ''), 'point'];
   if (p && /アレルゲン|アレルギー/.test(s)) return [`${esc(p.name)}は ${p.label.allergens.length ? p.label.allergens.map(esc).join('・') : '該当なし'} です(案)。`, 'point'];
-  if (p) { if (p.per_piece == null) return [`${esc(p.name)}は1仕込み ${yen(p.batch_cost)} です。「${esc(p.name)}は1個40g」のように重さを教えてもらえれば、1個の値段を出します。`, 'think'];
+  if (p) { if (p.per_piece == null) return [`${esc(p.name)}は1仕込み ${yen(p.batch_cost)} です。「${esc(p.name)}は1個40g」のように重さを入力すると、1個あたりの原価を算出します。`, 'think'];
     return [`${esc(p.name)}は1個 <b>${yen1(p.per_piece)}</b> です。1仕込み ${yen(p.batch_cost)}、約${p.pieces}個。` + (p.price ? `原価率 ${Math.round(p.per_piece / p.price * 100)}%。` : ''), 'clap']; }
   if ((m = s.match(/^(.+?)\s*(に|へ|を|は)?\s*(払った|払いました|支払った|振り込んだ|振込んだ)/))) {
     const who = m[1].replace(/\s/g, ''), hit = unpaid().find(p => p.supplier.includes(who) || who.includes(p.supplier.slice(0, 4)));
-    if (!hit) return [`「${esc(who)}」の未払いが見つかりませんでした。` + (unpaid().length ? `\n未払い:${unpaid().map(p => esc(p.supplier)).join('、')}` : ''), 'think'];
-    await setValue('', 'paid', hit.row); return [`「${esc(hit.supplier)}」${esc(hit.month)}分 ${yen(hit.total)} を済にしました。`, 'heart'];
+    if (!hit) return [`「${esc(who)}」の未払いは見つかりませんでした。` + (unpaid().length ? `\n未払い:${unpaid().map(p => esc(p.supplier)).join('、')}` : ''), 'think'];
+    await setValue('', 'paid', hit.row); return [`「${esc(hit.supplier)}」${esc(hit.month)}分 ${yen(hit.total)} を支払済にしました。`, 'heart'];
   }
-  if (/在庫|残り|棚卸/.test(s)) { const it = ((D.stock || {}).items || []).filter(x => x.known && x.unit === 'g'); return [it.length ? '計算上の残りです。\n' + it.slice(0, 10).map(x => `${x.low ? '⚠' : '・'}${esc(x.key)} ${amt(x.left, x.unit)}${x.days != null ? `(あと約${x.days}日)` : ''}`).join('\n') : 'まだ在庫を計算できる材料がありません。請求書を撮るか、数えた量を「材料」画面で入れてください。', 'think']; }
-  if (/買い物|買い出し|買うもの/.test(s)) { const low = ((D.stock || {}).items || []).filter(x => x.low); return [low.length ? 'そろそろ買うものです。\n' + low.map(x => `・${esc(x.key)}(残り${amt(x.left, x.unit)})`).join('\n') : '今は足りなくなりそうなものはありません。', 'point']; }
-  if (/支払|払うもの|振込|振り込み/.test(s)) { const up = unpaid(); return [up.length ? `払っていないのは${up.length}件、合計 <b>${yen(up.reduce((a, p) => a + p.total, 0))}</b>。\n` + up.map(p => `・${esc(p.supplier)}(${esc(p.month)}分)${yen(p.total)}${p.due ? ' 期限' + esc(p.due) : ''}`).join('\n') : '払っていない請求書はありません。', 'point']; }
-  if (/仕訳|科目/.test(s)) { const ms = Object.keys(D.journal || {}).sort(); if (!ms.length) return ['まだ請求書がありません。', 'think']; const k = ms[ms.length - 1], sm = D.journal[k];
+  if (/在庫|残り|棚卸/.test(s)) { const it = ((D.stock || {}).items || []).filter(x => x.known && x.unit === 'g'); return [it.length ? '計算上の残りです。\n' + it.slice(0, 10).map(x => `${x.low ? '⚠' : '・'}${esc(x.key)} ${amt(x.left, x.unit)}${x.days != null ? `(あと約${x.days}日)` : ''}`).join('\n') : '在庫を計算できる材料がまだありません。請求書を撮影するか、「材料」の画面で数えた量を入力してください。', 'think']; }
+  if (/買い物|買い出し|買うもの/.test(s)) { const low = ((D.stock || {}).items || []).filter(x => x.low); return [low.length ? '在庫が少ない材料です。\n' + low.map(x => `・${esc(x.key)}(残り${amt(x.left, x.unit)})`).join('\n') : '現在、不足しそうな材料はありません。', 'point']; }
+  if (/支払|払うもの|振込|振り込み/.test(s)) { const up = unpaid(); return [up.length ? `未払いの請求は${up.length}件、合計 <b>${yen(up.reduce((a, p) => a + p.total, 0))}</b>。\n` + up.map(p => `・${esc(p.supplier)}(${esc(p.month)}分)${yen(p.total)}${p.due ? ' 期限' + esc(p.due) : ''}`).join('\n') : '未払いの請求書はありません。', 'point']; }
+  if (/仕訳|科目/.test(s)) { const ms = Object.keys(D.journal || {}).sort(); if (!ms.length) return ['請求書が登録されていません。', 'think']; const k = ms[ms.length - 1], sm = D.journal[k];
     return [`${esc(k)}分の科目ごとの合計(案):\n` + Object.keys(sm).map(a => `・${esc(a)} ${yen(sm[a])}`).join('\n'), 'point']; }
-  if (/値上が|上がっ|高くな/.test(s)) return [D.ups.length ? D.ups.map(u => `・${esc(u.item)}(${esc(u.spec)}) ${u.old.toLocaleString()}円→${u.now.toLocaleString()}円(+${u.pct}%)`).join('\n') : '今のところ値上がりは見つかっていません。', 'surprise'];
-  if (/仕入|先月|合計|まとめ/.test(s)) { const ms = Object.keys(D.months).sort(); if (!ms.length) return ['まだ請求書がありません。請求書を撮って送ってください。', 'think']; const k = ms[ms.length - 1], mm = D.months[k];
+  if (/値上が|上がっ|高くな/.test(s)) return [D.ups.length ? D.ups.map(u => `・${esc(u.item)}(${esc(u.spec)}) ${u.old.toLocaleString()}円→${u.now.toLocaleString()}円(+${u.pct}%)`).join('\n') : '現在、値上がりした材料はありません。', 'surprise'];
+  if (/仕入|先月|合計|まとめ/.test(s)) { const ms = Object.keys(D.months).sort(); if (!ms.length) return ['請求書が登録されていません。請求書を撮影して送信してください。', 'think']; const k = ms[ms.length - 1], mm = D.months[k];
     return [`${esc(k)}の仕入れは <b>${yen(mm.total)}</b>。\n` + Object.entries(mm.by).map(([a, v]) => `・${esc(a)} ${yen(v)}`).join('\n'), 'point']; }
   const mt = findMat(s);
   if (mt) return [`「${esc(mt.name)}」は <b>${esc(mt.display)}</b> として扱っています。` + (mt.ppg ? ` ${Math.round(mt.ppg * 1000).toLocaleString()}円/kg(${mt.ok ? '請求書' : '仮'})。` : '') + (mt.allergens.length ? ` アレルゲン:${mt.allergens.map(esc).join('・')}。` : '') + (mt.note ? `\n${esc(mt.note)}` : ''), 'think'];
-  if (/確認|待ち|やること/.test(s)) { const n = notices().length; return [n ? `確認待ちは${n}つです。「きょう」の画面にまとめてあります。` : '確認待ちはありません。', 'greet']; }
+  if (/確認|待ち|やること/.test(s)) { const n = notices().length; return [n ? `確認待ちは${n}件です。ホームの画面にまとめています。` : '確認待ちはありません。', 'greet']; }
   if (/ありがと|助か/.test(s)) return ['どういたしまして。', 'heart'];
-  return ['すみません、まだ答えられません。\n今聞けるのは:原価、裏表示、アレルゲン、値上がり、先月の仕入れ、材料の名前。\n「〇〇は1個40g」「〇〇は250円」と教えてもらうと覚えます。', 'think'];
+  return ['申し訳ありません。この内容にはまだお答えできません。\nお答えできるのは、原価・食品表示・アレルゲン・値上がり・先月の仕入れ・材料名です。\n「〇〇は1個40g」「〇〇は250円」と入力していただくと記録します。', 'think'];
 }
 // キャラとの会話は表の側(AI)で。つながらないときだけ、この画面の中の簡単な答えに切り替える
 let asking = false;
@@ -3401,7 +3401,7 @@ async function ask(s) {
   if (!s.trim() || asking) return; asking = true;
   addMsg(esc(s), true); qIn.value = '';
   const pc = D && D.plan && D.plan.chat, slow = pc && pc.normal && pc.n >= pc.normal && pc.n < pc.max;
-  const wait = addMsg(slow ? '<span class="k">今日はゆっくりモードです(明日の朝4時に戻ります)。お返事まで30秒〜1分ほどお待ちください…</span>' : '<span class="k">考えています…</span>'); chat(null, 'think');
+  const wait = addMsg(slow ? '<span class="k">本日は応答速度を抑えています(明朝4時に通常に戻ります)。回答まで30秒〜1分ほどお待ちください…</span>' : '<span class="k">考えています…</span>'); chat(null, 'think');
   try {
     const out = await api({ kind: 'app_chat', text: s, pack: PACK, lockMoney: mLocked || undefined });
     if (pc) pc.n++;
@@ -3415,7 +3415,7 @@ async function ask(s) {
   } finally { asking = false; }
 }
 // 返事の [[open:〜]] を「〇〇を開く」ボタンにする
-const OPEN_TO = { today: ['ホーム'], cost: ['原価'], howto: ['作り方', '手順'], label: ['食品表示'], labelprint: ['ラベルを印刷', 'label', '.lpc'], mat: ['材料'], hyg: ['衛生'], book: ['帳簿'], ws: ['卸'], ct: ['仕入先・卸先'], post: ['発信'], brand: ['店舗の型', 'post', '#post-brand'], cal: ['予定'], sales: ['売上'], set: ['設定'], members: ['メンバー', 'set', '#members-box'], a2hs: ['ホーム画面に置く案内'], guide: ['使い方ガイド'] };
+const OPEN_TO = { today: ['ホーム'], cost: ['原価'], howto: ['作り方', '手順'], label: ['食品表示'], labelprint: ['ラベルを印刷', 'label', '.lpc'], mat: ['材料'], hyg: ['衛生'], book: ['帳簿'], ws: ['卸'], ct: ['仕入先・卸先'], post: ['発信'], brand: ['店舗の型', 'post', '#post-brand'], cal: ['予定'], sales: ['売上'], set: ['設定'], members: ['メンバー', 'set', '#members-box'], a2hs: ['ホーム画面への追加方法'], guide: ['使い方ガイド'] };
 function openBtns(h) { return h.replace(/\n?\[\[open:([a-z0-9]+)\]\]/g, (m, k) => OPEN_TO[k] ? `<br><button class="btn ghost sm" type="button" data-open="${k}">「${OPEN_TO[k][0]}」を開く</button>` : ''); }
 function openTo(k) {
   const o = OPEN_TO[k]; if (!o) return; sheet.hidden = true;
@@ -3430,7 +3430,7 @@ $('composer').onsubmit = e => { e.preventDefault(); ask(qIn.value); };
 // 作り方の手順の写真: 置き場に収まる大きさに縮める(長い辺1000px→収まらなければ800px)
 const IMG_CACHE = {};
 async function shrinkStep(file) {
-  if (!/^image\//.test(file.type)) throw new Error('写真を選んでください');
+  if (!/^image\//.test(file.type)) throw new Error('写真を選択してください');
   const img = await createImageBitmap(file);
   for (const [px, q] of [[1000, 0.8], [800, 0.7], [640, 0.6]]) {
     const k = Math.min(1, px / Math.max(img.width, img.height));
@@ -3439,7 +3439,7 @@ async function shrinkStep(file) {
     const b64 = c.toDataURL('image/jpeg', q).split(',')[1];
     if (b64.length <= 650000) return b64;
   }
-  throw new Error('写真が大きすぎます。撮り直してください');
+  throw new Error('写真のサイズが大きすぎます。撮り直してください');
 }
 // ---------- ホームページ(LINEの外)から写真を送る ----------
 async function shrink(file) {
@@ -3455,14 +3455,14 @@ function sayShot(out) {
 }
 async function sendWebFile(file) {
   if (!file || !/^image\//.test(file.type) || !D) return;
-  openAsk(); addMsg('<span class="k">📷 写真を送りました</span>', true);
-  const wait = addMsg('<span class="k">読んでいます…(10〜30秒かかります)</span>'); chat(null, 'think');
+  openAsk(); addMsg('<span class="k">📷 写真を送信しました</span>', true);
+  const wait = addMsg('<span class="k">読み取っています…(10〜30秒かかります)</span>'); chat(null, 'think');
   try {
     const out = await api({ kind: 'liff_upload', web: true, sort: true, image: await shrink(file), type: 'image/jpeg' });
     wait.remove(); sortLoad();
-    if (!out.ok) throw new Error(out.error || 'うまく読めませんでした');
+    if (!out.ok) throw new Error(out.error || '読み取れませんでした');
     sayShot(out); load();
-  } catch (e) { wait.remove(); botSay(esc(e.message || 'うまく送れませんでした')); }
+  } catch (e) { wait.remove(); botSay(esc(e.message || '送信できませんでした')); }
 }
 function webPhoto() {
   let f = $('web-pick');
@@ -3477,14 +3477,14 @@ if (CF) {
   addEventListener('dragover', e => { if (e.dataTransfer && [...e.dataTransfer.types].includes('Files')) e.preventDefault(); });
   addEventListener('drop', e => { const file = e.dataTransfer && e.dataTransfer.files[0]; if (!file) return; e.preventDefault(); sendWebFile(file); });
 }
-// ---------- 取り込み一覧: 撮った写真の行き先。回答が必要なもの・確認待ち・入ったもの(7日) ----------
+// ---------- 取り込み一覧: 撮った写真の行き先。回答が必要なもの・確認待ち・登録済み(7日間) ----------
 let SORT = null, SORTW = null; const sortImgs = {};
 // 確認にかかった秒数: 箱を開いて見ていた時間だけを数える(ほかのアプリに行った間は数えない)。押したものに、前に押してからの時間をつける
 const BOXT = { acc: 0, since: 0 };
 function boxTimeStart() { BOXT.acc = 0; BOXT.since = document.hidden ? 0 : Date.now(); }
 function boxTimeTake() { const now = Date.now(), sec = (BOXT.acc + (BOXT.since ? now - BOXT.since : 0)) / 1000; BOXT.acc = 0; BOXT.since = document.hidden ? 0 : now; return Math.min(600, Math.round(sec)); }
 document.addEventListener('visibilitychange', () => { if (!$('sort-ov')) return; if (document.hidden) { if (BOXT.since) BOXT.acc += Date.now() - BOXT.since; BOXT.since = 0; } else BOXT.since = Date.now(); });
-const SORT_CH = [['label', '裏表示・ラベル'], ['mat', '材料(袋の裏・値段)'], ['recipe', 'レシピ'], ['money', '金額(納品書・売上)'], ['device', '機械の設定'], ['mistake', 'まちがえて撮った']];
+const SORT_CH = [['label', '食品表示・ラベル'], ['mat', '材料(裏面表示・単価)'], ['recipe', 'レシピ'], ['money', '金額(納品書・売上)'], ['device', '機器の設定'], ['mistake', '誤って撮影した']];
 async function sortLoad() {
   if (!CF) return;
   const r = await api({ kind: 'app_sort' }).catch(() => null);
@@ -3522,31 +3522,31 @@ function sortDraw() {
   if ($('sort-num')) $('sort-num').innerHTML = sortNumHtml();
   const L = SORT || [], when = t => new Date(t).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit' });
   const row = x => `<div class="sort-row" data-id="${esc(x.id)}" style="display:flex;gap:12px;padding:12px 0;border-top:1px solid var(--line);align-items:flex-start">
-      <button type="button" data-img="${esc(x.photo)}" aria-label="元の写真を見る" style="flex:none;width:72px;height:72px;border-radius:10px;border:1px solid var(--line);background:var(--bg);padding:0;overflow:hidden;cursor:${x.photo ? 'zoom-in' : 'default'}">${x.photo ? (sortImgs[x.photo] ? `<img src="${sortImgs[x.photo]}" alt="" style="width:100%;height:100%;object-fit:cover">` : '<span class="k">写真</span>') : '<span class="k">なし</span>'}</button>
+      <button type="button" data-img="${esc(x.photo)}" aria-label="元の写真を表示" style="flex:none;width:72px;height:72px;border-radius:10px;border:1px solid var(--line);background:var(--bg);padding:0;overflow:hidden;cursor:${x.photo ? 'zoom-in' : 'default'}">${x.photo ? (sortImgs[x.photo] ? `<img src="${sortImgs[x.photo]}" alt="" style="width:100%;height:100%;object-fit:cover">` : '<span class="k">写真</span>') : '<span class="k">なし</span>'}</button>
       <div style="flex:1;min-width:0"><b>${esc(x.kind || '')}</b> ${esc(x.title || '')}<div class="k">${when(x.at)}${x.who ? '・' + esc(x.who) : ''}</div>
       <div class="k" style="white-space:pre-wrap;margin-top:4px;max-height:7.5em;overflow:auto">${esc(x.result || '')}</div>
-      ${x.state === '聞く' && x.ask === 'mat' ? `${matCands(x.title).length ? `<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:8px"><span class="k">候補</span>${matCands(x.title).map(c => `<button class="btn sm" type="button" data-matc="${esc(x.id)}" data-v="${esc(c)}">${esc(c)}</button>`).join('')}</div>` : ''}<div style="display:flex;gap:8px;margin-top:8px"><input data-matin="${esc(x.id)}" placeholder="ちがうときは材料の名前(例: 生クリーム)" style="flex:1"><button class="btn ghost sm" type="button" data-mat="${esc(x.id)}">決定</button></div>` : ''}
+      ${x.state === '聞く' && x.ask === 'mat' ? `${matCands(x.title).length ? `<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:8px"><span class="k">候補</span>${matCands(x.title).map(c => `<button class="btn sm" type="button" data-matc="${esc(x.id)}" data-v="${esc(c)}">${esc(c)}</button>`).join('')}</div>` : ''}<div style="display:flex;gap:8px;margin-top:8px"><input data-matin="${esc(x.id)}" placeholder="異なる場合は材料名を入力(例: 生クリーム)" style="flex:1"><button class="btn ghost sm" type="button" data-mat="${esc(x.id)}">決定</button></div>` : ''}
       ${x.state === '聞く' && x.ask !== 'mat' ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">${SORT_CH.map(c => `<button class="btn ghost sm" type="button" data-ans="${esc(x.id)}" data-c="${c[0]}">${c[1]}</button>`).join('')}</div>` : ''}
-      ${x.state === '確かめ' ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button class="btn sm" type="button" data-ok="${esc(x.id)}">確かめて入れる</button><button class="btn ghost sm" type="button" data-drop="${esc(x.id)}">入れずに消す</button></div>` : ''}
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">${x.undo ? `<button class="btn ghost sm" type="button" data-undo="${esc(x.id)}">取り消す(入る前に戻す)</button>` : ''}${x.photo ? `<button class="btn ghost sm" type="button" data-share="${esc(x.id)}">サポートに見てもらう</button>` : ''}</div>
-      <div data-sharebox="${esc(x.id)}" hidden style="margin-top:8px"><textarea rows="3" placeholder="どこがおかしいか(例: 材料がちがう所に入った)" style="width:100%"></textarea><p class="k" style="margin:4px 0">この写真1枚だけ、ピタット原価のサポートが見られるようになります。ほかの写真や帳面は見えません。</p><button class="btn sm" type="button" data-sharego="${esc(x.id)}">送る</button></div>
+      ${x.state === '確かめ' ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button class="btn sm" type="button" data-ok="${esc(x.id)}">確認して登録</button><button class="btn ghost sm" type="button" data-drop="${esc(x.id)}">登録せずに削除</button></div>` : ''}
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">${x.undo ? `<button class="btn ghost sm" type="button" data-undo="${esc(x.id)}">取り消す(登録前の状態に戻す)</button>` : ''}${x.photo ? `<button class="btn ghost sm" type="button" data-share="${esc(x.id)}">サポートに確認を依頼</button>` : ''}</div>
+      <div data-sharebox="${esc(x.id)}" hidden style="margin-top:8px"><textarea rows="3" placeholder="問題の内容(例: 材料が別の欄に登録された)" style="width:100%"></textarea><p class="k" style="margin:4px 0">この写真1枚のみ、ピタット原価のサポート担当が閲覧できるようになります。他の写真や帳簿は閲覧できません。</p><button class="btn sm" type="button" data-sharego="${esc(x.id)}">送る</button></div>
       </div></div>`;
   const grp = (t, xs, note) => xs.length ? `<h3 style="margin:14px 0 4px;font-size:16px">${t} <span class="k">${xs.length}</span></h3>${note ? `<p class="k" style="margin:0 0 4px">${note}</p>` : ''}${xs.map(row).join('')}` : '';
-  box.innerHTML = (L.length || costGaps().length ? '' : '<p class="k">まだありません。「撮る」から、納品書・レシピ・袋の裏・売上の紙・ラベル・機械など、何でも撮ってください。</p>') +
-    grp('回答が必要なもの', L.filter(x => x.state === '聞く'), '答えると、その答えでもう一度読みます。次からは覚えます') +
+  box.innerHTML = (L.length || costGaps().length ? '' : '<p class="k">取り込みはまだありません。「撮影」から、納品書・レシピ・裏面表示・売上の伝票・ラベル・機器の画面などを撮影してください。</p>') +
+    grp('回答が必要なもの', L.filter(x => x.state === '聞く'), '回答すると、その内容で再度読み取ります。次回からは同じ確認をしません') +
     gapHtml() +
-    grp('確認待ち', L.filter(x => x.state === '確かめ'), '店主か、レシピを直せる人が確かめます') +
-    grp('入ったもの(7日)', L.filter(x => x.state === '済')) + grp('消したもの(7日)', L.filter(x => x.state === '消した'));
+    grp('確認待ち', L.filter(x => x.state === '確かめ'), '店主、またはレシピの編集権限がある方が確認します') +
+    grp('登録済み(7日間)', L.filter(x => x.state === '済')) + grp('削除済み(7日間)', L.filter(x => x.state === '消した'));
   box.querySelectorAll('[data-img]').forEach(b => { const id = b.dataset.img; if (!id) return; if (!sortImgs[id]) api({ kind: 'app_img_get', id }).then(r => { if (r.ok) { sortImgs[id] = 'data:' + r.type + ';base64,' + r.data; const im = b.querySelector('img') || document.createElement('img'); im.src = sortImgs[id]; im.alt = ''; im.style.cssText = 'width:100%;height:100%;object-fit:cover'; b.innerHTML = ''; b.appendChild(im); } }); b.onclick = () => { if (sortImgs[id]) openPrint(`<img src="${sortImgs[id]}" style="max-width:100%">`, { bare: true }); }; });
   box.querySelectorAll('[data-ans]').forEach(b => b.onclick = () => sortDo(b.dataset.ans, { act: 'answer', choice: b.dataset.c }, b));
   gapBind(box);
   box.querySelectorAll('[data-matc]').forEach(b => b.onclick = () => sortDo(b.dataset.matc, { act: 'mat', value: b.dataset.v }, b));
   box.querySelectorAll('[data-mat]').forEach(b => b.onclick = () => { const v = box.querySelector(`[data-matin="${CSS.escape(b.dataset.mat)}"]`).value.trim(); if (!v) return; sortDo(b.dataset.mat, { act: 'mat', value: v }, b); });
   box.querySelectorAll('[data-ok]').forEach(b => b.onclick = () => { const x = (SORT || []).find(y => y.id === b.dataset.ok); if (x && x.dev) sortApplyDev(x.dev); sortDo(b.dataset.ok, { act: 'ok' }, b); });
-  box.querySelectorAll('[data-drop]').forEach(b => twice(b, 'もう一度押すと消えます', () => sortDo(b.dataset.drop, { act: 'drop' }, b)));
+  box.querySelectorAll('[data-drop]').forEach(b => twice(b, 'もう一度押すと削除します', () => sortDo(b.dataset.drop, { act: 'drop' }, b)));
   box.querySelectorAll('[data-undo]').forEach(b => twice(b, 'もう一度押すと取り消します', () => sortDo(b.dataset.undo, { act: 'undo' }, b)));
   box.querySelectorAll('[data-share]').forEach(b => b.onclick = () => { const sb = box.querySelector(`[data-sharebox="${CSS.escape(b.dataset.share)}"]`); sb.hidden = !sb.hidden; if (!sb.hidden) sb.querySelector('textarea').focus(); });
-  box.querySelectorAll('[data-sharego]').forEach(b => b.onclick = async () => { const sb = box.querySelector(`[data-sharebox="${CSS.escape(b.dataset.sharego)}"]`); b.disabled = true; const r = await api({ kind: 'app_sort_share', id: b.dataset.sharego, text: sb.querySelector('textarea').value }).catch(() => ({ ok: false, error: 'つながりませんでした' })); b.disabled = false; if (!r.ok) { toast(r.error || '送れませんでした'); return; } sb.hidden = true; toast('サポートに送りました。お返事は「設定」の問い合わせと、LINEに届きます', 'ok'); });
+  box.querySelectorAll('[data-sharego]').forEach(b => b.onclick = async () => { const sb = box.querySelector(`[data-sharebox="${CSS.escape(b.dataset.sharego)}"]`); b.disabled = true; const r = await api({ kind: 'app_sort_share', id: b.dataset.sharego, text: sb.querySelector('textarea').value }).catch(() => ({ ok: false, error: '通信できませんでした' })); b.disabled = false; if (!r.ok) { toast(r.error || '送信できませんでした'); return; } sb.hidden = true; toast('サポートに送信しました。回答は「設定」の問い合わせとLINEでお知らせします', 'ok'); });
 }
 // 書き方のちがう材料の候補(手書きの読みちがい・かっこ書き・ひらがなとカタカナ)。打ち込まずに押すだけで済ませるため
 const looseG = x => String(x || '').normalize('NFD').replace(/[゙゚]/g, '').normalize('NFC').replace(/[（(【\[][^）)】\]]*[）)】\]]/g, '').replace(/[\s・①-⑳0-9０-９]/g, '').replace(/[ァ-ヶ]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60)).toLowerCase();
@@ -3576,12 +3576,12 @@ let GAP_ALL = false;
 function gapHtml() {
   const G = costGaps(); if (!G.length) return '';
   const id = (g, i) => `data-gap="${i}"`, inp = (k, ph, w) => `<input data-gk="${k}" inputmode="decimal" placeholder="${ph}" style="width:${w || 6}em">`;
-  const used = g => `<div class="k">${g.ps.length > 1 ? esc(g.ps.slice(0, 3).join('・')) + (g.ps.length > 3 ? ` ほか${g.ps.length - 3}品` : '') + 'で使っています' : esc(g.ps[0]) + 'で使っています'}</div>`;
+  const used = g => `<div class="k">${g.ps.length > 1 ? esc(g.ps.slice(0, 3).join('・')) + (g.ps.length > 3 ? ` ほか${g.ps.length - 3}品` : '') + 'で使用しています' : esc(g.ps[0]) + 'で使用しています'}</div>`;
   const row = (g, i) => `<div class="sort-row" ${id(g, i)} style="padding:12px 0;border-top:1px solid var(--line)">` + (
     g.t === 'pieces' ? `<b>${esc(g.n)}</b> <span class="k">1個あたりの原価が未算出です</span><div class="k">どちらかを入力すると算出できます</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px">1${U}の重さ ${inp('pw', '例 45')} g <button class="btn sm" type="button" data-gs="pw">決定</button></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:6px">1回の仕込みで ${inp('pieces', '例 24')} ${U}できる <button class="btn ghost sm" type="button" data-gs="pieces">決定</button></div>`
-    : g.t === 'price' ? `<b>${esc(g.n)}</b> <span class="k">単価が未登録のため、原価に含まれていません</span>${used(g)}${!g.m && matCands(g.n).length ? `<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:8px"><span class="k">候補</span>${matCands(g.n).map(c => `<button class="btn sm" type="button" data-gs="same" data-to="${esc(c)}">「${esc(c)}」と同じ</button>`).join('')}</div>` : ''}${!g.m ? `<div style="margin-top:6px"><button class="btn ghost sm" type="button" data-gs="cam">自店で作るもの(レシピを撮影)</button></div>` : ''}
+    : g.t === 'price' ? `<b>${esc(g.n)}</b> <span class="k">単価が未登録のため、原価に含まれていません</span>${used(g)}${!g.m && matCands(g.n).length ? `<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:8px"><span class="k">候補</span>${matCands(g.n).map(c => `<button class="btn sm" type="button" data-gs="same" data-to="${esc(c)}">「${esc(c)}」と同じ</button>`).join('')}</div>` : ''}${!g.m ? `<div style="margin-top:6px"><button class="btn ghost sm" type="button" data-gs="cam">自店で製造するもの(レシピを撮影)</button></div>` : ''}
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px">${inp('yen', '例 1980')} 円で ${inp('qty', '例 1')} <select data-gk="unit"><option value="kg">kg</option><option value="g">g</option></select> <button class="btn sm" type="button" data-gs="price">決定</button></div>
 `
     : `<b>${esc(g.n)}</b> <span class="k">個数で記載されており、重量が不明です</span>${used(g)}
@@ -3597,18 +3597,18 @@ function gapBind(box) {
     let body = null, bad = '';
     if (b.dataset.gs === 'cam') { boxTimeTake(); $('sort-ov') && $('sort-ov').remove(); openCamera(); return; }
     if (b.dataset.gs === 'same') body = { kind: 'app_set', field: 'mat', name: b.dataset.to, value: { alias: g.n } };
-    else if (b.dataset.gs === 'pw' || b.dataset.gs === 'pieces') { const n = num(b.dataset.gs); if (!(n > 0)) bad = '数字を入れてください'; else body = { kind: 'app_set', field: b.dataset.gs, product: g.n, value: n }; }
-    else if (b.dataset.gs === 'price') { const y = num('yen'), q = num('qty'), kg = v('unit') === 'g' ? q / 1000 : q; if (!(y > 0) || !(q > 0)) bad = '値段と量を入れてください'; else body = { kind: 'app_set', field: 'mat', name: g.m ? g.m.name : g.n, create: !g.m, value: { ppkg: Math.round(y / kg) } }; }
-    else { const w = num('g'), y = num('yen'); if (!(w > 0)) bad = '1つの重さ(g)を入れてください'; else if (!g.m && !(y > 0)) bad = 'まだない材料なので、1つの値段も入れてください'; else body = { kind: 'app_set', field: 'mat', name: g.m ? g.m.name : g.n, create: !g.m, value: g.m ? { pieceG: w } : { pieceG: w, ppkg: Math.round(y / w * 1000) } }; }
+    else if (b.dataset.gs === 'pw' || b.dataset.gs === 'pieces') { const n = num(b.dataset.gs); if (!(n > 0)) bad = '数値を入力してください'; else body = { kind: 'app_set', field: b.dataset.gs, product: g.n, value: n }; }
+    else if (b.dataset.gs === 'price') { const y = num('yen'), q = num('qty'), kg = v('unit') === 'g' ? q / 1000 : q; if (!(y > 0) || !(q > 0)) bad = '金額と量を入力してください'; else body = { kind: 'app_set', field: 'mat', name: g.m ? g.m.name : g.n, create: !g.m, value: { ppkg: Math.round(y / kg) } }; }
+    else { const w = num('g'), y = num('yen'); if (!(w > 0)) bad = '1個の重さ(g)を入力してください'; else if (!g.m && !(y > 0)) bad = '未登録の材料のため、1個あたりの金額も入力してください'; else body = { kind: 'app_set', field: 'mat', name: g.m ? g.m.name : g.n, create: !g.m, value: g.m ? { pieceG: w } : { pieceG: w, ppkg: Math.round(y / w * 1000) } }; }
     if (bad) { toast(bad); return; }
     b.disabled = true; body.sortSec = boxTimeTake(); body.sortFor = g.ps[0];
-    const r = await api(body).catch(() => ({ ok: false, error: 'つながりませんでした' }));
+    const r = await api(body).catch(() => ({ ok: false, error: '通信できませんでした' }));
     b.disabled = false;
     if (!r.ok) { toast(r.error || 'できませんでした'); return; }
     if (r.data) { D = r.data; renderAll(); }
     const p = g.t === 'pieces' ? (D.products || []).find(x => x.name === g.n) : null;
-    if (b.dataset.gs === 'same') { toast(`「${g.n}」を「${b.dataset.to}」として覚えました。次からは聞きません`, 'ok'); sortDraw(); sortCard(); return; }
-    toast(p && p.per_piece != null ? `${g.n}: 1${U} ${yen1(p.per_piece)}になりました` + ((p.unknown || []).length ? `(値段のない材料${p.unknown.length}つは、まだ入っていません)` : '') : `「${g.n}」を入れました。原価を出しなおしました`, 'ok');
+    if (b.dataset.gs === 'same') { toast(`「${g.n}」を「${b.dataset.to}」として登録しました。次回からは確認しません`, 'ok'); sortDraw(); sortCard(); return; }
+    toast(p && p.per_piece != null ? `${g.n}: 1${U} ${yen1(p.per_piece)}になりました` + ((p.unknown || []).length ? `(値段のない材料${p.unknown.length}件は、原価に含まれていません)` : '') : `「${g.n}」を登録しました。原価を再計算しました`, 'ok');
     sortDraw(); sortCard();
   });
 }
@@ -3620,15 +3620,15 @@ function sortApplyDev(dv) {
     if (dv.roll) { const k = Object.keys(ROLLS).find(k => ROLLS[k][0] === dv.w && ROLLS[k][1] === dv.h); S.mode = 'roll'; if (k) S.roll = k; else { S.roll = 'custom'; S.rw = dv.w; S.rh = dv.h; } }
     else { S.mode = 'sheet'; S.sheet = 'custom'; S.custom = Object.assign({}, S.custom, { w: dv.w, h: dv.h }); }
   }
-  lsSet(S); toast('この端末のラベル印刷の設定を変えました(裏表示の印刷で確かめられます)', 'ok');
+  lsSet(S); toast('この端末のラベル印刷の設定を変更しました(食品表示の印刷画面で確認できます)', 'ok');
 }
 async function sortDo(id, o, btn) {
   if (btn) btn.disabled = true;
-  const r = await api(Object.assign({ kind: 'app_sort_act', id, sec: boxTimeTake() }, o)).catch(() => ({ ok: false, error: 'つながりませんでした' }));
+  const r = await api(Object.assign({ kind: 'app_sort_act', id, sec: boxTimeTake() }, o)).catch(() => ({ ok: false, error: '通信できませんでした' }));
   if (btn) btn.disabled = false;
   if (!r.ok) { toast(r.error || 'できませんでした'); return; }
   if (r.data) { D = r.data; renderAll(); }
-  toast((r.msgs && r.msgs[0]) ? String(r.msgs[0]).slice(0, 80) : '済みました', 'ok');
+  toast((r.msgs && r.msgs[0]) ? String(r.msgs[0]).slice(0, 80) : '完了しました', 'ok');
   await sortLoad(); if (!r.data) load();
 }
 // 青い枠のカメラで撮って戻ってきたとき、キャラの答えを出す
@@ -3637,7 +3637,7 @@ function showShot() {
   if (n != null && D) { sortLoad().then(() => { if ((SORT || []).some(x => x.state === '聞く' || x.state === '確かめ')) sortOpen(); }); return; }
   let out = null; try { out = JSON.parse(sessionStorage.getItem('shikomi:shot') || 'null'); sessionStorage.removeItem('shikomi:shot'); } catch (e) {}
   if (!out || !D) return;
-  openAsk(); addMsg('<span class="k">📷 撮った写真を送りました</span>', true); sayShot(out);
+  openAsk(); addMsg('<span class="k">📷 撮影した写真を送信しました</span>', true); sayShot(out);
 }
 // ---------- 運営の人には、運営の画面への入り口をいつも見える所に出す ----------
 // パソコン: 左のメニューのいちばん下。スマホ: 上の帯の右。運営の人(店主・サポート役)にだけ出す
@@ -3666,17 +3666,17 @@ async function renderAccount() {
   const a = await api({ kind: 'app_account' }).catch(() => null); if (!a || !a.ok) return;
   box.innerHTML = `<p style="margin:0 0 8px"><b>${esc(a.shop ? a.shop.name || D.shop : '')}</b></p>
     <p class="k" style="margin:0 0 12px">メール: ${a.email ? esc(a.email) : 'まだ'} ・ LINE: ${a.line ? 'つながっています' : 'まだ'}</p>
-    ${a.email ? '' : '<div class="ask" style="margin-top:0"><input id="ac-mail" type="email" placeholder="メールアドレス" style="flex:1" aria-label="メールアドレス"><button class="btn ghost" type="button" id="ac-mail-go">メールでも入れるように</button></div><p class="k" id="ac-mail-msg" style="margin:4px 0 0"></p>'}
-    ${a.line || IN_LINE || !a.lineLogin ? '' : '<div class="ask"><a class="btn ghost" href="/auth/line?link=1&next=/app/">LINEとつなぐ</a></div>'}
+    ${a.email ? '' : '<div class="ask" style="margin-top:0"><input id="ac-mail" type="email" placeholder="メールアドレス" style="flex:1" aria-label="メールアドレス"><button class="btn ghost" type="button" id="ac-mail-go">メールアドレスでもログインできるようにする</button></div><p class="k" id="ac-mail-msg" style="margin:4px 0 0"></p>'}
+    ${a.line || IN_LINE || !a.lineLogin ? '' : '<div class="ask"><a class="btn ghost" href="/auth/line?link=1&next=/app/">LINEと連携</a></div>'}
     ${(a.shops || []).length > 1 ? `<div class="ask"><select id="ac-shop" aria-label="店舗を切り替える" style="flex:1">${a.shops.map(x => `<option value="${esc(x.id)}"${a.shop && a.shop.id === x.id ? ' selected' : ''}>${esc(x.name || x.id)}</option>`).join('')}</select><button class="btn ghost" type="button" id="ac-shop-go">切り替える</button></div>` : ''}
     <div class="ask"><button class="btn ghost" type="button" id="ac-inv">スタッフを招待するリンク</button></div><p class="k" id="ac-inv-out" style="margin:4px 0 0;word-break:break-all"></p>
 
-    ${IN_LINE ? '' : '<div class="ask"><a class="btn ghost" href="/password">パスワードを決めなおす</a></div>'}
+    ${IN_LINE ? '' : '<div class="ask"><a class="btn ghost" href="/password">パスワードを再設定</a></div>'}
     ${IN_LINE ? '' : '<form method="post" action="/auth/logout" class="ask"><button class="btn ghost" type="submit">ログアウト</button></form>'}`;
   if ($('ac-mail-go')) $('ac-mail-go').onclick = async () => {
     const m = $('ac-mail').value.trim(); if (!m) { $('ac-mail').focus(); return; }
     const r = await api({ kind: 'app_link_email', email: m });
-    $('ac-mail-msg').innerHTML = r.ok ? `${esc(m)} に確認のリンクを送りました。開くと、メールでもログインできるようになります。${r.devLink ? `<br><a href="${esc(r.devLink)}">(試験中)ここから開く</a>` : ''}` : esc(r.error || '送れませんでした');
+    $('ac-mail-msg').innerHTML = r.ok ? `${esc(m)} に確認用のリンクを送信しました。リンクを開くと、メールアドレスでもログインできるようになります。${r.devLink ? `<br><a href="${esc(r.devLink)}">(試験中)ここから開く</a>` : ''}` : esc(r.error || '送信できませんでした');
   };
   if ($('ac-shop-go')) $('ac-shop-go').onclick = () => { location.href = '/switch?shop=' + encodeURIComponent($('ac-shop').value); };
   // 作ったリンクを、選べる欄・コピー・開くの3つで出す(コピーが使えない画面でも、欄を長押しで写せる)
@@ -3687,18 +3687,18 @@ async function renderAccount() {
       let done = false;
       try { await navigator.clipboard.writeText(url); done = true; } catch (e) {}
       if (!done) { try { inp.focus(); inp.select(); done = document.execCommand('copy'); } catch (e) {} }
-      chat(done ? 'リンクをコピーしました' : 'コピーできませんでした。欄を長押しして写してください', done ? 'heart' : undefined);
+      chat(done ? 'リンクをコピーしました' : 'コピーできませんでした。欄を長押ししてコピーしてください', done ? 'heart' : undefined);
     };
   };
   if ($('ac-start')) $('ac-start').onclick = async () => {
     const r = await api({ kind: 'app_start_link' });
     if (!r.ok) { $('ac-start-out').textContent = r.error || '作れませんでした'; return; }
-    linkOut($('ac-start-out'), r.link, '新しく使い始める店舗に送るリンクです(1回だけ・7日間有効)。開いた人が店主になり、空の店舗から始まります。');
+    linkOut($('ac-start-out'), r.link, '新しく利用を始める店舗に送るリンクです(1回限り・7日間有効)。リンクを開いた方が店主として登録され、新しい店舗が作成されます。');
   };
   $('ac-inv').onclick = async () => {
     const r = await api({ kind: 'app_new_invite' });
     if (!r.ok) { $('ac-inv-out').textContent = r.error || '作れませんでした'; return; }
-    linkOut($('ac-inv-out'), r.invite, 'このリンクをスタッフに送ってください。開いて登録すると、すぐに管理画面が見られます。スタッフ以外には送らないでください。');
+    linkOut($('ac-inv-out'), r.invite, 'このリンクをスタッフに送ってください。リンクを開いて登録すると、すぐに管理画面を利用できます。スタッフ以外には送らないでください。');
   };
 }
 
@@ -3712,7 +3712,7 @@ async function renderAccount() {
   if ($('mat-q')) $('mat-q').oninput = () => filt($('mat-q'), '#mats tr[data-m]', 'm');
   if ($('mat-add-top')) $('mat-add-top').onclick = () => matEdit(null);
   if ($('label-print-top')) $('label-print-top').onclick = () => { const b = $('lb-print'); if (b) { b.scrollIntoView({ behavior: 'smooth', block: 'center' }); b.click(); } };
-  if ($('book-copy-top')) $('book-copy-top').onclick = () => { const b = $('sort-copy'); if (b) b.click(); else chat('まだ請求書がありません'); };
+  if ($('book-copy-top')) $('book-copy-top').onclick = () => { const b = $('sort-copy'); if (b) b.click(); else chat('請求書が登録されていません'); };
   if ($('hyg-print-top')) $('hyg-print-top').onclick = () => { const b = $('hyg-print'); if (b) b.click(); };
   if ($('ws-add-top')) $('ws-add-top').onclick = () => { const i = $('ws-to'); if (i) { i.scrollIntoView({ behavior: 'smooth', block: 'center' }); i.focus(); } };
 })();
@@ -3730,7 +3730,7 @@ async function renderAccount() {
     cols.append(L, R); sec.appendChild(cols);
   }
 })();
-if (CF) { $('ct-via').textContent = '「問い合わせ 〜」とAIに送っても受け付けます'; }
+if (CF) { $('ct-via').textContent = 'AIに「問い合わせ 〜」と入力しても受け付けます'; }
 rest();
 // 前に読んだ内容をすぐ出して、裏で新しいものを読み直す(電波が弱くても待たない)
 (() => { const c = cache.get(); if (c && c.products) { try { D = c; MLOCK = D.mlock || null; state(''); renderAll(); show(store.get('tab', 'today'), true); setTimeout(() => chat(hello(), 'greet'), 250); } catch (e) { D = null; } } })();
@@ -3746,6 +3746,6 @@ rest();
     try { profileName = (await liff.getProfile()).displayName; } catch (e) {}
     load();
   } catch (e) {
-    state('LINEにつながりませんでした。<br><button class="btn ghost" onclick="location.reload()">もう一度</button>');
+    state('LINEに接続できませんでした。<br><button class="btn ghost" onclick="location.reload()">もう一度</button>');
   }
 })();
