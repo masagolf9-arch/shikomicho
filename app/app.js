@@ -1545,7 +1545,7 @@ function qrDataUrl(text, size) {
 function qrBox() {
   if (!D.pubUrl) return '';
   const goods = D.products.filter(p => p.kind !== 'part'), shown = goods.filter(p => !p.pubHide).length, u = qrDataUrl(D.pubUrl, 300);
-  return `<div class="card" id="qr-card" style="margin-top:12px"><p style="margin:0 0 4px"><b>お客様向けのアレルゲン一覧(QR)</b></p><p class="k" style="margin:0 0 8px"><b>使い道:</b> 印刷してレジ横や商品の前に置きます。お客様がスマートフォンで読み取ると、商品ごとのアレルゲンを自分で確認できます。対面販売・店内飲食・催事など、ラベルを貼れない商品の案内に。「卵は入っていますか」と聞かれる手間が減ります。<br>ログインは不要で、原価・売価・原材料名は表示されません。レシピを変更すると自動で最新になります。</p>
+  return `<div class="card" id="qr-card" style="margin-top:12px"><p style="margin:0 0 4px"><b>お客様向けのアレルゲン一覧(QR)</b></p><p class="k" style="margin:0 0 8px"><b>使い道:</b> 印刷して、レジ横や商品の前に置いてください。お客様がスマートフォンでQRを読み取ると、商品ごとのアレルゲンをその場でご自身で確認できます。ラベルを貼れない対面販売・店内飲食・催事の商品に向いています。「卵は入っていますか」といったお問い合わせへの対応が減ります。<br>お客様側のログインは不要です。原価・売価・原材料名は表示されません。レシピを変更すると、一覧も自動で更新されます。</p>
     <div class="qrbox"><div class="qr">${u ? `<img src="${u}" alt="アレルゲン一覧のQRコード">` : '<span class="k">QRコードを作成できませんでした</span>'}</div>
     <div><p class="url" style="margin:0 0 6px">${esc(D.pubUrl)}</p><p class="k" style="margin:0 0 8px">掲載中の商品 ${shown}/${goods.length}品。レシピを変更すると、一覧にも反映されます。</p>
       <div class="ask" style="justify-content:flex-start"><a class="btn ghost sm" href="${esc(D.pubUrl)}" target="_blank" rel="noopener">開いて確認</a><button class="btn ghost sm" type="button" id="qr-a5">A5用紙に印刷</button><button class="btn ghost sm" type="button" id="qr-cards">名刺サイズで印刷(A4に10枚)</button><button class="btn ghost sm" type="button" id="qr-copy">URLをコピー</button>${D.me && D.me.owner ? '<button class="btn ghost sm" type="button" id="qr-renew">QRコードを再発行</button>' : ''}</div>
@@ -1588,7 +1588,7 @@ function renderLabel() {
   labelStale = false;
   const chips = $('label-chips'), box = $('label-box'), face = sellFace();
   $('label-h').textContent = face ? 'アレルゲン' : '食品表示';
-  $('label-lead').innerHTML = face ? '対面販売・店内飲食の商品には、食品表示ラベルは不要です。お客様に提示するアレルゲン一覧表とプライスカードを作成できます。包装して販売する商品や卸す商品は、下の「ラベルを印刷」から食品表示ラベルを作成できます。' : '一括表示の案とラベルの印刷。<mark>色の付いた箇所</mark>はご確認ください。最終確認と表示の責任は事業者様にあります。<a href="/law" target="_blank" rel="noopener">食品表示の改正と対応の記録</a>';
+  $('label-lead').innerHTML = face ? '対面販売・店内飲食の商品には、食品表示ラベルは不要です。お客様に提示するアレルゲン一覧表とプライスカードを作成できます。包装して販売する商品や卸す商品は、下の「ラベルを印刷」から食品表示ラベルを作成できます。' : '一括表示の案とラベルの印刷。<mark>色の付いた箇所</mark>はご確認ください。最終確認と表示の責任は事業者様にあります。<a href="/law" target="_blank" rel="noopener">食品表示の改正と対応の記録</a><br><b>使い道:</b> レシピから一括表示の案を作り、確認してラベルを印刷するためのものです。材料を変えると表示の案も変わるので、貼り替えの見落としを防げます。';
   if (!D.products.length) { chips.innerHTML = ''; box.innerHTML = emptyBox('label', 'レシピが登録されていません', 'レシピを撮影すると、ここに' + (face ? 'アレルゲン一覧表' : '食品表示の案') + 'が表示されます。', ['レシピを撮影', 'cam']); return; }
   if (!D.products.find(p => p.name === labelName)) labelName = D.products[0].name;
   const goods = D.products.filter(p => p.kind !== 'part');
@@ -1607,7 +1607,7 @@ function renderLabel() {
     <div class="r"><div class="h">保存方法</div><div class="v">${esc(L.storage)}</div></div>
     <div class="r"><div class="h">${esc(L.makerKind)}</div><div class="v">${esc(si.name || D.shop)} ${si.addr ? esc(si.addr) : '<span class="k">(住所は設定から)</span>'}${L.fcode ? ` <b>${esc(L.fcode)}</b>` : ''}</div></div>${L.factory ? `<div class="r"><div class="h">製造所</div><div class="v">${esc(L.factory)}</div></div>` : ''}</div>
     ${lblNotes(L).length ? `<div class="k" style="margin-top:8px">${lblNotes(L).map(esc).join('<br>')}</div>` : ''}
-    <div class="ask" style="margin-top:12px"><button class="btn" id="copy" type="button">原材料名をコピー</button>${specOn() ? '<button class="btn ghost" id="spec-one" type="button">商品規格書(Excel)</button><button class="btn ghost" id="spec-all" type="button">全商品の規格書</button>' : ''}<span class="copied" id="copied"></span></div>
+    <div class="ask" style="margin-top:12px"><button class="btn" id="copy" type="button">原材料名をコピー</button>${specOn() ? '<button class="btn ghost" id="spec-one" type="button">商品規格書(Excel)</button><button class="btn ghost" id="spec-all" type="button">全商品の規格書</button>' : ''}<span class="copied" id="copied"></span></div>${specOn() ? '<p class="k" style="margin:6px 0 0"><b>商品規格書の使い道:</b> 道の駅・スーパー・卸先から「規格書を出してください」と言われたときに、食品表示のデータからそのまま作成できます。内容が変わると版と改訂日が自動で上がるので、先方に渡した版を後から確認できます。</p>' : ''}
     ${lblPrintCard(p, L)}
     ${nutrBox(p)}` + (face ? '</div></details>' : '<h1 class="sub" style="margin-top:24px">店頭掲示物</h1>' + storeBox());
   bindStore();
@@ -2153,7 +2153,7 @@ function renderEv() {
   const row = e => `<button class="ev-row${e.status === '見送り' ? ' off' : ''}" type="button" data-ev="${esc(e.id)}"><span class="ev-d"><b>${evSpan(e)}</b><span class="ev-pills"><span class="pill">${esc(e.kind)}</span>${evGo(e) ? '' : `<span class="pill${e.status === '見送り' ? ' gray' : ' warn'}">${esc(e.status)}</span>`}</span></span><span class="ev-n"><b>${esc(e.name)}</b><span class="k">${esc([e.place, e.host].filter(Boolean).join('・'))}</span></span><span class="ev-v">${right(e)}</span></button>`;
   box.innerHTML = `${warn.length ? `<div class="card ev-warn"><b>有効期限が近い書類があります</b>${warn.map(d => `<button class="ev-row" type="button" data-evd="${esc(d.id)}"><span class="ev-n"><b>${esc(d.name)}</b><span class="k">${esc(d.kind)}${d.no ? '・' + esc(d.no) : ''}</span></span>${evDocBadge(d)}</button>`).join('')}</div>` : ''}
     ${hm ? '' : `<div class="card">${tiles([{ t: `${+mo.slice(5)}月の出店`, v: `${mine.length}<small>回</small>`, c: 'ev', k: '出店決定の分' }, { t: '売上(税込)', v: yen(sum('sales')), c: 'ev', k: '入力した実績の合計' }, { t: '出店料・歩合', v: yen(sum('feeAmt')), c: 'ev' }, { t: '差し引き', v: yen(sum('net')), c: 'ev', k: '売上から出店料・歩合を引いた額' }])}</div>`}
-    ${evOpt() ? `<div class="card ev-opt"><div><b>出店先ごとの成績表</b><span class="k">出店先ごとの回数・平均の売上・出店料と歩合・差し引き・売れ残りの割合を比べ、A4・Excelで書き出せます。</span></div><button class="btn ghost sm" type="button" id="ev-report">成績表を開く</button></div>` : (D.me && D.me.owner ? '<p class="k ev-optnote">出店先ごとの成績表・持ち込み表・申込の締め切りのお知らせは、オプション「出店(催事・キッチンカー)」でご利用いただけます(設定 → オプション)。</p>' : '')}
+    ${evOpt() ? `<div class="card ev-opt"><div><b>出店先ごとの成績表</b><span class="k"><b>使い道:</b> 「次はどこに出るか」を決めるときに、出店先ごとの回数・平均の売上・出店料と歩合・差し引き・売れ残りの割合を見比べます。A4・Excelで書き出せます。</span></div><button class="btn ghost sm" type="button" id="ev-report">成績表を開く</button></div>` : (D.me && D.me.owner ? '<p class="k ev-optnote">出店先ごとの成績表・持ち込み表・申込の締め切りのお知らせは、オプション「出店(催事・キッチンカー)」でご利用いただけます(設定 → オプション)。</p>' : '')}
     <div class="chips" id="ev-chips" style="margin-top:16px">${[['all', 'すべて'], ...S.kinds.map(k => [k, k])].map(([k, l]) => `<button type="button" class="chip" data-evf="${esc(k)}" aria-pressed="${evF === k}">${l}</button>`).join('')}</div>
     <h1 class="sub">これからの出店・応募</h1>
     <div class="card">${next.length ? next.map(row).join('') : '<p class="k" style="margin:0">登録されている出店はありません。「＋ 出店を登録」から追加するか、届いた募集のお知らせを「お知らせを取り込む」から読み取ってください。</p>'}</div>
@@ -2174,7 +2174,7 @@ async function evFile(f) {
 }
 // 届いたお知らせ(出店の募集・依頼)を読み取り、出店の登録画面に入れる。保存は画面で確かめてから
 function openEvRead() {
-  openSheet(`<h2 style="margin:0 0 4px">お知らせを取り込む</h2><p class="k" style="margin:0 0 10px">主催者・施設・市町村から届いた出店の募集や依頼を読み取り、出店の登録画面に入力します。内容はこのお店の中だけに保存されます。</p>
+  openSheet(`<h2 style="margin:0 0 4px">お知らせを取り込む</h2><p class="k" style="margin:0 0 10px"><b>使い道:</b> 主催者・施設・市町村から届いた募集や依頼を、手で書き写さずに登録するためのものです。文章の貼り付けか写真の選択で、日程・会場・出店料・締め切りを読み取り、出店の登録画面に入力します。内容はこのお店の中だけに保存されます。</p>
     <div class="fld" style="grid-template-columns:1fr"><span class="k">メールやLINEの文章を貼り付け</span><textarea id="er-text" rows="7" maxlength="12000" placeholder="例 第5回 〇〇マルシェ 出店者募集 開催日 2027年4月18日(日) 会場 〇〇公園 出店料 3,000円 申込締切 3月10日…" style="width:100%;font:inherit;font-size:15px;padding:8px 12px;border:1.5px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)"></textarea></div>
     <div class="ask"><button class="btn" type="button" id="er-go">文章を読み取る</button><label class="btn ghost" style="cursor:pointer">チラシ・募集要項の写真(PDF)を選ぶ<input type="file" id="er-file" accept="image/*,application/pdf" hidden></label></div>
     ${(SORT || []).some(x => x.photo) ? `<h3 class="ev-sh">LINEで送った写真から選ぶ</h3><p class="k" style="margin:0 0 6px">LINEに転送・送信したチラシの写真は「取り込み一覧」に入ります。ここから選んで読み取れます。</p><div class="er-ph">${(SORT || []).filter(x => x.photo).slice(0, 12).map(x => `<button type="button" class="er-pb" data-ph="${esc(x.photo)}" aria-label="${esc(x.title || '写真')}"><span class="k">${esc((x.title || '写真').slice(0, 16))}</span></button>`).join('')}</div>` : ''}
@@ -2463,7 +2463,7 @@ function evReportOpen() {
 function openOrder(supName) {
   const O = D.order || { sups: [] };
   if (supName == null) {
-    openSheet(`<h2 style="margin:0 0 4px">発注書の作成</h2><p class="k" style="margin:0 0 10px">仕入先を選択してください。在庫が少ない材料がある仕入先を上に表示しています</p>
+    openSheet(`<h2 style="margin:0 0 4px">発注書の作成</h2><p class="k" style="margin:0 0 6px"><b>使い道:</b> 仕事終わりに、仕入先ごとの発注書をその場で作って送るためのものです。請求書から読み取った「いつもの品」と前回の数量が並ぶので、数を直すだけで済みます。</p><p class="k" style="margin:0 0 10px">仕入先を選択してください。在庫が少ない材料がある仕入先を上に表示しています</p>
       ${O.sups.length ? O.sups.map((x, i) => `<button class="od-sup" type="button" data-os="${i}"><b>${esc(x.name)}</b><span class="k">${x.lowN ? `<mark>そろそろ ${x.lowN}品</mark> ` : ''}${x.last ? `前回 ${jpDay(x.last.at).replace(/^\d+年/, '')}${x.last.fax ? '・FAX' + x.last.fax.st : ''}` : ''}${x.fax ? '' : ' FAX番号なし'}</span></button>`).join('') : '<p class="k">仕入先が登録されていません。請求書を撮影すると、仕入先と取引のある品目が登録されます</p>'}
       <div class="fld" style="margin-top:12px"><span class="k">その他の仕入先</span><input id="od-new" placeholder="仕入先名"></div><div class="ask"><button class="btn ghost" type="button" id="od-new-go">この仕入先で作成</button></div>`);
     document.querySelectorAll('[data-os]').forEach(b => b.onclick = () => openOrder(O.sups[+b.dataset.os].name));

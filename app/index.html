@@ -1145,7 +1145,7 @@ body.pdet-on{overflow:hidden}
   </section>
 
   <section id="t-cost" hidden>
-    <div class="ph"><div><h1>原価</h1><p class="lead">商品ごとの原価と原価率の一覧です。商品を押すと、材料・分量・作り方の確認と編集ができます。</p></div><div class="acts"><label class="srch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="cost-q" type="search" placeholder="商品を検索" autocomplete="off"></label><select id="cost-sort" class="sel" aria-label="並び順"><option value="rate">原価率が高い順</option><option value="name">名前順</option><option value="new">新しい順</option><option value="est">未確定が多い順</option></select></div></div>
+    <div class="ph"><div><h1>原価</h1><p class="lead">商品ごとの原価と原価率の一覧です。商品を押すと、材料・分量・作り方の確認と編集ができます。<br><b>使い道:</b> 材料が値上がりしたとき、どの商品の原価がいくら上がったかをすぐに確かめ、売価を見直すか材料を変えるかを決めるためのものです。</p></div><div class="acts"><label class="srch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="cost-q" type="search" placeholder="商品を検索" autocomplete="off"></label><select id="cost-sort" class="sel" aria-label="並び順"><option value="rate">原価率が高い順</option><option value="name">名前順</option><option value="new">新しい順</option><option value="est">未確定が多い順</option></select></div></div>
     <div id="cat-box"></div>
     <div class="chips" id="cost-chips"></div>
     <div class="tw" id="cost-tw"><table class="ctab" id="cost-table"></table></div>
@@ -1167,13 +1167,13 @@ body.pdet-on{overflow:hidden}
   </section>
 
   <section id="t-mat" hidden>
-    <div class="ph"><div><h1>材料</h1><p class="lead">請求書から読み取った材料の単価を管理します。「仮」の単価は、請求書の登録時に自動で更新されます。</p></div><div class="acts"><label class="srch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="mat-q" type="search" placeholder="材料を検索" autocomplete="off"></label><button class="btn" type="button" id="mat-add-top">＋ 材料を追加</button></div></div>
+    <div class="ph"><div><h1>材料</h1><p class="lead">請求書から読み取った材料の単価を管理します。「仮」の単価は、請求書の登録時に自動で更新されます。<br><b>使い道:</b> 単価は請求書を撮影するだけで最新になります。この画面は、単価が未登録の材料を補ったり、1個の重さや在庫を確かめたりするときに開きます。</p></div><div class="acts"><label class="srch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="mat-q" type="search" placeholder="材料を検索" autocomplete="off"></label><button class="btn" type="button" id="mat-add-top">＋ 材料を追加</button></div></div>
     <div class="filter" id="mat-filter"></div>
     <div class="card scroll"><table class="mat" id="mats"></table></div>
     <p class="foot" id="mat-sum"></p>
   </section>
   <section id="t-book" hidden>
-    <div class="ph"><div><h1>帳簿</h1><p class="lead">請求書を撮影すると、仕入先別・月別に整理し、勘定科目の候補を付けます。PDFや受発注システムのCSVもまとめて取り込めます。</p></div><div class="acts"><label class="btn ghost">PDF・CSVを取り込む<input type="file" id="book-doc" accept=".pdf,.csv,.txt,.tsv,application/pdf,text/csv,text/plain" multiple hidden></label><button class="btn ghost" type="button" id="book-copy-top">この月をコピー</button></div></div>
+    <div class="ph"><div><h1>帳簿</h1><p class="lead">請求書を撮影すると、仕入先別・月別に整理し、勘定科目の候補を付けます。PDFや受発注システムのCSVもまとめて取り込めます。<br><b>使い道:</b> 月末の支払いの確認と、税理士さんに渡す資料づくりのためのものです。支払いが済んだら「支払済にする」を押すだけで、未払いの一覧から消えます。</p></div><div class="acts"><label class="btn ghost">PDF・CSVを取り込む<input type="file" id="book-doc" accept=".pdf,.csv,.txt,.tsv,application/pdf,text/csv,text/plain" multiple hidden></label><button class="btn ghost" type="button" id="book-copy-top">この月をコピー</button></div></div>
     <div id="book-doc-out" hidden></div>
     <div class="stack" id="pays"></div>
     <h1 class="sub">請求書の仕分け</h1>
@@ -1182,7 +1182,7 @@ body.pdet-on{overflow:hidden}
     <div id="journal"></div>
   </section>
   <section id="t-hyg" hidden>
-    <div class="ph"><div><h1>衛生記録</h1><p class="lead">毎日の温度管理と衛生点検を記録します。基準を外れた場合は、スタッフ全員にLINEで通知します。</p></div><div class="acts"><button class="btn ghost" type="button" id="hyg-print-top">記録表を印刷</button></div></div>
+    <div class="ph"><div><h1>衛生記録</h1><p class="lead">毎日の温度管理と衛生点検を記録します。基準を外れた場合は、スタッフ全員にLINEで通知します。<br><b>使い道:</b> 保健所の立ち入りや取引先の監査で「記録を見せてください」と言われたときに、記録表を印刷してそのまま提出できます。</p></div><div class="acts"><button class="btn ghost" type="button" id="hyg-print-top">記録表を印刷</button></div></div>
     <div class="card" id="hyg-fix" hidden></div>
     <h1 class="sub hy-sh">本日の記録 <span class="k" id="hyg-st"></span></h1>
     <div class="card" id="hyg-today"></div>
@@ -1224,17 +1224,17 @@ body.pdet-on{overflow:hidden}
       <div id="sb-out"></div></details>
   </section>
   <section id="t-ws" hidden>
-    <div class="ph"><div><h1>卸</h1><p class="lead">納品を記録すると、月末に卸先ごとの請求書を作成します。</p></div><div class="acts"><button class="btn" type="button" id="ws-add-top">＋ 納品を記録</button></div></div>
+    <div class="ph"><div><h1>卸</h1><p class="lead">納品を記録すると、月末に卸先ごとの請求書を作成します。<br><b>使い道:</b> 納品のたびに数を入れておけば、月末の請求書づくりが「作成」を押すだけで済みます。</p></div><div class="acts"><button class="btn" type="button" id="ws-add-top">＋ 納品を記録</button></div></div>
     <div class="card" id="ws-add"></div>
     <div class="chips" id="ws-chips" style="margin-top:16px"></div>
     <div class="stack" id="ws-list"></div>
   </section>
   <section id="t-ev" hidden>
-    <div class="ph"><div><h1>出店</h1><p class="lead">催事・キッチンカーの出店先と日程を登録し、持ち込み数・販売数・出店料を記録します。許可証や保険の有効期限もお知らせします。</p></div><div class="acts"><button class="btn ghost" type="button" id="ev-read-top">お知らせを取り込む</button><button class="btn" type="button" id="ev-add-top">＋ 出店を登録</button></div></div>
+    <div class="ph"><div><h1>出店</h1><p class="lead">催事・キッチンカーの出店先と日程を登録し、持ち込み数・販売数・出店料を記録します。許可証や保険の有効期限もお知らせします。<br><b>使い道:</b> 出店のたびに「前回は何個持って行ったか」「結局いくら残ったか」を思い出す手間をなくし、次の出店の準備に生かすためのものです。</p></div><div class="acts"><button class="btn ghost" type="button" id="ev-read-top">お知らせを取り込む</button><button class="btn" type="button" id="ev-add-top">＋ 出店を登録</button></div></div>
     <div id="ev-box"></div>
   </section>
   <section id="t-post" hidden>
-    <div class="ph"><div><h1>発信</h1><p class="lead">SNS用の画像・投稿文と、店頭用のPOP・値札・貼り紙を作成します。作成後に内容を編集することもできます。</p></div></div>
+    <div class="ph"><div><h1>発信</h1><p class="lead">SNS用の画像・投稿文と、店頭用のPOP・値札・貼り紙を作成します。作成後に内容を編集することもできます。<br><b>使い道:</b> 新商品や催事のお知らせを、登録済みの商品の情報からすぐに作るためのものです。書かれていない事実は入れません。</p></div></div>
     <div class="card" id="post-plan" style="margin-bottom:12px"></div>
     <div class="card" id="post-sns" style="margin-bottom:12px"></div>
     <div class="card post-in"><div class="row" style="margin-bottom:8px"><b>文章の案をAIで作成</b></div><div class="ask" style="margin-top:0"><select id="post-p" style="flex:1"></select></div>
@@ -1293,6 +1293,6 @@ body.pdet-on{overflow:hidden}
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-<script src="app.js?v=215"></script>
+<script src="app.js?v=216"></script>
 </body>
 </html>
