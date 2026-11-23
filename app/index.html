@@ -1016,6 +1016,18 @@ body.pdet-on{overflow:hidden}
 .ev-h{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-top:24px}
 .ev-h h1.sub{margin:0}
 .ev-h p.k{margin:4px 0 8px}
+.ev-row.off{opacity:.55}
+.ev-pills{display:flex;gap:4px;flex-wrap:wrap}
+.ev-sh{margin:18px 0 4px;font-size:15px;padding-top:12px;border-top:1px solid var(--line)}
+.ev-lr{display:flex;align-items:center;gap:12px;padding:6px 0;border-bottom:1px solid var(--line)}
+.ev-lr span:first-child{flex:1;min-width:0}
+.ev-chk{margin-top:8px;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.ev-ck{display:grid;grid-template-columns:1.3fr 1fr 1fr 1fr;gap:6px;padding:8px 10px;border-top:1px solid var(--line);font-variant-numeric:tabular-nums}
+.ev-ck:first-child{border-top:0;background:color-mix(in srgb,var(--c-ev) 6%,transparent)}
+.ev-ck span:not(:first-child){text-align:right}
+.ev-ck .bad{color:var(--warn);font-weight:700}.ev-ck .good{color:var(--ok,#1f7a4d);font-weight:700}
+.ev-hg{display:grid;gap:6px}
+.ev-hg label{display:flex;gap:8px;align-items:center;padding:8px 10px;border:1px solid var(--line);border-radius:10px;cursor:pointer}
 .ed-img{margin:8px 0}
 .ed-img img{max-width:100%;max-height:320px;border-radius:8px;border:1px solid var(--line)}
 @media (max-width:520px){.ev-row{flex-wrap:wrap}.ev-d{flex-direction:row;align-items:center;flex:1 1 100%}.ev-v{width:100%;flex-direction:row;justify-content:space-between}.ev-it{grid-template-columns:repeat(3,minmax(0,1fr)) 2.5em minmax(0,1fr)}.ev-it .ev-in{grid-column:1/-1}.ev-ih span:first-child{grid-column:1/-1;display:none}}
@@ -1200,7 +1212,7 @@ body.pdet-on{overflow:hidden}
     <div class="stack" id="ws-list"></div>
   </section>
   <section id="t-ev" hidden>
-    <div class="ph"><div><h1>出店</h1><p class="lead">催事・キッチンカーの出店先と日程を登録し、持ち込み数・販売数・出店料を記録します。許可証や保険の有効期限もお知らせします。</p></div><div class="acts"><button class="btn" type="button" id="ev-add-top">＋ 出店を登録</button></div></div>
+    <div class="ph"><div><h1>出店</h1><p class="lead">催事・キッチンカーの出店先と日程を登録し、持ち込み数・販売数・出店料を記録します。許可証や保険の有効期限もお知らせします。</p></div><div class="acts"><button class="btn ghost" type="button" id="ev-read-top">お知らせを取り込む</button><button class="btn" type="button" id="ev-add-top">＋ 出店を登録</button></div></div>
     <div id="ev-box"></div>
   </section>
   <section id="t-post" hidden>
@@ -1263,6 +1275,6 @@ body.pdet-on{overflow:hidden}
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-<script src="app.js?v=212"></script>
+<script src="app.js?v=213"></script>
 </body>
 </html>

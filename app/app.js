@@ -284,7 +284,7 @@ function todoItems(q) {
   const regs = noMoney() ? [] : (D.priceChanges || []).filter(x => !x.done); if (regs.length) t.push({ c: 'sales', ic: 'sales', b: `レジの売価の変更 ${regs.length}品`, k: regs.slice(0, 3).map(x => `${x.name} ${x.old ? x.old + '→' : ''}${x.now}円`).join('・') + (regs.length > 3 ? ' ほか' : ''), d: regs.some(x => x.at && Date.now() - x.at > DAY) ? '昨日から' : '今日', star: 3, go: () => { $('reg-box').scrollIntoView({ behavior: 'smooth', block: 'start' }); } });
   if (evOn()) {
     const td = todayS();
-    D.shutten.list.filter(e => e.from <= td && e.to >= td || dayDiff(e.from) === 1).forEach(e => { const dd = dayDiff(e.from); t.push({ c: 'ev', ic: 'ev', b: `${dd === 1 ? '明日の出店' : '本日の出店'}: ${e.name}`, k: [e.kind, e.place].filter(Boolean).join('・'), d: dd === 1 ? '明日' : '今日', star: 2, go: () => openEv(e.id) }); });
+    D.shutten.list.filter(e => evGo(e) && (e.from <= td && e.to >= td || dayDiff(e.from) === 1)).forEach(e => { const dd = dayDiff(e.from); t.push({ c: 'ev', ic: 'ev', b: `${dd === 1 ? '明日の出店' : '本日の出店'}: ${e.name}`, k: [e.kind, e.place].filter(Boolean).join('・'), d: dd === 1 ? '明日' : '今日', star: 2, go: () => openEv(e.id) }); });
     evWarns().forEach(x => t.push({ c: 'ev', ic: 'ev', b: `${x.name}の有効期限${x.warn === 'out' ? 'が切れています' : 'が近づいています'}`, k: `${x.kind}・${evYmd(x.exp)}まで`, d: x.warn === 'out' ? '期限切れ' : x.days === 0 ? '本日まで' : `残り${x.days}日`, star: x.warn === 'out' ? 3 : 2, go: () => openEvDoc(x.id) }));
   }
   const hm = hygMissing(); if (hm.length) t.push({ c: 'hyg', ic: 'hyg', b: `本日の衛生記録 残り${hm.length}つ`, k: hm.join('・'), d: '今日', star: new Date().getHours() >= 15 ? 3 : 2, go: () => show('hyg') });
@@ -630,7 +630,7 @@ const perm = k => !D || !D.me || !D.me.perms || !!D.me.perms[k];
 const SH = k => !!(D && (D.shelved || []).includes(k));
 // プランで使える機能(全プラン共通のものは常に true)
 const PL = f => !D || !D.plan || (D.plan.feats || []).includes(f);
-const PLAN_NEED = { analysis: 'スタンダード', sales: 'スタンダード', shelf: 'スタンダード', post: 'スタンダード', ws: 'スタンダード', target: 'プロ', brand: 'プロ' };
+const PLAN_NEED = { evsettle: 'スタンダード', analysis: 'スタンダード', sales: 'スタンダード', shelf: 'スタンダード', post: 'スタンダード', ws: 'スタンダード', target: 'プロ', brand: 'プロ' };
 // 使える量(設定に出す)
 function planUse() {
   const u = D.plan, bar = (n, m) => m ? `<span class="ubar"><i style="width:${Math.min(100, Math.round(n / m * 100))}%"></i></span>` : '';
@@ -2097,35 +2097,44 @@ function optBox() {
   return L.filter(x => x[3] || c[x[0]]).map(([k, n, w]) => `<div class="opt-row"><div><b>${n}</b> ${c[k] ? '<span class="pill">お使いいただけます</span>' : '<span class="pill gray">お申し込み後にご利用いただけます</span>'}<div class="k">${w}</div></div>${c[k] ? (k === 'order' ? '<button class="btn" type="button" data-optgo="order">発注書を作成</button>' : '') : '<button class="btn ghost" type="button" data-optask="' + k + '">申し込む</button>'}</div>`).join('') + '<p class="k" style="margin:8px 0 0">オプションのお申し込み・解約は、「申し込む」または「相談」からご連絡ください。</p>';
 }
 // ---------- 出店(催事・キッチンカー) 第1段の標準部分(11/23) ----------
-// 出店先と日程の登録、持ち込み数・販売数・出店料の記録、許可証・保険の有効期限の管理。
-// もうけの見込みは出さない。表示するのは、そのお店が入力した実績だけ
+// 出店先と日程の登録、届いたお知らせの取り込み、持ち込み数・販売数・出店料の記録、出店日の衛生チェック、
+// 出店分のラベル印刷、精算の照合(スタンダード以上)、許可証・保険の有効期限の管理。
+// もうけの見込みは出さない。表示するのは、そのお店が入力した実績だけ。出店先ごとの比較はオプション(成績表)で行う
 let evF = 'all';
 const evOn = () => !!(D && D.shutten);
 const evDay = s => s ? `${+s.slice(5, 7)}月${+s.slice(8, 10)}日(${'日月火水木金土'[new Date(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10)).getDay()]})` : '';
 const evSpan = e => e.to && e.to !== e.from ? `${evDay(e.from)}〜${e.to.slice(0, 7) === e.from.slice(0, 7) ? +e.to.slice(8, 10) + '日' : evDay(e.to)}` : evDay(e.from);
 const evYmd = s => s ? `${+s.slice(0, 4)}年${+s.slice(5, 7)}月${+s.slice(8, 10)}日` : '';
 const evDocBadge = d => d.warn === 'out' ? `<span class="pill warn">期限切れ(${evYmd(d.exp)})</span>` : d.warn === 'soon' ? `<span class="pill warn">${d.days === 0 ? '本日まで' : `残り${d.days}日`}</span>` : d.exp ? `<span class="pill">${evYmd(d.exp)}まで</span>` : '<span class="pill">期限なし</span>';
+const evGo = e => e.status === '出店決定';
 function evWarns() { return evOn() ? D.shutten.docs.filter(d => d.warn) : []; }
+const evDays = e => { const out = []; let d = new Date(+e.from.slice(0, 4), +e.from.slice(5, 7) - 1, +e.from.slice(8, 10)); const end = e.to || e.from; for (let i = 0; i < 31; i++) { const s = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; if (s > end) break; out.push(s); d.setDate(d.getDate() + 1); } return out; };
 function renderEv() {
   const box = $('ev-box'); if (!box) return;
   if ($('ev-add-top')) { $('ev-add-top').hidden = !evOn(); $('ev-add-top').onclick = () => openEv(null); }
+  if ($('ev-read-top')) { $('ev-read-top').hidden = !evOn(); $('ev-read-top').onclick = () => openEvRead(); }
   if (!evOn()) {
     box.innerHTML = emptyBox('ev', '出店の記録はありません', '設定の「利用する業務」で「催事・キッチンカーへの出店」を選ぶと、この画面を使えます。');
     return;
   }
   const S = D.shutten, td = todayS(), hm = !!S.hidden || noMoney();
   const list = S.list.filter(e => evF === 'all' || e.kind === evF);
-  const next = list.filter(e => e.to >= td).sort((a, b) => a.from.localeCompare(b.from));
-  const past = list.filter(e => e.to < td);
-  const mo = td.slice(0, 7), mine = S.list.filter(e => e.from.slice(0, 7) === mo && e.from <= td);
+  const next = list.filter(e => e.to >= td && e.status !== '見送り').sort((a, b) => a.from.localeCompare(b.from));
+  const past = list.filter(e => e.to < td || e.status === '見送り');
+  const mo = td.slice(0, 7), mine = S.list.filter(e => evGo(e) && e.from.slice(0, 7) === mo && e.from <= td);
   const sum = k => mine.reduce((a, e) => a + (e.calc[k] || 0), 0);
   const warn = evWarns();
-  const row = e => `<button class="ev-row" type="button" data-ev="${esc(e.id)}"><span class="ev-d"><b>${evSpan(e)}</b><span class="pill">${esc(e.kind)}</span></span><span class="ev-n"><b>${esc(e.name)}</b><span class="k">${esc([e.place, e.host].filter(Boolean).join('・'))}</span></span><span class="ev-v">${e.calc.bring ? `<span class="k">販売 ${e.calc.sold} / 持ち込み ${e.calc.bring}</span>` : '<span class="k">数量は未記録</span>'}${!hm && e.calc.net != null ? `<b>${yen(e.calc.net)}</b>` : ''}</span></button>`;
+  const right = e => {
+    if (!evGo(e)) return `<span class="k">${e.deadline && e.status === '検討中' ? `申込締切 ${evDay(e.deadline)}` : ''}</span>`;
+    const chk = e.calc.chk;
+    return `${e.calc.bring ? `<span class="k">販売 ${e.calc.sold} / 持ち込み ${e.calc.bring}</span>` : `<span class="k">${e.to < td ? '数量は未記録' : ''}</span>`}${!hm && e.calc.net != null ? `<b>${yen(e.calc.net)}</b>` : ''}${!hm && chk ? (chk.ok ? '<span class="pill ok">精算一致</span>' : '<span class="pill warn">精算に差額</span>') : ''}`;
+  };
+  const row = e => `<button class="ev-row${e.status === '見送り' ? ' off' : ''}" type="button" data-ev="${esc(e.id)}"><span class="ev-d"><b>${evSpan(e)}</b><span class="ev-pills"><span class="pill">${esc(e.kind)}</span>${evGo(e) ? '' : `<span class="pill${e.status === '見送り' ? ' gray' : ' warn'}">${esc(e.status)}</span>`}</span></span><span class="ev-n"><b>${esc(e.name)}</b><span class="k">${esc([e.place, e.host].filter(Boolean).join('・'))}</span></span><span class="ev-v">${right(e)}</span></button>`;
   box.innerHTML = `${warn.length ? `<div class="card ev-warn"><b>有効期限が近い書類があります</b>${warn.map(d => `<button class="ev-row" type="button" data-evd="${esc(d.id)}"><span class="ev-n"><b>${esc(d.name)}</b><span class="k">${esc(d.kind)}${d.no ? '・' + esc(d.no) : ''}</span></span>${evDocBadge(d)}</button>`).join('')}</div>` : ''}
-    ${hm ? '' : `<div class="card">${tiles([{ t: `${+mo.slice(5)}月の出店`, v: `${mine.length}<small>回</small>`, c: 'ev' }, { t: '売上(税込)', v: yen(sum('sales')), c: 'ev', k: '入力した実績の合計' }, { t: '出店料・歩合', v: yen(sum('feeAmt')), c: 'ev' }, { t: '差し引き', v: yen(sum('net')), c: 'ev', k: '売上から出店料・歩合を引いた額' }])}</div>`}
+    ${hm ? '' : `<div class="card">${tiles([{ t: `${+mo.slice(5)}月の出店`, v: `${mine.length}<small>回</small>`, c: 'ev', k: '出店決定の分' }, { t: '売上(税込)', v: yen(sum('sales')), c: 'ev', k: '入力した実績の合計' }, { t: '出店料・歩合', v: yen(sum('feeAmt')), c: 'ev' }, { t: '差し引き', v: yen(sum('net')), c: 'ev', k: '売上から出店料・歩合を引いた額' }])}</div>`}
     <div class="chips" id="ev-chips" style="margin-top:16px">${[['all', 'すべて'], ...S.kinds.map(k => [k, k])].map(([k, l]) => `<button type="button" class="chip" data-evf="${esc(k)}" aria-pressed="${evF === k}">${l}</button>`).join('')}</div>
-    <h1 class="sub">これからの出店</h1>
-    <div class="card">${next.length ? next.map(row).join('') : '<p class="k" style="margin:0">登録されている出店はありません。「＋ 出店を登録」から追加してください。</p>'}</div>
+    <h1 class="sub">これからの出店・応募</h1>
+    <div class="card">${next.length ? next.map(row).join('') : '<p class="k" style="margin:0">登録されている出店はありません。「＋ 出店を登録」から追加するか、届いた募集のお知らせを「お知らせを取り込む」から読み取ってください。</p>'}</div>
     <h1 class="sub">過去の出店</h1>
     <div class="card">${past.length ? past.slice(0, 30).map(row).join('') + (past.length > 30 ? `<p class="k" style="margin:8px 0 0">ほか${past.length - 30}件</p>` : '') : '<p class="k" style="margin:0">記録はまだありません。</p>'}</div>
     <div class="ev-h"><div><h1 class="sub">許可証・保険などの書類</h1><p class="k">有効期限の${S.warnDays}日前・7日前・前日・当日に、朝のお知らせでお伝えします。</p></div><button class="btn ghost sm" type="button" id="ev-doc-add">＋ 書類を登録</button></div>
@@ -2135,31 +2144,72 @@ function renderEv() {
   box.querySelectorAll('[data-evf]').forEach(b => b.onclick = () => { evF = b.dataset.evf; renderEv(); });
   $('ev-doc-add').onclick = () => openEvDoc(null);
 }
-function openEv(id) {
-  const S = D.shutten || { list: [], kinds: ['催事', 'キッチンカー'], places: [] }, hm = !!S.hidden || noMoney();
-  const E = S.list.find(e => e.id === id) || { id: '', kind: S.kinds[0], name: '', from: todayS(), to: '', place: '', host: '', fee: 0, rate: 0, settle: 'self', items: [], sales: 0, paid: 0, memo: '' };
+// 写真・PDFを読み込んで、送る形(base64)にする。PDFはそのまま、写真は縮める
+async function evFile(f) {
+  if (f.type === 'application/pdf') { if (f.size > 4.5e6) throw new Error('PDFは4.5MBまでにしてください'); const b = await f.arrayBuffer(); let s = ''; const u = new Uint8Array(b); for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000)); return { type: f.type, data: btoa(s) }; }
+  return { type: 'image/jpeg', data: await shrinkStep(f) };
+}
+// 届いたお知らせ(出店の募集・依頼)を読み取り、出店の登録画面に入れる。保存は画面で確かめてから
+function openEvRead() {
+  openSheet(`<h2 style="margin:0 0 4px">お知らせを取り込む</h2><p class="k" style="margin:0 0 10px">主催者・施設・市町村から届いた出店の募集や依頼を読み取り、出店の登録画面に入力します。内容はこのお店の中だけに保存されます。</p>
+    <div class="fld" style="grid-template-columns:1fr"><span class="k">メールやLINEの文章を貼り付け</span><textarea id="er-text" rows="7" maxlength="12000" placeholder="例 第5回 〇〇マルシェ 出店者募集 開催日 2027年4月18日(日) 会場 〇〇公園 出店料 3,000円 申込締切 3月10日…" style="width:100%;font:inherit;font-size:15px;padding:8px 12px;border:1.5px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)"></textarea></div>
+    <div class="ask"><button class="btn" type="button" id="er-go">文章を読み取る</button><label class="btn ghost" style="cursor:pointer">チラシ・募集要項の写真(PDF)を選ぶ<input type="file" id="er-file" accept="image/*,application/pdf" hidden></label></div>
+    <p class="k" id="er-msg" style="margin:8px 0 0">文章の読み取りは文案づくり、写真・PDFの読み取りは写真の読み取りの回数に含まれます。</p>`);
+  const run = async body => {
+    $('er-msg').textContent = '読み取っています…'; $('er-go').disabled = true;
+    const r = await api({ kind: 'app_set', field: 'evread', value: Object.assign({ mode: 'notice' }, body) }).catch(() => ({ ok: false, error: '通信できませんでした' }));
+    if (!$('er-go')) return; $('er-go').disabled = false;
+    if (!r.ok) { $('er-msg').textContent = r.error || '読み取れませんでした'; return; }
+    openEv(null, r.draft); toast('読み取った内容を入力しました。確認してから保存してください', 'ok');
+  };
+  $('er-go').onclick = () => { const t = $('er-text').value.trim(); if (t.length < 10) { $('er-msg').textContent = 'お知らせの文章を貼り付けてください'; return; } run({ text: t }); };
+  $('er-file').onchange = async () => { const f = $('er-file').files[0]; if (!f) return; try { run({ file: await evFile(f) }); } catch (e) { $('er-msg').textContent = e.message || '読み込めませんでした'; } };
+}
+// 出店分のラベル印刷: 食品表示の画面を開き、枚数に持ち込み数を入れる
+function evLabel(name, n) {
+  labelName = name; closeSheet(); show('label'); renderLabel();
+  setTimeout(() => { const el = $('lb-n'); if (el) { el.value = n; el.scrollIntoView({ block: 'center' }); toast(`「${name}」の枚数に持ち込み数(${n}枚)を入れました`, 'ok'); } else toast(`印刷方法(A4シート・ロール)を選ぶと印刷できます。枚数は${n}枚です`); }, 300);
+}
+function openEv(id, draft) {
+  const S = D.shutten || { list: [], kinds: ['催事', 'キッチンカー'], statuses: ['検討中', '応募済み', '出店決定', '見送り'], places: [], hygItems: [] }, hm = !!S.hidden || noMoney();
+  const E = Object.assign({ id: '', kind: S.kinds[0], name: '', from: todayS(), to: '', place: '', host: '', fee: 0, rate: 0, settle: 'self', items: [], sales: 0, paid: 0, ssales: 0, sfee: 0, memo: '', status: '出店決定', deadline: '', cond: '', url: '', hyg: {}, calc: {} }, S.list.find(e => e.id === id) || {}, draft || {});
   const prodPrice = n => { const p = (D.products || []).find(x => x.name === n); return p && p.price ? p.price : ''; };
   const irow = x => `<div class="ev-it"><input class="ev-in" list="ev-pl" aria-label="商品名" placeholder="商品名" value="${esc(x.name || '')}"><input class="ev-ib" inputmode="numeric" aria-label="持ち込み数" placeholder="持ち込み" value="${x.bring || ''}"><input class="ev-is" inputmode="numeric" aria-label="販売数" placeholder="販売" value="${x.sold || ''}"><input class="ev-il" inputmode="numeric" aria-label="廃棄・試食" placeholder="廃棄等" value="${x.loss || ''}"><span class="ev-ir k"></span>${hm ? '' : `<input class="ev-ip" inputmode="numeric" aria-label="単価(税込)" placeholder="単価" value="${x.price || ''}">`}</div>`;
   const prevSame = S.list.filter(e => e.id !== E.id && e.items.length).sort((a, b) => b.from.localeCompare(a.from));
-  openSheet(`<h2 style="margin:0 0 4px">${E.id ? '出店の記録' : '出店を登録'}</h2><p class="k" style="margin:0 0 10px">出店の前に予定を登録し、終わったら数量と売上を記録してください。</p>
-    <div class="fld"><span class="k">種類</span><div class="seg" id="ev-kind">${S.kinds.map(k => `<button type="button" data-v="${esc(k)}" aria-pressed="${E.kind === k}">${esc(k)}</button>`).join('')}</div>
+  const td = todayS(), days = E.id ? evDays(E) : [], hday = days.includes(td) ? td : days[0] || '';
+  const H = S.hygItems || [], canSettle = !hm && S.settle, hasStmt = E.ssales || E.sfee || E.paid;
+  const ta = 'width:100%;font:inherit;font-size:15px;padding:8px 12px;border:1.5px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)';
+  openSheet(`<h2 style="margin:0 0 4px">${E.id ? '出店の記録' : '出店を登録'}</h2><p class="k" style="margin:0 0 10px">${draft ? '届いたお知らせから読み取った内容です。誤りがないか確認してから保存してください。' : '出店の前に予定を登録し、終わったら数量と売上を記録してください。'}</p>
+    <div class="fld"><span class="k">状況</span><div class="seg" id="ev-status">${S.statuses.map(k => `<button type="button" data-v="${esc(k)}" aria-pressed="${E.status === k}">${esc(k)}</button>`).join('')}</div>
+    <span class="k">種類</span><div class="seg" id="ev-kind">${S.kinds.map(k => `<button type="button" data-v="${esc(k)}" aria-pressed="${E.kind === k}">${esc(k)}</button>`).join('')}</div>
     <span class="k">出店先</span><input id="ev-name" list="ev-nl" maxlength="60" placeholder="例 〇〇百貨店 北海道物産展、〇〇公園 週末マルシェ" value="${esc(E.name)}"><datalist id="ev-nl">${S.places.map(p => `<option value="${esc(p)}">`).join('')}</datalist>
     <span class="k">出店日</span><span style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><input id="ev-from" type="date" style="width:auto" value="${esc(E.from)}"><span class="k">〜</span><input id="ev-to" type="date" style="width:auto" value="${esc(E.to && E.to !== E.from ? E.to : '')}"><span class="k">1日のみの場合、終了日は空欄</span></span>
     <span class="k">会場・場所</span><input id="ev-place" maxlength="80" placeholder="例 本館7階 催事場" value="${esc(E.place)}">
     <span class="k">主催・担当</span><input id="ev-host" maxlength="60" placeholder="例 〇〇百貨店 催事担当、〇〇市 商工観光課" value="${esc(E.host)}">
+    <span class="k">申込の締め切り</span><input id="ev-dl" type="date" style="width:auto" value="${esc(E.deadline)}">
     ${hm ? '' : `<span class="k">出店料・歩合</span><span style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><input id="ev-fee" inputmode="numeric" style="width:7em" placeholder="0" value="${E.fee || ''}"><span class="k">円 ＋ 売上の</span><input id="ev-rate" inputmode="decimal" style="width:4.5em" placeholder="0" value="${E.rate || ''}"><span class="k">%</span></span>
-    <span class="k">売上の受け取り方</span><div class="seg" id="ev-settle"><button type="button" data-v="self" aria-pressed="${E.settle !== 'host'}">自店で受け取る</button><button type="button" data-v="host" aria-pressed="${E.settle === 'host'}">主催者・施設が精算</button></div>`}</div>
-    <h3 style="margin:16px 0 4px;font-size:15px">商品ごとの数量${hm ? '' : '・単価'}</h3><p class="k" style="margin:0 0 6px">残りは「持ち込み − 販売 − 廃棄等」で自動計算します。${hm ? '' : '単価は売価(税込)を初期値として入れています。'}</p>
+    <span class="k">売上の受け取り方</span><div class="seg" id="ev-settle"><button type="button" data-v="self" aria-pressed="${E.settle !== 'host'}">自店で受け取る</button><button type="button" data-v="host" aria-pressed="${E.settle === 'host'}">主催者・施設が精算</button></div>`}
+    <span class="k">条件・必要書類</span><textarea id="ev-cond" rows="3" maxlength="600" placeholder="例 PL保険の加入が必要。販売員2名以上。営業許可証の写しを提出" style="${ta}">${esc(E.cond)}</textarea>
+    <span class="k">申込先のURL</span><span style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><input id="ev-url" inputmode="url" maxlength="300" placeholder="https://" value="${esc(E.url)}" style="flex:1 1 12em">${E.url ? `<a class="btn ghost sm" href="${esc(E.url)}" target="_blank" rel="noopener">開く</a>` : ''}</span></div>
+    <h3 class="ev-sh">商品ごとの数量${hm ? '' : '・単価'}</h3><p class="k" style="margin:0 0 6px">残りは「持ち込み − 販売 − 廃棄等」で自動計算します。${hm ? '' : '単価は売価(税込)を初期値として入れています。'}</p>
     <div class="ev-it ev-ih k"><span>商品名</span><span>持ち込み</span><span>販売</span><span>廃棄等</span><span>残り</span>${hm ? '' : '<span>単価</span>'}</div>
     <div id="ev-items">${(E.items.length ? E.items : [{}, {}, {}]).map(irow).join('')}</div><datalist id="ev-pl">${(D.products || []).map(p => `<option value="${esc(p.name)}">`).join('')}</datalist>
-    <div class="ask" style="margin-top:6px"><button class="btn ghost sm" type="button" id="ev-row-add">＋ 行を追加</button>${prevSame.length ? '<button class="btn ghost sm" type="button" id="ev-prev">前回と同じ商品を入れる</button>' : ''}</div>
-    ${hm ? '' : `<div class="fld" style="margin-top:8px"><span class="k">売上(税込)</span><span style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><input id="ev-sales" inputmode="numeric" style="width:11em" placeholder="自動計算" value="${E.sales || ''}"><span class="k">円(空欄の場合は単価×販売数。レジの集計額があれば入力してください)</span></span>
-    <span class="k" id="ev-paid-l"${E.settle === 'host' ? '' : ' hidden'}>精算で受け取った額</span><span id="ev-paid-w" style="display:${E.settle === 'host' ? 'flex' : 'none'};gap:8px;align-items:center;flex-wrap:wrap"><input id="ev-paid" inputmode="numeric" style="width:9em" placeholder="精算書の振込額" value="${E.paid || ''}"><span class="k">円</span></span></div>
+    <div class="ask" style="margin-top:6px"><button class="btn ghost sm" type="button" id="ev-row-add">＋ 行を追加</button>${prevSame.length ? '<button class="btn ghost sm" type="button" id="ev-prev">前回と同じ商品を入れる</button>' : ''}${E.id && !sellFace() ? '<button class="btn ghost sm" type="button" id="ev-lbl">出店分のラベルを印刷</button>' : ''}</div>
+    <div id="ev-lbls" hidden></div>
+    ${hm ? '' : `<div class="fld" style="margin-top:8px"><span class="k">売上(税込)</span><span style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><input id="ev-sales" inputmode="numeric" style="width:11em" placeholder="自動計算" value="${E.sales || ''}"><span class="k">円(空欄の場合は単価×販売数。レジの集計額があれば入力してください)</span></span></div>
     <div class="ev-sum" id="ev-sum"></div>`}
-    <div class="fld"><span class="k">メモ</span><textarea id="ev-memo" rows="2" maxlength="500" placeholder="例 雨で午後は客足が少なかった。釣銭は千円札を多めに" style="width:100%;font:inherit;font-size:15px;padding:8px 12px;border:1.5px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)">${esc(E.memo)}</textarea></div>
+    ${hm ? '' : `<div id="ev-stl"${E.settle === 'host' || hasStmt ? '' : ' hidden'}><h3 class="ev-sh">精算の照合</h3>${canSettle ? `<p class="k" style="margin:0 0 6px">主催者・施設から届いた精算書の数字を入力すると、自分の記録と突き合わせて差額を表示します。</p>
+      <div class="fld"><span class="k">精算書の売上</span><span style="display:flex;gap:8px;align-items:center"><input id="ev-ss" inputmode="numeric" style="width:9em" value="${E.ssales || ''}"><span class="k">円</span></span>
+      <span class="k">差し引かれた額</span><span style="display:flex;gap:8px;align-items:center"><input id="ev-sf" inputmode="numeric" style="width:9em" value="${E.sfee || ''}"><span class="k">円(手数料・歩合・出店料)</span></span>
+      <span class="k">振込額</span><span style="display:flex;gap:8px;align-items:center"><input id="ev-paid" inputmode="numeric" style="width:9em" value="${E.paid || ''}"><span class="k">円</span></span></div>
+      <div class="ask" style="margin-top:6px"><label class="btn ghost sm" style="cursor:pointer">精算書を撮影して読み取る<input type="file" id="ev-sfile" accept="image/*,application/pdf" hidden></label><span class="k" id="ev-smsg"></span></div>
+      <div id="ev-chk"></div>` : '<p class="k" style="margin:0">精算書と自分の記録の突き合わせは、スタンダードプランからご利用いただけます。</p>'}</div>`}
+    ${E.id && H.length ? `<h3 class="ev-sh">出店日の衛生チェック</h3><p class="k" style="margin:0 0 6px">屋外・仮設の売り場で抜けやすい点を、出店日ごとに記録します。</p>
+      <div class="fld"><span class="k">日付</span><select id="eh-day">${days.map(d => `<option value="${d}"${d === hday ? ' selected' : ''}>${evDay(d)}${E.hyg[d] ? '(記録済み)' : ''}</option>`).join('')}</select></div>
+      <div id="eh-box"></div>` : ''}
+    <div class="fld" style="margin-top:12px"><span class="k">メモ</span><textarea id="ev-memo" rows="2" maxlength="500" placeholder="例 雨で午後は客足が少なかった。釣銭は千円札を多めに" style="${ta}">${esc(E.memo)}</textarea></div>
     <div class="ask"><button class="btn" type="button" id="ev-save">保存する</button>${E.id ? '<button class="btn ghost" type="button" id="ev-del">削除</button>' : ''}</div>`);
-  const seg = id => { const el = $(id); if (!el) return; el.querySelectorAll('button').forEach(b => b.onclick = () => { el.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b)); if (id === 'ev-settle') { const h = b.dataset.v === 'host'; $('ev-paid-l').hidden = !h; $('ev-paid-w').style.display = h ? 'flex' : 'none'; } }); };
-  seg('ev-kind'); seg('ev-settle');
+  const segB = id => { const el = $(id); if (!el) return; el.querySelectorAll('button').forEach(b => b.onclick = () => { el.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b)); if (id === 'ev-settle' && $('ev-stl')) $('ev-stl').hidden = b.dataset.v !== 'host' && !hasStmt; recalc(); }); };
   const segV = id => { const b = $(id) && $(id).querySelector('[aria-pressed="true"]'); return b ? b.dataset.v : ''; };
   const num = v => { const n = Number(String(v || '').replace(/[,，円%\s]/g, '')); return n > 0 ? n : 0; };
   const read = () => [...document.querySelectorAll('#ev-items .ev-it')].map(r => ({ name: r.querySelector('.ev-in').value.trim(), bring: num(r.querySelector('.ev-ib').value), sold: num(r.querySelector('.ev-is').value), loss: num(r.querySelector('.ev-il').value), price: r.querySelector('.ev-ip') ? num(r.querySelector('.ev-ip').value) : 0 })).filter(x => x.name);
@@ -2169,25 +2219,60 @@ function openEv(id) {
     const it = read(), by = it.reduce((a, x) => a + x.sold * x.price, 0), sales = num($('ev-sales').value) || by, fee = num($('ev-fee').value) + Math.round(sales * num($('ev-rate').value) / 100);
     $('ev-sales').placeholder = by ? `自動 ${by.toLocaleString('ja-JP')}` : '自動計算';
     $('ev-sum').innerHTML = sales || fee ? `<span>売上 <b>${yen(sales)}</b></span><span>出店料・歩合 <b>${yen(fee)}</b></span><span>差し引き <b>${yen(sales - fee)}</b></span>` : '';
+    if ($('ev-chk')) {
+      const rows = [['売上', sales, num($('ev-ss').value)], ['差し引かれた額', fee, num($('ev-sf').value)], ['受け取る額', sales - fee, num($('ev-paid').value)]].filter(x => x[2] > 0);
+      $('ev-chk').innerHTML = rows.length ? `<div class="ev-chk"><div class="ev-ck k"><span></span><span>自分の記録</span><span>精算書</span><span>差額</span></div>${rows.map(([l, a, b]) => { const d = b - a; return `<div class="ev-ck"><span>${l}</span><span>${yen(a)}</span><span>${yen(b)}</span><span class="${Math.abs(d) >= 1 ? 'bad' : 'good'}">${Math.abs(d) >= 1 ? (d > 0 ? '+' : '−') + yen(Math.abs(d)) : '一致'}</span></div>`; }).join('')}</div>${rows.some(([, a, b]) => Math.abs(b - a) >= 1) ? '<p class="k" style="margin:6px 0 0">差額がある場合は、販売数・単価・歩合の率・精算の対象期間をご確認ください。値引きや返品が精算書にだけ反映されていることもあります。</p>' : ''}` : '';
+    }
   };
+  segB('ev-kind'); segB('ev-settle'); segB('ev-status');
   const bindRows = () => document.querySelectorAll('#ev-items .ev-it').forEach(r => {
     r.querySelectorAll('input').forEach(i => i.oninput = recalc);
     const n = r.querySelector('.ev-in'), p = r.querySelector('.ev-ip');
     n.onchange = () => { if (p && !p.value) { const v = prodPrice(n.value.trim()); if (v) { p.value = v; recalc(); } } };
   });
   bindRows(); recalc();
-  ['ev-sales', 'ev-fee', 'ev-rate'].forEach(k => { if ($(k)) $(k).oninput = recalc; });
+  ['ev-sales', 'ev-fee', 'ev-rate', 'ev-ss', 'ev-sf', 'ev-paid'].forEach(k => { if ($(k)) $(k).oninput = recalc; });
   $('ev-row-add').onclick = () => { $('ev-items').insertAdjacentHTML('beforeend', irow({})); bindRows(); };
   if ($('ev-prev')) $('ev-prev').onclick = () => {
     const nm = $('ev-name').value.trim(), src = prevSame.find(e => e.name === nm) || prevSame[0];
     $('ev-items').innerHTML = src.items.map(x => irow({ name: x.name, price: hm ? 0 : x.price || prodPrice(x.name) })).join(''); bindRows(); recalc();
     toast(`${src.name}(${evDay(src.from)})と同じ商品を入れました。数量を入力してください`, 'ok');
   };
+  if ($('ev-lbl')) $('ev-lbl').onclick = () => {
+    const box = $('ev-lbls'), it = read().filter(x => x.bring > 0), known = it.filter(x => (D.products || []).some(p => p.name === x.name && p.kind !== 'part'));
+    box.hidden = false;
+    box.innerHTML = known.length ? `<p class="k" style="margin:8px 0 4px">印刷する商品を選んでください。枚数には持ち込み数を入れます。</p>${known.map(x => `<div class="ev-lr"><span>${esc(x.name)}</span><span class="k">${x.bring}枚</span><button class="btn ghost sm" type="button" data-evl="${esc(x.name)}" data-n="${x.bring}">印刷へ</button></div>`).join('')}${it.length > known.length ? `<p class="k" style="margin:4px 0 0">${esc(it.filter(x => !known.includes(x)).map(x => x.name).join('、'))}は、登録されている商品の名前と一致しないため表示していません。</p>` : ''}` : '<p class="k" style="margin:8px 0 0">持ち込み数を入力した商品がありません。商品名は、登録されている商品の名前で入力してください。</p>';
+    box.querySelectorAll('[data-evl]').forEach(b => b.onclick = () => evLabel(b.dataset.evl, +b.dataset.n));
+  };
+  if ($('ev-sfile')) $('ev-sfile').onchange = async () => {
+    const f = $('ev-sfile').files[0]; if (!f) return; $('ev-smsg').textContent = '読み取っています…';
+    try {
+      const r = await api({ kind: 'app_set', field: 'evread', value: { mode: 'stmt', file: await evFile(f) } });
+      if (!r.ok) throw new Error(r.error || '読み取れませんでした');
+      const d = r.draft; if (d.ssales) $('ev-ss').value = d.ssales; if (d.sfee) $('ev-sf').value = d.sfee; if (d.paid) $('ev-paid').value = d.paid;
+      $('ev-smsg').textContent = `読み取りました${d.period ? '(対象期間 ' + d.period + ')' : ''}。数字を確認してから保存してください`; recalc();
+    } catch (e) { $('ev-smsg').textContent = e.message || '読み取れませんでした'; }
+  };
+  const hygDraw = () => {
+    const b = $('eh-box'); if (!b) return; const day = $('eh-day').value, rec = E.hyg[day] || { c: [], t: '', memo: '' };
+    b.innerHTML = `<div class="ev-hg">${H.map(([k, l]) => `<label><input type="checkbox" class="eh-c" value="${k}"${rec.c.includes(k) ? ' checked' : ''}>${esc(l)}</label>`).join('')}</div>
+      <div class="fld" style="margin-top:6px"><span class="k">保冷の温度</span><span style="display:flex;gap:8px;align-items:center"><input id="eh-t" inputmode="decimal" style="width:6em" placeholder="例 5" value="${esc(rec.t || '')}"><span class="k">℃(クーラーボックス・冷蔵庫)</span></span>
+      <span class="k">気づいたこと</span><input id="eh-m" maxlength="200" placeholder="例 午後に氷を追加" value="${esc(rec.memo || '')}"></div>
+      <div class="ask"><button class="btn ghost sm" type="button" id="eh-go">衛生チェックを記録</button>${rec.by ? `<span class="k">${esc(rec.by)}さんが記録済み</span>` : ''}</div>`;
+    $('eh-go').onclick = async () => {
+      if (!E.id) return; const go = $('eh-go'); go.disabled = true;
+      const r = await api({ kind: 'app_set', field: 'evhyg', value: { id: E.id, date: day, checks: [...b.querySelectorAll('.eh-c:checked')].map(x => x.value), temp: $('eh-t').value, memo: $('eh-m').value } }).catch(() => ({ ok: false, error: '通信できませんでした' }));
+      go.disabled = false; if (!r.ok) { toast(r.error || '記録できませんでした'); return; }
+      D = r.data; renderAll(); const ne = D.shutten && D.shutten.list.find(e => e.id === E.id); if (ne) E.hyg = ne.hyg; hygDraw(); toast('衛生チェックを記録しました', 'ok');
+    };
+  };
+  if ($('eh-day')) { $('eh-day').onchange = hygDraw; hygDraw(); }
   $('ev-save').onclick = async () => {
-    const v = { id: E.id, kind: segV('ev-kind'), name: $('ev-name').value.trim(), from: $('ev-from').value, to: $('ev-to').value, place: $('ev-place').value.trim(), host: $('ev-host').value.trim(), items: read(), memo: $('ev-memo').value };
-    if (!hm) Object.assign(v, { fee: num($('ev-fee').value), rate: num($('ev-rate').value), settle: segV('ev-settle') || 'self', sales: num($('ev-sales').value), paid: $('ev-paid') ? num($('ev-paid').value) : 0 });
+    const v = { id: E.id, status: segV('ev-status'), kind: segV('ev-kind'), name: $('ev-name').value.trim(), from: $('ev-from').value, to: $('ev-to').value, place: $('ev-place').value.trim(), host: $('ev-host').value.trim(), deadline: $('ev-dl').value, cond: $('ev-cond').value, url: $('ev-url').value.trim(), items: read(), memo: $('ev-memo').value };
+    if (!hm) Object.assign(v, { fee: num($('ev-fee').value), rate: num($('ev-rate').value), settle: segV('ev-settle') || 'self', sales: num($('ev-sales').value), paid: $('ev-paid') ? num($('ev-paid').value) : E.paid, ssales: $('ev-ss') ? num($('ev-ss').value) : E.ssales, sfee: $('ev-sf') ? num($('ev-sf').value) : E.sfee });
     if (!v.name) { toast('出店先を入力してください'); $('ev-name').focus(); return; }
     if (!v.from) { toast('出店日を入力してください'); $('ev-from').focus(); return; }
+    if (v.url && !/^https?:\/\/\S+$/.test(v.url)) { toast('申込先のURLは https:// から入力してください'); $('ev-url').focus(); return; }
     const go = $('ev-save'); go.disabled = true;
     const r = await api({ kind: 'app_set', field: 'ev', value: v }).catch(() => ({ ok: false, error: '通信できませんでした' }));
     go.disabled = false;
