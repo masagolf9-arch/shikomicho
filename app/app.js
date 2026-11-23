@@ -2154,6 +2154,7 @@ function renderEv() {
   box.innerHTML = `${warn.length ? `<div class="card ev-warn"><b>有効期限が近い書類があります</b>${warn.map(d => `<button class="ev-row" type="button" data-evd="${esc(d.id)}"><span class="ev-n"><b>${esc(d.name)}</b><span class="k">${esc(d.kind)}${d.no ? '・' + esc(d.no) : ''}</span></span>${evDocBadge(d)}</button>`).join('')}</div>` : ''}
     ${hm ? '' : `<div class="card">${tiles([{ t: `${+mo.slice(5)}月の出店`, v: `${mine.length}<small>回</small>`, c: 'ev', k: '出店決定の分' }, { t: '売上(税込)', v: yen(sum('sales')), c: 'ev', k: '入力した実績の合計' }, { t: '出店料・歩合', v: yen(sum('feeAmt')), c: 'ev' }, { t: '差し引き', v: yen(sum('net')), c: 'ev', k: '売上から出店料・歩合を引いた額' }])}</div>`}
     ${evOpt() ? `<div class="card ev-opt"><div><b>出店先ごとの成績表</b><span class="k"><b>使い道:</b> 「次はどこに出るか」を決めるときに、出店先ごとの回数・平均の売上・出店料と歩合・差し引き・売れ残りの割合を見比べます。A4・Excelで書き出せます。</span></div><button class="btn ghost sm" type="button" id="ev-report">成績表を開く</button></div>` : (D.me && D.me.owner ? '<p class="k ev-optnote">出店先ごとの成績表・持ち込み表・申込の締め切りのお知らせは、オプション「出店(催事・キッチンカー)」でご利用いただけます(設定 → オプション)。</p>' : '')}
+    <div id="ev-news">${evOpt() ? '<div class="card"><p class="k" style="margin:0">募集を読み込んでいます…</p></div>' : `<div class="card ev-opt"><div><b>出店の募集(全国の一覧)</b><span class="k">自治体や主催者が公開している催事・キッチンカーの募集を、都道府県ごとにまとめています。オプションをお使いの店舗には、合う募集をLINEでお知らせします。</span></div><a class="btn ghost sm" href="/shutten" target="_blank" rel="noopener">一覧を開く</a></div>`}</div>
     <div class="chips" id="ev-chips" style="margin-top:16px">${[['all', 'すべて'], ...S.kinds.map(k => [k, k])].map(([k, l]) => `<button type="button" class="chip" data-evf="${esc(k)}" aria-pressed="${evF === k}">${l}</button>`).join('')}</div>
     <h1 class="sub">これからの出店・応募</h1>
     <div class="card">${next.length ? next.map(row).join('') : '<p class="k" style="margin:0">登録されている出店はありません。「＋ 出店を登録」から追加するか、届いた募集のお知らせを「お知らせを取り込む」から読み取ってください。</p>'}</div>
@@ -2166,6 +2167,40 @@ function renderEv() {
   box.querySelectorAll('[data-evf]').forEach(b => b.onclick = () => { evF = b.dataset.evf; renderEv(); });
   $('ev-doc-add').onclick = () => openEvDoc(null);
   if ($('ev-report')) $('ev-report').onclick = evReportOpen;
+  if (evOpt()) evNewsDraw();
+}
+// 新しい募集(オプション): 公開中の募集のうち、受け取る都道府県・種類に合うものと大型を並べる。「出店の記録に入れる」で検討中として登録
+const EV_REGIONS = [['北海道・東北', ['北海道', '青森県', '岩手県', '宮城県', '秋田県', '山形県', '福島県']], ['関東', ['茨城県', '栃木県', '群馬県', '埼玉県', '千葉県', '東京都', '神奈川県']], ['中部', ['新潟県', '富山県', '石川県', '福井県', '山梨県', '長野県', '岐阜県', '静岡県', '愛知県']], ['近畿', ['三重県', '滋賀県', '京都府', '大阪府', '兵庫県', '奈良県', '和歌山県']], ['中国・四国', ['鳥取県', '島根県', '岡山県', '広島県', '山口県', '徳島県', '香川県', '愛媛県', '高知県']], ['九州・沖縄', ['福岡県', '佐賀県', '長崎県', '熊本県', '大分県', '宮崎県', '鹿児島県', '沖縄県']]];
+let evNewsCache = null;
+async function evNewsDraw() {
+  const box = $('ev-news'); if (!box || !evOpt()) return;
+  if (!evNewsCache) { const r = await api({ kind: 'app_shutten' }).catch(() => null); evNewsCache = r && r.ok ? r.items : []; if (!$('ev-news')) return; }
+  const S = D.shutten, N = S.notice || { prefs: [], kinds: [], off: false }, prefs = N.prefs.length ? N.prefs : (S.myPref ? [S.myPref] : []);
+  const fit = b => b.big || (prefs.includes(b.pref) && (!N.kinds.length || N.kinds.includes(b.kind)));
+  const items = evNewsCache.filter(fit).sort((a, b) => (b.big - a.big) || (a.deadline || '9').localeCompare(b.deadline || '9'));
+  const td = todayS(), dl = d => { if (!d) return '締め切り 未定'; const n = Math.round((Date.parse(d + 'T00:00:00Z') - Date.parse(td + 'T00:00:00Z')) / 864e5); return `締め切り ${evDay(d)}${n === 0 ? '(本日)' : n > 0 ? `(あと${n}日)` : ''}`; };
+  box.innerHTML = `<div class="card"><div class="ev-h" style="margin-top:0"><div><h1 class="sub" style="margin:0">新しい募集</h1><p class="k">${prefs.length ? `${prefs.join('・')}${N.kinds.length ? '・' + N.kinds.join('・') : ''}の募集と、大型イベントを表示しています。` : '受け取る都道府県が未設定です。店舗の住所から判定できないため、下の「受け取る地域」で選んでください。'}</p></div><div class="acts"><a class="btn ghost sm" href="/shutten" target="_blank" rel="noopener">全国の一覧</a><button class="btn ghost sm" type="button" id="ev-nset">受け取る地域・種類</button></div></div>
+    ${items.length ? items.slice(0, 12).map(b => `<div class="ev-nw${b.big ? ' big' : ''}"><div class="ev-nwb">${b.big ? '<span class="pill warn">大型イベント</span>' : ''}<span class="pill${b.kind === 'キッチンカー' ? '' : ' gray'}">${esc(b.kind)}</span><b>${esc(b.name)}</b><span class="k">${esc(b.pref)}${b.city ? ' ' + esc(b.city) : ''}${b.from ? '・' + evDay(b.from) + (b.to && b.to !== b.from ? '〜' + evDay(b.to) : '') : ''}${b.place ? '・' + esc(b.place) : ''}</span><span class="k ev-dl">${dl(b.deadline)}${b.checked ? '・確認日 ' + esc(b.checked) : ''}</span></div><div class="ev-nwa">${b.url ? `<a class="btn ghost sm" href="${esc(b.url)}" target="_blank" rel="noopener">募集元</a>` : ''}${S.srcs && S.srcs[b.id] ? '<span class="pill">登録済み</span>' : `<button class="btn sm" type="button" data-evnew="${esc(b.id)}">出店の記録に入れる</button>`}</div></div>`).join('') : '<p class="k" style="margin:8px 0 0">いま表示できる募集はありません。新しい募集が公開されると、LINEでお知らせします。</p>'}
+    <div id="ev-nset-box" hidden></div></div>`;
+  box.querySelectorAll('[data-evnew]').forEach(b => b.onclick = () => { const it = evNewsCache.find(x => x.id === b.dataset.evnew); if (it) evFromNews(it); });
+  $('ev-nset').onclick = () => {
+    const w = $('ev-nset-box'); w.hidden = !w.hidden; if (w.hidden) return;
+    w.innerHTML = `<p class="k" style="margin:10px 0 6px">お知らせを受け取る都道府県(複数可)。何も選ばない場合は、店舗の住所の都道府県${S.myPref ? `(${esc(S.myPref)})` : ''}で受け取ります。大型イベントは、地域にかかわらずお知らせします。</p>
+      ${EV_REGIONS.map(([rn, ps]) => `<div class="k" style="margin:6px 0 2px"><b>${rn}</b></div><div class="chips" style="margin:0">${ps.map(p => `<button type="button" class="chip" data-np="${p}" aria-pressed="${N.prefs.includes(p)}">${p}</button>`).join('')}</div>`).join('')}
+      <p class="k" style="margin:10px 0 2px">種類(何も選ばない場合は両方)</p><div class="chips" style="margin:0">${S.kinds.map(k => `<button type="button" class="chip" data-nk="${k}" aria-pressed="${N.kinds.includes(k)}">${k}</button>`).join('')}</div>
+      <label class="k" style="display:flex;gap:8px;align-items:center;margin-top:10px"><input type="checkbox" id="ev-noff"${N.off ? ' checked' : ''}>LINEのお知らせを止める(画面の一覧には表示します)</label>
+      <div class="ask"><button class="btn sm" type="button" id="ev-nsave">保存する</button></div>`;
+    w.querySelectorAll('.chip').forEach(c => c.onclick = () => c.setAttribute('aria-pressed', c.getAttribute('aria-pressed') !== 'true'));
+    $('ev-nsave').onclick = async () => {
+      const v = { prefs: [...w.querySelectorAll('[data-np][aria-pressed="true"]')].map(x => x.dataset.np), kinds: [...w.querySelectorAll('[data-nk][aria-pressed="true"]')].map(x => x.dataset.nk), off: $('ev-noff').checked };
+      const r = await api({ kind: 'app_set', field: 'evnotice', value: v }).catch(() => ({ ok: false, error: '通信できませんでした' }));
+      if (!r.ok) { toast(r.error || '保存できませんでした'); return; }
+      D = r.data; renderAll(); toast('受け取る地域・種類を保存しました', 'ok');
+    };
+  };
+}
+function evFromNews(it) {
+  openEv(null, { kind: it.kind, name: it.name, from: it.from || todayS(), to: it.to || '', place: it.place || '', host: it.hostName || '', deadline: it.deadline || '', cond: it.cond || '', url: it.url || '', status: '検討中', src: it.id });
 }
 // 写真・PDFを読み込んで、送る形(base64)にする。PDFはそのまま、写真は縮める
 async function evFile(f) {
@@ -2299,7 +2334,7 @@ function openEv(id, draft) {
   };
   if ($('eh-day')) { $('eh-day').onchange = hygDraw; hygDraw(); }
   $('ev-save').onclick = async () => {
-    const v = { id: E.id, status: segV('ev-status'), kind: segV('ev-kind'), name: $('ev-name').value.trim(), from: $('ev-from').value, to: $('ev-to').value, place: $('ev-place').value.trim(), host: $('ev-host').value.trim(), deadline: $('ev-dl').value, cond: $('ev-cond').value, url: $('ev-url').value.trim(), items: read(), memo: $('ev-memo').value };
+    const v = { id: E.id, src: E.src || '', status: segV('ev-status'), kind: segV('ev-kind'), name: $('ev-name').value.trim(), from: $('ev-from').value, to: $('ev-to').value, place: $('ev-place').value.trim(), host: $('ev-host').value.trim(), deadline: $('ev-dl').value, cond: $('ev-cond').value, url: $('ev-url').value.trim(), items: read(), memo: $('ev-memo').value };
     if (!hm) Object.assign(v, { fee: num($('ev-fee').value), rate: num($('ev-rate').value), settle: segV('ev-settle') || 'self', sales: num($('ev-sales').value), paid: $('ev-paid') ? num($('ev-paid').value) : E.paid, ssales: $('ev-ss') ? num($('ev-ss').value) : E.ssales, sfee: $('ev-sf') ? num($('ev-sf').value) : E.sfee });
     if (!v.name) { toast('出店先を入力してください'); $('ev-name').focus(); return; }
     if (!v.from) { toast('出店日を入力してください'); $('ev-from').focus(); return; }
@@ -2841,6 +2876,7 @@ function show(t, quiet, keep) {
   if (tabLocked(t)) { toast(t === 'cost' ? '原価の画面は、店主が許可した方のみ閲覧できます' : '金額は、店主が表示を許可した方のみ閲覧できます'); t = 'today'; }
   if (t !== 'today' && t !== 'set' && SH(t)) t = 'today';
   const dir = tabs.indexOf(t) - tabs.indexOf(cur); if (t === 'set' && cur !== 'set') { supPrev = cur; loadSup(); } cur = t;
+  if (t === 'ev' && window.__shuttenQ) { const q = window.__shuttenQ; window.__shuttenQ = ''; api({ kind: 'app_shutten', id: q }).then(r => { if (r.ok) evFromNews(r.item); else toast(r.error || 'この募集は掲載を終了しています'); }).catch(() => {}); }
   if (t === 'mat') renderMat();
   if (t === 'label' && labelStale) renderLabel();
   tabs.forEach(x => { const el = $('t-' + x); el.hidden = x !== t; el.classList.remove('inR', 'inL'); });
@@ -4161,6 +4197,7 @@ if (CF) { $('ct-via').textContent = 'AIに「問い合わせ 〜」と入力し�
 rest();
 // 前に読んだ内容をすぐ出して、裏で新しいものを読み直す(電波が弱くても待たない)
 (() => { const c = cache.get(); if (c && c.products) { try { D = c; MLOCK = D.mlock || null; state(''); renderAll(); show(store.get('tab', 'today'), true); setTimeout(() => chat(hello(), 'greet'), 250); } catch (e) { D = null; } } })();
+try { const q = new URLSearchParams(location.search).get('shutten'); if (q) { window.__shuttenQ = q.replace(/[^A-Za-z0-9_-]/g, '').slice(0, 40); history.replaceState(null, '', location.pathname); store.set('tab', 'ev'); } } catch (e) {}
 (async () => {
   if (CF && !IN_LINE) { load(); return; }   // ホームページ: ログインの鍵(クッキー)で入る
   if (CF) {   // LINEの中でホームページを開いたとき: ログインの鍵があれば、それで入る
