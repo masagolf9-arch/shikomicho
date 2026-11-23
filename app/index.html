@@ -21,7 +21,7 @@
   --accent:#185fa5; --accent-ink:#fff; --soft:#e6f0fb; --ok:#1b7a4a; --ok-soft:#e3f3ea;
   --warn:#c43a2e; --warn-soft:#fdecea; --sun:#f2b632; --sun-ink:#3d2a00; --sun-soft:#fff3d6;
   --nav:#ffffff; --nav-ink:#6b7280; --nav-on:#185fa5;
-  --c-cam:#185fa5; --c-sort:#c2410c; --c-more:#6b7280; --c-cost:#d98a12; --c-label:#0f8c85; --c-mat:#2f9a4e; --c-stock:#e26a1a; --c-order:#b4531a; --c-hyg:#1a9ad6; --c-book:#5a4fcf; --c-ws:#8a5a2b; --c-ct:#2f7d6d; --c-post:#d63f78; --c-sales:#8a3fc2; --c-set:#6b7280; --c-home:#185fa5; --c-howto:#b5541c;
+  --c-cam:#185fa5; --c-sort:#c2410c; --c-more:#6b7280; --c-cost:#d98a12; --c-label:#0f8c85; --c-mat:#2f9a4e; --c-stock:#e26a1a; --c-order:#b4531a; --c-hyg:#1a9ad6; --c-book:#5a4fcf; --c-ws:#8a5a2b; --c-ev:#0e7490; --c-ct:#2f7d6d; --c-post:#d63f78; --c-sales:#8a3fc2; --c-set:#6b7280; --c-home:#185fa5; --c-howto:#b5541c;
   --mix:#ffffff; --shadow:0 1px 2px rgba(20,40,70,.05),0 8px 24px rgba(20,40,70,.06);
   --font:"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic UI","Meiryo",sans-serif;
   --round:var(--font);
@@ -998,6 +998,27 @@ body.pdet-on{overflow:hidden}
 .od-entry>div{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1 1 220px}
 .od-sup{display:flex;justify-content:space-between;align-items:center;gap:8px;width:100%;padding:12px 14px;margin-top:8px;border:1px solid var(--line);border-radius:10px;background:transparent;color:inherit;font:inherit;text-align:left;cursor:pointer}
 .od-sup:hover{border-color:var(--accent,#1a5fa0)}
+.ev-row{display:flex;align-items:center;gap:12px;width:100%;padding:12px 4px;border:0;border-bottom:1px solid var(--line);background:transparent;color:inherit;font:inherit;text-align:left;cursor:pointer}
+.ev-row:last-child{border-bottom:0}
+.ev-row:hover{background:color-mix(in srgb,var(--c-ev) 6%,transparent)}
+.ev-d{display:flex;flex-direction:column;align-items:flex-start;gap:4px;flex:0 0 13em}
+.ev-n{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0}
+.ev-n b{overflow-wrap:anywhere}
+.ev-v{display:flex;flex-direction:column;align-items:flex-end;gap:2px;text-align:right}
+.ev-warn{border-left:4px solid var(--warn)}
+.ev-warn>b{display:block;margin-bottom:4px}
+.ev-it{display:grid;grid-template-columns:minmax(0,2.4fr) repeat(3,minmax(0,1fr)) 3em minmax(0,1.2fr);gap:6px;align-items:center;margin-top:6px}
+.ev-it input{font:inherit;font-size:16px;padding:8px;border:1.5px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);min-width:0;width:100%;min-height:40px}
+.ev-ih{margin-top:0;font-size:12px}
+.ev-ir{text-align:center}
+.ev-sum{display:flex;flex-wrap:wrap;gap:8px 20px;margin:10px 0 4px;padding:10px 12px;border-radius:10px;background:color-mix(in srgb,var(--c-ev) 8%,transparent)}
+.ev-sum:empty{display:none}
+.ev-h{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-top:24px}
+.ev-h h1.sub{margin:0}
+.ev-h p.k{margin:4px 0 8px}
+.ed-img{margin:8px 0}
+.ed-img img{max-width:100%;max-height:320px;border-radius:8px;border:1px solid var(--line)}
+@media (max-width:520px){.ev-row{flex-wrap:wrap}.ev-d{flex-direction:row;align-items:center;flex:1 1 100%}.ev-v{width:100%;flex-direction:row;justify-content:space-between}.ev-it{grid-template-columns:repeat(3,minmax(0,1fr)) 2.5em minmax(0,1fr)}.ev-it .ev-in{grid-column:1/-1}.ev-ih span:first-child{grid-column:1/-1;display:none}}
 .od-row{display:grid;grid-template-columns:1fr 72px 64px;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
 .od-row .od-n{display:flex;flex-direction:column;min-width:0}
 .od-row input{min-width:0;font-size:16px;padding:8px}
@@ -1178,6 +1199,10 @@ body.pdet-on{overflow:hidden}
     <div class="chips" id="ws-chips" style="margin-top:16px"></div>
     <div class="stack" id="ws-list"></div>
   </section>
+  <section id="t-ev" hidden>
+    <div class="ph"><div><h1>出店</h1><p class="lead">催事・キッチンカーの出店先と日程を登録し、持ち込み数・販売数・出店料を記録します。許可証や保険の有効期限もお知らせします。</p></div><div class="acts"><button class="btn" type="button" id="ev-add-top">＋ 出店を登録</button></div></div>
+    <div id="ev-box"></div>
+  </section>
   <section id="t-post" hidden>
     <div class="ph"><div><h1>発信</h1><p class="lead">SNS用の画像・投稿文と、店頭用のPOP・値札・貼り紙を作成します。作成後に内容を編集することもできます。</p></div></div>
     <div class="card" id="post-plan" style="margin-bottom:12px"></div>
@@ -1238,6 +1263,6 @@ body.pdet-on{overflow:hidden}
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-<script src="app.js?v=211"></script>
+<script src="app.js?v=212"></script>
 </body>
 </html>

@@ -280,8 +280,13 @@ function todoItems(q) {
   // 印をつけた仕事に入っていないのに使っているもの → メニューの前に出すか聞く(1回押したら、今後表示しない)
   if (D.me && D.me.owner && Array.isArray(D.jobs)) jobSignals().filter(j => !D.jobs.includes(j)).forEach(j => { let seen = ''; try { seen = localStorage.getItem('shikomi:jobsug:' + j) || ''; } catch (e) {} if (seen) return; const l = { ws: ['卸', '卸の納品が入っています'], stock: ['在庫', '在庫の数が入っています'], cal: ['予定', '予定が入っています'] }[j]; t.push({ c: 'more', ic: 'more', b: `「${l[0]}」をメニューの上位に表示しますか`, k: l[1] + '。設定の「利用する業務」で選べます', d: '', star: 1, go: () => { try { localStorage.setItem('shikomi:jobsug:' + j, '1'); } catch (e) {} show('set'); setTimeout(() => { const el = $('jobs'); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 200); } }); });
   (D.memos || []).filter(m => !m.seen.includes(me)).slice(0, 3).forEach(m => t.push({ c: 'post', ic: 'memo', b: `連絡事項: ${m.text}`, k: `${m.by}から`, d: '', star: 3, go: () => $('memos').scrollIntoView({ behavior: 'smooth', block: 'start' }) }));
-  if (!noMoney()) unpaid().forEach(p => { const dd = p.due ? dayDiff(p.due) : null; if (dd == null || dd <= 7) t.push({ c: 'book', ic: 'book', b: `${p.supplier}に払う ${yen(p.total)}`, k: `${+p.month.slice(5) || p.month}月分`, d: dd == null ? '期限なし' : dd < 0 ? `${-dd}日超過` : dd === 0 ? '本日まで' : dd === 1 ? '明日まで' : md(p.due) + 'まで', due: dd != null && dd <= 1, star: dd != null && dd <= 1 ? 3 : 2, go: () => show('book') }); });
+  if (!noMoney()) unpaid().forEach(p => { const dd = p.due ? dayDiff(p.due) : null; if (dd == null || dd <= 7) t.push({ c: 'book', ic: 'book', b: `${p.supplier}への支払い ${yen(p.total)}`, k: `${+p.month.slice(5) || p.month}月分`, d: dd == null ? '期限なし' : dd < 0 ? `${-dd}日超過` : dd === 0 ? '本日まで' : dd === 1 ? '明日まで' : md(p.due) + 'まで', due: dd != null && dd <= 1, star: dd != null && dd <= 1 ? 3 : 2, go: () => show('book') }); });
   const regs = noMoney() ? [] : (D.priceChanges || []).filter(x => !x.done); if (regs.length) t.push({ c: 'sales', ic: 'sales', b: `レジの売価の変更 ${regs.length}品`, k: regs.slice(0, 3).map(x => `${x.name} ${x.old ? x.old + '→' : ''}${x.now}円`).join('・') + (regs.length > 3 ? ' ほか' : ''), d: regs.some(x => x.at && Date.now() - x.at > DAY) ? '昨日から' : '今日', star: 3, go: () => { $('reg-box').scrollIntoView({ behavior: 'smooth', block: 'start' }); } });
+  if (evOn()) {
+    const td = todayS();
+    D.shutten.list.filter(e => e.from <= td && e.to >= td || dayDiff(e.from) === 1).forEach(e => { const dd = dayDiff(e.from); t.push({ c: 'ev', ic: 'ev', b: `${dd === 1 ? '明日の出店' : '本日の出店'}: ${e.name}`, k: [e.kind, e.place].filter(Boolean).join('・'), d: dd === 1 ? '明日' : '今日', star: 2, go: () => openEv(e.id) }); });
+    evWarns().forEach(x => t.push({ c: 'ev', ic: 'ev', b: `${x.name}の有効期限${x.warn === 'out' ? 'が切れています' : 'が近づいています'}`, k: `${x.kind}・${evYmd(x.exp)}まで`, d: x.warn === 'out' ? '期限切れ' : x.days === 0 ? '本日まで' : `残り${x.days}日`, star: x.warn === 'out' ? 3 : 2, go: () => openEvDoc(x.id) }));
+  }
   const hm = hygMissing(); if (hm.length) t.push({ c: 'hyg', ic: 'hyg', b: `本日の衛生記録 残り${hm.length}つ`, k: hm.join('・'), d: '今日', star: new Date().getHours() >= 15 ? 3 : 2, go: () => show('hyg') });
   (D.promises || []).forEach(p => { const dd = p.date ? dayDiff(p.date) : null; if (dd != null && dd > 1) return; if (dd == null && !['折り返し', '返事'].includes(p.kind)) return; t.push({ c: PRK[p.kind] || 'set', ic: 'memo', b: `${p.kind}: ${p.text}`, k: `${p.who || ''}${p.who ? ' · ' : ''}${p.src}で受けた`, d: dd == null ? '期限なし' : prDue(p), due: dd != null && dd <= 0, star: dd != null && dd <= 0 ? 3 : 2, go: () => $('promises').scrollIntoView({ behavior: 'smooth', block: 'start' }) }); });
   (D.events || []).filter(e => { const dd = dayDiff(e.date); return dd >= 0 && dd <= 1; }).forEach(e => t.push({ c: EVK[e.kind] || 'set', ic: 'cal', b: `${e.kind === '納品' ? '納品: ' : ''}${e.text}${e.who ? '(' + e.who + ')' : ''}`, k: e.kind, d: dayDiff(e.date) === 0 ? '今日' : '明日', star: 2, go: () => show('cal') }));
@@ -706,7 +711,7 @@ function drawMembers(ms, plan, count) {
   box.querySelectorAll('[data-remove]').forEach(b => b.onclick = () => { if (confirmOnce('mem' + b.dataset.remove, `もう一度押すと、${b.dataset.n}さんをメンバーから削除します(すぐにログインできなくなります)`)) act(+b.dataset.remove, 'remove'); });
 }
 // パンくず(パソコン): ホーム › 原価 › 栗万十
-const TABNAME = { today: 'ホーム', cost: '原価', label: '食品表示', mat: '材料', book: '帳簿', hyg: '衛生記録', ws: '卸', ct: '仕入先・卸先', post: '発信', sales: '商品分析', set: '設定', cal: '予定', howto: '作り方' };
+const TABNAME = { today: 'ホーム', cost: '原価', label: '食品表示', mat: '材料', book: '帳簿', hyg: '衛生記録', ws: '卸', ev: '出店', ct: '仕入先・卸先', post: '発信', sales: '商品分析', set: '設定', cal: '予定', howto: '作り方' };
 function setCrumb(parts) {
   const c = $('crumb'); if (!c) return;
   if (cur === 'today' && !parts) { c.hidden = true; return; }
@@ -835,6 +840,7 @@ const IC = {
   order: '<path d="M6 9V3h9l3 3v3"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M7 17v4h10v-4"/><path d="M7 13h4"/>',
   hyg: '<path d="M10 4.5a2 2 0 0 1 4 0v9.2a4 4 0 1 1-4 0z"/><path d="M12 10v7"/><path d="M17 6h2.5M17 9.5h2.5"/>',
   book: '<rect x="4.5" y="3.5" width="15" height="17" rx="2"/><path d="M8.5 8h7M8.5 12h7M8.5 16h4"/>',
+  ev: '<path d="M3 9l2-5h14l2 5"/><path d="M3 9c0 1.7 1.3 3 3 3s3-1.3 3-3c0 1.7 1.3 3 3 3s3-1.3 3-3c0 1.7 1.3 3 3 3s3-1.3 3-3"/><path d="M5 12v8h14v-8"/><path d="M10 20v-5h4v5"/>',
   ws: '<path d="M3.5 9h11v10h-11z"/><path d="M14.5 12h3.5l2.5 3v4h-6z"/><circle cx="7" cy="19.5" r="1.6"/><circle cx="17.5" cy="19.5" r="1.6"/>',
   post: '<path d="M4 10v4h3l6 4V6L7 10z"/><path d="M16.5 9a4 4 0 0 1 0 6M19 6.5a7.5 7.5 0 0 1 0 11"/>',
   sales: '<path d="M4 19h16"/><path d="M6 15.5l4-5 3.5 3 4.5-6"/><path d="M14.5 7.5H18V11"/>',
@@ -848,7 +854,7 @@ const IC = {
 };
 // ---------- 入口をしぼる: 利用する業務で、メニューの前に出すものを決める ----------
 let MORE = false;
-const JOB_TABS = { ws: ['ws', 'ct'], stock: ['stock'], cal: ['cal'], sales: ['sales'], post: ['post'], howto: ['howto'] };
+const JOB_TABS = { ws: ['ws', 'ct'], stock: ['stock'], cal: ['cal'], sales: ['sales'], post: ['post'], howto: ['howto'], ev: ['ev'] };
 // 印をつける前は、いま使っているもの(卸の納品・在庫・予定がある)から決める
 function jobSignals() { const s = []; if (D && D.ws && Object.keys(D.ws).length) s.push('ws'); if (D && ((D.stock || {}).items || []).length) s.push('stock'); if (D && (D.events || []).length) s.push('cal'); return s; }
 function jobsNow() { return D && Array.isArray(D.jobs) ? D.jobs : jobSignals(); }
@@ -863,7 +869,7 @@ function renderMenu(q) {
   const low = ((D.stock || {}).items || []).filter(x => x.low).length, up = unpaid().length;
   const items0 = [
     ['cam', '撮影', openCamera, 0, 'p'], ...(CF ? [['sort', '取り込み一覧', sortOpen, (SORT || []).filter(x => x.state === '聞く' || x.state === '確かめ').length, (SORT || []).filter(x => x.state === '聞く').length]] : []), ['cost', '原価', () => show('cost')], ['label', sellFace() ? 'アレルゲン' : '食品表示', () => show('label')], ['howto', '作り方', () => show('howto')], ['mat', '材料', () => { matF = 'all'; show('mat'); }],
-    ...(SH('stock') ? [] : [['stock', '在庫', () => { matF = 'low'; show('mat'); }, low]]), ['hyg', '衛生', () => show('hyg'), hygMissing().length, hygMissing().length], ['book', '帳簿', () => show('book'), up], ['ws', '卸', () => show('ws')], ...(orderOn() ? [['order', '発注書', () => openOrder(), ((D.order || {}).sups || []).reduce((a, x) => a + (x.lowN || 0), 0)]] : []), ['ct', '仕入先・卸先', () => show('ct')], ...(SH('post') ? [] : [['post', '発信', () => show('post')]]), ['sales', '商品分析', () => show('sales')], ...(SH('cal') ? [] : [['cal', '予定', () => show('cal'), (D.events || []).filter(e => dayDiff(e.date) === 0).length]])];
+    ...(SH('stock') ? [] : [['stock', '在庫', () => { matF = 'low'; show('mat'); }, low]]), ['hyg', '衛生', () => show('hyg'), hygMissing().length, hygMissing().length], ['book', '帳簿', () => show('book'), up], ['ws', '卸', () => show('ws')], ...(orderOn() ? [['order', '発注書', () => openOrder(), ((D.order || {}).sups || []).reduce((a, x) => a + (x.lowN || 0), 0)]] : []), ['ct', '仕入先・卸先', () => show('ct')], ...(evOn() ? [['ev', '出店', () => show('ev'), evWarns().length, evWarns().filter(d => d.warn === 'out').length]] : []), ...(SH('post') ? [] : [['post', '発信', () => show('post')]]), ['sales', '商品分析', () => show('sales')], ...(SH('cal') ? [] : [['cal', '予定', () => show('cal'), (D.events || []).filter(e => dayDiff(e.date) === 0).length]])];
   // 前に出すのは、よく使う入口だけ。ほかは「その他の機能」にしまう(消さない)。スタッフは4つ
   const F = new Set(frontKeys()), vis = x => !(tabLocked(x[0]) || SH(x[0]));
   const restAll = items0.filter(x => !F.has(x[0]) && vis(x)), TAB0 = { stock: 'mat', mat: 'mat' };
@@ -874,7 +880,7 @@ function renderMenu(q) {
   m.innerHTML = items.map(([k, l, , b, w], i) => w === 'p' || tabLocked(k) || SH(k) ? '' : `<button type="button" data-i="${i}" style="--c:var(--c-${k})"><span class="ic${w === 'p' ? ' p' : ''}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[k]}</svg></span>${l}${b ? `<span class="badge">${b}</span>` : ''}</button>`).join('');
   m.querySelectorAll('button').forEach(b => b.onclick = () => items[b.dataset.i][2]());
   // パソコンの広い画面では、同じメニューを左に縦に並べる
-  const TAB = { cost: 'cost', howto: 'howto', label: 'label', mat: 'mat', hyg: 'hyg', book: 'book', ws: 'ws', ct: 'ct', post: 'post', sales: 'sales', cal: 'cal' };
+  const TAB = { cost: 'cost', howto: 'howto', label: 'label', mat: 'mat', hyg: 'hyg', book: 'book', ws: 'ws', ct: 'ct', post: 'post', sales: 'sales', cal: 'cal', ev: 'ev' };
   const all = [['home', 'ホーム', () => show('today'), 0, 0, 'today']].concat(items.map(x => [x[0], x[1], x[2], x[3] || 0, x[4] || 0, TAB[x[0]] || '']), [['set', '設定', () => show('set'), 0, 0, 'set']]);
   const side = $('side');
   side.innerHTML = `<div class="sname"><i></i>${esc(D.shop)}<small>${esc($('date').textContent)}</small></div>` + all.map(([k, l, , b, w, t], i) => tabLocked(k) || SH(k) ? '' : `<button type="button" data-i="${i}" data-tab="${t}" class="${w === 'p' ? 'p' : k === 'more' ? 'more' : ''}" style="--c:var(--c-${k})"${t && t === cur ? ' aria-current="page"' : ''}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[k]}</svg>${l}${b ? `<span class="badge">${b}</span>` : ''}</button>`).join('');
@@ -1084,7 +1090,7 @@ function renderPays() {
 }
 
 // 何もないときの箱(絵と一言と、次にすること)
-const EMPTY_IC = { cam: IC.cam, book: IC.book, ws: IC.ws, sales: IC.sales, label: IC.label };
+const EMPTY_IC = { cam: IC.cam, book: IC.book, ws: IC.ws, sales: IC.sales, label: IC.label, ev: IC.ev };
 function emptyBox(ic, title, text, btn) {
   return `<div class="card empty"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${EMPTY_IC[ic] || IC.cam}</svg></div><b>${title}</b><span class="k">${text}</span>${btn ? `<div><button class="btn" type="button" data-empty="${btn[1]}">${btn[0]}</button></div>` : ''}</div>`;
 }
@@ -2090,6 +2096,158 @@ function optBox() {
   const c = D.connOpts || {}, L = [['order', '発注書(FAXで送る)', '仕入先ごとの発注書を作成し、印刷・PDFにしてFAXで送信できます。取引のある品目と前回の数量がすぐに入力されます', true], ['spec', '商品規格書の書き出し', '取引先に提出する商品規格書(Excel)を、食品表示のデータから作成します。食品表示の画面から出力できます', true]];
   return L.filter(x => x[3] || c[x[0]]).map(([k, n, w]) => `<div class="opt-row"><div><b>${n}</b> ${c[k] ? '<span class="pill">お使いいただけます</span>' : '<span class="pill gray">お申し込み後にご利用いただけます</span>'}<div class="k">${w}</div></div>${c[k] ? (k === 'order' ? '<button class="btn" type="button" data-optgo="order">発注書を作成</button>' : '') : '<button class="btn ghost" type="button" data-optask="' + k + '">申し込む</button>'}</div>`).join('') + '<p class="k" style="margin:8px 0 0">オプションのお申し込み・解約は、「申し込む」または「相談」からご連絡ください。</p>';
 }
+// ---------- 出店(催事・キッチンカー) 第1段の標準部分(11/23) ----------
+// 出店先と日程の登録、持ち込み数・販売数・出店料の記録、許可証・保険の有効期限の管理。
+// もうけの見込みは出さない。表示するのは、そのお店が入力した実績だけ
+let evF = 'all';
+const evOn = () => !!(D && D.shutten);
+const evDay = s => s ? `${+s.slice(5, 7)}月${+s.slice(8, 10)}日(${'日月火水木金土'[new Date(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10)).getDay()]})` : '';
+const evSpan = e => e.to && e.to !== e.from ? `${evDay(e.from)}〜${e.to.slice(0, 7) === e.from.slice(0, 7) ? +e.to.slice(8, 10) + '日' : evDay(e.to)}` : evDay(e.from);
+const evYmd = s => s ? `${+s.slice(0, 4)}年${+s.slice(5, 7)}月${+s.slice(8, 10)}日` : '';
+const evDocBadge = d => d.warn === 'out' ? `<span class="pill warn">期限切れ(${evYmd(d.exp)})</span>` : d.warn === 'soon' ? `<span class="pill warn">${d.days === 0 ? '本日まで' : `残り${d.days}日`}</span>` : d.exp ? `<span class="pill">${evYmd(d.exp)}まで</span>` : '<span class="pill">期限なし</span>';
+function evWarns() { return evOn() ? D.shutten.docs.filter(d => d.warn) : []; }
+function renderEv() {
+  const box = $('ev-box'); if (!box) return;
+  if ($('ev-add-top')) { $('ev-add-top').hidden = !evOn(); $('ev-add-top').onclick = () => openEv(null); }
+  if (!evOn()) {
+    box.innerHTML = emptyBox('ev', '出店の記録はありません', '設定の「利用する業務」で「催事・キッチンカーへの出店」を選ぶと、この画面を使えます。');
+    return;
+  }
+  const S = D.shutten, td = todayS(), hm = !!S.hidden || noMoney();
+  const list = S.list.filter(e => evF === 'all' || e.kind === evF);
+  const next = list.filter(e => e.to >= td).sort((a, b) => a.from.localeCompare(b.from));
+  const past = list.filter(e => e.to < td);
+  const mo = td.slice(0, 7), mine = S.list.filter(e => e.from.slice(0, 7) === mo && e.from <= td);
+  const sum = k => mine.reduce((a, e) => a + (e.calc[k] || 0), 0);
+  const warn = evWarns();
+  const row = e => `<button class="ev-row" type="button" data-ev="${esc(e.id)}"><span class="ev-d"><b>${evSpan(e)}</b><span class="pill">${esc(e.kind)}</span></span><span class="ev-n"><b>${esc(e.name)}</b><span class="k">${esc([e.place, e.host].filter(Boolean).join('・'))}</span></span><span class="ev-v">${e.calc.bring ? `<span class="k">販売 ${e.calc.sold} / 持ち込み ${e.calc.bring}</span>` : '<span class="k">数量は未記録</span>'}${!hm && e.calc.net != null ? `<b>${yen(e.calc.net)}</b>` : ''}</span></button>`;
+  box.innerHTML = `${warn.length ? `<div class="card ev-warn"><b>有効期限が近い書類があります</b>${warn.map(d => `<button class="ev-row" type="button" data-evd="${esc(d.id)}"><span class="ev-n"><b>${esc(d.name)}</b><span class="k">${esc(d.kind)}${d.no ? '・' + esc(d.no) : ''}</span></span>${evDocBadge(d)}</button>`).join('')}</div>` : ''}
+    ${hm ? '' : `<div class="card">${tiles([{ t: `${+mo.slice(5)}月の出店`, v: `${mine.length}<small>回</small>`, c: 'ev' }, { t: '売上(税込)', v: yen(sum('sales')), c: 'ev', k: '入力した実績の合計' }, { t: '出店料・歩合', v: yen(sum('feeAmt')), c: 'ev' }, { t: '差し引き', v: yen(sum('net')), c: 'ev', k: '売上から出店料・歩合を引いた額' }])}</div>`}
+    <div class="chips" id="ev-chips" style="margin-top:16px">${[['all', 'すべて'], ...S.kinds.map(k => [k, k])].map(([k, l]) => `<button type="button" class="chip" data-evf="${esc(k)}" aria-pressed="${evF === k}">${l}</button>`).join('')}</div>
+    <h1 class="sub">これからの出店</h1>
+    <div class="card">${next.length ? next.map(row).join('') : '<p class="k" style="margin:0">登録されている出店はありません。「＋ 出店を登録」から追加してください。</p>'}</div>
+    <h1 class="sub">過去の出店</h1>
+    <div class="card">${past.length ? past.slice(0, 30).map(row).join('') + (past.length > 30 ? `<p class="k" style="margin:8px 0 0">ほか${past.length - 30}件</p>` : '') : '<p class="k" style="margin:0">記録はまだありません。</p>'}</div>
+    <div class="ev-h"><div><h1 class="sub">許可証・保険などの書類</h1><p class="k">有効期限の${S.warnDays}日前・7日前・前日・当日に、朝のお知らせでお伝えします。</p></div><button class="btn ghost sm" type="button" id="ev-doc-add">＋ 書類を登録</button></div>
+    <div class="card">${S.docs.length ? S.docs.map(d => `<button class="ev-row" type="button" data-evd="${esc(d.id)}"><span class="ev-n"><b>${esc(d.name)}</b><span class="k">${esc(d.kind)}${d.no ? '・番号 ' + esc(d.no) : ''}${d.img ? '・写真あり' : ''}</span></span>${evDocBadge(d)}</button>`).join('') : '<p class="k" style="margin:0">営業許可証・食品衛生責任者・PL保険・自動車検査証などを登録すると、有効期限をお知らせします。</p>'}</div>`;
+  box.querySelectorAll('[data-ev]').forEach(b => b.onclick = () => openEv(b.dataset.ev));
+  box.querySelectorAll('[data-evd]').forEach(b => b.onclick = () => openEvDoc(b.dataset.evd));
+  box.querySelectorAll('[data-evf]').forEach(b => b.onclick = () => { evF = b.dataset.evf; renderEv(); });
+  $('ev-doc-add').onclick = () => openEvDoc(null);
+}
+function openEv(id) {
+  const S = D.shutten || { list: [], kinds: ['催事', 'キッチンカー'], places: [] }, hm = !!S.hidden || noMoney();
+  const E = S.list.find(e => e.id === id) || { id: '', kind: S.kinds[0], name: '', from: todayS(), to: '', place: '', host: '', fee: 0, rate: 0, settle: 'self', items: [], sales: 0, paid: 0, memo: '' };
+  const prodPrice = n => { const p = (D.products || []).find(x => x.name === n); return p && p.price ? p.price : ''; };
+  const irow = x => `<div class="ev-it"><input class="ev-in" list="ev-pl" aria-label="商品名" placeholder="商品名" value="${esc(x.name || '')}"><input class="ev-ib" inputmode="numeric" aria-label="持ち込み数" placeholder="持ち込み" value="${x.bring || ''}"><input class="ev-is" inputmode="numeric" aria-label="販売数" placeholder="販売" value="${x.sold || ''}"><input class="ev-il" inputmode="numeric" aria-label="廃棄・試食" placeholder="廃棄等" value="${x.loss || ''}"><span class="ev-ir k"></span>${hm ? '' : `<input class="ev-ip" inputmode="numeric" aria-label="単価(税込)" placeholder="単価" value="${x.price || ''}">`}</div>`;
+  const prevSame = S.list.filter(e => e.id !== E.id && e.items.length).sort((a, b) => b.from.localeCompare(a.from));
+  openSheet(`<h2 style="margin:0 0 4px">${E.id ? '出店の記録' : '出店を登録'}</h2><p class="k" style="margin:0 0 10px">出店の前に予定を登録し、終わったら数量と売上を記録してください。</p>
+    <div class="fld"><span class="k">種類</span><div class="seg" id="ev-kind">${S.kinds.map(k => `<button type="button" data-v="${esc(k)}" aria-pressed="${E.kind === k}">${esc(k)}</button>`).join('')}</div>
+    <span class="k">出店先</span><input id="ev-name" list="ev-nl" maxlength="60" placeholder="例 〇〇百貨店 北海道物産展、〇〇公園 週末マルシェ" value="${esc(E.name)}"><datalist id="ev-nl">${S.places.map(p => `<option value="${esc(p)}">`).join('')}</datalist>
+    <span class="k">出店日</span><span style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><input id="ev-from" type="date" style="width:auto" value="${esc(E.from)}"><span class="k">〜</span><input id="ev-to" type="date" style="width:auto" value="${esc(E.to && E.to !== E.from ? E.to : '')}"><span class="k">1日のみの場合、終了日は空欄</span></span>
+    <span class="k">会場・場所</span><input id="ev-place" maxlength="80" placeholder="例 本館7階 催事場" value="${esc(E.place)}">
+    <span class="k">主催・担当</span><input id="ev-host" maxlength="60" placeholder="例 〇〇百貨店 催事担当、〇〇市 商工観光課" value="${esc(E.host)}">
+    ${hm ? '' : `<span class="k">出店料・歩合</span><span style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><input id="ev-fee" inputmode="numeric" style="width:7em" placeholder="0" value="${E.fee || ''}"><span class="k">円 ＋ 売上の</span><input id="ev-rate" inputmode="decimal" style="width:4.5em" placeholder="0" value="${E.rate || ''}"><span class="k">%</span></span>
+    <span class="k">売上の受け取り方</span><div class="seg" id="ev-settle"><button type="button" data-v="self" aria-pressed="${E.settle !== 'host'}">自店で受け取る</button><button type="button" data-v="host" aria-pressed="${E.settle === 'host'}">主催者・施設が精算</button></div>`}</div>
+    <h3 style="margin:16px 0 4px;font-size:15px">商品ごとの数量${hm ? '' : '・単価'}</h3><p class="k" style="margin:0 0 6px">残りは「持ち込み − 販売 − 廃棄等」で自動計算します。${hm ? '' : '単価は売価(税込)を初期値として入れています。'}</p>
+    <div class="ev-it ev-ih k"><span>商品名</span><span>持ち込み</span><span>販売</span><span>廃棄等</span><span>残り</span>${hm ? '' : '<span>単価</span>'}</div>
+    <div id="ev-items">${(E.items.length ? E.items : [{}, {}, {}]).map(irow).join('')}</div><datalist id="ev-pl">${(D.products || []).map(p => `<option value="${esc(p.name)}">`).join('')}</datalist>
+    <div class="ask" style="margin-top:6px"><button class="btn ghost sm" type="button" id="ev-row-add">＋ 行を追加</button>${prevSame.length ? '<button class="btn ghost sm" type="button" id="ev-prev">前回と同じ商品を入れる</button>' : ''}</div>
+    ${hm ? '' : `<div class="fld" style="margin-top:8px"><span class="k">売上(税込)</span><span style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><input id="ev-sales" inputmode="numeric" style="width:11em" placeholder="自動計算" value="${E.sales || ''}"><span class="k">円(空欄の場合は単価×販売数。レジの集計額があれば入力してください)</span></span>
+    <span class="k" id="ev-paid-l"${E.settle === 'host' ? '' : ' hidden'}>精算で受け取った額</span><span id="ev-paid-w" style="display:${E.settle === 'host' ? 'flex' : 'none'};gap:8px;align-items:center;flex-wrap:wrap"><input id="ev-paid" inputmode="numeric" style="width:9em" placeholder="精算書の振込額" value="${E.paid || ''}"><span class="k">円</span></span></div>
+    <div class="ev-sum" id="ev-sum"></div>`}
+    <div class="fld"><span class="k">メモ</span><textarea id="ev-memo" rows="2" maxlength="500" placeholder="例 雨で午後は客足が少なかった。釣銭は千円札を多めに" style="width:100%;font:inherit;font-size:15px;padding:8px 12px;border:1.5px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)">${esc(E.memo)}</textarea></div>
+    <div class="ask"><button class="btn" type="button" id="ev-save">保存する</button>${E.id ? '<button class="btn ghost" type="button" id="ev-del">削除</button>' : ''}</div>`);
+  const seg = id => { const el = $(id); if (!el) return; el.querySelectorAll('button').forEach(b => b.onclick = () => { el.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b)); if (id === 'ev-settle') { const h = b.dataset.v === 'host'; $('ev-paid-l').hidden = !h; $('ev-paid-w').style.display = h ? 'flex' : 'none'; } }); };
+  seg('ev-kind'); seg('ev-settle');
+  const segV = id => { const b = $(id) && $(id).querySelector('[aria-pressed="true"]'); return b ? b.dataset.v : ''; };
+  const num = v => { const n = Number(String(v || '').replace(/[,，円%\s]/g, '')); return n > 0 ? n : 0; };
+  const read = () => [...document.querySelectorAll('#ev-items .ev-it')].map(r => ({ name: r.querySelector('.ev-in').value.trim(), bring: num(r.querySelector('.ev-ib').value), sold: num(r.querySelector('.ev-is').value), loss: num(r.querySelector('.ev-il').value), price: r.querySelector('.ev-ip') ? num(r.querySelector('.ev-ip').value) : 0 })).filter(x => x.name);
+  const recalc = () => {
+    document.querySelectorAll('#ev-items .ev-it').forEach(r => { const b = num(r.querySelector('.ev-ib').value), s = num(r.querySelector('.ev-is').value), l = num(r.querySelector('.ev-il').value); r.querySelector('.ev-ir').textContent = b ? String(Math.max(0, b - s - l)) : ''; });
+    if (hm || !$('ev-sum')) return;
+    const it = read(), by = it.reduce((a, x) => a + x.sold * x.price, 0), sales = num($('ev-sales').value) || by, fee = num($('ev-fee').value) + Math.round(sales * num($('ev-rate').value) / 100);
+    $('ev-sales').placeholder = by ? `自動 ${by.toLocaleString('ja-JP')}` : '自動計算';
+    $('ev-sum').innerHTML = sales || fee ? `<span>売上 <b>${yen(sales)}</b></span><span>出店料・歩合 <b>${yen(fee)}</b></span><span>差し引き <b>${yen(sales - fee)}</b></span>` : '';
+  };
+  const bindRows = () => document.querySelectorAll('#ev-items .ev-it').forEach(r => {
+    r.querySelectorAll('input').forEach(i => i.oninput = recalc);
+    const n = r.querySelector('.ev-in'), p = r.querySelector('.ev-ip');
+    n.onchange = () => { if (p && !p.value) { const v = prodPrice(n.value.trim()); if (v) { p.value = v; recalc(); } } };
+  });
+  bindRows(); recalc();
+  ['ev-sales', 'ev-fee', 'ev-rate'].forEach(k => { if ($(k)) $(k).oninput = recalc; });
+  $('ev-row-add').onclick = () => { $('ev-items').insertAdjacentHTML('beforeend', irow({})); bindRows(); };
+  if ($('ev-prev')) $('ev-prev').onclick = () => {
+    const nm = $('ev-name').value.trim(), src = prevSame.find(e => e.name === nm) || prevSame[0];
+    $('ev-items').innerHTML = src.items.map(x => irow({ name: x.name, price: hm ? 0 : x.price || prodPrice(x.name) })).join(''); bindRows(); recalc();
+    toast(`${src.name}(${evDay(src.from)})と同じ商品を入れました。数量を入力してください`, 'ok');
+  };
+  $('ev-save').onclick = async () => {
+    const v = { id: E.id, kind: segV('ev-kind'), name: $('ev-name').value.trim(), from: $('ev-from').value, to: $('ev-to').value, place: $('ev-place').value.trim(), host: $('ev-host').value.trim(), items: read(), memo: $('ev-memo').value };
+    if (!hm) Object.assign(v, { fee: num($('ev-fee').value), rate: num($('ev-rate').value), settle: segV('ev-settle') || 'self', sales: num($('ev-sales').value), paid: $('ev-paid') ? num($('ev-paid').value) : 0 });
+    if (!v.name) { toast('出店先を入力してください'); $('ev-name').focus(); return; }
+    if (!v.from) { toast('出店日を入力してください'); $('ev-from').focus(); return; }
+    const go = $('ev-save'); go.disabled = true;
+    const r = await api({ kind: 'app_set', field: 'ev', value: v }).catch(() => ({ ok: false, error: '通信できませんでした' }));
+    go.disabled = false;
+    if (!r.ok) { toast(r.error || '保存できませんでした'); return; }
+    D = r.data; renderAll(); closeSheet(); toast(E.id ? '出店の記録を更新しました' : '出店を登録しました', 'ok');
+  };
+  if ($('ev-del')) $('ev-del').onclick = () => {
+    const b = $('ev-del'); if (b.dataset.sure) return;
+    b.dataset.sure = 1; b.textContent = '削除する(元に戻せません)'; b.style.cssText = 'background:var(--warn);border-color:var(--warn);color:#fff';
+    b.onclick = async () => {
+      const r = await api({ kind: 'app_set', field: 'ev', value: { id: E.id, del: true } }).catch(() => ({ ok: false, error: '通信できませんでした' }));
+      if (!r.ok) { toast(r.error || '削除できませんでした'); return; }
+      D = r.data; renderAll(); closeSheet(); toast('出店の記録を削除しました', 'ok');
+    };
+  };
+}
+function openEvDoc(id) {
+  const S = D.shutten || { docs: [], docKinds: ['営業許可証', 'その他'] };
+  const X = S.docs.find(d => d.id === id) || { id: '', kind: S.docKinds[0], name: '', no: '', exp: '', img: '', memo: '' };
+  openSheet(`<h2 style="margin:0 0 4px">${X.id ? '書類の内容' : '書類を登録'}</h2><p class="k" style="margin:0 0 10px">応募のたびに提出を求められる許可証や保険を、写真と有効期限で管理します。</p>
+    <div class="fld"><span class="k">種類</span><select id="ed-kind">${S.docKinds.map(k => `<option${k === X.kind ? ' selected' : ''}>${esc(k)}</option>`).join('')}</select>
+    <span class="k">名称</span><input id="ed-name" maxlength="60" placeholder="例 飲食店営業許可(キッチンカー)、生産物賠償責任保険" value="${esc(X.name)}">
+    <span class="k">番号</span><input id="ed-no" maxlength="40" placeholder="例 許可番号・証券番号・登録番号" value="${esc(X.no)}">
+    <span class="k">有効期限</span><input id="ed-exp" type="date" style="width:auto" value="${esc(X.exp)}">
+    <span class="k">備考</span><input id="ed-memo" maxlength="300" placeholder="例 千葉市保健所・更新は2か月前から" value="${esc(X.memo)}"></div>
+    <div class="ed-img" id="ed-img">${X.img ? '<span class="k">写真を読み込んでいます…</span>' : '<span class="k">写真は保存後に追加できます</span>'}</div>
+    <div class="ask"><button class="btn" type="button" id="ed-save">保存する</button>${X.id ? `<button class="btn ghost" type="button" id="ed-pic">${X.img ? '写真を差し替え' : '写真を追加'}</button><button class="btn ghost" type="button" id="ed-del">削除</button>` : ''}</div>`);
+  if (X.img) api({ kind: 'app_img_get', id: X.img }).then(r => { const b = $('ed-img'); if (!b) return; b.innerHTML = r.ok ? `<img alt="${esc(X.name)}の写真" src="data:${r.type};base64,${r.data}">` : '<span class="k">写真を表示できませんでした</span>'; }).catch(() => {});
+  $('ed-save').onclick = async () => {
+    const v = { id: X.id, kind: $('ed-kind').value, name: $('ed-name').value.trim(), no: $('ed-no').value.trim(), exp: $('ed-exp').value, memo: $('ed-memo').value.trim() };
+    const go = $('ed-save'); go.disabled = true;
+    const r = await api({ kind: 'app_set', field: 'evdoc', value: v }).catch(() => ({ ok: false, error: '通信できませんでした' }));
+    go.disabled = false;
+    if (!r.ok) { toast(r.error || '保存できませんでした'); return; }
+    D = r.data; renderAll(); toast(X.id ? '書類を更新しました' : '書類を登録しました。写真も追加できます', 'ok');
+    if (!X.id && r.id) openEvDoc(r.id); else closeSheet();
+  };
+  if ($('ed-pic')) $('ed-pic').onclick = () => {
+    const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*';
+    inp.onchange = async () => {
+      const f = inp.files[0]; if (!f) return; const b = $('ed-pic'); b.disabled = true; b.textContent = '送信しています…';
+      try {
+        const img64 = await shrinkStep(f);
+        const r = await api({ kind: 'app_img', doc: X.id, image: img64, type: 'image/jpeg' });
+        if (!r.ok) throw new Error(r.error || '送信できませんでした');
+        D = r.data; renderAll(); toast('写真を保存しました', 'ok'); openEvDoc(X.id);
+      } catch (e) { toast(e.message || '写真を送信できませんでした'); b.disabled = false; b.textContent = X.img ? '写真を差し替え' : '写真を追加'; }
+    };
+    inp.click();
+  };
+  if ($('ed-del')) $('ed-del').onclick = () => {
+    const b = $('ed-del'); if (b.dataset.sure) return;
+    b.dataset.sure = 1; b.textContent = '削除する(元に戻せません)'; b.style.cssText = 'background:var(--warn);border-color:var(--warn);color:#fff';
+    b.onclick = async () => {
+      const r = await api({ kind: 'app_img', doc: X.id, del: true }).catch(() => ({ ok: false, error: '通信できませんでした' }));
+      if (!r.ok) { toast(r.error || '削除できませんでした'); return; }
+      D = r.data; renderAll(); closeSheet(); toast('書類を削除しました', 'ok');
+    };
+  };
+}
 function openOrder(supName) {
   const O = D.order || { sups: [] };
   if (supName == null) {
@@ -2376,7 +2534,7 @@ function renderAll() {
 }
 function renderAllInner() {
   U = (D.words || {}).unit || '個';
-  renderToday(); renderIntake(); renderRegClose(); renderCost(); renderHowto(); if (cur === 'label') renderLabel(); else labelStale = true; renderMat(); renderBook(); renderHyg(); renderSales(); renderWs(); renderPost(); renderSet(); applyPlanLocks();
+  renderToday(); renderIntake(); renderRegClose(); renderCost(); renderHowto(); if (cur === 'label') renderLabel(); else labelStale = true; renderMat(); renderBook(); renderHyg(); renderSales(); renderEv(); renderWs(); renderPost(); renderSet(); applyPlanLocks();
   betaAsk(); mlockBar(); if (PK_KEYS) pkBanner(); else if (PK_OK && !window.__pkl) { window.__pkl = 1; pkLoad(); }
   stuckBind(); if (SORT) sortCard(); else if (CF && !window.__sortl) { window.__sortl = 1; sortLoad(); }
   $('shop').textContent = D.shop; if ($('shop2')) { $('shop2').textContent = D.shop; $('date2').textContent = $('date').textContent; }
@@ -2384,10 +2542,10 @@ function renderAllInner() {
 }
 
 // ---------- タブ ----------
-const tabs = ['today', 'hyg', 'sales', 'cost', 'howto', 'label', 'mat', 'book', 'ws', 'ct', 'post', 'cal', 'set'];
+const tabs = ['today', 'hyg', 'sales', 'cost', 'howto', 'label', 'mat', 'book', 'ws', 'ev', 'ct', 'post', 'cal', 'set'];
 let cur = 'today';
 // ---------- この画面についてご意見を送る(迷った所を集めて、画面を直す) ----------
-const SCREEN_NAME = { today: 'ホーム', cost: '原価', label: '表示', howto: '作り方', mat: '材料', hyg: '衛生', book: '帳簿', ws: '卸', ct: '仕入先・卸先', post: '発信', sales: '商品分析', cal: '予定', set: '設定' };
+const SCREEN_NAME = { today: 'ホーム', cost: '原価', label: '表示', howto: '作り方', mat: '材料', hyg: '衛生', book: '帳簿', ws: '卸', ev: '出店', ct: '仕入先・卸先', post: '発信', sales: '商品分析', cal: '予定', set: '設定' };
 function stuckBind() {
   const box = $('stuck'); if (!box || !CF || box.dataset.b) return; box.dataset.b = 1; box.hidden = false;
   const f = $('stuck-f'), b = $('stuck-b');
