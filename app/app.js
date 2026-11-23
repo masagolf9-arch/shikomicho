@@ -274,7 +274,7 @@ window.addEventListener('appinstalled', () => { store.set('a2hsHide', 1); const 
 // ---------- ホーム: 今日やること(1本のリスト。期限が近いもの・大事なものが上) ----------
 const DAY = 864e5, todayS = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 const dayDiff = s => Math.round((new Date(s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10)) - new Date(new Date().toDateString())) / DAY);
-const EVK = { '納品': 'ws', '催事': 'post', '休み': 'hyg', 'その他': 'set' };
+const EVK = { '納品': 'ws', '催事': 'post', '休み': 'hyg', 'その他': 'set', '出店': 'ev', '締切': 'ev' };
 function todoItems(q) {
   const t = [], me = profileName || '';
   // 印をつけた仕事に入っていないのに使っているもの → メニューの前に出すか聞く(1回押したら、今後表示しない)
@@ -469,11 +469,11 @@ $('pr-add').onclick = () => {
   $('pr-go').onclick = async () => { stop(); const v = $('pr-text').value.trim(); if (!v) { $('pr-text').focus(); return; } const b = $('pr-go'); b.disabled = true; b.textContent = '整理しています…'; await setValueX({ field: 'promise', value: { raw: v, src } }); if ($('pr-go')) { b.disabled = false; b.textContent = 'メモに登録'; } };
 };
 // 予定: ホームにはこれからの5件、予定の画面には月の表と一覧
-const evRow = (e, del) => `<li style="--c:var(--c-${EVK[e.kind] || 'set'})"${e.src === 'gcal' ? ' title="Googleカレンダーの予定"' : ''}><span class="ed"><b>${+e.date.slice(8)}</b><small>${+e.date.slice(5, 7)}月 ${['日', '月', '火', '水', '木', '金', '土'][new Date(e.date.slice(0, 4), +e.date.slice(5, 7) - 1, +e.date.slice(8)).getDay()]}</small></span><span class="ek">${esc(e.kind)}</span><span class="et">${esc(e.text)}${e.who ? `<span class="k">${esc(e.who)}</span>` : ''}${e.src === 'gcal' ? '<span class="k">Googleカレンダーから</span>' : e.by ? `<span class="k">${avatar(e.by, true)} ${esc(e.by)}</span>` : ''}${(e.notes || []).length ? `<ul class="notes">${e.notes.map(n => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}${del && e.src !== 'gcal' ? `<span class="ask" style="margin-top:8px"><input class="note-in" data-row="${e.row}" placeholder="補足" style="flex:1;min-width:0;font-size:13px;padding:4px 8px"><button class="btn ghost sm" type="button" data-note="${e.row}">追加</button></span>` : ''}</span>${del && e.src !== 'gcal' ? `<button class="x" type="button" data-del="${e.row}" aria-label="削除">✕</button>` : ''}</li>`;
+const evRow = (e, del) => `<li style="--c:var(--c-${EVK[e.kind] || 'set'})"${e.src === 'gcal' ? ' title="Googleカレンダーの予定"' : ''}><span class="ed"><b>${+e.date.slice(8)}</b><small>${+e.date.slice(5, 7)}月 ${['日', '月', '火', '水', '木', '金', '土'][new Date(e.date.slice(0, 4), +e.date.slice(5, 7) - 1, +e.date.slice(8)).getDay()]}</small></span><span class="ek">${esc(e.kind)}</span><span class="et">${esc(e.text)}${e.who ? `<span class="k">${esc(e.who)}</span>` : ''}${e.src === 'gcal' ? '<span class="k">Googleカレンダーから</span>' : e.src === 'ev' ? '<span class="k">出店の画面から</span>' : e.by ? `<span class="k">${avatar(e.by, true)} ${esc(e.by)}</span>` : ''}${(e.notes || []).length ? `<ul class="notes">${e.notes.map(n => `<li>${esc(n)}</li>`).join('')}</ul>` : ''}${del && !e.src ? `<span class="ask" style="margin-top:8px"><input class="note-in" data-row="${e.row}" placeholder="補足" style="flex:1;min-width:0;font-size:13px;padding:4px 8px"><button class="btn ghost sm" type="button" data-note="${e.row}">追加</button></span>` : ''}</span>${del && !e.src ? `<button class="x" type="button" data-del="${e.row}" aria-label="削除">✕</button>` : ''}</li>`;
 function renderHomeEvents() {
   if ($('home-ev-wrap')) $('home-ev-wrap').hidden = SH('cal');
   if (SH('cal')) return;
-  const box = $('home-events'), t = todayS(), evs = (D.events || []).filter(e => e.date >= t).slice(0, 5);
+  const box = $('home-events'), t = todayS(), evs = calEvs().filter(e => e.date >= t).slice(0, 5);
   box.innerHTML = evs.length ? `<ul class="evl">${evs.map(e => evRow(e)).join('')}</ul>` : `<p class="k" style="margin:0">今後の予定はありません。予定の画面から追加できます。</p>`;
   box.style.padding = evs.length ? '0' : '';
 }
@@ -550,12 +550,12 @@ function renderCal() {
   const box = $('cal'); if (!box) return;
   const now = new Date(), ym = calYM || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`, y = +ym.slice(0, 4), m = +ym.slice(5) - 1;
   const first = new Date(y, m, 1), start = new Date(y, m, 1 - first.getDay()), closed = (D.shopInfo || {}).closed || '', WD = ['日', '月', '火', '水', '木', '金', '土'], t = todayS();
-  const byDay = {}; (D.events || []).forEach(e => (byDay[e.date] = byDay[e.date] || []).push(e));
+  const byDay = {}; calEvs().forEach(e => (byDay[e.date] = byDay[e.date] || []).push(e));
   const HOL = Object.assign({}, jpHolidays(y - 1), jpHolidays(y), jpHolidays(y + 1));
   const cells = []; for (let i = 0; i < 42; i++) { const d = new Date(start.getTime() + i * DAY); if (i >= 35 && d.getMonth() !== m) break;
     const ds = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`, evs = byDay[ds] || [], wd = d.getDay();
     cells.push(`<div class="d${d.getMonth() !== m ? ' out' : ''}${ds === t ? ' today' : ''}${closed.includes(WD[wd]) ? ' closed' : ''}${HOL[ds] ? ' hol' : ''}${wd === 0 ? ' sun' : wd === 6 ? ' sat' : ''}" data-d="${ds}"${HOL[ds] ? ` title="${esc(HOL[ds])}"` : ''}><span class="dn">${d.getDate()}</span>${HOL[ds] ? `<span class="hn">${esc(HOL[ds])}</span>` : ''}${evs.slice(0, 2).map(e => `<span class="ev${e.src === 'gcal' ? ' g' : ''}" style="--c:var(--c-${EVK[e.kind] || 'set'})">${e.by && e.src !== 'gcal' ? `<i class="who" style="background:${avColor(e.by)}"></i>` : ''}${esc(e.text)}</span>`).join('')}${evs.length > 2 ? `<span class="k">+${evs.length - 2}</span>` : ''}</div>`); }
-  const list = (D.events || []).filter(e => e.date.slice(0, 7) === ym);
+  const list = calEvs().filter(e => e.date.slice(0, 7) === ym);
   box.innerHTML = `<div class="cal-h"><b>${y}年${m + 1}月</b><span class="seg"><button type="button" id="cal-prev" aria-label="前の月">‹</button><button type="button" id="cal-today">今月</button><button type="button" id="cal-next" aria-label="次の月">›</button></span></div>
     <div class="calg">${WD.map((w, i) => `<div class="wd${i === 0 ? ' sun' : i === 6 ? ' sat' : ''}">${w}</div>`).join('')}${cells.join('')}</div>
     <p class="k" style="margin:8px 0 0">薄い赤の日は定休日(設定で変更できます)、赤い日付は日曜・祝日です。日付を押すと、その日の予定を追加できます。点線はGoogleカレンダーの予定です。${(() => { const who = [...new Set((D.events || []).filter(e => e.by && e.src !== 'gcal').map(e => e.by))]; return who.length ? '丸の色は入れた人: ' + who.map(w => `<i class="who" style="background:${avColor(w)};display:inline-block;width:8px;height:8px;border-radius:50%;margin:0 4px 0 8px"></i>${esc(w)}`).join('') : ''; })()} 当日の朝8時に、今日の予定をLINEでお知らせします。</p>
@@ -2092,9 +2092,30 @@ async function specExport(products) {
 const orderOn = () => !!(D && D.connOpts && D.connOpts.order && D.order);
 const jpDay = t => { const d = new Date(t); return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`; };
 // 設定の「オプション」: このお店で使っているオプションと、使っていないもの(申し込み方)を並べる
+// オプション: 店主が設定画面でオン・オフする。押すと確認の画面が前に出て、「確定する」で反映する(11/23)
+const OPT_LIST = [
+  { id: 'order', name: '発注書(FAXで送る)', what: '仕入先ごとの発注書を作成し、FAXで送信できます。取引のある品目と前回の数量がすぐに入力されます', go: ['発注書を作成', () => openOrder()] },
+  { id: 'ev', name: '出店(催事・キッチンカー)', what: '内訳は催事とキッチンカーです。持ち込み表・準備表、出店先ごとの成績表(A4・Excel)、申込の締め切りと出店日の予定・前日のお知らせを使えます。出店の登録・記録・書類の期限管理は、オプションなしでもご利用いただけます', go: ['出店の画面を開く', () => show('ev')] }
+];
+const OPT_PRICE = '月額 1,100円(税込)';
 function optBox() {
-  const c = D.connOpts || {}, L = [['order', '発注書(FAXで送る)', '仕入先ごとの発注書を作成し、印刷・PDFにしてFAXで送信できます。取引のある品目と前回の数量がすぐに入力されます', true], ['spec', '商品規格書の書き出し', '取引先に提出する商品規格書(Excel)を、食品表示のデータから作成します。食品表示の画面から出力できます', true]];
-  return L.filter(x => x[3] || c[x[0]]).map(([k, n, w]) => `<div class="opt-row"><div><b>${n}</b> ${c[k] ? '<span class="pill">お使いいただけます</span>' : '<span class="pill gray">お申し込み後にご利用いただけます</span>'}<div class="k">${w}</div></div>${c[k] ? (k === 'order' ? '<button class="btn" type="button" data-optgo="order">発注書を作成</button>' : '') : '<button class="btn ghost" type="button" data-optask="' + k + '">申し込む</button>'}</div>`).join('') + '<p class="k" style="margin:8px 0 0">オプションのお申し込み・解約は、「申し込む」または「相談」からご連絡ください。</p>';
+  const c = D.connOpts || {};
+  return OPT_LIST.map(o => `<div class="opt-row"><div><b>${o.name}</b> ${c[o.id] ? '<span class="pill">ご利用中</span>' : '<span class="pill gray">未申込</span>'}<div class="k">${o.what}</div><div class="k">${OPT_PRICE}</div></div><div class="opt-acts">${c[o.id] ? `<button class="btn" type="button" data-optgo="${o.id}">${o.go[0]}</button>` : ''}<button class="btn ${c[o.id] ? 'ghost' : ''}" type="button" data-opt="${o.id}" data-on="${c[o.id] ? '0' : '1'}">${c[o.id] ? '解約する' : '申し込む'}</button></div></div>`).join('')
+    + `<p class="k" style="margin:8px 0 0">商品規格書の書き出しは、卸の機能(スタンダードプラン以上)に含まれます${c.spec ? '' : '。現在のプランではご利用いただけません'}。</p>`;
+}
+function optConfirm(id, on) {
+  const o = OPT_LIST.find(x => x.id === id); if (!o) return;
+  openSheet(`<h2 style="margin:0 0 8px">${on ? 'オプションのお申し込み' : 'オプションの解約'}</h2>
+    <div class="opt-cf"><b>${o.name}</b><span>${OPT_PRICE}</span></div>
+    <p class="k" style="margin:10px 0 0">${on ? '確定すると、すぐにご利用いただけます。先行導入の期間中は無料です。解約はこの画面からいつでも行えます。' : '確定すると、このオプションの機能は使えなくなります。これまでの記録は消えません。再度お申し込みいただくと、続きからご利用いただけます。'}</p>
+    <div class="ask" style="margin-top:14px"><button class="btn" type="button" id="opt-ok">${on ? '申し込みを確定する' : '解約を確定する'}</button><button class="btn ghost" type="button" id="opt-no">キャンセル</button></div>`);
+  $('opt-no').onclick = closeSheet;
+  $('opt-ok').onclick = async () => {
+    const b = $('opt-ok'); b.disabled = true;
+    const r = await api({ kind: 'app_set', field: 'opt', value: { id, on, ok: true } }).catch(() => ({ ok: false, error: '通信できませんでした' }));
+    b.disabled = false; if (!r.ok) { toast(r.error || '変更できませんでした'); return; }
+    D = r.data; renderAll(); closeSheet(); toast(on ? `「${o.name}」のお申し込みを受け付けました` : `「${o.name}」を解約しました`, 'ok');
+  };
 }
 // ---------- 出店(催事・キッチンカー) 第1段の標準部分(11/23) ----------
 // 出店先と日程の登録、届いたお知らせの取り込み、持ち込み数・販売数・出店料の記録、出店日の衛生チェック、
@@ -2132,6 +2153,7 @@ function renderEv() {
   const row = e => `<button class="ev-row${e.status === '見送り' ? ' off' : ''}" type="button" data-ev="${esc(e.id)}"><span class="ev-d"><b>${evSpan(e)}</b><span class="ev-pills"><span class="pill">${esc(e.kind)}</span>${evGo(e) ? '' : `<span class="pill${e.status === '見送り' ? ' gray' : ' warn'}">${esc(e.status)}</span>`}</span></span><span class="ev-n"><b>${esc(e.name)}</b><span class="k">${esc([e.place, e.host].filter(Boolean).join('・'))}</span></span><span class="ev-v">${right(e)}</span></button>`;
   box.innerHTML = `${warn.length ? `<div class="card ev-warn"><b>有効期限が近い書類があります</b>${warn.map(d => `<button class="ev-row" type="button" data-evd="${esc(d.id)}"><span class="ev-n"><b>${esc(d.name)}</b><span class="k">${esc(d.kind)}${d.no ? '・' + esc(d.no) : ''}</span></span>${evDocBadge(d)}</button>`).join('')}</div>` : ''}
     ${hm ? '' : `<div class="card">${tiles([{ t: `${+mo.slice(5)}月の出店`, v: `${mine.length}<small>回</small>`, c: 'ev', k: '出店決定の分' }, { t: '売上(税込)', v: yen(sum('sales')), c: 'ev', k: '入力した実績の合計' }, { t: '出店料・歩合', v: yen(sum('feeAmt')), c: 'ev' }, { t: '差し引き', v: yen(sum('net')), c: 'ev', k: '売上から出店料・歩合を引いた額' }])}</div>`}
+    ${evOpt() ? `<div class="card ev-opt"><div><b>出店先ごとの成績表</b><span class="k">出店先ごとの回数・平均の売上・出店料と歩合・差し引き・売れ残りの割合を比べ、A4・Excelで書き出せます。</span></div><button class="btn ghost sm" type="button" id="ev-report">成績表を開く</button></div>` : (D.me && D.me.owner ? '<p class="k ev-optnote">出店先ごとの成績表・持ち込み表・申込の締め切りのお知らせは、オプション「出店(催事・キッチンカー)」でご利用いただけます(設定 → オプション)。</p>' : '')}
     <div class="chips" id="ev-chips" style="margin-top:16px">${[['all', 'すべて'], ...S.kinds.map(k => [k, k])].map(([k, l]) => `<button type="button" class="chip" data-evf="${esc(k)}" aria-pressed="${evF === k}">${l}</button>`).join('')}</div>
     <h1 class="sub">これからの出店・応募</h1>
     <div class="card">${next.length ? next.map(row).join('') : '<p class="k" style="margin:0">登録されている出店はありません。「＋ 出店を登録」から追加するか、届いた募集のお知らせを「お知らせを取り込む」から読み取ってください。</p>'}</div>
@@ -2143,6 +2165,7 @@ function renderEv() {
   box.querySelectorAll('[data-evd]').forEach(b => b.onclick = () => openEvDoc(b.dataset.evd));
   box.querySelectorAll('[data-evf]').forEach(b => b.onclick = () => { evF = b.dataset.evf; renderEv(); });
   $('ev-doc-add').onclick = () => openEvDoc(null);
+  if ($('ev-report')) $('ev-report').onclick = evReportOpen;
 }
 // 写真・PDFを読み込んで、送る形(base64)にする。PDFはそのまま、写真は縮める
 async function evFile(f) {
@@ -2154,7 +2177,9 @@ function openEvRead() {
   openSheet(`<h2 style="margin:0 0 4px">お知らせを取り込む</h2><p class="k" style="margin:0 0 10px">主催者・施設・市町村から届いた出店の募集や依頼を読み取り、出店の登録画面に入力します。内容はこのお店の中だけに保存されます。</p>
     <div class="fld" style="grid-template-columns:1fr"><span class="k">メールやLINEの文章を貼り付け</span><textarea id="er-text" rows="7" maxlength="12000" placeholder="例 第5回 〇〇マルシェ 出店者募集 開催日 2027年4月18日(日) 会場 〇〇公園 出店料 3,000円 申込締切 3月10日…" style="width:100%;font:inherit;font-size:15px;padding:8px 12px;border:1.5px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)"></textarea></div>
     <div class="ask"><button class="btn" type="button" id="er-go">文章を読み取る</button><label class="btn ghost" style="cursor:pointer">チラシ・募集要項の写真(PDF)を選ぶ<input type="file" id="er-file" accept="image/*,application/pdf" hidden></label></div>
+    ${(SORT || []).some(x => x.photo) ? `<h3 class="ev-sh">LINEで送った写真から選ぶ</h3><p class="k" style="margin:0 0 6px">LINEに転送・送信したチラシの写真は「取り込み一覧」に入ります。ここから選んで読み取れます。</p><div class="er-ph">${(SORT || []).filter(x => x.photo).slice(0, 12).map(x => `<button type="button" class="er-pb" data-ph="${esc(x.photo)}" aria-label="${esc(x.title || '写真')}"><span class="k">${esc((x.title || '写真').slice(0, 16))}</span></button>`).join('')}</div>` : ''}
     <p class="k" id="er-msg" style="margin:8px 0 0">文章の読み取りは文案づくり、写真・PDFの読み取りは写真の読み取りの回数に含まれます。</p>`);
+  document.querySelectorAll('.er-pb').forEach(b => { const id = b.dataset.ph; const put = src => { const im = document.createElement('img'); im.src = src; im.alt = ''; b.prepend(im); }; if (sortImgs[id]) put(sortImgs[id]); else api({ kind: 'app_img_get', id }).then(r => { if (r.ok) { sortImgs[id] = 'data:' + r.type + ';base64,' + r.data; put(sortImgs[id]); } }).catch(() => {}); b.onclick = () => run({ photoId: id }); });
   const run = async body => {
     $('er-msg').textContent = '読み取っています…'; $('er-go').disabled = true;
     const r = await api({ kind: 'app_set', field: 'evread', value: Object.assign({ mode: 'notice' }, body) }).catch(() => ({ ok: false, error: '通信できませんでした' }));
@@ -2194,8 +2219,8 @@ function openEv(id, draft) {
     <h3 class="ev-sh">商品ごとの数量${hm ? '' : '・単価'}</h3><p class="k" style="margin:0 0 6px">残りは「持ち込み − 販売 − 廃棄等」で自動計算します。${hm ? '' : '単価は売価(税込)を初期値として入れています。'}</p>
     <div class="ev-it ev-ih k"><span>商品名</span><span>持ち込み</span><span>販売</span><span>廃棄等</span><span>残り</span>${hm ? '' : '<span>単価</span>'}</div>
     <div id="ev-items">${(E.items.length ? E.items : [{}, {}, {}]).map(irow).join('')}</div><datalist id="ev-pl">${(D.products || []).map(p => `<option value="${esc(p.name)}">`).join('')}</datalist>
-    <div class="ask" style="margin-top:6px"><button class="btn ghost sm" type="button" id="ev-row-add">＋ 行を追加</button>${prevSame.length ? '<button class="btn ghost sm" type="button" id="ev-prev">前回と同じ商品を入れる</button>' : ''}${E.id && !sellFace() ? '<button class="btn ghost sm" type="button" id="ev-lbl">出店分のラベルを印刷</button>' : ''}</div>
-    <div id="ev-lbls" hidden></div>
+    <div class="ask" style="margin-top:6px"><button class="btn ghost sm" type="button" id="ev-row-add">＋ 行を追加</button>${prevSame.length ? '<button class="btn ghost sm" type="button" id="ev-prev">前回と同じ商品を入れる</button>' : ''}${E.id && !sellFace() ? '<button class="btn ghost sm" type="button" id="ev-lbl">出店分のラベルを印刷</button>' : ''}${evOpt() ? '<button class="btn ghost sm" type="button" id="ev-prepb">持ち込み表・準備表</button>' : ''}</div>
+    <div id="ev-lbls" hidden></div><div id="ev-prep" class="ev-prep" hidden></div>
     ${hm ? '' : `<div class="fld" style="margin-top:8px"><span class="k">売上(税込)</span><span style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><input id="ev-sales" inputmode="numeric" style="width:11em" placeholder="自動計算" value="${E.sales || ''}"><span class="k">円(空欄の場合は単価×販売数。レジの集計額があれば入力してください)</span></span></div>
     <div class="ev-sum" id="ev-sum"></div>`}
     ${hm ? '' : `<div id="ev-stl"${E.settle === 'host' || hasStmt ? '' : ' hidden'}><h3 class="ev-sh">精算の照合</h3>${canSettle ? `<p class="k" style="margin:0 0 6px">主催者・施設から届いた精算書の数字を入力すると、自分の記録と突き合わせて差額を表示します。</p>
@@ -2238,6 +2263,12 @@ function openEv(id, draft) {
     $('ev-items').innerHTML = src.items.map(x => irow({ name: x.name, price: hm ? 0 : x.price || prodPrice(x.name) })).join(''); bindRows(); recalc();
     toast(`${src.name}(${evDay(src.from)})と同じ商品を入れました。数量を入力してください`, 'ok');
   };
+  if ($('ev-prepb')) $('ev-prepb').onclick = () => evPrepOpen(Object.assign({}, E, { name: $('ev-name').value.trim() || E.name, kind: segV('ev-kind') || E.kind }), read, rows => {
+    rows.forEach(x => { let r = [...document.querySelectorAll('#ev-items .ev-it')].find(el => el.querySelector('.ev-in').value.trim() === x.name);
+      if (!r) { r = [...document.querySelectorAll('#ev-items .ev-it')].find(el => !el.querySelector('.ev-in').value.trim()); if (!r) { $('ev-items').insertAdjacentHTML('beforeend', irow({})); bindRows(); r = [...document.querySelectorAll('#ev-items .ev-it')].pop(); } r.querySelector('.ev-in').value = x.name; const p = r.querySelector('.ev-ip'); if (p && !p.value) p.value = prodPrice(x.name); }
+      r.querySelector('.ev-ib').value = x.bring || ''; });
+    recalc();
+  });
   if ($('ev-lbl')) $('ev-lbl').onclick = () => {
     const box = $('ev-lbls'), it = read().filter(x => x.bring > 0), known = it.filter(x => (D.products || []).some(p => p.name === x.name && p.kind !== 'part'));
     box.hidden = false;
@@ -2333,11 +2364,107 @@ function openEvDoc(id) {
     };
   };
 }
+// ---------- 出店オプション(11/23): 持ち込み表・準備表、出店先ごとの成績表、予定と前日のお知らせ ----------
+// どれも、このお店が入力した実績だけから作る(見込みは出さない)
+const evOpt = () => !!(D && D.connOpts && D.connOpts.ev && D.shutten);
+const evFile0 = s => String(s || '').replace(/[\\/:*?"<>|\s]/g, '');
+const evYmdNow = () => { const d = new Date(); return `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`; };
+// 予定の画面に、出店日と申込の締め切りを並べる(オプション)
+function calEvs() {
+  const base = D.events || []; if (!evOpt()) return base;
+  const add = [];
+  D.shutten.list.forEach(e => {
+    if (evGo(e)) evDays(e).forEach((d, i, a) => add.push({ date: d, kind: '出店', text: e.name + (a.length > 1 ? `(${i + 1}/${a.length}日目)` : ''), src: 'ev', evid: e.id }));
+    else if ((e.status === '検討中' || e.status === '応募済み') && e.deadline) add.push({ date: e.deadline, kind: '締切', text: e.name + 'の申込締め切り', src: 'ev', evid: e.id });
+  });
+  return base.concat(add).sort((a, b) => a.date.localeCompare(b.date));
+}
+// 前回の同じ出店先(なければ同じ種類)の実績
+function evPrevOf(E) {
+  const past = D.shutten.list.filter(e => e.id !== E.id && evGo(e) && e.items.length && e.from < (E.from || todayS())).sort((a, b) => b.from.localeCompare(a.from));
+  return past.find(e => e.name === E.name) || null;
+}
+// 持ち込み表・準備表(A4)。前回の同じ出店先の実績を横に並べ、今回の数は入力した値を使う
+function evPrepHtml(E, rows, kit) {
+  const si = D.shopInfo || {}, P = evPrevOf(E);
+  const pm = {}; (P ? P.items : []).forEach(x => { pm[x.name] = x; });
+  const body = rows.map((x, i) => { const p = pm[x.name]; return `<tr><td class="c">${i + 1}</td><td>${esc(x.name)}</td><td class="r">${p ? p.bring : '—'}</td><td class="r">${p ? p.sold : '—'}</td><td class="r">${p ? Math.max(0, p.bring - p.sold - (p.loss || 0)) : '—'}</td><td class="r"><b>${x.bring || ''}</b></td><td class="r">${x.make || ''}</td><td class="c">□</td></tr>`; });
+  for (let i = body.length; i < 8; i++) body.push(`<tr><td class="c">${i + 1}</td><td></td><td></td><td></td><td></td><td></td><td></td><td class="c">□</td></tr>`);
+  const kitRows = []; for (let i = 0; i < kit.length; i += 2) kitRows.push(`<tr><td class="c">□</td><td>${esc(kit[i])}</td><td class="c">${kit[i + 1] ? '□' : ''}</td><td>${esc(kit[i + 1] || '')}</td></tr>`);
+  return `<div class="od-doc"><h1>持ち込み表・準備表</h1>
+    <div class="od-top"><div class="od-to"><div class="od-big">${esc(E.name)}</div><div>${esc(E.kind)}　${evSpan(E)}</div>${E.place ? `<div>会場　${esc(E.place)}</div>` : ''}${E.host ? `<div>主催・担当　${esc(E.host)}</div>` : ''}</div>
+      <div class="od-from"><div>作成日　${jpDay(Date.now())}</div><div class="od-shop">${esc(si.name || D.shop)}</div>${D.me && D.me.name ? `<div>作成者　${esc(D.me.name)}</div>` : ''}</div></div>
+    <p>${P ? `前回の同じ出店先(${evDay(P.from)})の実績を並べています。` : '同じ出店先の過去の実績はありません。'}今回の持ち込み数・仕込み数は、入力した値です。</p>
+    <table class="od-t"><tr><th style="width:6%">No.</th><th>商品名</th><th style="width:10%">前回<br>持ち込み</th><th style="width:10%">前回<br>販売</th><th style="width:10%">前回<br>残り</th><th style="width:11%">今回<br>持ち込み</th><th style="width:11%">仕込み数</th><th style="width:7%">積込</th></tr>${body.join('')}</table>
+    <h2 class="ev-ph">持ち物のチェック表</h2>
+    <table class="od-t"><tr><th style="width:6%">確認</th><th>持ち物</th><th style="width:6%">確認</th><th>持ち物</th></tr>${kitRows.join('')}</table>
+    <table class="od-t od-f"><tr><th style="width:24%">メモ</th><td style="height:60px">${esc(E.memo || '')}</td></tr></table></div>`;
+}
+// 出店の記録の画面の中に開く「持ち込み表・準備表」
+function evPrepOpen(E, readItems, setBring) {
+  const box = $('ev-prep'); if (!box) return;
+  const P = evPrevOf(E), pm = {}; (P ? P.items : []).forEach(x => { pm[x.name] = x; });
+  const cur = readItems(); const names = [...new Set(cur.map(x => x.name).concat(P ? P.items.map(x => x.name) : []))];
+  const kit = ((D.shutten.kit || {})[E.kind] || []).slice();
+  box.hidden = false;
+  box.innerHTML = `<p class="k" style="margin:8px 0 6px">${P ? `前回の同じ出店先(${evDay(P.from)})の実績を並べています。今回の持ち込み数と仕込み数を入力してください。` : '同じ出店先の過去の実績がないため、前回の欄は空欄です。'}</p>
+    <div class="ev-pp ev-pph k"><span>商品名</span><span>前回 持込/販売/残り</span><span>今回 持ち込み</span><span>仕込み数</span></div>
+    ${names.map(n => { const c = cur.find(x => x.name === n) || {}, p = pm[n]; return `<div class="ev-pp" data-n="${esc(n)}"><span>${esc(n)}</span><span class="k">${p ? `${p.bring} / ${p.sold} / ${Math.max(0, p.bring - p.sold - (p.loss || 0))}` : '—'}</span><input class="pp-b" inputmode="numeric" aria-label="今回の持ち込み数" value="${c.bring || (p ? p.bring : '') || ''}"><input class="pp-m" inputmode="numeric" aria-label="仕込み数" value="${c.bring || (p ? p.bring : '') || ''}"></div>`; }).join('')}
+    <details class="ev-kit"><summary>持ち物のチェック表(${esc(E.kind)}) ${kit.length}項目</summary><textarea id="pp-kit" rows="8" style="width:100%;font:inherit;font-size:15px;padding:8px 12px;border:1.5px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)">${esc(kit.join('\n'))}</textarea>
+      ${D.me && D.me.owner ? `<div class="ask"><button class="btn ghost sm" type="button" id="pp-kit-save">この内容を${esc(E.kind)}の標準にする</button><button class="btn ghost sm" type="button" id="pp-kit-reset">はじめの内容に戻す</button></div>` : ''}<p class="k" style="margin:4px 0 0">1行に1項目です。この画面で書き換えた内容は、印刷にだけ使います。</p></details>
+    <div class="ask"><button class="btn ghost sm" type="button" id="pp-apply">持ち込み数を出店の記録に入れる</button><button class="btn sm" type="button" id="pp-print">A4で印刷</button></div>`;
+  const rows = () => [...box.querySelectorAll('.ev-pp[data-n]')].map(r => ({ name: r.dataset.n, bring: +r.querySelector('.pp-b').value || 0, make: +r.querySelector('.pp-m').value || 0 })).filter(x => x.bring || x.make);
+  const kitNow = () => $('pp-kit').value.split('\n').map(s => s.trim()).filter(Boolean);
+  $('pp-apply').onclick = () => { setBring(rows()); toast('持ち込み数を出店の記録に入れました。保存してください', 'ok'); };
+  $('pp-print').onclick = () => { const r = rows(); if (!r.length) { toast('今回の持ち込み数を入力してください'); return; } openPrint(evPrepHtml(Object.assign({}, E, { name: $('ev-name').value.trim() || E.name, memo: $('ev-memo').value }), r, kitNow()), { bare: true }); };
+  const kitSend = async value => { const r = await api({ kind: 'app_set', field: 'evkit', value }).catch(() => ({ ok: false, error: '通信できませんでした' })); if (!r.ok) { toast(r.error || '保存できませんでした'); return; } D = r.data; toast('持ち物のチェック表を保存しました', 'ok'); $('pp-kit').value = ((D.shutten.kit || {})[E.kind] || []).join('\n'); };
+  if ($('pp-kit-save')) $('pp-kit-save').onclick = () => kitSend({ kind: E.kind, items: kitNow() });
+  if ($('pp-kit-reset')) $('pp-kit-reset').onclick = () => kitSend({ kind: E.kind, reset: true });
+}
+// 出店先ごとの成績表(オプション)。出店決定で、実績を入力した出店だけを数える
+function evReportData(from) {
+  const td = todayS(), g = {};
+  D.shutten.list.filter(e => evGo(e) && e.from <= td && (!from || e.from >= from) && (e.calc.bring || e.calc.sales)).forEach(e => {
+    const o = g[e.name] = g[e.name] || { name: e.name, kind: e.kind, n: 0, sales: 0, fee: 0, net: 0, bring: 0, left: 0, last: '' };
+    o.n++; o.sales += e.calc.sales || 0; o.fee += e.calc.feeAmt || 0; o.net += e.calc.net || 0; o.bring += e.calc.bring || 0; o.left += e.calc.left || 0; if (e.from > o.last) o.last = e.from;
+  });
+  return Object.values(g).map(o => Object.assign(o, { avgSales: o.sales / o.n, avgFee: o.fee / o.n, avgNet: o.net / o.n, leftRate: o.bring ? o.left / o.bring : null })).sort((a, b) => b.n - a.n || b.last.localeCompare(a.last));
+}
+const EV_PER = [['all', '全期間', null], ['y', '今年', () => todayS().slice(0, 4) + '-01-01'], ['12', '過去12か月', () => { const d = new Date(); d.setFullYear(d.getFullYear() - 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }]];
+let evPer = 'all';
+function evReportOpen() {
+  const hm = !!D.shutten.hidden || noMoney(), per = EV_PER.find(x => x[0] === evPer), rows = evReportData(per[2] ? per[2]() : null);
+  const pct = r => r == null ? '—' : Math.round(r * 100) + '%';
+  openSheet(`<h2 style="margin:0 0 4px">出店先ごとの成績表</h2><p class="k" style="margin:0 0 10px">出店決定で、数量か売上を入力した出店だけを集計しています。金額はすべて入力した実績からの計算です。</p>
+    <div class="seg" id="er-per">${EV_PER.map(([k, l]) => `<button type="button" data-v="${k}" aria-pressed="${k === evPer}">${l}</button>`).join('')}</div>
+    ${rows.length ? `<div class="er-wrap"><table class="er-t"><tr><th>出店先</th><th>回数</th>${hm ? '' : '<th>平均の売上</th><th>平均の出店料・歩合</th><th>平均の差し引き</th>'}<th>売れ残り</th></tr>${rows.map(o => `<tr><td><b>${esc(o.name)}</b><span class="k">${esc(o.kind)}・最終 ${evDay(o.last)}</span></td><td class="r">${o.n}回</td>${hm ? '' : `<td class="r">${yen(o.avgSales)}</td><td class="r">${yen(o.avgFee)}</td><td class="r"><b>${yen(o.avgNet)}</b></td>`}<td class="r">${pct(o.leftRate)}</td></tr>`).join('')}</table></div>
+    <p class="k" style="margin:6px 0 0">売れ残りは「残り ÷ 持ち込み」です(廃棄・試食は含みません)。</p>
+    <div class="ask"><button class="btn" type="button" id="er-print">A4で印刷</button><button class="btn ghost" type="button" id="er-xlsx">Excelに書き出し</button></div>` : '<p class="k" style="margin:12px 0 0">この期間に集計できる出店はありません。出店の記録に数量か売上を入力すると、ここに表示されます。</p>'}`);
+  $('er-per').querySelectorAll('button').forEach(b => b.onclick = () => { evPer = b.dataset.v; evReportOpen(); });
+  const title = `出店先ごとの成績表(${per[1]})`;
+  if ($('er-print')) $('er-print').onclick = () => {
+    const si = D.shopInfo || {};
+    openPrint(`<div class="od-doc"><h1>出店先ごとの成績表</h1><div class="od-top"><div class="od-to"><div>集計期間　${per[1]}</div><div>出店決定で、数量か売上を入力した出店のみ</div></div><div class="od-from"><div>作成日　${jpDay(Date.now())}</div><div class="od-shop">${esc(si.name || D.shop)}</div></div></div>
+      <table class="od-t"><tr><th>出店先</th><th style="width:9%">種類</th><th style="width:7%">回数</th>${hm ? '' : '<th style="width:13%">平均の売上</th><th style="width:13%">平均の出店料・歩合</th><th style="width:13%">平均の差し引き</th>'}<th style="width:9%">売れ残り</th></tr>
+      ${rows.map(o => `<tr><td>${esc(o.name)}</td><td class="c">${esc(o.kind)}</td><td class="r">${o.n}</td>${hm ? '' : `<td class="r">${yen(o.avgSales)}</td><td class="r">${yen(o.avgFee)}</td><td class="r"><b>${yen(o.avgNet)}</b></td>`}<td class="r">${pct(o.leftRate)}</td></tr>`).join('')}</table>
+      <p class="od-foot">金額は税込、入力した実績からの計算です。売れ残りは「残り ÷ 持ち込み」です。</p></div>`, { bare: true });
+  };
+  if ($('er-xlsx')) $('er-xlsx').onclick = () => {
+    const H = ['出店先', '種類', '回数', ...(hm ? [] : ['平均の売上(円)', '平均の出店料・歩合(円)', '平均の差し引き(円)', '売上の合計(円)', '差し引きの合計(円)']), '持ち込みの合計', '残りの合計', '売れ残りの割合(%)', '最後の出店日'];
+    const sh = { name: '成績表', cols: [30, 12, 8, ...(hm ? [] : [14, 18, 16, 14, 16]), 12, 12, 14, 14], rows: [
+      [{ v: title, s: 1, span: H.length }], [{ v: `${(D.shopInfo || {}).name || D.shop}　作成日 ${jpDay(Date.now())}　金額は税込・入力した実績からの計算`, s: 6, span: H.length }], [],
+      H.map(h => ({ v: h, s: 8 })),
+      ...rows.map(o => [{ v: o.name, s: 3 }, { v: o.kind, s: 3 }, { v: o.n, s: 3 }, ...(hm ? [] : [{ v: Math.round(o.avgSales), s: 3 }, { v: Math.round(o.avgFee), s: 3 }, { v: Math.round(o.avgNet), s: 3 }, { v: Math.round(o.sales), s: 3 }, { v: Math.round(o.net), s: 3 }]), { v: o.bring, s: 3 }, { v: o.left, s: 3 }, { v: o.leftRate == null ? '' : Math.round(o.leftRate * 1000) / 10, s: 3 }, { v: o.last, s: 3 }])
+    ], heights: { 0: 30 } };
+    const a = document.createElement('a'); a.href = URL.createObjectURL(xlsxBlob([sh])); a.download = `出店先ごとの成績表_${evFile0((D.shopInfo || {}).name || D.shop)}_${evYmdNow()}.xlsx`; document.body.appendChild(a); a.click(); a.remove();
+    toast('成績表(Excel)を書き出しました', 'ok');
+  };
+}
 function openOrder(supName) {
   const O = D.order || { sups: [] };
   if (supName == null) {
     openSheet(`<h2 style="margin:0 0 4px">発注書の作成</h2><p class="k" style="margin:0 0 10px">仕入先を選択してください。在庫が少ない材料がある仕入先を上に表示しています</p>
-      ${O.sups.length ? O.sups.map((x, i) => `<button class="od-sup" type="button" data-os="${i}"><b>${esc(x.name)}</b><span class="k">${x.lowN ? `<mark>そろそろ ${x.lowN}品</mark> ` : ''}${x.last ? `前回 ${jpDay(x.last.at).replace(/^\d+年/, '')}` : ''}${x.fax ? '' : ' FAX番号なし'}</span></button>`).join('') : '<p class="k">仕入先が登録されていません。請求書を撮影すると、仕入先と取引のある品目が登録されます</p>'}
+      ${O.sups.length ? O.sups.map((x, i) => `<button class="od-sup" type="button" data-os="${i}"><b>${esc(x.name)}</b><span class="k">${x.lowN ? `<mark>そろそろ ${x.lowN}品</mark> ` : ''}${x.last ? `前回 ${jpDay(x.last.at).replace(/^\d+年/, '')}${x.last.fax ? '・FAX' + x.last.fax.st : ''}` : ''}${x.fax ? '' : ' FAX番号なし'}</span></button>`).join('') : '<p class="k">仕入先が登録されていません。請求書を撮影すると、仕入先と取引のある品目が登録されます</p>'}
       <div class="fld" style="margin-top:12px"><span class="k">その他の仕入先</span><input id="od-new" placeholder="仕入先名"></div><div class="ask"><button class="btn ghost" type="button" id="od-new-go">この仕入先で作成</button></div>`);
     document.querySelectorAll('[data-os]').forEach(b => b.onclick = () => openOrder(O.sups[+b.dataset.os].name));
     $('od-new-go').onclick = () => { const n = $('od-new').value.trim(); if (!n) { $('od-new').focus(); return; } openOrder(n); };
@@ -2378,7 +2505,68 @@ function openOrder(supName) {
     go.disabled = false;
     if (!r.ok) { toast(r.error || '作れませんでした'); return; }
     if (r.data) { D = r.data; renderAll(); }
-    closeSheet(); openPrint(orderHtml(S, { no: r.no, lines, day, memo, fax }), { bare: true });
+    closeSheet(); const o = { no: r.no, lines, day, memo, fax }; openPrint(orderHtml(S, o), { bare: true }); orderFaxButton(S, o);
+  };
+}
+// ---------- 発注書のFAX送信(11/23 戦略室「自動送信機能入れる」) ----------
+// 画面で発注書をA4の画像に描き(日本語の字はブラウザの字を使う)、1枚のPDFにして入口へ渡す。入口が、運営の契約したFAXの会社に送る
+function orderFaxImage(S, o) {
+  const W = 1240, H = 1754, c = document.createElement('canvas'); c.width = W; c.height = H;
+  const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, W, H); g.fillStyle = '#000'; g.textBaseline = 'top';
+  const si = D.shopInfo || {}, F = 'sans-serif', M = 90; let y = 110;
+  const txt = (s, x, yy, size, bold, align) => { g.font = `${bold ? 'bold ' : ''}${size}px ${F}`; g.textAlign = align || 'left'; g.fillText(String(s || ''), x, yy); };
+  txt('発　注　書', W / 2, y, 54, true, 'center'); y += 110;
+  txt(`${S.name}　御中`, M, y, 38, true); txt(`No.　${o.no || ''}`, W - M, y, 24, false, 'right'); y += 52;
+  if (S.person) { txt(`ご担当　${S.person}　様`, M, y, 26); } txt(`発注日　${jpDay(Date.now())}`, W - M, y, 24, false, 'right'); y += 40;
+  txt(`FAX　${o.fax || ''}`, M, y, 26); txt(si.name || D.shop, W - M, y, 28, true, 'right'); y += 40;
+  const rl = [si.addr, [si.tel ? 'TEL ' + si.tel : '', si.fax ? 'FAX ' + si.fax : ''].filter(Boolean).join('　'), D.me && D.me.name ? '発注者　' + D.me.name : ''].filter(Boolean);
+  rl.forEach(s => { txt(s, W - M, y, 22, false, 'right'); y += 32; });
+  y += 20; txt('いつもお世話になっております。下記のとおり発注いたします。よろしくお願いいたします。', M, y, 24); y += 60;
+  const cols = [[0.08, 'No.'], [0.36, '品名'], [0.2, '規格'], [0.16, '数量'], [0.2, '備考']], TW = W - M * 2, rh = 58;
+  const rows = o.lines.map((l, i) => [String(i + 1), l.name, l.spec || '', `${l.qty} ${l.unit || ''}`, l.note || '']); for (let i = rows.length; i < 10; i++) rows.push([String(i + 1), '', '', '', '']);
+  g.lineWidth = 2; g.strokeStyle = '#000';
+  const drawRow = (cells, yy, head) => { let x = M; if (head) { g.fillStyle = '#e8e8e8'; g.fillRect(M, yy, TW, rh); g.fillStyle = '#000'; } cols.forEach(([w, h], i) => { const cw = TW * w; g.strokeRect(x, yy, cw, rh); const v = cells[i]; g.font = `${head || i === 3 ? 'bold ' : ''}24px ${F}`; g.textAlign = i === 0 ? 'center' : i === 3 ? 'right' : 'left'; let s = String(v); while (s.length > 1 && g.measureText(s).width > cw - 20) s = s.slice(0, -1); g.fillText(s, i === 0 ? x + cw / 2 : i === 3 ? x + cw - 12 : x + 12, yy + 16); x += cw; }); };
+  drawRow(cols.map(x => x[1]), y, true); y += rh; rows.forEach(r => { drawRow(r, y); y += rh; });
+  y += 40; const day = o.day ? jpDay(o.day.replace(/-/g, '/')) + `(${'日月火水木金土'[new Date(o.day.replace(/-/g, '/')).getDay()]})` : 'ご相談';
+  [['納品希望日', day], ['備考', o.memo || '']].forEach(([k, v]) => { g.fillStyle = '#e8e8e8'; g.fillRect(M, y, TW * 0.24, rh); g.fillStyle = '#000'; g.strokeRect(M, y, TW * 0.24, rh); g.strokeRect(M + TW * 0.24, y, TW * 0.76, rh); txt(k, M + 12, y + 16, 24, true); txt(v, M + TW * 0.24 + 12, y + 16, 24); y += rh; });
+  y += 40; txt('ご不明な点は、上記の電話番号までご連絡ください。', M, y, 22);
+  txt('ピタット原価で作成', W - M, H - 70, 18, false, 'right');
+  return c.toDataURL('image/jpeg', 0.82).split(',')[1];
+}
+// JPEG 1枚をA4のPDFに包む(外の部品を使わない)
+function jpegPdf(b64, w, h) {
+  const img = (() => { const bin = atob(b64), u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return u; })();
+  const enc = new TextEncoder(), parts = [], offs = []; let len = 0;
+  const push = s => { const u = typeof s === 'string' ? enc.encode(s) : s; parts.push(u); len += u.length; };
+  push('%PDF-1.4\n');
+  const obj = (n, body) => { offs[n] = len; push(`${n} 0 obj\n`); if (typeof body === 'string') push(body); else body(); push('\nendobj\n'); };
+  obj(1, '<< /Type /Catalog /Pages 2 0 R >>'); obj(2, '<< /Type /Pages /Kids [3 0 R] /Count 1 >>');
+  obj(3, '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /XObject << /Im1 4 0 R >> >> /Contents 5 0 R >>');
+  obj(4, () => { push(`<< /Type /XObject /Subtype /Image /Width ${w} /Height ${h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${img.length} >>\nstream\n`); push(img); push('\nendstream'); });
+  const ct = 'q 595 0 0 842 0 0 cm /Im1 Do Q'; obj(5, `<< /Length ${ct.length} >>\nstream\n${ct}\nendstream`);
+  const xref = len; push(`xref\n0 6\n0000000000 65535 f \n${[1, 2, 3, 4, 5].map(n => String(offs[n]).padStart(10, '0') + ' 00000 n \n').join('')}trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`);
+  const all = new Uint8Array(len); let p = 0; parts.forEach(u => { all.set(u, p); p += u.length; });
+  let s = ''; for (let i = 0; i < all.length; i += 0x8000) s += String.fromCharCode.apply(null, all.subarray(i, i + 0x8000)); return btoa(s);
+}
+function orderFaxButton(S, o) {
+  const bar = document.querySelector('#inv .bar3'); if (!bar || !(D.order && D.order.faxReady)) return;
+  const b = document.createElement('button'); b.className = 'btn'; b.type = 'button'; b.textContent = 'FAXを送信する'; bar.prepend(b);
+  b.onclick = () => {
+    if (!o.fax) { toast('送り先のFAX番号が入っていません。発注書を作り直して、FAX番号を入力してください'); return; }
+    openSheet(`<h2 style="margin:0 0 8px">FAXを送信します</h2><div class="opt-cf"><b>${esc(S.name)}</b><span>FAX ${esc(o.fax)}</span></div>
+      <p class="k" style="margin:10px 0 0">発注書(No. ${esc(o.no || '')}・${o.lines.length}品)を、上記の番号に送信します。送信後の取り消しはできません。番号をお確かめのうえ、確定してください。</p>
+      <div class="ask" style="margin-top:14px"><button class="btn" type="button" id="fx-ok">送信を確定する</button><button class="btn ghost" type="button" id="fx-no">キャンセル</button></div><p class="k" id="fx-msg" style="margin:8px 0 0"></p>`);
+    $('fx-no').onclick = closeSheet;
+    $('fx-ok').onclick = async () => {
+      const ok = $('fx-ok'); ok.disabled = true; $('fx-msg').textContent = '発注書を送信しています…';
+      try {
+        const pdf = jpegPdf(orderFaxImage(S, o), 1240, 1754);
+        const r = await api({ kind: 'app_fax', no: o.no, sup: S.name, fax: o.fax, pdf });
+        if (r.data) { D = r.data; renderAll(); }
+        if (!r.ok) throw new Error(r.error || '送信できませんでした');
+        closeSheet(); b.textContent = 'FAX送信済み'; b.disabled = true; toast(`${S.name}へFAXを送信しました`, 'ok');
+      } catch (e) { ok.disabled = false; $('fx-msg').textContent = e.message || '送信できませんでした'; }
+    };
   };
 }
 function orderHtml(S, o) {
@@ -2773,12 +2961,8 @@ function renderSet() {
     a2hsHelp();
   };
   $('set-ct').onclick = () => show('ct');
-  document.querySelectorAll('[data-optgo]').forEach(b => b.onclick = () => openOrder());
-  document.querySelectorAll('[data-optask]').forEach(b => b.onclick = async () => {
-    const nm = { order: '発注書(FAXで送る)', spec: '商品規格書の書き出し' }[b.dataset.optask]; b.disabled = true;
-    const r = await api({ kind: 'app_contact', cat: 'その他', text: `オプション「${nm}」の利用を申し込みます。` }).catch(() => ({ ok: false }));
-    b.disabled = false; toast(r.ok ? `「${nm}」のお申し込みを送信しました。運営よりご連絡します` : (r.error || '送信できませんでした'), r.ok ? 'ok' : undefined);
-  });
+  document.querySelectorAll('[data-optgo]').forEach(b => b.onclick = () => { const o = OPT_LIST.find(x => x.id === b.dataset.optgo); if (o) o.go[1](); });
+  document.querySelectorAll('[data-opt]').forEach(b => b.onclick = () => optConfirm(b.dataset.opt, b.dataset.on === '1'));
   renderMembers();
   const nb = document.querySelector('nav button[data-t="book"]'); if (nb) nb.style.display = noMoney() ? 'none' : '';
   $('hygnotice').querySelectorAll('button').forEach(b => b.onclick = () => setValueX({ field: 'hygnotice', value: b.dataset.v }));
