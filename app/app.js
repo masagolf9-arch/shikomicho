@@ -1545,7 +1545,7 @@ function qrDataUrl(text, size) {
 function qrBox() {
   if (!D.pubUrl) return '';
   const goods = D.products.filter(p => p.kind !== 'part'), shown = goods.filter(p => !p.pubHide).length, u = qrDataUrl(D.pubUrl, 300);
-  return `<div class="card" id="qr-card" style="margin-top:12px"><p style="margin:0 0 8px"><b>お客様向けのアレルゲン一覧(QR)</b> <span class="k">お客様がスマートフォンで読み取ると、商品ごとのアレルゲンを確認できます。ログインは不要で、原価・売価・原材料名は表示されません</span></p>
+  return `<div class="card" id="qr-card" style="margin-top:12px"><p style="margin:0 0 4px"><b>お客様向けのアレルゲン一覧(QR)</b></p><p class="k" style="margin:0 0 8px"><b>使い道:</b> 印刷してレジ横や商品の前に置きます。お客様がスマートフォンで読み取ると、商品ごとのアレルゲンを自分で確認できます。対面販売・店内飲食・催事など、ラベルを貼れない商品の案内に。「卵は入っていますか」と聞かれる手間が減ります。<br>ログインは不要で、原価・売価・原材料名は表示されません。レシピを変更すると自動で最新になります。</p>
     <div class="qrbox"><div class="qr">${u ? `<img src="${u}" alt="アレルゲン一覧のQRコード">` : '<span class="k">QRコードを作成できませんでした</span>'}</div>
     <div><p class="url" style="margin:0 0 6px">${esc(D.pubUrl)}</p><p class="k" style="margin:0 0 8px">掲載中の商品 ${shown}/${goods.length}品。レシピを変更すると、一覧にも反映されます。</p>
       <div class="ask" style="justify-content:flex-start"><a class="btn ghost sm" href="${esc(D.pubUrl)}" target="_blank" rel="noopener">開いて確認</a><button class="btn ghost sm" type="button" id="qr-a5">A5用紙に印刷</button><button class="btn ghost sm" type="button" id="qr-cards">名刺サイズで印刷(A4に10枚)</button><button class="btn ghost sm" type="button" id="qr-copy">URLをコピー</button>${D.me && D.me.owner ? '<button class="btn ghost sm" type="button" id="qr-renew">QRコードを再発行</button>' : ''}</div>
